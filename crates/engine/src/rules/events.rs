@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step};
+use crate::state::types::ManaColor;
 use crate::state::zone::ZoneId;
 
 /// Why a player lost the game.
@@ -90,4 +91,24 @@ pub enum GameEvent {
 
     /// An extra turn has been added to the queue.
     ExtraTurnAdded { player: PlayerId },
+
+    /// A land was played from hand to battlefield (CR 305.1).
+    LandPlayed {
+        player: PlayerId,
+        /// ObjectId of the land on the battlefield (new per CR 400.7).
+        new_land_id: ObjectId,
+    },
+
+    /// Mana was added to a player's mana pool (CR 605).
+    ManaAdded {
+        player: PlayerId,
+        color: ManaColor,
+        amount: u32,
+    },
+
+    /// A permanent became tapped (CR 701.21).
+    PermanentTapped {
+        player: PlayerId,
+        object_id: ObjectId,
+    },
 }

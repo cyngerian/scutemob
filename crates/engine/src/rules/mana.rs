@@ -1,0 +1,97 @@
+//! Mana ability activation (CR 605).
+//!
+//! Mana abilities are activated abilities that produce mana and don't target.
+//! They do not use the stack — they activate and resolve immediately.
+//! They can be activated any time a player has priority (CR 605.3b).
+//!
+//! For M3-A, only tap-activated mana abilities are supported.
+
+use crate::state::error::GameStateError;
+use crate::state::player::PlayerId;
+use crate::state::zone::ZoneId;
+use crate::state::GameState;
+use crate::state::game_object::ObjectId;
+
+use super::events::GameEvent;
+
+/// Handle a TapForMana command: activate a mana ability by tapping a permanent.
+///
+/// Validates priority, battlefield presence, controller, ability existence,
+/// and tap status. Taps the permanent (if required), adds mana to the pool.
+///
+/// Per CR 605.5, activating a mana ability is a special action. The player
+/// retains priority and `players_passed` is not reset.
+pub fn handle_tap_for_mana(
+    state: &mut GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability_index: usize,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Validate player has priority (CR 605.3b).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Fetch a clone of the source object to avoid borrow conflicts.
+    let obj = state.object(source)?.clone();
+
+    // 3. Validate source is on the battlefield.
+    if obj.zone != ZoneId::Battlefield {
+        return Err(GameStateError::ObjectNotOnBattlefield(source));
+    }
+
+    // 4. Validate player controls the source.
+    if obj.controller != player {
+        return Err(GameStateError::NotController {
+            player,
+            object_id: source,
+        });
+    }
+
+    // 5. Fetch the mana ability.
+    let ability = obj
+        .characteristics
+        .mana_abilities
+        .get(ability_index)
+        .ok_or(GameStateError::InvalidAbilityIndex {
+            object_id: source,
+            index: ability_index,
+        })?
+        .clone();
+
+    let mut events = Vec::new();
+
+    // 6. If the ability requires tapping: validate not already tapped, then tap.
+    if ability.requires_tap {
+        if obj.status.tapped {
+            return Err(GameStateError::PermanentAlreadyTapped(source));
+        }
+        let obj_mut = state.object_mut(source)?;
+        obj_mut.status.tapped = true;
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: source,
+        });
+    }
+
+    // 7. Add produced mana to the player's pool.
+    {
+        let player_state = state.player_mut(player)?;
+        for (color, amount) in &ability.produces {
+            player_state.mana_pool.add(*color, *amount);
+            events.push(GameEvent::ManaAdded {
+                player,
+                color: *color,
+                amount: *amount,
+            });
+        }
+    }
+
+    // 8. Player retains priority. players_passed is unchanged.
+    //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
+
+    Ok(events)
+}

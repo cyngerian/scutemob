@@ -1,0 +1,112 @@
+//! Playing lands (CR 305).
+//!
+//! Playing a land is a special action — it does not use the stack (CR 115.2a).
+//! The player simply puts the land onto the battlefield from hand.
+//!
+//! Legal conditions (CR 305.1):
+//! - It is the player's turn
+//! - The current step is a main phase (Precombat or Postcombat)
+//! - The stack is empty
+//! - The player has at least one land play remaining this turn
+//! - The card is a land in the player's hand
+
+use crate::state::error::GameStateError;
+use crate::state::player::PlayerId;
+use crate::state::turn::Step;
+use crate::state::types::CardType;
+use crate::state::zone::ZoneId;
+use crate::state::GameState;
+use crate::state::game_object::ObjectId;
+
+use super::events::GameEvent;
+
+/// Handle a PlayLand command: move a land from hand to battlefield.
+///
+/// Validates all CR 305.1 conditions. After the land enters the battlefield,
+/// `players_passed` is reset (a game action occurred), but the active player
+/// retains priority.
+pub fn handle_play_land(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Playing a land requires priority (CR 305.1: "whenever they have priority").
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Playing a land is restricted to the active player (CR 305.1).
+    if state.turn.active_player != player {
+        return Err(GameStateError::InvalidCommand(
+            "can only play a land during your own turn".into(),
+        ));
+    }
+
+    // 3. Must be a main phase (CR 305.1).
+    if !matches!(
+        state.turn.step,
+        Step::PreCombatMain | Step::PostCombatMain
+    ) {
+        return Err(GameStateError::NotMainPhase);
+    }
+
+    // 4. Stack must be empty (CR 305.1).
+    if !state.stack_objects.is_empty() {
+        return Err(GameStateError::StackNotEmpty);
+    }
+
+    // 5. Player must have land plays remaining.
+    let land_plays = state.player(player)?.land_plays_remaining;
+    if land_plays == 0 {
+        return Err(GameStateError::NoLandPlaysRemaining(player));
+    }
+
+    // 6. Fetch card and validate it is in the player's hand.
+    let card_obj = state.object(card)?;
+    if card_obj.zone != ZoneId::Hand(player) {
+        return Err(GameStateError::InvalidCommand(
+            "card is not in your hand".into(),
+        ));
+    }
+
+    // 7. Validate the card is a land.
+    if !card_obj
+        .characteristics
+        .card_types
+        .contains(&CardType::Land)
+    {
+        return Err(GameStateError::InvalidCommand(
+            "card is not a land".into(),
+        ));
+    }
+
+    // 8. Player must own (and thereby control) the card in hand.
+    //    Cards in hand are always controlled by their owner.
+    if card_obj.owner != player {
+        return Err(GameStateError::NotController {
+            player,
+            object_id: card,
+        });
+    }
+
+    // 9. Move the land from Hand to Battlefield (CR 305.1, CR 400.7).
+    let (new_land_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Battlefield)?;
+
+    // 10. Decrement land plays for this turn.
+    {
+        let player_state = state.player_mut(player)?;
+        player_state.land_plays_remaining -= 1;
+    }
+
+    // 11. Reset players_passed — a game action occurred, so the priority round
+    //     starts fresh. The active player retains priority (CR 117.3b).
+    state.turn.players_passed = im::OrdSet::new();
+
+    Ok(vec![GameEvent::LandPlayed {
+        player,
+        new_land_id,
+    }])
+}

@@ -6,9 +6,9 @@ pub mod state;
 // Convenience re-exports of primary types
 pub use state::{
     AbilityInstance, CardId, CardType, Characteristics, Color, CounterType, GameObject, GameState,
-    GameStateBuilder, GameStateError, KeywordAbility, ManaColor, ManaCost, ManaPool, ObjectId,
-    ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, Step, SubType,
-    SuperType, TurnState, Zone, ZoneId, ZoneType,
+    GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ManaPool,
+    ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, StackObject,
+    StackObjectKind, Step, SubType, SuperType, TurnState, Zone, ZoneId, ZoneType,
 };
 
 pub use rules::engine::process_command;

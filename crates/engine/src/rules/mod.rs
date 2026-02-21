@@ -5,6 +5,8 @@
 pub mod command;
 pub mod engine;
 pub mod events;
+pub mod lands;
+pub mod mana;
 pub mod priority;
 pub mod turn_actions;
 pub mod turn_structure;

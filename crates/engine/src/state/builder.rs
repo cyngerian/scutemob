@@ -6,7 +6,7 @@
 
 use im::{OrdMap, OrdSet, Vector};
 
-use super::game_object::{Characteristics, GameObject, ManaCost, ObjectId, ObjectStatus};
+use super::game_object::{Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus};
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, SubType, SuperType};
@@ -239,6 +239,7 @@ impl GameStateBuilder {
                 subtypes: spec.subtypes.into_iter().collect(),
                 rules_text: String::new(),
                 abilities: Vector::new(),
+                mana_abilities: spec.mana_abilities.into_iter().collect(),
                 power: spec.power,
                 toughness: spec.toughness,
                 loyalty: spec.loyalty,
@@ -355,6 +356,7 @@ pub struct ObjectSpec {
     pub tapped: bool,
     pub counters: Vec<(CounterType, u32)>,
     pub is_token: bool,
+    pub mana_abilities: Vec<ManaAbility>,
 }
 
 impl ObjectSpec {
@@ -377,6 +379,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -399,6 +402,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -421,6 +425,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -443,6 +448,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -465,6 +471,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -487,6 +494,7 @@ impl ObjectSpec {
             tapped: false,
             counters: Vec::new(),
             is_token: false,
+            mana_abilities: Vec::new(),
         }
     }
 
@@ -549,6 +557,12 @@ impl ObjectSpec {
 
     pub fn with_loyalty(mut self, loyalty: i32) -> Self {
         self.loyalty = Some(loyalty);
+        self
+    }
+
+    /// Add a mana ability to this object (CR 605).
+    pub fn with_mana_ability(mut self, ability: ManaAbility) -> Self {
+        self.mana_abilities.push(ability);
         self
     }
 }

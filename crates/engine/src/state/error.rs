@@ -42,4 +42,28 @@ pub enum GameStateError {
 
     #[error("invalid command: {0}")]
     InvalidCommand(String),
+
+    #[error("object {0:?} is not on the battlefield")]
+    ObjectNotOnBattlefield(ObjectId),
+
+    #[error("player {player:?} does not control object {object_id:?}")]
+    NotController {
+        player: PlayerId,
+        object_id: ObjectId,
+    },
+
+    #[error("permanent {0:?} is already tapped")]
+    PermanentAlreadyTapped(ObjectId),
+
+    #[error("player {0:?} has no land plays remaining this turn")]
+    NoLandPlaysRemaining(PlayerId),
+
+    #[error("object {object_id:?} has no mana ability at index {index}")]
+    InvalidAbilityIndex { object_id: ObjectId, index: usize },
+
+    #[error("this action requires a main phase")]
+    NotMainPhase,
+
+    #[error("this action requires an empty stack")]
+    StackNotEmpty,
 }

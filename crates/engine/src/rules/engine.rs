@@ -10,6 +10,8 @@ use crate::state::GameState;
 
 use super::command::Command;
 use super::events::GameEvent;
+use super::lands;
+use super::mana;
 use super::priority::{self, PriorityResult};
 use super::turn_actions;
 use super::turn_structure;
@@ -39,6 +41,20 @@ pub fn process_command(
         Command::Concede { player } => {
             validate_player_exists(&state, player)?;
             let events = handle_concede(&mut state, player)?;
+            all_events.extend(events);
+        }
+        Command::TapForMana {
+            player,
+            source,
+            ability_index,
+        } => {
+            validate_player_active(&state, player)?;
+            let events = mana::handle_tap_for_mana(&mut state, player, source, ability_index)?;
+            all_events.extend(events);
+        }
+        Command::PlayLand { player, card } => {
+            validate_player_active(&state, player)?;
+            let events = lands::handle_play_land(&mut state, player, card)?;
             all_events.extend(events);
         }
     }

@@ -4,7 +4,7 @@ use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
 use super::player::{CardId, PlayerId};
-use super::types::{CardType, Color, CounterType, SubType, SuperType};
+use super::types::{CardType, Color, CounterType, ManaColor, SubType, SuperType};
 use super::zone::ZoneId;
 
 /// Identifies a game object instance. Per CR 400.7, when an object changes
@@ -31,6 +31,36 @@ impl ManaCost {
     }
 }
 
+/// A mana ability: an activated ability that produces mana (CR 605).
+///
+/// Mana abilities do not use the stack and resolve immediately. They can be
+/// activated any time a player has priority or is paying a cost (CR 605.3b).
+///
+/// For M3-A, only tap-activated mana abilities are supported (the most common
+/// case: basic lands, dual lands, etc.). Future milestones will add additional
+/// cost components (pay life, sacrifice a permanent, etc.).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ManaAbility {
+    /// The mana produced when this ability resolves, keyed by color.
+    /// e.g., `{Green: 1}` for a Forest's "{T}: Add {G}".
+    pub produces: OrdMap<ManaColor, u32>,
+    /// True if activating this ability requires tapping the source permanent.
+    /// Most land mana abilities require tapping. Some do not (future milestone).
+    pub requires_tap: bool,
+}
+
+impl ManaAbility {
+    /// Convenience constructor: tap this permanent to add one mana of `color`.
+    pub fn tap_for(color: ManaColor) -> Self {
+        let mut produces = OrdMap::new();
+        produces.insert(color, 1);
+        Self {
+            produces,
+            requires_tap: true,
+        }
+    }
+}
+
 /// The observable characteristics of a game object (CR 109.3).
 ///
 /// These are the copiable values of an object — what a copy effect copies.
@@ -45,6 +75,8 @@ pub struct Characteristics {
     pub subtypes: OrdSet<SubType>,
     pub rules_text: String,
     pub abilities: Vector<AbilityInstance>,
+    /// Mana abilities on this object (CR 605). Activated in-place without the stack.
+    pub mana_abilities: Vector<ManaAbility>,
     pub power: Option<i32>,
     pub toughness: Option<i32>,
     pub loyalty: Option<i32>,

@@ -13,12 +13,11 @@ use blake3::Hasher;
 use im::{OrdMap, OrdSet, Vector};
 
 use super::game_object::{
-    AbilityInstance, Characteristics, GameObject, ManaCost, ObjectId, ObjectStatus,
+    AbilityInstance, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
-use super::stubs::{
-    CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, StackObject, TriggeredAbility,
-};
+use super::stack::{StackObject, StackObjectKind};
+use super::stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
@@ -312,6 +311,13 @@ impl HashInto for AbilityInstance {
     }
 }
 
+impl HashInto for ManaAbility {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.produces.hash_into(hasher);
+        self.requires_tap.hash_into(hasher);
+    }
+}
+
 impl HashInto for Characteristics {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.name.hash_into(hasher);
@@ -323,6 +329,7 @@ impl HashInto for Characteristics {
         self.subtypes.hash_into(hasher);
         self.rules_text.hash_into(hasher);
         self.abilities.hash_into(hasher);
+        self.mana_abilities.hash_into(hasher);
         self.power.hash_into(hasher);
         self.toughness.hash_into(hasher);
         self.loyalty.hash_into(hasher);
@@ -425,10 +432,38 @@ impl HashInto for TriggeredAbility {
     }
 }
 
+impl HashInto for StackObjectKind {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            StackObjectKind::Spell { source_object } => {
+                0u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
+            StackObjectKind::ActivatedAbility {
+                source_object,
+                ability_index,
+            } => {
+                1u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                ability_index.hash_into(hasher);
+            }
+            StackObjectKind::TriggeredAbility {
+                source_object,
+                ability_index,
+            } => {
+                2u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                ability_index.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for StackObject {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
         self.controller.hash_into(hasher);
+        self.kind.hash_into(hasher);
     }
 }
 
@@ -517,6 +552,29 @@ impl HashInto for GameEvent {
             GameEvent::ExtraTurnAdded { player } => {
                 14u8.hash_into(hasher);
                 player.hash_into(hasher);
+            }
+            GameEvent::LandPlayed {
+                player,
+                new_land_id,
+            } => {
+                15u8.hash_into(hasher);
+                player.hash_into(hasher);
+                new_land_id.hash_into(hasher);
+            }
+            GameEvent::ManaAdded {
+                player,
+                color,
+                amount,
+            } => {
+                16u8.hash_into(hasher);
+                player.hash_into(hasher);
+                color.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            GameEvent::PermanentTapped { player, object_id } => {
+                17u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
             }
         }
     }

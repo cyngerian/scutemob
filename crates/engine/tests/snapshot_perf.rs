@@ -4,6 +4,20 @@
 use mtg_engine::state::*;
 use std::time::Instant;
 
+/// Run a test closure in a thread with 32 MB of stack.
+///
+/// `GameStateBuilder::build()` creates hundreds of large structs on the stack
+/// in debug mode (no stack-frame reuse). Combined with large complex states,
+/// this can overflow the default 8 MB test thread stack.
+fn run_in_big_stack(f: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024)
+        .spawn(f)
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
 /// Build a complex game state with many objects for benchmarking.
 fn build_complex_state() -> GameState {
     let mut builder = GameStateBuilder::four_player();
@@ -61,128 +75,145 @@ fn build_complex_state() -> GameState {
 
 #[test]
 fn test_clone_independence_real_types() {
-    let mut state = build_complex_state();
-    let snapshot = state.clone();
+    run_in_big_stack(|| {
+        let mut state = build_complex_state();
+        let snapshot = state.clone();
 
-    // Modify the original
-    state.player_mut(PlayerId(1)).unwrap().life_total = 20;
-    state.turn.turn_number = 99;
+        // Modify the original
+        state.player_mut(PlayerId(1)).unwrap().life_total = 20;
+        state.turn.turn_number = 99;
 
-    // Snapshot unchanged
-    assert_eq!(snapshot.player(PlayerId(1)).unwrap().life_total, 40);
-    assert_eq!(snapshot.turn.turn_number, 1);
+        // Snapshot unchanged
+        assert_eq!(snapshot.player(PlayerId(1)).unwrap().life_total, 40);
+        assert_eq!(snapshot.turn.turn_number, 1);
 
-    // Original changed
-    assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
-    assert_eq!(state.turn.turn_number, 99);
+        // Original changed
+        assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
+        assert_eq!(state.turn.turn_number, 99);
+    });
 }
 
 #[test]
 fn test_clone_independence_object_modification() {
-    let state = build_complex_state();
-    let mut modified = state.clone();
+    // Run in a thread with a larger stack: GameState is sizeable in debug builds
+    // and the combination of two complex states + a new GameObject can overflow
+    // the default 8 MB stack.
+    let handle = std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024) // 32 MB
+        .spawn(|| {
+            let state = build_complex_state();
+            let mut modified = state.clone();
 
-    // Add a new object to the modified state
-    let new_obj = GameObject {
-        id: ObjectId(0),
-        card_id: None,
-        characteristics: Characteristics {
-            name: "New Object".to_string(),
-            ..Characteristics::default()
-        },
-        controller: PlayerId(1),
-        owner: PlayerId(1),
-        zone: ZoneId::Battlefield,
-        status: ObjectStatus::default(),
-        counters: im::OrdMap::new(),
-        attachments: im::Vector::new(),
-        attached_to: None,
-        damage_marked: 0,
-        is_token: false,
-        timestamp: 0,
-    };
-    modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
+            // Add a new object to the modified state
+            let new_obj = GameObject {
+                id: ObjectId(0),
+                card_id: None,
+                characteristics: Characteristics {
+                    name: "New Object".to_string(),
+                    ..Characteristics::default()
+                },
+                controller: PlayerId(1),
+                owner: PlayerId(1),
+                zone: ZoneId::Battlefield,
+                status: ObjectStatus::default(),
+                counters: im::OrdMap::new(),
+                attachments: im::Vector::new(),
+                attached_to: None,
+                damage_marked: 0,
+                is_token: false,
+                timestamp: 0,
+            };
+            modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 
-    // Original unaffected
-    assert_eq!(
-        state.total_objects(),
-        modified.total_objects() - 1,
-        "original should have one fewer object"
-    );
+            // Original unaffected
+            assert_eq!(
+                state.total_objects(),
+                modified.total_objects() - 1,
+                "original should have one fewer object"
+            );
+        })
+        .unwrap();
+    handle.join().unwrap();
 }
 
 #[test]
 fn test_snapshot_clone_under_1ms() {
-    let state = build_complex_state();
+    run_in_big_stack(|| {
+        let state = build_complex_state();
 
-    // Verify it's a substantial state
-    let obj_count = state.total_objects();
-    assert!(obj_count > 300, "expected 300+ objects, got {}", obj_count);
+        // Verify it's a substantial state
+        let obj_count = state.total_objects();
+        assert!(obj_count > 300, "expected 300+ objects, got {}", obj_count);
 
-    // Warm up
-    for _ in 0..10 {
-        let _ = state.clone();
-    }
+        // Warm up
+        for _ in 0..10 {
+            let _ = state.clone();
+        }
 
-    // Benchmark: clone 1000 times
-    let start = Instant::now();
-    let mut snapshots = Vec::with_capacity(1000);
-    for _ in 0..1000 {
-        snapshots.push(state.clone());
-    }
-    let elapsed = start.elapsed();
+        // Benchmark: clone 1000 times
+        let start = Instant::now();
+        let mut snapshots = Vec::with_capacity(1000);
+        for _ in 0..1000 {
+            snapshots.push(state.clone());
+        }
+        let elapsed = start.elapsed();
 
-    let avg_ns = elapsed.as_nanos() / 1000;
-    let avg_us = avg_ns / 1000;
+        let avg_ns = elapsed.as_nanos() / 1000;
+        let avg_us = avg_ns / 1000;
 
-    // With im-rs structural sharing, each clone should be well under 1ms
-    // Average should be in the single-digit microsecond range
-    assert!(
-        avg_us < 1000,
-        "average clone took {}µs, expected <1000µs (1ms). Total for 1000 clones: {:?}",
-        avg_us,
-        elapsed
-    );
+        // With im-rs structural sharing, each clone should be well under 1ms
+        // Average should be in the single-digit microsecond range
+        assert!(
+            avg_us < 1000,
+            "average clone took {}µs, expected <1000µs (1ms). Total for 1000 clones: {:?}",
+            avg_us,
+            elapsed
+        );
 
-    // Verify clones are valid
-    assert_eq!(snapshots.len(), 1000);
-    assert_eq!(snapshots[999].total_objects(), obj_count);
+        // Verify clones are valid
+        assert_eq!(snapshots.len(), 1000);
+        assert_eq!(snapshots[999].total_objects(), obj_count);
+    });
 }
 
 #[test]
 fn test_structural_sharing_memory_efficiency() {
-    let state = build_complex_state();
+    run_in_big_stack(|| {
+        let state = build_complex_state();
 
-    // Clone 100 times — with structural sharing, this shouldn't significantly
-    // increase memory usage compared to having just the original.
-    let mut snapshots: Vec<GameState> = Vec::with_capacity(100);
-    for _ in 0..100 {
-        snapshots.push(state.clone());
-    }
+        // Clone 100 times — with structural sharing, this shouldn't significantly
+        // increase memory usage compared to having just the original.
+        let mut snapshots: Vec<GameState> = Vec::with_capacity(100);
+        for _ in 0..100 {
+            snapshots.push(state.clone());
+        }
 
-    // All snapshots should be equal in content
-    for snapshot in &snapshots {
-        assert_eq!(snapshot.total_objects(), state.total_objects());
-        assert_eq!(snapshot.players.len(), state.players.len());
-        assert_eq!(snapshot.zones.len(), state.zones.len());
-    }
+        // All snapshots should be equal in content
+        for snapshot in &snapshots {
+            assert_eq!(snapshot.total_objects(), state.total_objects());
+            assert_eq!(snapshot.players.len(), state.players.len());
+            assert_eq!(snapshot.zones.len(), state.zones.len());
+        }
+    });
 }
 
 #[test]
 fn test_incremental_modification_is_cheap() {
-    let state = build_complex_state();
+    run_in_big_stack(|| {
+        let state = build_complex_state();
 
-    // Clone and modify one field — should be cheap
-    let start = Instant::now();
-    for _ in 0..1000 {
-        let mut s = state.clone();
-        s.turn.turn_number += 1;
-    }
-    let elapsed = start.elapsed();
+        // Clone and modify one field — should be cheap
+        let start = Instant::now();
+        for _ in 0..1000 {
+            let mut s = state.clone();
+            s.turn.turn_number += 1;
+        }
+        let elapsed = start.elapsed();
 
-    assert!(
-        elapsed.as_millis() < 1000,
-        "1000 clone-and-modify cycles took {:?}, expected <1s",
-        elapsed
-    );
+        assert!(
+            elapsed.as_millis() < 1000,
+            "1000 clone-and-modify cycles took {:?}, expected <1s",
+            elapsed
+        );
+    });
 }

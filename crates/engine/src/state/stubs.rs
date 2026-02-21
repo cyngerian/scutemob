@@ -34,12 +34,7 @@ pub struct TriggeredAbility {
     pub controller: PlayerId,
 }
 
-/// An object on the stack — spell or ability (CR 405). Implemented in M3.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StackObject {
-    pub id: ObjectId,
-    pub controller: PlayerId,
-}
+// StackObject has moved to `state/stack.rs` (M3-A).
 
 /// Combat state tracking (CR 506-511). Implemented in M6.
 #[derive(Clone, Debug, Serialize, Deserialize)]

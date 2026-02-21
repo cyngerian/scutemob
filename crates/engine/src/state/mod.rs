@@ -8,6 +8,7 @@ pub mod error;
 pub mod game_object;
 pub mod hash;
 pub mod player;
+pub mod stack;
 pub mod stubs;
 pub mod turn;
 pub mod types;
@@ -17,12 +18,11 @@ pub mod zone;
 pub use builder::{GameStateBuilder, ObjectSpec, PlayerBuilder};
 pub use error::GameStateError;
 pub use game_object::{
-    AbilityInstance, Characteristics, GameObject, ManaCost, ObjectId, ObjectStatus,
+    AbilityInstance, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
 };
+pub use stack::{StackObject, StackObjectKind};
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
-pub use stubs::{
-    CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, StackObject, TriggeredAbility,
-};
+pub use stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 pub use zone::{Zone, ZoneId, ZoneType};
