@@ -216,13 +216,15 @@ impl MtgServer {
         let db = self.db.lock().await;
         let include_rulings = req.include_rulings.unwrap_or(true);
 
-        // Try exact match first, then LIKE
+        // Try exact match first, then LIKE. Exclude non-game layouts
+        // (art_series, token, double_faced_token, emblem, etc.)
         let mut stmt = db
             .prepare(
                 "SELECT id, oracle_id, name, mana_cost, type_line, oracle_text,
                         power, toughness, loyalty, color_identity, keywords
                  FROM cards
-                 WHERE name = ?1 OR name LIKE '%' || ?1 || '%'
+                 WHERE (name = ?1 OR name LIKE '%' || ?1 || '%')
+                   AND layout NOT IN ('art_series', 'token', 'double_faced_token', 'emblem')
                  ORDER BY CASE WHEN name = ?1 THEN 0 ELSE 1 END
                  LIMIT 5",
             )
@@ -425,17 +427,36 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-    // Build rulings FTS if needed
-    let rulings_fts_count: i64 = conn
+    // Build rulings FTS index.
+    // External content FTS5 tables (content='rulings') always reflect the
+    // content table's row count, even when the FTS index is empty. We can't
+    // use COUNT(*) to detect an unbuilt index. Instead, try a probe search —
+    // if it returns nothing despite rulings existing, the index needs rebuilding.
+    let rulings_count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM rulings_fts",
+            "SELECT COUNT(*) FROM rulings",
             [],
             |row: &rusqlite::Row| row.get(0),
         )
         .unwrap_or(0);
 
-    if rulings_fts_count == 0 {
-        eprintln!("Building rulings FTS index...");
+    let fts_needs_rebuild = if rulings_count > 0 {
+        // Probe the FTS index with a common word — if the index is populated,
+        // this should find something. If it returns 0, the index is empty.
+        let probe_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM rulings_fts WHERE rulings_fts MATCH 'the'",
+                [],
+                |row: &rusqlite::Row| row.get(0),
+            )
+            .unwrap_or(0);
+        probe_count == 0
+    } else {
+        false
+    };
+
+    if fts_needs_rebuild {
+        eprintln!("Building rulings FTS index ({} rulings)...", rulings_count);
         rules_db::rebuild_rulings_fts(&conn)?;
         eprintln!("Rulings FTS index built.");
     }
