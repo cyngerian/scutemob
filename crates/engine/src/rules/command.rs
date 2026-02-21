@@ -38,8 +38,18 @@ pub enum Command {
     /// Playing a land is a special action — it does not use the stack.
     /// Legal only during the active player's main phase with an empty stack.
     PlayLand { player: PlayerId, card: ObjectId },
+
+    /// Cast a spell from hand (CR 601).
+    ///
+    /// For M3-B: no cost payment, no targets, no modes. The card moves from
+    /// hand to the Stack zone and a `StackObject` is pushed. Priority resets
+    /// to the active player (CR 601.2i).
+    ///
+    /// Casting speed:
+    /// - Instants and spells with Flash may be cast any time the player has priority.
+    /// - All other spells require sorcery speed (active player, main phase, empty stack).
+    CastSpell { player: PlayerId, card: ObjectId },
     // --- Future milestones ---
-    // CastSpell { player, card, targets, modes }               // M3-B
     // ActivateAbility { player, source, ability_index, ... }   // M3-E
     // DeclareAttackers { player, attackers }                   // M6
     // DeclareBlockers { player, blockers }                     // M6

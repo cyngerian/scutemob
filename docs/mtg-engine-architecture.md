@@ -404,7 +404,22 @@ enum GameEvent {
 }
 ```
 
-### 4.2 Authoritative Server Model
+### 4.2 Network Model Evolution
+
+> **Note**: The original authoritative host model described below has been superseded by a
+> **distributed verification** architecture. See `mtg-engine-network-security.md` for the
+> complete three-tier security strategy. The key changes:
+>
+> - **All peers run the engine independently** (no single trusted host)
+> - **Coordinator** replaces authoritative host (lightweight protocol sequencing only)
+> - **Deterministic state hashing** ensures all peers agree after every command
+> - **Mental Poker** (cryptographic card dealing) protects hidden information
+> - A **trusted host fallback mode** is retained for simplicity/debugging
+>
+> The Command/Event model (Section 4.1) and the engine's purity (no IO) are unchanged —
+> only the network topology and trust model change.
+
+#### Original: Authoritative Server Model (Retained as Fallback)
 
 One player's machine acts as the **host** (authoritative server). The host runs the canonical engine instance. All other players send commands to the host; the host validates them, advances the engine, and broadcasts events.
 
@@ -417,13 +432,15 @@ Host Machine                     Client Machines
 └──────────────┘                └──────────────┘
 ```
 
-**Why authoritative host, not peer-to-peer**: MTG has hidden information (hands, libraries, face-down cards). A P2P model where all clients have full state would expose hidden info. The host model naturally handles this — the host only sends each client the information they're allowed to see.
-
-**Why not a dedicated server**: The target is casual Commander play, not competitive matchmaking. Running a dedicated server adds infrastructure complexity. A host model means anyone can start a game, and the "server" is just one of the players.
+This model is retained as a fallback for simpler debugging, lower latency, and play groups that don't need security guarantees. The distributed model is the primary target for production use.
 
 ### 4.3 Hidden Information & Partial State
 
-Each client receives a **view** of the game state — a projection that excludes information they shouldn't have:
+> **Note**: In the distributed verification model, hidden information is protected
+> cryptographically rather than by server-side filtering. Each peer maintains their own
+> private state. See `mtg-engine-network-security.md` Tier 3 for details.
+
+In the trusted host fallback mode, each client receives a **view** of the game state — a projection that excludes information they shouldn't have:
 
 ```rust
 fn project_state_for_player(state: &GameState, viewer: PlayerId) -> ClientGameState {
@@ -448,12 +465,9 @@ Messages are serialized with `serde` — likely MessagePack for compactness, wit
 
 ### 4.5 Reconnection & Resilience
 
-If a client disconnects:
-1. The game pauses (Commander is casual — no chess clock pressure)
-2. On reconnect, the client receives a full state snapshot
-3. The client can request event history to reconstruct what happened while away
+**Trusted host mode**: If a client disconnects, the game pauses. On reconnect, the client receives a full state snapshot. If the host disconnects, the game is interrupted.
 
-If the host disconnects, the game is interrupted. Host migration is a stretch goal — it requires one of the clients to have been maintaining a shadow state, which adds complexity.
+**Distributed verification mode**: Coordinator migration is seamless — any peer can take over since the coordinator holds no special state. Reconnecting peers receive public state from the majority and reconstruct private state from their own records. See `mtg-engine-network-security.md` for details.
 
 ---
 

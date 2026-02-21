@@ -329,6 +329,7 @@ impl HashInto for Characteristics {
         self.subtypes.hash_into(hasher);
         self.rules_text.hash_into(hasher);
         self.abilities.hash_into(hasher);
+        self.keywords.hash_into(hasher);
         self.mana_abilities.hash_into(hasher);
         self.power.hash_into(hasher);
         self.toughness.hash_into(hasher);
@@ -575,6 +576,16 @@ impl HashInto for GameEvent {
                 17u8.hash_into(hasher);
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
+            }
+            GameEvent::SpellCast {
+                player,
+                stack_object_id,
+                source_object_id,
+            } => {
+                18u8.hash_into(hasher);
+                player.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
             }
         }
     }

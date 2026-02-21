@@ -37,7 +37,8 @@ M9: Commander Rules Integration                 (~2-3 weeks)
 ───────────────────────────────────────────────────────────
     ENGINE CORE COMPLETE — Playable via tests
 ───────────────────────────────────────────────────────────
-M10: Networking Layer                            (~3-4 weeks)
+M10: Networking Layer (Distributed Verification)  (~3-4 weeks)
+M10.5: Mental Poker Integration (NEW)             (~2-3 weeks)
 M11: Tauri App Shell & Basic UI                  (~3-4 weeks)
 M12: Card Definition Pipeline (Bulk Generation)  (~3-4 weeks)
 M13: Full UI — Battlefield, Stack, Targeting     (~4-6 weeks)
@@ -152,30 +153,49 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 
 ### M3: Stack, Spells & Abilities
 
-**Goal**: Implement the stack zone, spell casting, ability activation, and resolution. After this milestone, players can cast spells and activate abilities (with simplified card logic).
+**Goal**: Implement the stack zone, spell casting, ability activation, and resolution. After this milestone, players can cast spells and activate abilities (with simplified card logic). Also implement Tier 1 deterministic state hashing (prerequisite for distributed verification in M10).
 
 **Deliverables**:
-- [ ] Stack as ordered zone with `StackObject` type
-- [ ] Spell casting process per CR 601: announce, choose modes, choose targets, determine costs, pay costs, spell becomes cast
-- [ ] Ability activation process per CR 602
+- [x] **Tier 1: Deterministic State Hashing** (from `mtg-engine-network-security.md`):
+  - [x] `public_state_hash()` on `GameState` — deterministic hash of all public state
+  - [x] `private_state_hash(player)` on `GameState` — hash of a player's hidden info
+  - [x] Dual-instance hash comparison property test (process same commands on two independent engine instances, assert hashes match after every command)
+  - [x] Run property test in CI on every commit
+- [x] Stack as ordered zone with `StackObject` type (`state/stack.rs`: `StackObject`, `StackObjectKind`)
+- [x] Mana ability system: `ManaAbility` struct, `TapForMana` command, mana pool add/empty (CR 605)
+- [x] Land playing: `PlayLand` command, special action (not on stack), land plays remaining (CR 305.1)
+- [x] Spell casting: `CastSpell` command, sorcery/instant speed, Flash, spell enters Stack zone, `StackObject` pushed (CR 601)
+- [x] `keywords: OrdSet<KeywordAbility>` on `Characteristics` for keyword-based speed (Flash)
+- [ ] Ability activation process per CR 602 (`Command::ActivateAbility`)
 - [ ] Triggered ability handling per CR 603: trigger event detection, APNAP ordering for simultaneous triggers, "intervening if" clauses
 - [ ] Resolution per CR 608: resolve top of stack, carry out effects
 - [ ] Countering: a countered spell moves to graveyard (or exile, depending on effect)
-- [ ] Mana payment system: mana pool, mana types (WUBRG + colorless + generic), spending restrictions
+- [ ] Mana payment cost validation on cast (currently deferred — M3-D)
 - [ ] Target legality validation on cast and on resolution (fizzle rule)
-- [ ] `Command::CastSpell` and `Command::ActivateAbility` processing
 
 **Tests** (minimum):
-- [ ] Cast a sorcery during main phase with empty stack — legal
-- [ ] Cast a sorcery during opponent's turn — illegal
-- [ ] Cast an instant in response to a spell — legal, stack has 2 items
+- [x] Cast a sorcery during main phase with empty stack — legal
+- [x] Cast a sorcery during opponent's turn — illegal
+- [x] Cast an instant in response to a spell — legal, stack has 2 items
+- [x] Flash spell castable at instant speed outside main phase
+- [x] Priority resets to active player after casting (CR 601.2i)
+- [x] Stack is LIFO: second spell cast is on top
+- [x] Mana ability tap: tap land, verify mana pool increases, player retains priority
+- [x] Play land: land moves to battlefield, land plays decremented, players_passed resets
 - [ ] Resolve stack in LIFO order
 - [ ] Spell fizzles: all targets become illegal before resolution
 - [ ] Spell partially fizzles: some targets illegal, remaining resolve
-- [ ] Mana payment: tap lands, spend mana, verify pool changes
 - [ ] Triggered ability: permanent enters battlefield, trigger goes on stack
 - [ ] Multiple simultaneous triggers: APNAP ordering in 4-player game
 - [ ] Intervening-if: trigger checks condition on trigger and on resolution
+
+**Progress** (in-milestone tracking):
+- [x] Tier 1 state hashing (blake3, `public_state_hash`, `private_state_hash`, 19 hash tests)
+- [x] M3-A: `StackObject`/`StackObjectKind`, `ManaAbility`, `TapForMana`, `PlayLand` (19 tests)
+- [x] M3-B: `CastSpell`, casting windows, Flash, `keywords` field, `SpellCast` event (12 tests)
+- [ ] M3-C: Stack resolution — all-pass → resolve top, LIFO, move to graveyard, countering
+- [ ] M3-D: Target legality — fizzle rule, partial fizzle, cost payment validation
+- [ ] M3-E: `ActivateAbility`, triggered abilities, APNAP ordering, intervening-if
 
 **Acceptance Criteria**:
 - Players can cast spells from hand, pay mana, and have them resolve
@@ -512,38 +532,86 @@ At this point, the engine can run a complete Commander game programmatically. Al
 
 ---
 
-### M10: Networking Layer
+### M10: Networking Layer (Distributed Verification)
 
-**Goal**: Implement the authoritative host model for networked multiplayer.
+**Goal**: Implement the distributed verification network model where all peers run the engine independently and a lightweight coordinator manages protocol sequencing. See `mtg-engine-network-security.md` for full design.
+
+> **Architecture change**: This milestone implements Tier 2 (distributed verification)
+> from the network security strategy, replacing the original authoritative host model.
+> A trusted host fallback mode is also supported. Tier 1 (deterministic state hashing)
+> is a prerequisite — implemented during M3.
 
 **Deliverables**:
-- [ ] WebSocket server (host) and client using `tokio-tungstenite` or `axum`
+- [ ] Peer-to-peer mesh networking (WebSocket mesh or WebRTC)
+- [ ] Coordinator role: protocol sequencing, command broadcasting (lightweight — no game state)
+- [ ] All peers run engine independently on received commands
+- [ ] Hash comparison after every command (using `public_state_hash()` from Tier 1)
+- [ ] Dispute detection: hash mismatch → majority vote resolution
+- [ ] Coordinator election and migration on disconnect (lowest peer ID)
 - [ ] Message protocol: Command/Event serialization with MessagePack (serde)
-- [ ] Lobby system: create game, join game, set parameters, player ready
-- [ ] Host game loop: receive commands, validate, advance engine, broadcast events
-- [ ] Client state mirror: receive events, reconstruct game state from host's perspective
-- [ ] Hidden information projection: host sends each client only their visible state per architecture doc Section 4.3
-- [ ] State sync on connect: full state snapshot for new/reconnecting players
-- [ ] Reconnection handling: detect disconnect, pause game, resume on reconnect
+- [ ] Lobby system: create game, join game, set parameters, select security mode
+- [ ] Reconnection protocol: public state sync from majority peers
+- [ ] Trusted host fallback mode: legacy authoritative model for debugging/simplicity
 - [ ] Basic latency tolerance: commands are timestamped and ordered
 
 **Tests** (minimum):
-- [ ] Host starts game, 4 clients connect, game begins
-- [ ] Command round-trip: client sends CastSpell, host validates, events broadcast
-- [ ] Hidden info: client A cannot see client B's hand
-- [ ] Reconnect: client disconnects, game pauses, client reconnects, state synced
-- [ ] Invalid command rejection: client sends illegal command, host rejects, game state unchanged
+- [ ] Coordinator starts game, 4 peers connect, game begins
+- [ ] Command round-trip: acting peer sends command, all peers process, hashes compared
+- [ ] Hash consensus: all 4 peers agree after every command
+- [ ] Dispute detection: one peer with tampered state is flagged
+- [ ] Coordinator migration: coordinator disconnects, next peer takes over seamlessly
+- [ ] Reconnect: peer disconnects, rejoins, state synced from majority
+- [ ] Invalid command rejection: all peers reject illegal command independently
 - [ ] Latency simulation: 200ms delay, game plays correctly
-- [ ] State divergence: forced desync detection and correction
+- [ ] Trusted host fallback: same game works in legacy mode
 
 **Acceptance Criteria**:
 - 4-player Commander game playable over localhost via programmatic clients
-- Hidden information correctly enforced
-- Reconnection works without state loss
+- All peers independently verify every game state transition
+- Hash mismatch detection works and flags the divergent peer
+- Coordinator migration is seamless
+- Trusted host fallback mode functional
 
-**Dependencies**: M9 (engine core complete)
+**Dependencies**: M9 (engine core complete), Tier 1 state hashing (implemented during M3)
 
-**Architecture doc references**: Section 4 (Networking Architecture)
+**Architecture doc references**: Section 4 (Networking Architecture), `mtg-engine-network-security.md` Tier 2
+
+---
+
+### M10.5: Mental Poker Integration
+
+**Goal**: Implement cryptographic card dealing so no player can see hidden information (library order, other players' hands) without the distributed trust of all peers.
+
+> See `mtg-engine-network-security.md` Tier 3 for full protocol design.
+
+**Deliverables**:
+- [ ] Commutative encryption (ElGamal over Curve25519 via `curve25519-dalek`)
+- [ ] Joint shuffle protocol with zero-knowledge shuffle proofs
+- [ ] Draw protocol: partial decryption from each peer reveals card only to drawing player
+- [ ] Search protocol: full library reveal to searching player + re-shuffle afterward
+- [ ] Commit-reveal scheme for public random events (coin flips, random selection)
+- [ ] Hand commitment system: prove card legitimacy when playing from hand
+- [ ] MTG-specific operations: scry, reveal, look at hand, morph/manifest
+- [ ] Integration with engine's draw, search, and shuffle commands (engine stays crypto-free)
+- [ ] Performance testing: draw latency <100ms, search latency <1s
+
+**Tests** (minimum):
+- [ ] Joint shuffle: 4 players shuffle a 100-card deck, no player knows the order
+- [ ] Draw protocol: drawing player sees card, opponents do not
+- [ ] Search protocol: searching player sees library, library re-shuffled afterward
+- [ ] Commit-reveal: public random result is unbiased
+- [ ] Hand commitment: player proves they held a card when casting it
+- [ ] Performance: draw <100ms, search <1s with 4 peers
+- [ ] Integration: full game with Mental Poker produces same outcomes as seeded RNG game
+
+**Acceptance Criteria**:
+- Hidden information is cryptographically protected during networked play
+- Performance is acceptable for turn-based gameplay
+- Engine crate has zero cryptographic dependencies (all crypto in network layer)
+
+**Dependencies**: M10 (distributed verification networking)
+
+**Architecture doc references**: `mtg-engine-network-security.md` Tier 3
 
 ---
 
@@ -733,7 +801,8 @@ These are not scheduled but represent the next directions after alpha:
 |------|--------|------------|------------|
 | Layer system complexity exceeds estimates | M5 delayed 2-4 weeks | High | Start layer tests early; accept incremental correctness; reference Forge/XMage |
 | Card definition pipeline produces too many errors | M12 requires extensive manual correction | Medium | Invest in rulings RAG quality; build feedback loop early |
-| Networking introduces non-determinism | State divergence bugs in M10+ | Medium | Command/event model enforces determinism; add divergence detection |
+| Networking introduces non-determinism | State divergence bugs in M10+ | Medium | Tier 1 state hashing from M3 onward catches non-determinism early; `im::OrdMap` ensures deterministic iteration |
+| Mental Poker latency unacceptable | Library search operations too slow for gameplay | Low | Protocol designed for <1s search latency; acceptable for turn-based game; fallback to trusted host mode |
 | Scryfall API changes or terms change | Card data pipeline breaks | Low | Vendor-lock only on data format, not API; cache aggressively |
 | Performance bottleneck in layer recalculation | Unplayable with complex board states | Medium | Benchmark from M5; incremental recalculation if needed |
 | Scope creep from Commander complexity | Milestones slip | High | Strict MVP: basic Commander first, variants and edge cases in post-alpha |
@@ -746,23 +815,24 @@ These are not scheduled but represent the next directions after alpha:
 
 ```
 M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6 ──→ M7 ──→ M8 ──→ M9
- │                           │      │      │      │              │
- │                           │      │      │      │              │
- │                           ▼      ▼      ▼      ▼              ▼
- │                         scripts scripts scripts scripts    scripts
- │                         (base)  (layer) (combat)(replay+   (cmdr)
- │                                                  cards)
- │                                                     │
- └──────────────────────────────────────────────────→ M11         M10
-                                                       │           │
-                                                       ▼           ▼
-                                          M7 ──→ M12  M13 ←───────┘
-                                                  │    │
-                                                  ▼    ▼
-                                                  M14 ←┘
-                                                    │
-                                                    ▼
-                                                   M15
+ │                    │Tier1│      │      │      │              │
+ │                    │hash │      │      │      │              │
+ │                    └──┬──┘      ▼      ▼      ▼              ▼
+ │                       │       scripts scripts scripts    scripts
+ │                       │       (base)  (layer) (combat)   (cmdr)
+ │                       │                        (replay+
+ │                       │                         cards)
+ │                       │                           │
+ └────────────────────────────────────────────────→ M11        M10 ←── Tier1
+                                                     │          │
+                                                     ▼          ▼
+                                        M7 ──→ M12  M13     M10.5
+                                                │    │  ←──────┘
+                                                ▼    ▼
+                                                M14 ←┘
+                                                  │
+                                                  ▼
+                                                 M15
 ```
 
-Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Game script generation runs as a parallel workstream starting at M4, producing scripts that become executable tests when the replay harness arrives in M7. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.
+Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. Game script generation runs as a parallel workstream starting at M4, producing scripts that become executable tests when the replay harness arrives in M7. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.

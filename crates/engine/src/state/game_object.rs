@@ -4,7 +4,7 @@ use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
 use super::player::{CardId, PlayerId};
-use super::types::{CardType, Color, CounterType, ManaColor, SubType, SuperType};
+use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 use super::zone::ZoneId;
 
 /// Identifies a game object instance. Per CR 400.7, when an object changes
@@ -75,6 +75,8 @@ pub struct Characteristics {
     pub subtypes: OrdSet<SubType>,
     pub rules_text: String,
     pub abilities: Vector<AbilityInstance>,
+    /// Keyword abilities (CR 702).
+    pub keywords: OrdSet<KeywordAbility>,
     /// Mana abilities on this object (CR 605). Activated in-place without the stack.
     pub mana_abilities: Vector<ManaAbility>,
     pub power: Option<i32>,

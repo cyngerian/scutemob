@@ -8,6 +8,7 @@ use crate::state::error::GameStateError;
 use crate::state::player::PlayerId;
 use crate::state::GameState;
 
+use super::casting;
 use super::command::Command;
 use super::events::GameEvent;
 use super::lands;
@@ -55,6 +56,11 @@ pub fn process_command(
         Command::PlayLand { player, card } => {
             validate_player_active(&state, player)?;
             let events = lands::handle_play_land(&mut state, player, card)?;
+            all_events.extend(events);
+        }
+        Command::CastSpell { player, card } => {
+            validate_player_active(&state, player)?;
+            let events = casting::handle_cast_spell(&mut state, player, card)?;
             all_events.extend(events);
         }
     }

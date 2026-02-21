@@ -12,8 +12,34 @@
 ## Current State
 
 - **Active Milestone**: M3 — Stack & Spell Resolution
-- **Status**: Not started (M2 complete)
+- **Status**: In progress (M3-A + M3-B done; M3-C stack resolution next)
 - **Last Updated**: 2026-02-21
+
+### What Exists (M3 in progress)
+- Everything from M2, plus:
+- `blake3 = "1"` dependency for deterministic hashing
+- `HashInto` trait in `state/hash.rs`: manual field-by-field hashing into `blake3::Hasher`
+- `public_state_hash()` on `GameState`: hashes all publicly visible state (turn, players, public zones, effects, combat); excludes hand/library contents and history
+- `private_state_hash(player)` on `GameState`: hashes hand contents, library contents (ordered), face-down cards
+- 19 hashing tests: determinism (3), sensitivity (7), public/private partition (4), dual-instance proptest (3+proptest)
+- **M3-A complete**: Stack foundation, mana abilities, PlayLand and TapForMana commands
+  - `state/stack.rs`: `StackObject` + `StackObjectKind` (Spell, ActivatedAbility, TriggeredAbility)
+  - `ManaAbility` struct in `game_object.rs` with `tap_for()` helper; `mana_abilities` field in `Characteristics`
+  - `ObjectSpec.with_mana_ability()` builder method
+  - New errors: `ObjectNotOnBattlefield`, `NotController`, `PermanentAlreadyTapped`, `NoLandPlaysRemaining`, `InvalidAbilityIndex`, `NotMainPhase`, `StackNotEmpty`
+  - `TapForMana` and `PlayLand` commands with `LandPlayed`, `ManaAdded`, `PermanentTapped` events
+  - `rules/mana.rs`: CR 605 handler; `rules/lands.rs`: CR 305.1 handler
+  - 19 new tests in `tests/mana_and_lands.rs`
+- **M3-B complete**: CastSpell command, casting windows, Flash, priority reset
+  - `keywords: OrdSet<KeywordAbility>` added to `Characteristics` (hash.rs updated; `ObjectSpec.with_keyword()` builder method)
+  - `Command::CastSpell { player, card }` — no cost/targets yet (M3-D)
+  - `GameEvent::SpellCast { player, stack_object_id, source_object_id }`
+  - `rules/casting.rs`: CR 601 handler — validates casting speed (instant vs sorcery), moves card to Stack zone (CR 400.7 new ID), pushes `StackObject`, resets priority to active player (CR 601.2i)
+  - Sorcery speed: active player + main phase + empty stack; Flash/Instants bypass all three
+  - After casting, ACTIVE PLAYER gets priority (not necessarily the caster) — this differs from PlayLand which lets caster retain
+  - 12 new tests in `tests/casting.rs`
+- `snapshot_perf.rs` tests use 32 MB thread stack (debug mode struct growth from M3-A)
+- 168 tests passing total, zero clippy warnings
 
 ### What Exists (M2 complete)
 - Everything from M1, plus:
@@ -56,16 +82,18 @@
 - Scryfall bulk importer (`tools/scryfall-import`): 36,923 cards, 74,277 rulings imported
 - MCP server (`tools/mcp-server`): 4 tools — `search_rules`, `get_rule`, `lookup_card`, `search_rulings`
   - CR parser: 3,114 rules in FTS5; auto-rebuild wrapper script (`run.sh`)
-  - Project-scoped config in `.claude/settings.json`
+  - Project-scoped config in `.mcp.json` (gitignored — machine-specific paths)
 - Tauri v2 + Svelte app shell (not in workspace — requires display server)
 - GitHub Actions CI, `rust-toolchain.toml`, `.nvmrc`, `.gitignore`
 - Docs: `docs/mtg-engine-architecture.md`, `docs/mtg-engine-roadmap.md`, `docs/mtg-engine-game-scripts.md`, `docs/mtg-engine-corner-cases.md`
 
-### What's Next (M3)
-- Stack implementation: StackObject, casting spells, activating abilities
-- Spell resolution: LIFO stack processing
-- Triggered abilities: trigger events, APNAP ordering
-- Player choices: targets, modes, costs
+### What's Next (M3 remaining)
+- ~~Deterministic state hashing (Tier 1)~~ — **DONE**
+- ~~M3-A: Stack foundation + mana (StackObject, ManaAbility, TapForMana, PlayLand)~~ — **DONE**
+- ~~M3-B: Casting spells (CastSpell command, sorcery/instant speed, spell enters stack, priority resets)~~ — **DONE**
+- M3-C: Stack resolution (all-pass → resolve top, LIFO order, move to graveyard, countering)
+- M3-D: Target legality (fizzle rule, partial fizzle)
+- M3-E: Triggered abilities (TriggeredAbility proper type, APNAP, intervening-if, ActivateAbility)
 
 ---
 
@@ -86,6 +114,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Development Roadmap | `docs/mtg-engine-roadmap.md` | What to build and in what order; milestone definitions |
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
+| Network Security Strategy | `docs/mtg-engine-network-security.md` | Three-tier security: state hashing, distributed verification, Mental Poker |
 | This file | `CLAUDE.md` | Current project state; coding conventions; session context |
 
 **Read the architecture doc before implementing anything.** It explains the rationale behind
@@ -245,8 +274,10 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 6. **Commander-first.** The command zone, commander tax, commander damage, color identity —
    these are core features, not bolted-on extensions.
 
-7. **Hidden information is enforced.** The engine knows everything. Clients receive
-   projections that hide what they shouldn't see. Never send a client another player's
+7. **Hidden information is enforced.** The engine knows everything. In the distributed
+   verification model (see `docs/mtg-engine-network-security.md`), each peer runs
+   the engine independently and only knows their own private state. Cryptographic
+   protocols (Mental Poker) protect hidden information. Never expose another player's
    hand or library order.
 
 8. **Tests cite their rules source.** Every test references the CR section or known
@@ -265,6 +296,9 @@ the way they are. Format: date, decision, rationale.
 | (project start) | `im-rs` for immutable state | Structural sharing makes state snapshots O(1); enables free undo/replay; fits Rust ownership model |
 | (project start) | Command/Event model | Single pattern for networking, replay, testing, and undo; enforces determinism |
 | (project start) | Authoritative host (not P2P) | Hidden information requires a trusted authority; simpler than consensus protocols |
+| 2026-02-21 | Distributed verification replaces authoritative host | Eliminates trusted host; all peers run engine independently; coordinator is lightweight; see `docs/mtg-engine-network-security.md` |
+| 2026-02-21 | Three-tier network security (hashing → distributed → Mental Poker) | Tier 1 (state hashing) catches non-determinism early; Tier 2 (all peers verify) prevents tampering; Tier 3 (cryptographic dealing) protects hidden information |
+| 2026-02-21 | Deterministic state hashing from M3 onward | Catching non-determinism during engine development is dramatically cheaper than discovering it during M10 networking |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
 

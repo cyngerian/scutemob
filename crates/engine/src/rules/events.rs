@@ -111,4 +111,15 @@ pub enum GameEvent {
         player: PlayerId,
         object_id: ObjectId,
     },
+
+    /// A spell was cast and entered the stack (CR 601.2).
+    ///
+    /// `stack_object_id` is the ID of the `StackObject` entry.
+    /// `source_object_id` is the ID of the card now in the Stack zone (new
+    /// per CR 400.7 zone-change identity).
+    SpellCast {
+        player: PlayerId,
+        stack_object_id: ObjectId,
+        source_object_id: ObjectId,
+    },
 }

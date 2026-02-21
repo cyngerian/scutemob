@@ -9,7 +9,7 @@ use im::{OrdMap, OrdSet, Vector};
 use super::game_object::{Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus};
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::turn::{Step, TurnState};
-use super::types::{CardType, Color, CounterType, SubType, SuperType};
+use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
 
@@ -239,6 +239,7 @@ impl GameStateBuilder {
                 subtypes: spec.subtypes.into_iter().collect(),
                 rules_text: String::new(),
                 abilities: Vector::new(),
+                keywords: spec.keywords.into_iter().collect(),
                 mana_abilities: spec.mana_abilities.into_iter().collect(),
                 power: spec.power,
                 toughness: spec.toughness,
@@ -357,6 +358,7 @@ pub struct ObjectSpec {
     pub counters: Vec<(CounterType, u32)>,
     pub is_token: bool,
     pub mana_abilities: Vec<ManaAbility>,
+    pub keywords: Vec<KeywordAbility>,
 }
 
 impl ObjectSpec {
@@ -380,6 +382,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -403,6 +406,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -426,6 +430,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -449,6 +454,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -472,6 +478,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -495,6 +502,7 @@ impl ObjectSpec {
             counters: Vec::new(),
             is_token: false,
             mana_abilities: Vec::new(),
+            keywords: Vec::new(),
         }
     }
 
@@ -563,6 +571,12 @@ impl ObjectSpec {
     /// Add a mana ability to this object (CR 605).
     pub fn with_mana_ability(mut self, ability: ManaAbility) -> Self {
         self.mana_abilities.push(ability);
+        self
+    }
+
+    /// Add a keyword ability to this object (CR 702).
+    pub fn with_keyword(mut self, keyword: KeywordAbility) -> Self {
+        self.keywords.push(keyword);
         self
     }
 }
