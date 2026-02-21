@@ -12,27 +12,32 @@
 ## Current State
 
 - **Active Milestone**: M0 — Project Scaffold & Data Foundation
-- **Status**: In progress — scaffold complete, data pipeline remaining
+- **Status**: In progress — scaffold, data pipeline, and Tauri shell complete; MCP server remaining
 - **Last Updated**: 2026-02-20
 
 ### What Exists
 - Git repository initialized
-- Cargo workspace with 4 crates: `engine`, `network`, `card-db`, `card-pipeline`
+- Cargo workspace with 5 crates: `engine`, `network`, `card-db`, `card-pipeline`, `scryfall-import`
 - Engine crate with `im-rs`, `serde`, `thiserror` dependencies; module stubs for `state`, `rules`, `cards`, `effects`
 - Network crate with `tokio` dependency (placeholder)
-- Card-db crate with `rusqlite` (bundled) dependency (placeholder)
+- Card-db crate with SQLite schema (`cards`, `card_faces`, `rulings`, `card_definitions` tables)
 - Card-pipeline crate (placeholder)
-- im-rs proof-of-concept tests (4 passing: clone independence, structural sharing, vector ordering, snapshot feasibility)
+- Scryfall bulk importer (`tools/scryfall-import`): downloads oracle cards + rulings, populates SQLite
+- SQLite database populated: 36,923 cards, 5,869 card faces, 74,277 rulings, 30,395 Commander-legal
+- Tauri v2 + Svelte app shell scaffolded (not in workspace — requires display server, builds on Windows PC)
+- im-rs proof-of-concept tests (4 passing)
+- Card-db schema tests (2 passing)
 - GitHub Actions CI pipeline (`cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all`)
 - `rust-toolchain.toml` (stable), `.nvmrc` (22), `.gitignore`
 - Architecture doc: `docs/mtg-engine-architecture.md`
 - Development roadmap: `docs/mtg-engine-roadmap.md`
 
 ### What's Next (remaining M0 deliverables)
-- Set up Tauri app shell with Svelte frontend
-- Scryfall bulk data importer → SQLite
-- SQLite schema for cards, rulings, card_faces, card_definitions
 - Configure MCP server for CR + card data RAG
+
+### What's Next (M1)
+- Implement `GameState`, `GameObject`, zone system, `ObjectId`, `PlayerState`
+- Build `GameStateBuilder` test utility
 
 ---
 

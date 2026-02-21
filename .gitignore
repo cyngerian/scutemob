@@ -21,4 +21,5 @@ Thumbs.db
 # Project-specific
 *.sqlite
 *.sqlite3
+.scryfall-cache/
 test-data/golden-games/*.result.json
