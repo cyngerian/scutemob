@@ -6,6 +6,8 @@ This document defines the development roadmap as a sequence of milestones, each 
 
 This roadmap is designed in lockstep with the Architecture & Testing Strategy (`mtg-engine-architecture.md`). Each milestone builds on the architecture defined there, and the testing requirements at each phase are integral to the milestone's completion criteria.
 
+The Game Script Generation & Validation Strategy (`mtg-engine-game-scripts.md`) defines an engine-independent testing methodology that runs parallel to engine development. Script generation tasks are integrated into the milestones below.
+
 ---
 
 ## Guiding Principles
@@ -15,6 +17,7 @@ This roadmap is designed in lockstep with the Architecture & Testing Strategy (`
 3. **Correctness before coverage.** It's better to have 50 cards implemented correctly than 500 cards implemented with bugs. The layer system and priority must be right before card volume matters.
 4. **Commander is the target.** Every design decision considers multiplayer from the start. 1v1 is a degenerate case of multiplayer, not the other way around.
 5. **Playable increments.** Each major milestone produces something testable — either programmatically or by a human player.
+6. **Independent validation.** Game scripts generated from rules reasoning (not engine behavior) serve as an external correctness oracle. The engine is tested against scripts it never influenced.
 
 ---
 
@@ -59,21 +62,24 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Establish the project structure, tooling, and data pipeline so that all subsequent milestones can build on a solid foundation.
 
 **Deliverables**:
-- [ ] Cargo workspace with crate structure per architecture doc (`engine`, `network`, `card-db`, `card-pipeline`)
-- [ ] Tauri app scaffold with Svelte frontend (minimal — just a window that loads)
-- [ ] `CLAUDE.md` with initial architecture context, coding conventions, and CR citation format
-- [ ] Scryfall bulk data importer: script that downloads latest bulk data and populates SQLite DB
-- [ ] SQLite schema for cards, rulings, card_faces, card_definitions (per architecture doc Section 5.2)
-- [ ] MCP server configuration for Claude Code: CR search + card/rulings lookup
-- [ ] CI pipeline: `cargo test`, `cargo clippy`, `cargo fmt` on every commit
-- [ ] `im-rs` dependency added; basic proof-of-concept showing structural sharing works for game state
+- [x] Cargo workspace with crate structure per architecture doc (`engine`, `network`, `card-db`, `card-pipeline`)
+- [x] Tauri app scaffold with Svelte frontend (minimal — just a window that loads)
+- [x] `CLAUDE.md` with initial architecture context, coding conventions, and CR citation format
+- [x] Scryfall bulk data importer: script that downloads latest bulk data and populates SQLite DB
+- [x] SQLite schema for cards, rulings, card_faces, card_definitions (per architecture doc Section 5.2)
+- [x] MCP server configuration for Claude Code: CR search + card/rulings lookup
+- [x] CI pipeline: `cargo test`, `cargo clippy`, `cargo fmt` on every commit
+- [x] `im-rs` dependency added; basic proof-of-concept showing structural sharing works for game state
+- [ ] Game script JSON schema defined as Rust types in `engine` crate (see `mtg-engine-game-scripts.md` Hook 1)
+- [ ] `test-data/generated-scripts/` directory structure with subdirectories per subsystem
 
 **Acceptance Criteria**:
-- `cargo build` succeeds for all crates
-- `cargo test` runs (even if there are few tests)
-- SQLite DB contains all Standard-legal cards with oracle text and rulings
-- MCP server responds to CR and card queries
-- Tauri app launches and shows a blank window
+- [x] `cargo build` succeeds for all crates
+- [x] `cargo test` runs (even if there are few tests)
+- [x] SQLite DB contains all Standard-legal cards with oracle text and rulings
+- [x] MCP server responds to CR and card queries
+- [x] Tauri app launches and shows a blank window
+- [ ] `GameScript` Rust type compiles and can round-trip serialize/deserialize a sample JSON script
 
 **Dependencies**: None (this is the root)
 
@@ -86,25 +92,25 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Implement the core data structures that represent an MTG game. No rules logic yet — just the data model.
 
 **Deliverables**:
-- [ ] `GameState` struct with all fields per architecture doc Section 2.1
-- [ ] `GameObject` with full characteristics representation
-- [ ] Zone system: all zone types, zone membership tracking
-- [ ] `ObjectId` generation and tracking; object identity rules per CR 400.7
-- [ ] `PlayerId` and `PlayerState` with Commander-relevant fields (life 40, commander tax, commander damage matrix)
-- [ ] `GameStateBuilder` test utility with fluent API
-- [ ] Snapshot/clone tests proving structural sharing performance
+- [x] `GameState` struct with all fields per architecture doc Section 2.1
+- [x] `GameObject` with full characteristics representation
+- [x] Zone system: all zone types, zone membership tracking
+- [x] `ObjectId` generation and tracking; object identity rules per CR 400.7
+- [x] `PlayerId` and `PlayerState` with Commander-relevant fields (life 40, commander tax, commander damage matrix)
+- [x] `GameStateBuilder` test utility with fluent API
+- [x] Snapshot/clone tests proving structural sharing performance
 
 **Tests** (minimum):
-- [ ] Construct a game state with 4 players, 100-card decks, permanents on battlefield
-- [ ] Clone game state; verify clone is independent (modify one, other unchanged)
-- [ ] Object identity: create object, move to graveyard, verify new ObjectId
-- [ ] Zone integrity: every object in exactly one zone
-- [ ] Performance: clone a complex state in <1ms
+- [x] Construct a game state with 4 players, 100-card decks, permanents on battlefield
+- [x] Clone game state; verify clone is independent (modify one, other unchanged)
+- [x] Object identity: create object, move to graveyard, verify new ObjectId
+- [x] Zone integrity: every object in exactly one zone
+- [x] Performance: clone a complex state in <1ms
 
 **Acceptance Criteria**:
-- All tests pass
-- `GameStateBuilder` can construct any game state needed by future milestones
-- State clone benchmark meets <1ms target
+- [x] All tests pass
+- [x] `GameStateBuilder` can construct any game state needed by future milestones
+- [x] State clone benchmark meets <1ms target
 
 **Dependencies**: M0
 
@@ -117,26 +123,26 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Implement the turn state machine and multiplayer priority system. After this milestone, the engine can "run" a game of players doing nothing but passing priority through every phase.
 
 **Deliverables**:
-- [ ] Turn FSM: all phases and steps as enum, transition function
-- [ ] Priority state machine: `PlayerHasPriority`, `CheckingStateBasedActions`, `OrderingTriggers`, `AllPassed`
-- [ ] Multiplayer priority passing: APNAP order, pass counter, reset on action
-- [ ] Turn-based actions for each step (untap all, draw card, empty mana pools, etc.)
-- [ ] Extra turn tracking (for future use)
-- [ ] Extra combat tracking (for future use)
-- [ ] `Command::PassPriority` processing
+- [x] Turn FSM: all phases and steps as enum, transition function
+- [x] Priority state machine: `PlayerHasPriority`, `CheckingStateBasedActions`, `OrderingTriggers`, `AllPassed`
+- [x] Multiplayer priority passing: APNAP order, pass counter, reset on action
+- [x] Turn-based actions for each step (untap all, draw card, empty mana pools, etc.)
+- [x] Extra turn tracking (for future use)
+- [x] Extra combat tracking (for future use)
+- [x] `Command::PassPriority` processing
 
 **Tests** (minimum):
-- [ ] Full turn cycle: verify each phase/step is visited in order
-- [ ] Priority passes through all 4 players before stack resolves
-- [ ] Active player receives priority first after each step transition
-- [ ] Turn-based actions fire at correct steps (untap during untap, draw during draw)
-- [ ] Cleanup step: hand size check, "until end of turn" effects expire
-- [ ] Extra turn insertion: verify turn order modification
-- [ ] Multiplayer: player elimination doesn't break turn order
+- [x] Full turn cycle: verify each phase/step is visited in order
+- [x] Priority passes through all 4 players before stack resolves
+- [x] Active player receives priority first after each step transition
+- [x] Turn-based actions fire at correct steps (untap during untap, draw during draw)
+- [x] Cleanup step: hand size check, "until end of turn" effects expire
+- [x] Extra turn insertion: verify turn order modification
+- [x] Multiplayer: player elimination doesn't break turn order
 
 **Acceptance Criteria**:
-- A 4-player game can run 10 full turn cycles with all players passing priority, visiting every phase/step correctly
-- Turn structure matches CR 500-514 exactly
+- [x] A 4-player game can run 10 full turn cycles with all players passing priority, visiting every phase/step correctly
+- [x] Turn structure matches CR 500-514 exactly
 
 **Dependencies**: M1
 
@@ -214,10 +220,16 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Multiple players at 0 life simultaneously: all lose simultaneously
 - [ ] SBA triggers go on stack in APNAP order after all SBAs finish
 
+**Game Script Tasks**:
+- [ ] Generate 5-10 baseline game scripts covering simple scenarios: vanilla combat, basic spell resolution, simple priority passing. Use Claude Code with MCP tools, following the generation process in `mtg-engine-game-scripts.md`.
+- [ ] Scripts stored in `test-data/generated-scripts/baseline/`
+- [ ] All generated scripts human-reviewed and marked `approved` before use
+
 **Acceptance Criteria**:
 - All SBAs from CR 704.5 implemented and individually tested
 - Fixed-point loop terminates for all tested states (property test)
 - SBA check integrates correctly with priority system
+- Baseline game scripts generated and reviewed (not yet replayable — replay harness comes in M7)
 
 **Dependencies**: M3 (SBAs reference the stack for trigger placement)
 
@@ -257,10 +269,18 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Circular dependency: falls back to timestamp order
 - [ ] At least 20 additional corner cases from Appendix A of architecture doc
 
+**Game Script Tasks**:
+- [ ] Generate scripts for each layer system corner case in `mtg-engine-corner-cases.md` (cases 1-7, 30). These scripts document the expected behavior with full CR citations, independent of the engine.
+- [ ] Generate 5-10 additional scripts for layer interactions not covered by the corner cases doc (e.g., basic continuous effects from enchantments, +1/+1 counters interacting with setting effects)
+- [ ] Scripts stored in `test-data/generated-scripts/layers/`
+- [ ] Cross-validate each script (second Claude Code pass verifying CR citations)
+- [ ] All scripts human-reviewed
+
 **Acceptance Criteria**:
 - All 20+ corner case tests pass
 - Layer system produces correct characteristics for every object in any test state
 - Performance benchmark: <1ms for 50 continuous effects
+- Layer system game scripts generated, cross-validated, and reviewed
 
 **Dependencies**: M1 (state model), M3 (effects reference stack for spell-based continuous effects)
 
@@ -301,10 +321,18 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Commander combat damage tracked in matrix
 - [ ] Multiplayer: player A attacks player B and player C simultaneously
 
+**Game Script Tasks**:
+- [ ] Generate scripts for combat corner cases from `mtg-engine-corner-cases.md` (cases 8, 9, 20, 21, 22)
+- [ ] Generate keyword interaction matrix scripts: create a script for every meaningful pair of combat keywords (first strike × deathtouch, trample × protection, flying × reach, menace × single blocker, etc.)
+- [ ] Generate multiplayer combat scripts: player A attacks both player B and player C, each declares blockers independently
+- [ ] Scripts stored in `test-data/generated-scripts/combat/`
+- [ ] All scripts cross-validated and human-reviewed
+
 **Acceptance Criteria**:
 - Full combat phase executes correctly for multiplayer
 - All combat keyword interactions tested
 - Commander damage tracking accurate
+- Combat game scripts generated, cross-validated, and reviewed
 
 **Dependencies**: M4 (SBAs check lethal damage), M5 (continuous effects modify P/T and abilities)
 
@@ -314,7 +342,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 
 ### M7: Card Definition Framework & First Cards
 
-**Goal**: Build the card definition system and implement the first set of real cards. This is where the engine starts feeling like MTG.
+**Goal**: Build the card definition system, implement the first set of real cards, and build the game script replay harness so generated scripts become executable tests.
 
 **Deliverables**:
 - [ ] `CardDefinition` struct and `AbilityDefinition` enum per architecture doc Section 3.7
@@ -336,6 +364,15 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Mode selection for modal spells
 - [ ] **First 50 real card definitions**: hand-authored, focusing on Commander staples (Sol Ring, Command Tower, Lightning Greaves, Swords to Plowshares, Counterspell, Cultivate, etc.)
 - [ ] Test harness that loads a card definition and verifies its behavior in isolation
+- [ ] **Game script replay harness** (see `mtg-engine-game-scripts.md` Hook 2): loads a `GameScript` JSON, constructs initial state via `GameStateBuilder`, feeds actions as `Command`s to the engine, asserts state at every `assert_state` checkpoint
+- [ ] **Script auto-discovery test** (see `mtg-engine-game-scripts.md` Hook 3): `cargo test` automatically finds and runs all approved scripts in `test-data/generated-scripts/`
+- [ ] Run all previously generated scripts (from M4-M6) through the replay harness; fix mismatches
+
+**Game Script Tasks**:
+- [ ] Generate scripts for the first 50 cards' individual behaviors (cast Sol Ring, tap for mana; cast Swords to Plowshares, exile creature and gain life; etc.)
+- [ ] Generate scripts for keyword ability scenarios using real cards
+- [ ] Scripts stored in `test-data/generated-scripts/` organized by subsystem
+- [ ] All scripts cross-validated and reviewed
 
 **Tests** (minimum):
 - [ ] Each keyword ability in a combat or game scenario
@@ -346,11 +383,16 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Cultivate: search library for two basic lands, one to battlefield tapped, one to hand
 - [ ] Modal spell: choose one or more modes, each resolves
 - [ ] Card definition load/save round-trip
+- [ ] Replay harness processes a simple script end-to-end
+- [ ] Replay harness detects a deliberate state mismatch (negative test)
+- [ ] Script auto-discovery finds and runs all approved scripts
 
 **Acceptance Criteria**:
 - 50 real cards implemented and individually tested
 - All keyword abilities functional
 - Card definition system is extensible (adding a new card doesn't require engine changes)
+- Replay harness runs all approved scripts from M4-M6; all pass
+- Any script failures investigated and resolved (engine fix or script correction)
 
 **Dependencies**: M3-M6 (the card framework exercises all prior systems)
 
@@ -382,10 +424,18 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Replacement + prevention interaction: which applies first (player's choice per CR 616)
 - [ ] Commander zone-change replacement: commander would die → choose command zone or graveyard
 
+**Game Script Tasks**:
+- [ ] Generate scripts for replacement effect corner cases from `mtg-engine-corner-cases.md` (cases 16-19, 28, 33)
+- [ ] Generate scripts for prevention effect scenarios (damage prevention shields, protection preventing damage)
+- [ ] Generate scripts for replacement + prevention interaction ordering
+- [ ] Scripts stored in `test-data/generated-scripts/replacement/`
+- [ ] All scripts cross-validated and reviewed
+
 **Acceptance Criteria**:
 - Replacement effects integrate cleanly with existing event system
 - Commander zone-change choice works correctly
 - No infinite loops possible in replacement effect chains
+- Replacement effect game scripts pass through replay harness
 
 **Dependencies**: M4 (SBAs generate events that can be replaced), M5 (continuous effects can create replacement effects)
 
@@ -429,9 +479,18 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Free mulligan then London mulligan sequence
 - [ ] 4-player game start: all commander-specific setup correct
 
+**Game Script Tasks**:
+- [ ] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28)
+- [ ] Generate scripts for full Commander game setup: mulligan sequence, first few turns with commander casting and tax
+- [ ] Generate scripts for commander damage tracking across multiple combats and zone changes
+- [ ] Generate scripts for partner commander interactions
+- [ ] Scripts stored in `test-data/generated-scripts/commander/`
+- [ ] All scripts cross-validated and reviewed
+
 **Acceptance Criteria**:
 - A full 4-player Commander game can be played programmatically (via test commands) from game start through win/loss conditions
 - All Commander-specific rules from CR 903 tested
+- All Commander game scripts pass through replay harness
 - This milestone marks **Engine Core Complete**
 
 **Dependencies**: M1-M8 (all core systems)
@@ -447,7 +506,8 @@ At this point, the engine can run a complete Commander game programmatically. Al
 **Checkpoint validation**:
 - [ ] Property tests pass: 50+ invariants validated via fuzzing
 - [ ] All golden tests pass (at least 5 hand-authored full game replays)
-- [ ] All corner case tests from Appendix A of architecture doc pass
+- [ ] All approved game scripts pass through replay harness (~100+ scripts)
+- [ ] All corner case tests from `mtg-engine-corner-cases.md` pass
 - [ ] Performance benchmarks meet targets
 
 ---
@@ -530,11 +590,13 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Priority queue: cards ordered by EDHREC popularity (Commander staples first)
 - [ ] First 500 cards generated and validated
 - [ ] Coverage report: percentage of Commander-legal cards with definitions
+- [ ] Generate game scripts for newly defined cards' key interactions
 
 **Tests**:
 - [ ] Pipeline generates correct definitions for the original 50 hand-authored cards (baseline)
 - [ ] Newly generated cards pass individual behavior tests
 - [ ] Known interactions between newly generated cards pass integration tests
+- [ ] New game scripts for card interactions pass through replay harness
 
 **Acceptance Criteria**:
 - 500+ cards with validated definitions
@@ -609,11 +671,13 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Crash reporting: basic telemetry for unhandled errors
 - [ ] README and player-facing documentation
 - [ ] Build pipeline: produce installable binaries for Windows, macOS, Linux
+- [ ] Final game script validation: run full script suite, all approved scripts pass
 
 **Acceptance Criteria**:
 - 4 players can complete a Commander game without crashes
 - All common staple cards (top 200 EDHREC) have working definitions
 - Installable builds for all three platforms
+- 200+ approved game scripts passing
 
 **Dependencies**: M10-M14
 
@@ -630,6 +694,7 @@ These are not scheduled but represent the next directions after alpha:
 **Card coverage expansion**:
 - Continue generating card definitions toward full Commander-legal coverage
 - Community contribution pipeline: players can submit and validate card definitions
+- Community-submitted game scripts for edge cases and new interactions
 
 **Gameplay features**:
 - Spectator mode
@@ -655,6 +720,11 @@ These are not scheduled but represent the next directions after alpha:
 - Performance: WASM compilation for potential web client
 - Additional formats: Standard, Modern, Legacy (engine already supports them; just need card pool filtering)
 
+**Testing improvements**:
+- Game script review interface: visual HTML renderer for human review workflow
+- Automated regression seed generation from bug reports
+- Forge/XMage cross-reference for three-way validation
+
 ---
 
 ## Risk Register
@@ -667,6 +737,8 @@ These are not scheduled but represent the next directions after alpha:
 | Scryfall API changes or terms change | Card data pipeline breaks | Low | Vendor-lock only on data format, not API; cache aggressively |
 | Performance bottleneck in layer recalculation | Unplayable with complex board states | Medium | Benchmark from M5; incremental recalculation if needed |
 | Scope creep from Commander complexity | Milestones slip | High | Strict MVP: basic Commander first, variants and edge cases in post-alpha |
+| Game script schema changes break existing scripts | Accumulated scripts need rework | Medium | Version the schema; write migration tooling; prefer additive changes |
+| Engine and scripts disagree on correct behavior | Ambiguous which is wrong | Medium | Always trace back to CR text; when in doubt, check Forge/XMage; human judge review |
 
 ---
 
@@ -674,8 +746,13 @@ These are not scheduled but represent the next directions after alpha:
 
 ```
 M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6 ──→ M7 ──→ M8 ──→ M9
- │                                                     │            │
- │                                                     ▼            ▼
+ │                           │      │      │      │              │
+ │                           │      │      │      │              │
+ │                           ▼      ▼      ▼      ▼              ▼
+ │                         scripts scripts scripts scripts    scripts
+ │                         (base)  (layer) (combat)(replay+   (cmdr)
+ │                                                  cards)
+ │                                                     │
  └──────────────────────────────────────────────────→ M11         M10
                                                        │           │
                                                        ▼           ▼
@@ -688,4 +765,4 @@ M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6
                                                    M15
 ```
 
-Engine milestones (M0-M9) are strictly sequential — each builds on the prior. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.
+Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Game script generation runs as a parallel workstream starting at M4, producing scripts that become executable tests when the replay harness arrives in M7. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.

@@ -59,7 +59,7 @@
   - Project-scoped config in `.claude/settings.json`
 - Tauri v2 + Svelte app shell (not in workspace — requires display server)
 - GitHub Actions CI, `rust-toolchain.toml`, `.nvmrc`, `.gitignore`
-- Docs: `docs/mtg-engine-architecture.md`, `docs/mtg-engine-roadmap.md`
+- Docs: `docs/mtg-engine-architecture.md`, `docs/mtg-engine-roadmap.md`, `docs/mtg-engine-game-scripts.md`, `docs/mtg-engine-corner-cases.md`
 
 ### What's Next (M3)
 - Stack implementation: StackObject, casting spells, activating abilities
@@ -84,6 +84,8 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 |----------|----------|---------|
 | Architecture & Testing Strategy | `docs/mtg-engine-architecture.md` | Why decisions were made; system design; testing approach |
 | Development Roadmap | `docs/mtg-engine-roadmap.md` | What to build and in what order; milestone definitions |
+| Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
+| Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
 | This file | `CLAUDE.md` | Current project state; coding conventions; session context |
 
 **Read the architecture doc before implementing anything.** It explains the rationale behind
@@ -100,7 +102,9 @@ mtg-engine/
 ├── Cargo.toml                        (workspace root)
 ├── docs/
 │   ├── mtg-engine-architecture.md
-│   └── mtg-engine-roadmap.md
+│   ├── mtg-engine-roadmap.md
+│   ├── mtg-engine-game-scripts.md
+│   └── mtg-engine-corner-cases.md
 ├── crates/
 │   ├── engine/                       (core rules engine — THE product)
 │   │   ├── Cargo.toml
@@ -445,6 +449,7 @@ When completing a milestone:
 - [ ] Performance benchmarks run (if applicable to this milestone)
 - [ ] Update "Current State" section of this file
 - [ ] Update "Active Milestone" to the next milestone
+- [ ] Check off completed deliverables in `docs/mtg-engine-roadmap.md`
 - [ ] Add any new design decisions to the Decision Log
 - [ ] Add any new gotchas discovered to the Pitfalls section
 - [ ] Commit: `M<N>: milestone complete — <summary>`
