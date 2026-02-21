@@ -16,6 +16,7 @@ use super::lands;
 use super::mana;
 use super::priority::{self, PriorityResult};
 use super::resolution;
+use super::sba;
 use super::turn_actions;
 use super::turn_structure;
 
@@ -169,6 +170,21 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         }
 
         if state.turn.step.has_priority() {
+            // CR 704.3: Check and apply all SBAs before granting priority.
+            let sba_events = sba::check_and_apply_sbas(state);
+            // Any SBA events may have triggered abilities — queue them.
+            let sba_triggers = abilities::check_triggers(state, &sba_events);
+            for t in sba_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            events.extend(sba_events);
+
+            // If all players lost due to SBAs, end the game.
+            if is_game_over(state) {
+                events.extend(check_game_over(state));
+                return Ok(events);
+            }
+
             // Flush any pending triggers before granting priority (CR 603.3).
             let trigger_events = abilities::flush_pending_triggers(state);
             events.extend(trigger_events);

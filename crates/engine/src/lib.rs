@@ -12,5 +12,5 @@ pub use state::{
     ZoneType,
 };
 
-pub use rules::engine::process_command;
+pub use rules::engine::{process_command, start_game};
 pub use rules::{Command, GameEvent, LossReason};

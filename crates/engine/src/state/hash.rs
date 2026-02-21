@@ -355,6 +355,7 @@ impl HashInto for GameObject {
         self.attachments.hash_into(hasher);
         self.attached_to.hash_into(hasher);
         self.damage_marked.hash_into(hasher);
+        self.deathtouch_damage.hash_into(hasher);
         self.is_token.hash_into(hasher);
         self.timestamp.hash_into(hasher);
     }
@@ -726,6 +727,56 @@ impl HashInto for GameEvent {
                 26u8.hash_into(hasher);
                 controller.hash_into(hasher);
                 stack_object_id.hash_into(hasher);
+            }
+
+            // M4 SBA events
+            GameEvent::CreatureDied {
+                object_id,
+                new_grave_id,
+            } => {
+                27u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_grave_id.hash_into(hasher);
+            }
+            GameEvent::PlaneswalkerDied {
+                object_id,
+                new_grave_id,
+            } => {
+                28u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_grave_id.hash_into(hasher);
+            }
+            GameEvent::AuraFellOff {
+                object_id,
+                new_grave_id,
+            } => {
+                29u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_grave_id.hash_into(hasher);
+            }
+            GameEvent::EquipmentUnattached { object_id } => {
+                30u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            GameEvent::TokenCeasedToExist { object_id } => {
+                31u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            GameEvent::CountersAnnihilated { object_id, amount } => {
+                32u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            GameEvent::LegendaryRuleApplied {
+                kept_id,
+                put_to_graveyard,
+            } => {
+                33u8.hash_into(hasher);
+                kept_id.hash_into(hasher);
+                for (old_id, new_id) in put_to_graveyard {
+                    old_id.hash_into(hasher);
+                    new_id.hash_into(hasher);
+                }
             }
         }
     }

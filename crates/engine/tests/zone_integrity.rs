@@ -181,6 +181,7 @@ fn test_add_object_to_state() {
         attachments: im::Vector::new(),
         attached_to: None,
         damage_marked: 0,
+        deathtouch_damage: false,
         is_token: false,
         timestamp: 0,
     };

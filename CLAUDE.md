@@ -11,11 +11,25 @@
 
 ## Current State
 
-- **Active Milestone**: M3 — Stack & Spell Resolution
-- **Status**: **COMPLETE** (M3-A through M3-E all done)
+- **Active Milestone**: M5 — The Layer System
+- **Status**: M4 complete; M5 starting
 - **Last Updated**: 2026-02-21
 
-### What Exists (M3 in progress)
+### What Exists (M4 complete)
+- Everything from M3, plus:
+- `rules/sba.rs`: `check_and_apply_sbas` (fixed-point loop) with all CR 704.5 SBAs
+  - 704.5a: player at 0 or less life loses; 704.5c: 10+ poison counters
+  - 704.5d: token in non-battlefield zone ceases to exist
+  - 704.5f: creature toughness ≤ 0; 704.5g: lethal damage; 704.5h: deathtouch damage
+  - 704.5i: planeswalker at 0 loyalty; 704.5j: legendary rule (auto-keeps newest)
+  - 704.5m: aura attached to illegal object; 704.5n: equipment attached illegally
+  - 704.5q: +1/+1 and -1/-1 counter annihilation; 704.5u: commander damage 21+
+- SBA check integrated into `engine.rs::enter_step` and `resolution.rs` (before every priority grant)
+- New events: `CreatureDied`, `PlaneswalkerDied`, `AuraFellOff`, `EquipmentUnattached`, `TokenCeasedToExist`, `CountersAnnihilated`, `LegendaryRuleApplied`
+- `deathtouch_damage: bool` added to `GameObject` and `ObjectSpec` (with `with_deathtouch_damage()` and `with_damage()` builder methods)
+- 28 new tests in `tests/sba.rs`; 230 total, zero clippy warnings
+
+### What Exists (M3 complete)
 - Everything from M2, plus:
 - `blake3 = "1"` dependency for deterministic hashing
 - `HashInto` trait in `state/hash.rs`: manual field-by-field hashing into `blake3::Hasher`

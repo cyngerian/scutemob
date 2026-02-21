@@ -196,6 +196,9 @@ pub struct GameObject {
     pub attachments: Vector<ObjectId>,
     pub attached_to: Option<ObjectId>,
     pub damage_marked: u32,
+    /// True if any damage dealt to this permanent was from a source with deathtouch (CR 704.5h).
+    /// Set during combat damage assignment (M6+). Cleared with other damage in cleanup (CR 514.1).
+    pub deathtouch_damage: bool,
     pub is_token: bool,
     /// Timestamp for continuous effect ordering (CR 613.7).
     pub timestamp: u64,

@@ -188,18 +188,19 @@ pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
     vec![GameEvent::ManaPoolsEmptied]
 }
 
-/// Set `damage_marked = 0` on all permanents on the battlefield.
+/// Set `damage_marked = 0` and clear `deathtouch_damage` on all battlefield permanents (CR 514.1).
 pub fn clear_damage(state: &mut GameState) {
     let ids: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.damage_marked > 0)
+        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && (obj.damage_marked > 0 || obj.deathtouch_damage))
         .map(|(id, _)| *id)
         .collect();
 
     for id in &ids {
         if let Some(obj) = state.objects.get_mut(id) {
             obj.damage_marked = 0;
+            obj.deathtouch_damage = false;
         }
     }
 }

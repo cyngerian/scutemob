@@ -273,7 +273,8 @@ impl GameStateBuilder {
                 counters,
                 attachments: Vector::new(),
                 attached_to: None,
-                damage_marked: 0,
+                damage_marked: spec.damage_marked,
+                deathtouch_damage: spec.deathtouch_damage,
                 is_token: spec.is_token,
                 timestamp: 0, // Assigned by add_object
             };
@@ -366,6 +367,10 @@ pub struct ObjectSpec {
     pub keywords: Vec<KeywordAbility>,
     pub activated_abilities: Vec<ActivatedAbility>,
     pub triggered_abilities: Vec<TriggeredAbilityDef>,
+    /// Pre-marked damage (for constructing test states, M4+).
+    pub damage_marked: u32,
+    /// Pre-set deathtouch damage flag (for constructing test states, M4+).
+    pub deathtouch_damage: bool,
 }
 
 impl ObjectSpec {
@@ -392,6 +397,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -418,6 +425,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -444,6 +453,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -470,6 +481,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -496,6 +509,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -522,6 +537,8 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            damage_marked: 0,
+            deathtouch_damage: false,
         }
     }
 
@@ -608,6 +625,18 @@ impl ObjectSpec {
     /// Add a triggered ability to this object (CR 603).
     pub fn with_triggered_ability(mut self, ability: TriggeredAbilityDef) -> Self {
         self.triggered_abilities.push(ability);
+        self
+    }
+
+    /// Set marked damage on this object (for constructing test states, M4+).
+    pub fn with_damage(mut self, amount: u32) -> Self {
+        self.damage_marked = amount;
+        self
+    }
+
+    /// Mark that this object has been dealt deathtouch damage (for constructing test states, M4+).
+    pub fn with_deathtouch_damage(mut self) -> Self {
+        self.deathtouch_damage = true;
         self
     }
 }

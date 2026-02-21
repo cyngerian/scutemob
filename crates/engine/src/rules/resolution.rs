@@ -24,6 +24,7 @@ use crate::state::GameState;
 
 use super::abilities;
 use super::events::GameEvent;
+use super::sba;
 
 /// CR 608.1: Resolve the top object on the stack.
 ///
@@ -64,6 +65,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         stack_object_id: stack_obj.id,
                         source_object_id: new_id,
                     });
+
+                    // CR 704.3: Check SBAs before granting priority.
+                    let sba_evts = sba::check_and_apply_sbas(state);
+                    events.extend(sba_evts);
 
                     // Priority resets to active player after fizzle.
                     state.turn.players_passed = OrdSet::new();
@@ -185,6 +190,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         state.pending_triggers.push_back(t);
     }
 
+    // CR 704.3: Check SBAs before granting priority (happens after each resolution).
+    let sba_events = sba::check_and_apply_sbas(state);
+    let sba_triggers = abilities::check_triggers(state, &sba_events);
+    for t in sba_triggers {
+        state.pending_triggers.push_back(t);
+    }
+    events.extend(sba_events);
+
     // Flush any pending triggers onto the stack before granting priority (CR 603.3).
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
@@ -261,6 +274,10 @@ pub fn counter_stack_object(
             // Countering abilities is non-standard; just remove from stack.
         }
     }
+
+    // CR 704.3: Check SBAs before granting priority.
+    let sba_evts = sba::check_and_apply_sbas(state);
+    events.extend(sba_evts);
 
     // After countering, the active player receives priority (same as resolution).
     state.turn.players_passed = OrdSet::new();

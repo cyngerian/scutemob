@@ -203,4 +203,55 @@ pub enum GameEvent {
         controller: PlayerId,
         stack_object_id: ObjectId,
     },
+
+    // ── M4: State-Based Action events ──────────────────────────────────────
+
+    /// A creature was put into its owner's graveyard as a state-based action
+    /// (CR 704.5f: toughness ≤ 0; CR 704.5g: lethal damage; CR 704.5h: deathtouch damage).
+    CreatureDied {
+        /// ObjectId of the creature on the battlefield (now retired).
+        object_id: ObjectId,
+        /// New ObjectId of the card in the graveyard (CR 400.7).
+        new_grave_id: ObjectId,
+    },
+
+    /// A planeswalker was put into its owner's graveyard because its loyalty
+    /// reached 0 (CR 704.5i).
+    PlaneswalkerDied {
+        object_id: ObjectId,
+        new_grave_id: ObjectId,
+    },
+
+    /// An aura was put into its owner's graveyard because it became attached to
+    /// an illegal or non-existent object (CR 704.5m).
+    AuraFellOff {
+        object_id: ObjectId,
+        new_grave_id: ObjectId,
+    },
+
+    /// An equipment (or fortification) became unattached because the object it
+    /// was attached to is no longer a legal attachment target (CR 704.5n).
+    EquipmentUnattached { object_id: ObjectId },
+
+    /// A token in a non-battlefield zone ceased to exist (CR 704.5d).
+    TokenCeasedToExist { object_id: ObjectId },
+
+    /// +1/+1 and -1/-1 counters were annihilated on a permanent (CR 704.5q).
+    /// `amount` is how many pairs were removed.
+    CountersAnnihilated { object_id: ObjectId, amount: u32 },
+
+    /// The legendary rule was applied: multiple legendary permanents with the
+    /// same name were controlled by the same player; all but one went to the
+    /// owners' graveyards (CR 704.5j).
+    ///
+    /// `kept_id` is the ObjectId that was kept on the battlefield.
+    /// `put_to_graveyard` is a list of (old battlefield ObjectId, new graveyard ObjectId).
+    ///
+    /// Note: in a real game the controller chooses which to keep. For M4, the
+    /// implementation auto-keeps the permanent with the highest ObjectId (most
+    /// recently entered). Player choice is deferred to M7.
+    LegendaryRuleApplied {
+        kept_id: ObjectId,
+        put_to_graveyard: Vec<(ObjectId, ObjectId)>,
+    },
 }

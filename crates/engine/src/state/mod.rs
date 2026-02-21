@@ -200,6 +200,7 @@ impl GameState {
             attachments: Vector::new(),
             attached_to: None,
             damage_marked: 0,
+            deathtouch_damage: false,
             is_token: old_object.is_token,
             timestamp: self.timestamp_counter,
         };

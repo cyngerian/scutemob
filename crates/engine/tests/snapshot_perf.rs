@@ -120,6 +120,7 @@ fn test_clone_independence_object_modification() {
                 attachments: im::Vector::new(),
                 attached_to: None,
                 damage_marked: 0,
+                deathtouch_damage: false,
                 is_token: false,
                 timestamp: 0,
             };
