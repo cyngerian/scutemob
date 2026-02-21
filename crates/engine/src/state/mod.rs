@@ -20,8 +20,7 @@ pub use game_object::{
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use stubs::{
-    CombatState, ContinuousEffect, DelayedTrigger, GameEvent, ReplacementEffect, StackObject,
-    TriggeredAbility,
+    CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, StackObject, TriggeredAbility,
 };
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
@@ -29,6 +28,8 @@ pub use zone::{Zone, ZoneId, ZoneType};
 
 use im::{OrdMap, Vector};
 use serde::{Deserialize, Serialize};
+
+use crate::rules::events::GameEvent;
 
 /// The complete state of an MTG game at a point in time.
 ///
@@ -59,8 +60,6 @@ pub struct GameState {
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.
     pub combat: Option<CombatState>,
-    /// Global turn counter (incremented each turn).
-    pub turn_number: u32,
     /// Monotonic counter for generating ObjectIds and timestamps.
     pub timestamp_counter: u64,
     /// Append-only event log for triggers that look back at history.

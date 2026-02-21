@@ -21,4 +21,25 @@ pub enum GameStateError {
 
     #[error("invalid zone transition from {from:?} to {to:?}")]
     InvalidZoneTransition { from: ZoneId, to: ZoneId },
+
+    #[error("not the priority holder: expected {expected:?}, got {actual:?}")]
+    NotPriorityHolder {
+        expected: Option<PlayerId>,
+        actual: PlayerId,
+    },
+
+    #[error("game is already over")]
+    GameAlreadyOver,
+
+    #[error("player {0:?} has been eliminated")]
+    PlayerEliminated(PlayerId),
+
+    #[error("no active players remaining")]
+    NoActivePlayers,
+
+    #[error("player {0:?} tried to draw from empty library")]
+    LibraryEmpty(PlayerId),
+
+    #[error("invalid command: {0}")]
+    InvalidCommand(String),
 }

@@ -78,4 +78,6 @@ pub struct PlayerState {
     pub has_conceded: bool,
     /// CardIds of this player's commander(s). Supports partner commanders.
     pub commander_ids: Vector<CardId>,
+    /// Maximum hand size for cleanup discard (CR 402.2). Default 7.
+    pub max_hand_size: usize,
 }

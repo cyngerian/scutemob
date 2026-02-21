@@ -11,9 +11,31 @@
 
 ## Current State
 
-- **Active Milestone**: M2 — Turn Structure & Priority
-- **Status**: Not started (M1 complete)
+- **Active Milestone**: M3 — Stack & Spell Resolution
+- **Status**: Not started (M2 complete)
 - **Last Updated**: 2026-02-21
+
+### What Exists (M2 complete)
+- Everything from M1, plus:
+- `Command` enum (`PassPriority`, `Concede`) in `rules/command.rs`
+- `GameEvent` enum (14 variants) in `rules/events.rs` — replaces stub; `LossReason` enum
+- `process_command()` free function in `rules/engine.rs` — single public entry point for all game actions
+- `start_game()` for initializing the first turn
+- Turn FSM in `rules/turn_structure.rs`: `STEP_ORDER`, `advance_step`, `advance_turn`, `next_player_in_turn_order`
+- Priority system in `rules/priority.rs`: APNAP ordering, `pass_priority`, `grant_initial_priority`
+- Turn-based actions in `rules/turn_actions.rs`: untap (CR 502.2), draw (CR 504.1), cleanup discard/damage clear (CR 514), mana pool emptying (CR 500.4)
+- `Step::next()` method for step ordering (skips FirstStrikeDamage)
+- `PlayerState.max_hand_size` field (default 7)
+- `TurnState` additions: `extra_combats`, `in_extra_combat`, `is_first_turn_of_game`, `last_regular_active`
+- Extra turn queue (LIFO) with proper normal-order resumption after extra turns
+- CR 103.8: first player skips first draw
+- CR 104.3b: draw from empty library → player loses
+- Eliminated players skipped in turn order and priority
+- Removed duplicate `turn_number` field from `GameState` (now only in `TurnState`)
+- Builder additions: `at_step()`, `active_player()`, `first_turn_of_game()`, `max_hand_size()`
+- New error variants: `NotPriorityHolder`, `GameAlreadyOver`, `PlayerEliminated`, `NoActivePlayers`, `LibraryEmpty`, `InvalidCommand`
+- 104 tests passing (33 new M2 + 71 existing), zero clippy warnings
+- Test coverage: turn structure (6), priority (7), turn actions (7), extra turns (4), concede (5), proptest invariants (4)
 
 ### What Exists (M1 complete)
 - Everything from M0, plus:
@@ -24,12 +46,9 @@
 - `PlayerId`, `CardId`, `PlayerState` with Commander fields (life=40, commander_tax, commander_damage matrix, poison)
 - `ManaPool` with color-based add/empty/total operations
 - `TurnState`, `Phase`, `Step` enums with phase mapping and priority flags
-- Stub types for future milestones: `ContinuousEffect`, `StackObject`, `CombatState`, `GameEvent`, etc.
 - `GameStateError` enum with `thiserror` integration
 - `GameStateBuilder` + `ObjectSpec` + `PlayerBuilder` fluent test API
 - `rand = "0.8"` dependency for `Zone::shuffle` (seeded Fisher-Yates)
-- 81 tests passing (67 new M1 + 14 existing), zero clippy warnings
-- Test coverage: state foundation, zone integrity, object identity (CR 400.7), builder API, snapshot perf (<1ms), proptest invariants
 
 ### What Exists (M0 complete)
 - Cargo workspace with 6 members: `engine`, `network`, `card-db`, `card-pipeline`, `scryfall-import`, `mcp-server`
@@ -42,12 +61,11 @@
 - GitHub Actions CI, `rust-toolchain.toml`, `.nvmrc`, `.gitignore`
 - Docs: `docs/mtg-engine-architecture.md`, `docs/mtg-engine-roadmap.md`
 
-### What's Next (M2)
-- Turn FSM: all phases and steps, transition function
-- Priority state machine: multiplayer priority passing (APNAP order)
-- Turn-based actions for each step (untap, draw, empty mana pools)
-- `Command::PassPriority` processing
-- Extra turn tracking
+### What's Next (M3)
+- Stack implementation: StackObject, casting spells, activating abilities
+- Spell resolution: LIFO stack processing
+- Triggered abilities: trigger events, APNAP ordering
+- Player choices: targets, modes, costs
 
 ---
 

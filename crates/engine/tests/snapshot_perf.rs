@@ -66,15 +66,15 @@ fn test_clone_independence_real_types() {
 
     // Modify the original
     state.player_mut(PlayerId(1)).unwrap().life_total = 20;
-    state.turn_number = 99;
+    state.turn.turn_number = 99;
 
     // Snapshot unchanged
     assert_eq!(snapshot.player(PlayerId(1)).unwrap().life_total, 40);
-    assert_eq!(snapshot.turn_number, 1);
+    assert_eq!(snapshot.turn.turn_number, 1);
 
     // Original changed
     assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
-    assert_eq!(state.turn_number, 99);
+    assert_eq!(state.turn.turn_number, 99);
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn test_incremental_modification_is_cheap() {
     let start = Instant::now();
     for _ in 0..1000 {
         let mut s = state.clone();
-        s.turn_number += 1;
+        s.turn.turn_number += 1;
     }
     let elapsed = start.elapsed();
 

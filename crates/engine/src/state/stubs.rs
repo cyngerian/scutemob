@@ -47,9 +47,4 @@ pub struct CombatState {
     pub attacking_player: PlayerId,
 }
 
-/// A game event for the history log. Fully defined in M2+.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum GameEvent {
-    /// Placeholder variant so the enum is non-empty.
-    Placeholder,
-}
+// GameEvent has moved to crate::rules::events (M2).

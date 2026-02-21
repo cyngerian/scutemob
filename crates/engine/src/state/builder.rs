@@ -8,7 +8,7 @@ use im::{OrdMap, OrdSet, Vector};
 
 use super::game_object::{Characteristics, GameObject, ManaCost, ObjectId, ObjectStatus};
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
-use super::turn::{Phase, Step, TurnState};
+use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
@@ -18,6 +18,9 @@ pub struct GameStateBuilder {
     players: Vec<PlayerConfig>,
     objects: Vec<ObjectSpec>,
     turn_number: u32,
+    step: Option<Step>,
+    active_player: Option<PlayerId>,
+    is_first_turn_of_game: bool,
 }
 
 struct PlayerConfig {
@@ -27,6 +30,7 @@ struct PlayerConfig {
     commander_ids: Vec<CardId>,
     mana_pool: ManaPool,
     land_plays_remaining: u32,
+    max_hand_size: usize,
 }
 
 impl GameStateBuilder {
@@ -35,6 +39,9 @@ impl GameStateBuilder {
             players: Vec::new(),
             objects: Vec::new(),
             turn_number: 1,
+            step: None,
+            active_player: None,
+            is_first_turn_of_game: false,
         }
     }
 
@@ -56,6 +63,7 @@ impl GameStateBuilder {
             commander_ids: Vec::new(),
             mana_pool: ManaPool::default(),
             land_plays_remaining: 1,
+            max_hand_size: 7,
         });
         self
     }
@@ -123,12 +131,30 @@ impl GameStateBuilder {
         self
     }
 
+    /// Set the starting step (and derive phase from it).
+    pub fn at_step(mut self, step: Step) -> Self {
+        self.step = Some(step);
+        self
+    }
+
+    /// Set the active player (defaults to first player).
+    pub fn active_player(mut self, player: PlayerId) -> Self {
+        self.active_player = Some(player);
+        self
+    }
+
+    /// Mark this as the first turn of the game (first player skips draw).
+    pub fn first_turn_of_game(mut self) -> Self {
+        self.is_first_turn_of_game = true;
+        self
+    }
+
     /// Build the `GameState`. Panics if configuration is invalid (no players).
     pub fn build(self) -> GameState {
         assert!(!self.players.is_empty(), "must have at least one player");
 
         let player_ids: Vec<PlayerId> = self.players.iter().map(|p| p.id).collect();
-        let active_player = player_ids[0];
+        let active_player = self.active_player.unwrap_or(player_ids[0]);
 
         // Build players
         let mut players = OrdMap::new();
@@ -145,6 +171,7 @@ impl GameStateBuilder {
                 has_lost: false,
                 has_conceded: false,
                 commander_ids: config.commander_ids.iter().cloned().collect(),
+                max_hand_size: config.max_hand_size,
             };
             players.insert(config.id, player_state);
         }
@@ -161,15 +188,24 @@ impl GameStateBuilder {
             zones.insert(ZoneId::Command(config.id), Zone::new_unordered());
         }
 
+        let step = self.step.unwrap_or(Step::PreCombatMain);
         let turn = TurnState {
-            phase: Phase::PreCombatMain,
-            step: Step::PreCombatMain,
+            phase: step.phase(),
+            step,
             active_player,
-            priority_holder: Some(active_player),
+            priority_holder: if step.has_priority() {
+                Some(active_player)
+            } else {
+                None
+            },
             players_passed: OrdSet::new(),
             turn_number: self.turn_number,
             turn_order: player_ids.iter().copied().collect(),
             extra_turns: Vector::new(),
+            extra_combats: 0,
+            in_extra_combat: false,
+            is_first_turn_of_game: self.is_first_turn_of_game,
+            last_regular_active: active_player,
         };
 
         let mut state = GameState {
@@ -183,7 +219,6 @@ impl GameStateBuilder {
             pending_triggers: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
-            turn_number: self.turn_number,
             timestamp_counter: 0,
             history: Vector::new(),
         };
@@ -266,6 +301,7 @@ impl PlayerBuilder {
                 commander_ids: Vec::new(),
                 mana_pool: ManaPool::default(),
                 land_plays_remaining: 1,
+                max_hand_size: 7,
             },
         }
     }
@@ -292,6 +328,11 @@ impl PlayerBuilder {
 
     pub fn land_plays(mut self, n: u32) -> Self {
         self.config.land_plays_remaining = n;
+        self
+    }
+
+    pub fn max_hand_size(mut self, n: usize) -> Self {
+        self.config.max_hand_size = n;
         self
     }
 }

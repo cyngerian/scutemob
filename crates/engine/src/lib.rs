@@ -10,3 +10,6 @@ pub use state::{
     ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, Step, SubType,
     SuperType, TurnState, Zone, ZoneId, ZoneType,
 };
+
+pub use rules::engine::process_command;
+pub use rules::{Command, GameEvent, LossReason};

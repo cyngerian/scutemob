@@ -166,6 +166,5 @@ fn test_active_players_excludes_lost() {
 #[test]
 fn test_turn_number_configurable() {
     let state = GameStateBuilder::four_player().turn_number(5).build();
-    assert_eq!(state.turn_number, 5);
     assert_eq!(state.turn.turn_number, 5);
 }

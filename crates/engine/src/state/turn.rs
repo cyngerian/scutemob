@@ -71,6 +71,30 @@ impl Step {
     }
 }
 
+impl Step {
+    /// Returns the next step in normal turn order.
+    ///
+    /// Skips FirstStrikeDamage (conditionally inserted in M6).
+    /// Returns None after Cleanup (end of turn).
+    pub fn next(self) -> Option<Step> {
+        match self {
+            Step::Untap => Some(Step::Upkeep),
+            Step::Upkeep => Some(Step::Draw),
+            Step::Draw => Some(Step::PreCombatMain),
+            Step::PreCombatMain => Some(Step::BeginningOfCombat),
+            Step::BeginningOfCombat => Some(Step::DeclareAttackers),
+            Step::DeclareAttackers => Some(Step::DeclareBlockers),
+            Step::DeclareBlockers => Some(Step::CombatDamage),
+            Step::CombatDamage => Some(Step::EndOfCombat),
+            Step::FirstStrikeDamage => Some(Step::CombatDamage),
+            Step::EndOfCombat => Some(Step::PostCombatMain),
+            Step::PostCombatMain => Some(Step::End),
+            Step::End => Some(Step::Cleanup),
+            Step::Cleanup => None,
+        }
+    }
+}
+
 /// State of the current turn (CR 500).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TurnState {
@@ -85,4 +109,13 @@ pub struct TurnState {
     pub turn_order: Vector<PlayerId>,
     /// Queue of players who will get extra turns (LIFO — most recently added goes first).
     pub extra_turns: Vector<PlayerId>,
+    /// Number of additional combat phases remaining this turn.
+    pub extra_combats: u32,
+    /// Whether we are currently in an extra combat phase.
+    pub in_extra_combat: bool,
+    /// Whether this is the very first turn of the game (first player skips draw).
+    pub is_first_turn_of_game: bool,
+    /// The active player of the last regular (non-extra) turn.
+    /// Used to resume normal turn order after extra turns.
+    pub last_regular_active: PlayerId,
 }
