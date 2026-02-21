@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/engine",
+    "crates/network",
+    "crates/card-db",
+    "crates/card-pipeline",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
