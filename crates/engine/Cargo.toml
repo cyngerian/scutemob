@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 im = { version = "15", features = ["serde"] }
+rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 

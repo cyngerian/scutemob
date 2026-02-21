@@ -11,33 +11,43 @@
 
 ## Current State
 
-- **Active Milestone**: M0 — Project Scaffold & Data Foundation
-- **Status**: In progress — scaffold, data pipeline, and Tauri shell complete; MCP server remaining
-- **Last Updated**: 2026-02-20
+- **Active Milestone**: M2 — Turn Structure & Priority
+- **Status**: Not started (M1 complete)
+- **Last Updated**: 2026-02-21
 
-### What Exists
-- Git repository initialized
-- Cargo workspace with 5 crates: `engine`, `network`, `card-db`, `card-pipeline`, `scryfall-import`
-- Engine crate with `im-rs`, `serde`, `thiserror` dependencies; module stubs for `state`, `rules`, `cards`, `effects`
-- Network crate with `tokio` dependency (placeholder)
+### What Exists (M1 complete)
+- Everything from M0, plus:
+- `GameState` struct with `im::OrdMap`/`OrdSet`/`Vector` for all fields (deterministic iteration)
+- `GameObject` with full `Characteristics`, `ObjectStatus`, counters, attachments, timestamps
+- Zone system: `ZoneId` enum (type-safe per-player/shared encoding), `Zone` (Ordered/Unordered variants)
+- `ObjectId` generation via monotonic `timestamp_counter`; CR 400.7 zone-change identity in `move_object_to_zone`
+- `PlayerId`, `CardId`, `PlayerState` with Commander fields (life=40, commander_tax, commander_damage matrix, poison)
+- `ManaPool` with color-based add/empty/total operations
+- `TurnState`, `Phase`, `Step` enums with phase mapping and priority flags
+- Stub types for future milestones: `ContinuousEffect`, `StackObject`, `CombatState`, `GameEvent`, etc.
+- `GameStateError` enum with `thiserror` integration
+- `GameStateBuilder` + `ObjectSpec` + `PlayerBuilder` fluent test API
+- `rand = "0.8"` dependency for `Zone::shuffle` (seeded Fisher-Yates)
+- 81 tests passing (67 new M1 + 14 existing), zero clippy warnings
+- Test coverage: state foundation, zone integrity, object identity (CR 400.7), builder API, snapshot perf (<1ms), proptest invariants
+
+### What Exists (M0 complete)
+- Cargo workspace with 6 members: `engine`, `network`, `card-db`, `card-pipeline`, `scryfall-import`, `mcp-server`
 - Card-db crate with SQLite schema (`cards`, `card_faces`, `rulings`, `card_definitions` tables)
-- Card-pipeline crate (placeholder)
-- Scryfall bulk importer (`tools/scryfall-import`): downloads oracle cards + rulings, populates SQLite
-- SQLite database populated: 36,923 cards, 5,869 card faces, 74,277 rulings, 30,395 Commander-legal
-- Tauri v2 + Svelte app shell scaffolded (not in workspace — requires display server, builds on Windows PC)
-- im-rs proof-of-concept tests (4 passing)
-- Card-db schema tests (2 passing)
-- GitHub Actions CI pipeline (`cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --all`)
-- `rust-toolchain.toml` (stable), `.nvmrc` (22), `.gitignore`
-- Architecture doc: `docs/mtg-engine-architecture.md`
-- Development roadmap: `docs/mtg-engine-roadmap.md`
+- Scryfall bulk importer (`tools/scryfall-import`): 36,923 cards, 74,277 rulings imported
+- MCP server (`tools/mcp-server`): 4 tools — `search_rules`, `get_rule`, `lookup_card`, `search_rulings`
+  - CR parser: 3,114 rules in FTS5; auto-rebuild wrapper script (`run.sh`)
+  - Project-scoped config in `.claude/settings.json`
+- Tauri v2 + Svelte app shell (not in workspace — requires display server)
+- GitHub Actions CI, `rust-toolchain.toml`, `.nvmrc`, `.gitignore`
+- Docs: `docs/mtg-engine-architecture.md`, `docs/mtg-engine-roadmap.md`
 
-### What's Next (remaining M0 deliverables)
-- Configure MCP server for CR + card data RAG
-
-### What's Next (M1)
-- Implement `GameState`, `GameObject`, zone system, `ObjectId`, `PlayerState`
-- Build `GameStateBuilder` test utility
+### What's Next (M2)
+- Turn FSM: all phases and steps, transition function
+- Priority state machine: multiplayer priority passing (APNAP order)
+- Turn-based actions for each step (untap, draw, empty mana pools)
+- `Command::PassPriority` processing
+- Extra turn tracking
 
 ---
 

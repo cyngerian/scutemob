@@ -1,0 +1,81 @@
+//! Player identity and state types.
+
+use im::{OrdMap, Vector};
+use serde::{Deserialize, Serialize};
+
+use super::types::ManaColor;
+
+/// Identifies a player in the game. Unique within a game instance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct PlayerId(pub u64);
+
+/// Identifies a physical card across zone changes.
+///
+/// A CardId persists even when the game object changes zones and gets a new
+/// ObjectId (per CR 400.7). Used for commander tracking, commander tax, and
+/// commander damage — the physical card identity must survive zone changes.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct CardId(pub String);
+
+/// A player's mana pool (CR 106.4).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManaPool {
+    pub white: u32,
+    pub blue: u32,
+    pub black: u32,
+    pub red: u32,
+    pub green: u32,
+    pub colorless: u32,
+}
+
+impl ManaPool {
+    pub fn total(&self) -> u32 {
+        self.white + self.blue + self.black + self.red + self.green + self.colorless
+    }
+
+    pub fn add(&mut self, color: ManaColor, amount: u32) {
+        match color {
+            ManaColor::White => self.white += amount,
+            ManaColor::Blue => self.blue += amount,
+            ManaColor::Black => self.black += amount,
+            ManaColor::Red => self.red += amount,
+            ManaColor::Green => self.green += amount,
+            ManaColor::Colorless => self.colorless += amount,
+        }
+    }
+
+    pub fn empty(&mut self) {
+        *self = ManaPool::default();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.total() == 0
+    }
+}
+
+/// Complete state of a single player.
+///
+/// Commander-specific fields included per CR 903:
+/// - `life_total` starts at 40 (CR 903.7)
+/// - `commander_tax` tracks additional cost per commander cast from command zone
+/// - `commander_damage_received` tracks combat damage per source commander per
+///   opponent, nested for partner commander tracking (CR 903.10a)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlayerState {
+    pub id: PlayerId,
+    pub life_total: i32,
+    pub mana_pool: ManaPool,
+    /// Additional cost to cast each commander from the command zone.
+    /// Key is CardId of the commander card.
+    pub commander_tax: OrdMap<CardId, u32>,
+    /// Combat damage received from each commander, tracked per opponent.
+    /// Outer key: opponent PlayerId. Inner key: CardId of that opponent's commander.
+    pub commander_damage_received: OrdMap<PlayerId, OrdMap<CardId, u32>>,
+    pub poison_counters: u32,
+    pub land_plays_remaining: u32,
+    pub has_drawn_for_turn: bool,
+    pub has_lost: bool,
+    pub has_conceded: bool,
+    /// CardIds of this player's commander(s). Supports partner commanders.
+    pub commander_ids: Vector<CardId>,
+}

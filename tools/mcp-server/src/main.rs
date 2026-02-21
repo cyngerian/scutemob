@@ -433,11 +433,9 @@ async fn main() -> anyhow::Result<()> {
     // use COUNT(*) to detect an unbuilt index. Instead, try a probe search —
     // if it returns nothing despite rulings existing, the index needs rebuilding.
     let rulings_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM rulings",
-            [],
-            |row: &rusqlite::Row| row.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM rulings", [], |row: &rusqlite::Row| {
+            row.get(0)
+        })
         .unwrap_or(0);
 
     let fts_needs_rebuild = if rulings_count > 0 {
