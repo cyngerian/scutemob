@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::game_object::ObjectId;
 use super::player::PlayerId;
+use super::targeting::SpellTarget;
 
 /// An object on the stack: a spell, activated ability, or triggered ability
 /// (CR 405.1).
@@ -26,6 +27,9 @@ pub struct StackObject {
     pub controller: PlayerId,
     /// What kind of object this is (spell, activated ability, or triggered ability).
     pub kind: StackObjectKind,
+    /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
+    /// Validated again at resolution for the fizzle rule (CR 608.2b).
+    pub targets: Vec<SpellTarget>,
 }
 
 /// The kind of object on the stack.

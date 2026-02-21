@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::ManaColor;
@@ -152,4 +152,22 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
+
+    /// A spell fizzled because all of its targets became illegal (CR 608.2b).
+    ///
+    /// Distinct from `SpellCountered`: fizzle is caused by illegal targets, not an
+    /// explicit counter effect. The card is put into its owner's graveyard without
+    /// resolving. Triggers that care about "countered" (e.g., storm) do NOT trigger
+    /// on fizzle (M3-E+).
+    SpellFizzled {
+        player: PlayerId,
+        stack_object_id: ObjectId,
+        source_object_id: ObjectId,
+    },
+
+    /// A player paid a mana cost to cast a spell (CR 601.2f-h).
+    ///
+    /// Emitted when a spell with a non-zero mana cost is cast and the cost is
+    /// deducted from the player's mana pool.
+    ManaCostPaid { player: PlayerId, cost: ManaCost },
 }

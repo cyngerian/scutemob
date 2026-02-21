@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M3 — Stack & Spell Resolution
-- **Status**: In progress (M3-A + M3-B done; M3-C stack resolution next)
+- **Status**: In progress (M3-A + M3-B + M3-C done; M3-D target legality next)
 - **Last Updated**: 2026-02-21
 
 ### What Exists (M3 in progress)
@@ -30,6 +30,12 @@
   - `TapForMana` and `PlayLand` commands with `LandPlayed`, `ManaAdded`, `PermanentTapped` events
   - `rules/mana.rs`: CR 605 handler; `rules/lands.rs`: CR 305.1 handler
   - 19 new tests in `tests/mana_and_lands.rs`
+- **M3-C complete**: Stack resolution — all-pass → resolve top of stack (LIFO)
+  - `rules/resolution.rs`: `resolve_top_of_stack` (CR 608.1/608.2n/608.3a) + `counter_stack_object` (CR 608.2b)
+  - Instant/sorcery → owner's graveyard; permanent → battlefield under caster's control
+  - `handle_all_passed` in engine.rs now branches: non-empty stack → resolve, empty → advance step
+  - 3 new events: `SpellResolved`, `PermanentEnteredBattlefield`, `SpellCountered`
+  - 10 new tests in `tests/resolution.rs`; 178 total, zero clippy warnings
 - **M3-B complete**: CastSpell command, casting windows, Flash, priority reset
   - `keywords: OrdSet<KeywordAbility>` added to `Characteristics` (hash.rs updated; `ObjectSpec.with_keyword()` builder method)
   - `Command::CastSpell { player, card }` — no cost/targets yet (M3-D)
@@ -39,7 +45,7 @@
   - After casting, ACTIVE PLAYER gets priority (not necessarily the caster) — this differs from PlayLand which lets caster retain
   - 12 new tests in `tests/casting.rs`
 - `snapshot_perf.rs` tests use 32 MB thread stack (debug mode struct growth from M3-A)
-- 168 tests passing total, zero clippy warnings
+- 178 tests passing total, zero clippy warnings
 
 ### What Exists (M2 complete)
 - Everything from M1, plus:
@@ -91,7 +97,7 @@
 - ~~Deterministic state hashing (Tier 1)~~ — **DONE**
 - ~~M3-A: Stack foundation + mana (StackObject, ManaAbility, TapForMana, PlayLand)~~ — **DONE**
 - ~~M3-B: Casting spells (CastSpell command, sorcery/instant speed, spell enters stack, priority resets)~~ — **DONE**
-- M3-C: Stack resolution (all-pass → resolve top, LIFO order, move to graveyard, countering)
+- ~~M3-C: Stack resolution (all-pass → resolve top, LIFO order, move to graveyard, countering)~~ — **DONE**
 - M3-D: Target legality (fizzle rule, partial fizzle)
 - M3-E: Triggered abilities (TriggeredAbility proper type, APNAP, intervening-if, ActivateAbility)
 

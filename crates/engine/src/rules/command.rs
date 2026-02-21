@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
+use crate::state::targeting::Target;
 
 /// A player action submitted to the engine.
 ///
@@ -41,18 +42,26 @@ pub enum Command {
 
     /// Cast a spell from hand (CR 601).
     ///
-    /// For M3-B: no cost payment, no targets, no modes. The card moves from
-    /// hand to the Stack zone and a `StackObject` is pushed. Priority resets
-    /// to the active player (CR 601.2i).
+    /// `targets` contains the targets announced at cast time (CR 601.2c). Pass an
+    /// empty vec for non-targeting spells. Each target is validated at cast time and
+    /// again at resolution for the fizzle rule (CR 608.2b).
+    ///
+    /// Mana cost is paid from the player's mana pool (CR 601.2f-h). Spells with no
+    /// mana cost (e.g., adventure spells cast for free via effects) pass cost via
+    /// card definitions in M7.
     ///
     /// Casting speed:
     /// - Instants and spells with Flash may be cast any time the player has priority.
     /// - All other spells require sorcery speed (active player, main phase, empty stack).
-    CastSpell { player: PlayerId, card: ObjectId },
+    CastSpell {
+        player: PlayerId,
+        card: ObjectId,
+        /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
+        targets: Vec<Target>,
+    },
     // --- Future milestones ---
     // ActivateAbility { player, source, ability_index, ... }   // M3-E
     // DeclareAttackers { player, attackers }                   // M6
     // DeclareBlockers { player, blockers }                     // M6
     // OrderBlockers { player, ordering }                       // M6
-    // MakeChoice { player, choice }                            // M3-D
 }

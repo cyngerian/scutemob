@@ -43,7 +43,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
         .unwrap();
 
     let (new_state, events) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     // Card moved from hand to Stack zone.
     assert!(new_state.zones.get(&ZoneId::Hand(p1)).unwrap().is_empty());
@@ -87,7 +87,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p1, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] });
     assert!(result.is_ok());
 }
 
@@ -124,7 +124,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
         .unwrap();
 
     let (new_state, events) =
-        process_command(state, Command::CastSpell { player: p2, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] }).unwrap();
 
     assert_eq!(new_state.stack_objects.len(), 1);
     assert!(events.iter().any(|e| matches!(e, GameEvent::SpellCast { player, .. } if *player == p2)));
@@ -156,7 +156,7 @@ fn test_cast_spell_flash_at_instant_speed() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p1, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] });
     assert!(result.is_ok(), "Flash creature should be castable at instant speed");
 }
 
@@ -191,7 +191,7 @@ fn test_cast_spell_lifo_stack_order() {
         .into_iter()
         .collect();
     let first_card = hand_ids[0];
-    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: first_card }).unwrap();
+    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: first_card, targets: vec![] }).unwrap();
 
     // Cast second spell — stack has something on it but instants are ok.
     let hand_ids: Vec<_> = state
@@ -202,7 +202,7 @@ fn test_cast_spell_lifo_stack_order() {
         .into_iter()
         .collect();
     let second_card = hand_ids[0];
-    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: second_card }).unwrap();
+    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: second_card, targets: vec![] }).unwrap();
 
     assert_eq!(state.stack_objects.len(), 2);
     // Second spell is at the back (top of stack, LIFO).
@@ -238,7 +238,7 @@ fn test_cast_spell_not_priority_holder_fails() {
         .unwrap();
 
     // p2 does not have priority (p1 does).
-    let result = process_command(state, Command::CastSpell { player: p2, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] });
     assert!(matches!(
         result,
         Err(GameStateError::NotPriorityHolder { .. })
@@ -270,7 +270,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p2, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] });
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
 
@@ -296,7 +296,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p1, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] });
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
 }
 
@@ -339,7 +339,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
         .copied()
         .unwrap();
 
-    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: instant_id }).unwrap();
+    let (state, _) = process_command(state, Command::CastSpell { player: p1, card: instant_id, targets: vec![] }).unwrap();
 
     // Now try to cast the sorcery — stack is not empty.
     let sorcery_id = *state
@@ -349,7 +349,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
         .object_ids()
         .first()
         .unwrap();
-    let result = process_command(state, Command::CastSpell { player: p1, card: sorcery_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: sorcery_id, targets: vec![] });
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
 }
 
@@ -373,7 +373,7 @@ fn test_cast_spell_land_fails() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p1, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] });
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
 
@@ -400,7 +400,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
         .first()
         .unwrap();
 
-    let result = process_command(state, Command::CastSpell { player: p1, card: card_id });
+    let result = process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] });
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
 }
 
@@ -432,7 +432,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
         .unwrap();
 
     let (new_state, _) =
-        process_command(state, Command::CastSpell { player: p2, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] }).unwrap();
 
     // Active player (p1) gets priority; passed set is empty.
     assert_eq!(new_state.turn.priority_holder, Some(p1));

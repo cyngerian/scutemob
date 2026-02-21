@@ -247,6 +247,7 @@ fn test_play_land_stack_nonempty_fails() {
         kind: StackObjectKind::Spell {
             source_object: fake_id,
         },
+        targets: vec![],
     });
 
     let result = mtg_engine::process_command(

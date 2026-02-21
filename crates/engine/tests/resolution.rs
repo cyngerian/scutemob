@@ -63,7 +63,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
 
     // Cast the sorcery.
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
     assert_eq!(state.stack_objects.len(), 1);
 
     // All four players pass — active player (p1) has priority after cast.
@@ -112,7 +112,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
         .first()
         .unwrap();
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p2, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] }).unwrap();
 
     // After CastSpell, active player (p1) gets priority. All four pass.
     let (final_state, events) =
@@ -151,7 +151,7 @@ fn test_608_3a_creature_enters_battlefield() {
         .unwrap();
 
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     let (final_state, events) =
         pass_all_four(state, [p(1), p(2), p(3), p(4)]);
@@ -205,7 +205,7 @@ fn test_608_3a_artifact_enters_battlefield() {
         .unwrap();
 
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     let (final_state, _events) =
         pass_all_four(state, [p(1), p(2), p(3), p(4)]);
@@ -245,7 +245,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
         .first()
         .unwrap();
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p2, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p2, card: card_id, targets: vec![] }).unwrap();
 
     // After cast, p1 (active player) gets priority. All four pass to resolve.
     let (final_state, _events) =
@@ -305,12 +305,12 @@ fn test_608_1_lifo_resolves_top_first() {
     };
 
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: sorcery_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: sorcery_id, targets: vec![] }).unwrap();
     assert_eq!(state.stack_objects.len(), 1);
 
     // Now cast the instant on top of the sorcery.
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: instant_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: instant_id, targets: vec![] }).unwrap();
     assert_eq!(state.stack_objects.len(), 2);
 
     // The instant is on top (pushed last).
@@ -392,7 +392,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
         .unwrap();
 
     let (mut state, events) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     // Grab the stack_object_id from the SpellCast event.
     let stack_object_id = events
@@ -454,7 +454,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
         .unwrap();
 
     let (mut state, events) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     let stack_object_id = events
         .iter()
@@ -505,7 +505,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
 
     // p1 can cast at instant speed (Flash).
     let (state, _) =
-        process_command(state, Command::CastSpell { player: p1, card: card_id }).unwrap();
+        process_command(state, Command::CastSpell { player: p1, card: card_id, targets: vec![] }).unwrap();
 
     let (final_state, events) =
         pass_all_four(state, [p(1), p(2), p(3), p(4)]);

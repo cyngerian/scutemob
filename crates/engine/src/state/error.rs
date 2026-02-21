@@ -66,4 +66,10 @@ pub enum GameStateError {
 
     #[error("this action requires an empty stack")]
     StackNotEmpty,
+
+    #[error("player does not have enough mana to pay the cost")]
+    InsufficientMana,
+
+    #[error("invalid target: {0}")]
+    InvalidTarget(String),
 }

@@ -17,6 +17,7 @@ use super::game_object::{
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::stack::{StackObject, StackObjectKind};
+use super::targeting::{SpellTarget, Target};
 use super::stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
@@ -460,11 +461,34 @@ impl HashInto for StackObjectKind {
     }
 }
 
+impl HashInto for Target {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            Target::Player(id) => {
+                0u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            Target::Object(id) => {
+                1u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for SpellTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.target.hash_into(hasher);
+        self.zone_at_cast.hash_into(hasher);
+    }
+}
+
 impl HashInto for StackObject {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.id.hash_into(hasher);
         self.controller.hash_into(hasher);
         self.kind.hash_into(hasher);
+        self.targets.hash_into(hasher);
     }
 }
 
@@ -611,6 +635,21 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 stack_object_id.hash_into(hasher);
                 source_object_id.hash_into(hasher);
+            }
+            GameEvent::SpellFizzled {
+                player,
+                stack_object_id,
+                source_object_id,
+            } => {
+                22u8.hash_into(hasher);
+                player.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+            }
+            GameEvent::ManaCostPaid { player, cost } => {
+                23u8.hash_into(hasher);
+                player.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

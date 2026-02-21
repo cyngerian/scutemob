@@ -7,8 +7,9 @@ pub mod state;
 pub use state::{
     AbilityInstance, CardId, CardType, Characteristics, Color, CounterType, GameObject, GameState,
     GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ManaPool,
-    ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, StackObject,
-    StackObjectKind, Step, SubType, SuperType, TurnState, Zone, ZoneId, ZoneType,
+    ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, SpellTarget,
+    StackObject, StackObjectKind, Step, SubType, SuperType, Target, TurnState, Zone, ZoneId,
+    ZoneType,
 };
 
 pub use rules::engine::process_command;

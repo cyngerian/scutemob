@@ -6,12 +6,18 @@
 //! Instants and sorceries: card moves to owner's graveyard (CR 608.2n).
 //! Permanents: card enters the battlefield under spell's controller (CR 608.3a).
 //! After resolution: priority resets to the active player (CR 116.3b).
+//!
+//! **Fizzle rule (CR 608.2b)**: If ALL targets are illegal at resolution time,
+//! the spell is removed from the stack and its card goes to the graveyard without
+//! resolving (`SpellFizzled`). If only SOME targets are illegal (partial fizzle),
+//! the spell resolves normally; illegal targets are unaffected (M7+).
 
 use im::OrdSet;
 
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
+use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::CardType;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -35,6 +41,40 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     match stack_obj.kind.clone() {
         StackObjectKind::Spell { source_object } => {
             let controller = stack_obj.controller;
+
+            // CR 608.2b: Check target legality before resolving.
+            let targets = &stack_obj.targets;
+            if !targets.is_empty() {
+                let legal_count = targets
+                    .iter()
+                    .filter(|t| is_target_legal(state, t))
+                    .count();
+
+                if legal_count == 0 {
+                    // CR 608.2b: All targets illegal — fizzle.
+                    // Card goes to graveyard without effect (same zone move as normal
+                    // instant/sorcery resolution, but emits SpellFizzled, not SpellResolved).
+                    let owner = state.object(source_object)?.owner;
+                    let (new_id, _old) =
+                        state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+
+                    events.push(GameEvent::SpellFizzled {
+                        player: controller,
+                        stack_object_id: stack_obj.id,
+                        source_object_id: new_id,
+                    });
+
+                    // Priority resets to active player after fizzle.
+                    state.turn.players_passed = OrdSet::new();
+                    let active = state.turn.active_player;
+                    state.turn.priority_holder = Some(active);
+                    events.push(GameEvent::PriorityGiven { player: active });
+
+                    return Ok(events);
+                }
+                // Partial fizzle (some targets illegal): spell resolves normally.
+                // Illegal targets will be unaffected when effects are implemented (M7+).
+            }
 
             // Determine destination zone based on card type (CR 608.2n vs 608.3).
             let (card_types, owner) = {
@@ -98,6 +138,31 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     events.push(GameEvent::PriorityGiven { player: active });
 
     Ok(events)
+}
+
+/// CR 608.2b: Check whether a spell target is still legal at resolution time.
+///
+/// A target is illegal if:
+/// - It was an object target and the object is no longer in the same zone it was
+///   in when targeted ("A target that's no longer in the zone it was in when it
+///   was targeted is illegal." — CR 608.2b).
+/// - It was a player target and that player is no longer active (eliminated/conceded).
+fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
+    match &spell_target.target {
+        Target::Player(id) => state
+            .players
+            .get(id)
+            .map(|p| !p.has_lost && !p.has_conceded)
+            .unwrap_or(false),
+        Target::Object(id) => {
+            // The object must still be in the same zone it was in at cast time.
+            state
+                .objects
+                .get(id)
+                .map(|obj| Some(obj.zone) == spell_target.zone_at_cast)
+                .unwrap_or(false)
+        }
+    }
 }
 
 /// Counter a specific stack object without it resolving (CR 608.2b, 701.5).

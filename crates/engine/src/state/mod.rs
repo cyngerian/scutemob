@@ -10,6 +10,7 @@ pub mod hash;
 pub mod player;
 pub mod stack;
 pub mod stubs;
+pub mod targeting;
 pub mod turn;
 pub mod types;
 pub mod zone;
@@ -21,6 +22,7 @@ pub use game_object::{
     AbilityInstance, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
 };
 pub use stack::{StackObject, StackObjectKind};
+pub use targeting::{SpellTarget, Target};
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
 pub use turn::{Phase, Step, TurnState};
