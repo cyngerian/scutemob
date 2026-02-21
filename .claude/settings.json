@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "mtg-rules": {
-      "command": "/home/airbaggie/scutemob/target/debug/mtg-mcp-server",
+      "command": "/home/airbaggie/scutemob/tools/mcp-server/run.sh",
       "args": [
         "--db", "/home/airbaggie/scutemob/cards.sqlite",
         "--rules", "/home/airbaggie/scutemob/.scryfall-cache/MagicCompRules.txt"
