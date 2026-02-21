@@ -6,6 +6,7 @@
 pub mod builder;
 pub mod error;
 pub mod game_object;
+pub mod hash;
 pub mod player;
 pub mod stubs;
 pub mod turn;
