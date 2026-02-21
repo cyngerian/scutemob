@@ -18,8 +18,12 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Claude Code (keep .claude/settings.json for project-scoped MCP config)
+.claude/settings.local.json
+
 # Project-specific
 *.sqlite
 *.sqlite3
 .scryfall-cache/
 test-data/golden-games/*.result.json
+zz_scratch.md

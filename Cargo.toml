@@ -6,6 +6,7 @@ members = [
     "crates/card-db",
     "crates/card-pipeline",
     "tools/scryfall-import",
+    "tools/mcp-server",
 ]
 
 [workspace.package]
