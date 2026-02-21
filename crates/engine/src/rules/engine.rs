@@ -14,6 +14,7 @@ use super::events::GameEvent;
 use super::lands;
 use super::mana;
 use super::priority::{self, PriorityResult};
+use super::resolution;
 use super::turn_actions;
 use super::turn_structure;
 
@@ -98,30 +99,40 @@ fn handle_pass_priority(
 }
 
 /// Handle when all players have passed priority in succession.
-/// CR 500.4: empty mana pools, then advance step or turn.
+///
+/// CR 608.1: If the stack is non-empty, resolve the top of the stack.
+/// CR 500.4: If the stack is empty, empty mana pools and advance step or turn.
 fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
 
-    // Empty mana pools at step transition (CR 500.4)
-    let mana_events = turn_actions::empty_all_mana_pools(state);
-    events.extend(mana_events);
-
-    // Advance to next step or next turn
-    if let Some((new_turn, step_events)) = turn_structure::advance_step(state) {
-        state.turn = new_turn;
-        events.extend(step_events);
+    if !state.stack_objects.is_empty() {
+        // CR 608.1: Stack is non-empty — resolve the top object.
+        let resolve_events = resolution::resolve_top_of_stack(state)?;
+        events.extend(resolve_events);
     } else {
-        // Past cleanup — advance to next turn
-        let (new_turn, turn_events) = turn_structure::advance_turn(state);
-        state.turn = new_turn;
-        events.extend(turn_events);
-        // Reset per-turn state for new active player
-        turn_actions::reset_turn_state(state, state.turn.active_player);
-    }
+        // Stack is empty — advance step or turn.
 
-    // Enter the new step (execute turn-based actions, grant priority or auto-advance)
-    let enter_events = enter_step(state)?;
-    events.extend(enter_events);
+        // Empty mana pools at step transition (CR 500.4)
+        let mana_events = turn_actions::empty_all_mana_pools(state);
+        events.extend(mana_events);
+
+        // Advance to next step or next turn
+        if let Some((new_turn, step_events)) = turn_structure::advance_step(state) {
+            state.turn = new_turn;
+            events.extend(step_events);
+        } else {
+            // Past cleanup — advance to next turn
+            let (new_turn, turn_events) = turn_structure::advance_turn(state);
+            state.turn = new_turn;
+            events.extend(turn_events);
+            // Reset per-turn state for new active player
+            turn_actions::reset_turn_state(state, state.turn.active_player);
+        }
+
+        // Enter the new step (execute turn-based actions, grant priority or auto-advance)
+        let enter_events = enter_step(state)?;
+        events.extend(enter_events);
+    }
 
     Ok(events)
 }

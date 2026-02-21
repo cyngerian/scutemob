@@ -9,6 +9,7 @@ pub mod events;
 pub mod lands;
 pub mod mana;
 pub mod priority;
+pub mod resolution;
 pub mod turn_actions;
 pub mod turn_structure;
 

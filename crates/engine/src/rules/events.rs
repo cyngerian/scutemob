@@ -122,4 +122,34 @@ pub enum GameEvent {
         stack_object_id: ObjectId,
         source_object_id: ObjectId,
     },
+
+    /// A spell or ability on the stack resolved (CR 608.2n, 608.3).
+    ///
+    /// For instant/sorcery spells, `source_object_id` is the card's new ID in
+    /// the owner's graveyard. For permanent spells, it's the new ID on the
+    /// battlefield (see also `PermanentEnteredBattlefield`).
+    SpellResolved {
+        player: PlayerId,
+        stack_object_id: ObjectId,
+        source_object_id: ObjectId,
+    },
+
+    /// A permanent spell resolved and the card entered the battlefield (CR 608.3a).
+    ///
+    /// `object_id` is the permanent's new ObjectId on the battlefield (new per
+    /// CR 400.7 zone-change identity).
+    PermanentEnteredBattlefield {
+        player: PlayerId,
+        object_id: ObjectId,
+    },
+
+    /// A spell was countered without resolving (CR 608.2b, 701.5).
+    ///
+    /// The card is put into its owner's graveyard. `source_object_id` is the
+    /// card's new ID in the graveyard.
+    SpellCountered {
+        player: PlayerId,
+        stack_object_id: ObjectId,
+        source_object_id: ObjectId,
+    },
 }

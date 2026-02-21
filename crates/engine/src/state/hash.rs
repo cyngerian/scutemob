@@ -587,6 +587,31 @@ impl HashInto for GameEvent {
                 stack_object_id.hash_into(hasher);
                 source_object_id.hash_into(hasher);
             }
+            GameEvent::SpellResolved {
+                player,
+                stack_object_id,
+                source_object_id,
+            } => {
+                19u8.hash_into(hasher);
+                player.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+            }
+            GameEvent::PermanentEnteredBattlefield { player, object_id } => {
+                20u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            GameEvent::SpellCountered {
+                player,
+                stack_object_id,
+                source_object_id,
+            } => {
+                21u8.hash_into(hasher);
+                player.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+            }
         }
     }
 }
