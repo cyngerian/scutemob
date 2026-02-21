@@ -193,9 +193,9 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [x] Tier 1 state hashing (blake3, `public_state_hash`, `private_state_hash`, 19 hash tests)
 - [x] M3-A: `StackObject`/`StackObjectKind`, `ManaAbility`, `TapForMana`, `PlayLand` (19 tests)
 - [x] M3-B: `CastSpell`, casting windows, Flash, `keywords` field, `SpellCast` event (12 tests)
-- [ ] M3-C: Stack resolution — all-pass → resolve top, LIFO, move to graveyard, countering
-- [ ] M3-D: Target legality — fizzle rule, partial fizzle, cost payment validation
-- [ ] M3-E: `ActivateAbility`, triggered abilities, APNAP ordering, intervening-if
+- [x] M3-C: Stack resolution — all-pass → resolve top, LIFO, move to graveyard, countering (10 tests)
+- [x] M3-D: Target legality — fizzle rule, partial fizzle, cost payment validation (13 tests)
+- [x] M3-E: `ActivateAbility`, triggered abilities, APNAP ordering, intervening-if (15 tests)
 
 **Acceptance Criteria**:
 - Players can cast spells from hand, pay mana, and have them resolve

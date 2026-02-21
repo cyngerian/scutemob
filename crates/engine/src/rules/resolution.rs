@@ -22,6 +22,7 @@ use crate::state::types::CardType;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
+use super::abilities;
 use super::events::GameEvent;
 
 /// CR 608.1: Resolve the top object on the stack.
@@ -126,12 +127,69 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             }
         }
-        StackObjectKind::ActivatedAbility { .. } | StackObjectKind::TriggeredAbility { .. } => {
-            // M3-E: Ability resolution deferred. Remove from stack without effect.
+        StackObjectKind::ActivatedAbility { .. } => {
+            // CR 608.3b: Activated ability resolves — execute its effect (M7+).
+            // For M3-E, emit AbilityResolved to signal it left the stack.
+            events.push(GameEvent::AbilityResolved {
+                controller: stack_obj.controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        StackObjectKind::TriggeredAbility {
+            source_object,
+            ability_index,
+        } => {
+            // CR 603.4: Check intervening-if condition at resolution time.
+            // If the condition is false, the ability has no effect (but still resolves).
+            let condition_holds = {
+                let source_obj = state.objects.get(&source_object);
+                match source_obj {
+                    Some(obj) => {
+                        let ability_def = obj
+                            .characteristics
+                            .triggered_abilities
+                            .get(ability_index);
+                        match ability_def {
+                            Some(def) => def
+                                .intervening_if
+                                .as_ref()
+                                .map(|cond| {
+                                    abilities::check_intervening_if(
+                                        state,
+                                        cond,
+                                        stack_obj.controller,
+                                    )
+                                })
+                                .unwrap_or(true),
+                            None => true, // No definition found — resolve without effect
+                        }
+                    }
+                    None => true, // Source gone — ability still resolves (no effect)
+                }
+            };
+
+            // CR 608.3b: Triggered ability resolves — execute effect if condition holds.
+            // For M3-E, emit AbilityResolved regardless (no effects to conditionally skip).
+            let _ = condition_holds; // M7+: only execute effects if condition_holds
+            events.push(GameEvent::AbilityResolved {
+                controller: stack_obj.controller,
+                stack_object_id: stack_obj.id,
+            });
         }
     }
 
-    // CR 116.3b: After resolution, the active player receives priority.
+    // Check for triggered abilities arising from this resolution.
+    let new_triggers = abilities::check_triggers(state, &events);
+    for t in new_triggers {
+        state.pending_triggers.push_back(t);
+    }
+
+    // Flush any pending triggers onto the stack before granting priority (CR 603.3).
+    let trigger_events = abilities::flush_pending_triggers(state);
+    events.extend(trigger_events);
+
+    // CR 116.3b: After resolution (and trigger flushing), the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);

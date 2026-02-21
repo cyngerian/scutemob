@@ -1,0 +1,13 @@
+# Workspace-level Cargo configuration.
+
+[env]
+# Increase minimum thread stack size for debug-mode tests.
+#
+# In debug mode, the Rust compiler does not reuse stack frames across inlined
+# function calls. GameStateBuilder::build() creates large intermediate structs
+# (Characteristics is ~400 bytes) on the stack, and with multiple objects the
+# default 2 MB test thread stack can overflow.
+#
+# This sets the minimum for all threads spawned in the test binary, so every
+# test gets enough headroom without requiring per-test thread::Builder wrappers.
+RUST_MIN_STACK = "33554432"  # 32 MiB

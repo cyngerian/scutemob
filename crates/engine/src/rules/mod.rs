@@ -2,6 +2,7 @@
 //!
 //! Each submodule corresponds to a section of the MTG Comprehensive Rules.
 
+pub mod abilities;
 pub mod casting;
 pub mod command;
 pub mod engine;

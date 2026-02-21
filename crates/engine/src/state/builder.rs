@@ -6,7 +6,10 @@
 
 use im::{OrdMap, OrdSet, Vector};
 
-use super::game_object::{Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus};
+use super::game_object::{
+    ActivatedAbility, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
+    TriggeredAbilityDef,
+};
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
@@ -241,6 +244,8 @@ impl GameStateBuilder {
                 abilities: Vector::new(),
                 keywords: spec.keywords.into_iter().collect(),
                 mana_abilities: spec.mana_abilities.into_iter().collect(),
+                activated_abilities: spec.activated_abilities.into_iter().collect(),
+                triggered_abilities: spec.triggered_abilities.into_iter().collect(),
                 power: spec.power,
                 toughness: spec.toughness,
                 loyalty: spec.loyalty,
@@ -359,6 +364,8 @@ pub struct ObjectSpec {
     pub is_token: bool,
     pub mana_abilities: Vec<ManaAbility>,
     pub keywords: Vec<KeywordAbility>,
+    pub activated_abilities: Vec<ActivatedAbility>,
+    pub triggered_abilities: Vec<TriggeredAbilityDef>,
 }
 
 impl ObjectSpec {
@@ -383,6 +390,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -407,6 +416,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -431,6 +442,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -455,6 +468,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -479,6 +494,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -503,6 +520,8 @@ impl ObjectSpec {
             is_token: false,
             mana_abilities: Vec::new(),
             keywords: Vec::new(),
+            activated_abilities: Vec::new(),
+            triggered_abilities: Vec::new(),
         }
     }
 
@@ -577,6 +596,18 @@ impl ObjectSpec {
     /// Add a keyword ability to this object (CR 702).
     pub fn with_keyword(mut self, keyword: KeywordAbility) -> Self {
         self.keywords.push(keyword);
+        self
+    }
+
+    /// Add a non-mana activated ability to this object (CR 602).
+    pub fn with_activated_ability(mut self, ability: ActivatedAbility) -> Self {
+        self.activated_abilities.push(ability);
+        self
+    }
+
+    /// Add a triggered ability to this object (CR 603).
+    pub fn with_triggered_ability(mut self, ability: TriggeredAbilityDef) -> Self {
+        self.triggered_abilities.push(ability);
         self
     }
 }

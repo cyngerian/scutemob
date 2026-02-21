@@ -8,6 +8,7 @@ use crate::state::error::GameStateError;
 use crate::state::player::PlayerId;
 use crate::state::GameState;
 
+use super::abilities;
 use super::casting;
 use super::command::Command;
 use super::events::GameEvent;
@@ -59,9 +60,20 @@ pub fn process_command(
             let events = lands::handle_play_land(&mut state, player, card)?;
             all_events.extend(events);
         }
-        Command::CastSpell { player, card } => {
+        Command::CastSpell { player, card, targets } => {
             validate_player_active(&state, player)?;
-            let events = casting::handle_cast_spell(&mut state, player, card)?;
+            let events = casting::handle_cast_spell(&mut state, player, card, targets)?;
+            all_events.extend(events);
+        }
+        Command::ActivateAbility {
+            player,
+            source,
+            ability_index,
+            targets,
+        } => {
+            validate_player_active(&state, player)?;
+            let events =
+                abilities::handle_activate_ability(&mut state, player, source, ability_index, targets)?;
             all_events.extend(events);
         }
     }
@@ -157,6 +169,10 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         }
 
         if state.turn.step.has_priority() {
+            // Flush any pending triggers before granting priority (CR 603.3).
+            let trigger_events = abilities::flush_pending_triggers(state);
+            events.extend(trigger_events);
+
             // Grant priority to active player (if still alive)
             let active = state.turn.active_player;
             let is_alive = state

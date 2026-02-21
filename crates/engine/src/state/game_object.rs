@@ -61,6 +61,76 @@ impl ManaAbility {
     }
 }
 
+/// Cost to activate an activated ability (CR 602.2).
+///
+/// For M3-E, activation costs can include tapping and paying mana.
+/// Future milestones will add sacrificing permanents, paying life, etc.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ActivationCost {
+    /// True if activating requires tapping the source (CR 602.2).
+    pub requires_tap: bool,
+    /// Mana cost component of the activation cost (if any).
+    pub mana_cost: Option<ManaCost>,
+}
+
+/// A non-mana activated ability that uses the stack (CR 602).
+///
+/// Written as "Cost: Effect." Distinct from `ManaAbility` (CR 605) which
+/// resolves immediately without the stack.
+///
+/// For M3-E, the effect is tracked via description only. Full effect
+/// execution is implemented in M7 when card definitions are added.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ActivatedAbility {
+    /// The cost to activate this ability.
+    pub cost: ActivationCost,
+    /// Human-readable description of the effect (CR-compatible text).
+    pub description: String,
+}
+
+/// Trigger event patterns for triggered abilities (CR 603).
+///
+/// Describes what game event causes a triggered ability to trigger.
+/// Only common patterns are enumerated; M7+ will add full card definition triggers.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerEvent {
+    /// Triggers when the source permanent enters the battlefield (CR 603.5).
+    SelfEntersBattlefield,
+    /// Triggers whenever any permanent enters the battlefield (CR 603.5).
+    AnyPermanentEntersBattlefield,
+    /// Triggers whenever a spell is cast (CR 603.5).
+    AnySpellCast,
+    /// Triggers when the source permanent becomes tapped (CR 603.5).
+    SelfBecomesTapped,
+}
+
+/// Intervening-if clause for conditional triggered abilities (CR 603.4).
+///
+/// The condition is checked at trigger time (ability only triggers if true)
+/// and again at resolution (ability only resolves if still true).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum InterveningIf {
+    /// "if your life total is [N] or more" — for testing conditional triggers.
+    ControllerLifeAtLeast(u32),
+}
+
+/// A triggered ability definition on a game object (CR 603).
+///
+/// When the trigger event occurs, this ability is queued into
+/// `GameState::pending_triggers` for APNAP ordering and placement on the stack.
+///
+/// Effects are described textually for M3-E; full implementation is M7+.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TriggeredAbilityDef {
+    /// The event that causes this ability to trigger.
+    pub trigger_on: TriggerEvent,
+    /// Optional intervening-if condition (CR 603.4). Checked at trigger time
+    /// AND at resolution time.
+    pub intervening_if: Option<InterveningIf>,
+    /// Human-readable description of the effect (CR-compatible text).
+    pub description: String,
+}
+
 /// The observable characteristics of a game object (CR 109.3).
 ///
 /// These are the copiable values of an object — what a copy effect copies.
@@ -79,6 +149,10 @@ pub struct Characteristics {
     pub keywords: OrdSet<KeywordAbility>,
     /// Mana abilities on this object (CR 605). Activated in-place without the stack.
     pub mana_abilities: Vector<ManaAbility>,
+    /// Non-mana activated abilities that use the stack (CR 602).
+    pub activated_abilities: Vec<ActivatedAbility>,
+    /// Triggered abilities (CR 603). Queued and put on the stack in APNAP order.
+    pub triggered_abilities: Vec<TriggeredAbilityDef>,
     pub power: Option<i32>,
     pub toughness: Option<i32>,
     pub loyalty: Option<i32>,

@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M3 — Stack & Spell Resolution
-- **Status**: In progress (M3-A + M3-B + M3-C done; M3-D target legality next)
+- **Status**: **COMPLETE** (M3-A through M3-E all done)
 - **Last Updated**: 2026-02-21
 
 ### What Exists (M3 in progress)
@@ -44,8 +44,20 @@
   - Sorcery speed: active player + main phase + empty stack; Flash/Instants bypass all three
   - After casting, ACTIVE PLAYER gets priority (not necessarily the caster) — this differs from PlayLand which lets caster retain
   - 12 new tests in `tests/casting.rs`
-- `snapshot_perf.rs` tests use 32 MB thread stack (debug mode struct growth from M3-A)
-- 178 tests passing total, zero clippy warnings
+- **M3-E complete**: Triggered/activated abilities, APNAP ordering, intervening-if
+  - `rules/abilities.rs`: `handle_activate_ability` (CR 602), `check_triggers` (CR 603.2), `flush_pending_triggers` (CR 603.3), `apnap_order`, `check_intervening_if` (CR 603.4)
+  - New ability types in `game_object.rs`: `ActivationCost`, `ActivatedAbility`, `TriggerEvent`, `InterveningIf`, `TriggeredAbilityDef`
+  - `Characteristics` gains `activated_abilities: Vec<ActivatedAbility>` and `triggered_abilities: Vec<TriggeredAbilityDef>`
+  - `PendingTrigger` struct replaces stub `TriggeredAbility` in `stubs.rs`
+  - `Command::ActivateAbility { player, source, ability_index, targets }` added
+  - New events: `AbilityActivated`, `AbilityTriggered`, `AbilityResolved`
+  - Triggers check at event time; flush to stack before each priority grant; APNAP sorted
+  - Intervening-if checked at trigger time AND resolution time (CR 603.4)
+  - `ObjectSpec.with_activated_ability()` and `.with_triggered_ability()` builder methods
+  - 15 new tests in `tests/abilities.rs`
+- `.cargo/config.toml`: `RUST_MIN_STACK = "33554432"` — 32 MiB for all test threads; fixes debug-mode stack overflows from large struct sizes in GameStateBuilder::build()
+- `activated_abilities` and `triggered_abilities` use `Vec<T>` (not `im::Vector<T>`) — static card data; reduces Characteristics stack footprint
+- 202 tests passing total, zero clippy warnings
 
 ### What Exists (M2 complete)
 - Everything from M1, plus:
@@ -98,8 +110,18 @@
 - ~~M3-A: Stack foundation + mana (StackObject, ManaAbility, TapForMana, PlayLand)~~ — **DONE**
 - ~~M3-B: Casting spells (CastSpell command, sorcery/instant speed, spell enters stack, priority resets)~~ — **DONE**
 - ~~M3-C: Stack resolution (all-pass → resolve top, LIFO order, move to graveyard, countering)~~ — **DONE**
-- M3-D: Target legality (fizzle rule, partial fizzle)
-- M3-E: Triggered abilities (TriggeredAbility proper type, APNAP, intervening-if, ActivateAbility)
+- ~~M3-D: Target legality (fizzle rule, partial fizzle, mana cost payment)~~ — **DONE**
+  - `state/targeting.rs`: `Target` (Player/Object), `SpellTarget` (zone snapshot at cast)
+  - `StackObject.targets: Vec<SpellTarget>`; `CastSpell.targets: Vec<Target>` (CR 601.2c)
+  - `casting.rs`: validate_targets at cast, can_pay_cost/pay_cost (CR 601.2f-h), ManaCostPaid event
+  - `resolution.rs`: is_target_legal (zone-at-cast check); full fizzle → SpellFizzled; partial → SpellResolved
+  - Colorless `{C}` requires pool.colorless; generic `{N}` uses any remaining mana
+  - 13 new tests in `tests/targeting.rs`; 191 total, zero clippy warnings
+- ~~M3-D: Target legality (fizzle rule, partial fizzle, mana cost payment)~~ — **DONE**
+- ~~M3-E: Triggered/activated abilities, APNAP ordering, intervening-if~~ — **DONE**
+
+### M3 Complete — What's Next (M4)
+- See `docs/mtg-engine-roadmap.md` for M4 deliverables
 
 ---
 

@@ -170,4 +170,37 @@ pub enum GameEvent {
     /// Emitted when a spell with a non-zero mana cost is cast and the cost is
     /// deducted from the player's mana pool.
     ManaCostPaid { player: PlayerId, cost: ManaCost },
+
+    /// A non-mana activated ability was activated and placed on the stack (CR 602).
+    ///
+    /// `source_object_id` is the source object (remains in its current zone;
+    /// the source does NOT move to the stack). `stack_object_id` is the new
+    /// `StackObject` ID representing this ability instance on the stack.
+    AbilityActivated {
+        player: PlayerId,
+        source_object_id: ObjectId,
+        stack_object_id: ObjectId,
+    },
+
+    /// A triggered ability was placed on the stack (CR 603.3).
+    ///
+    /// Emitted when pending triggers are flushed to the stack in APNAP order.
+    /// `source_object_id` is the source permanent. `stack_object_id` is the
+    /// new `StackObject` ID on the stack.
+    AbilityTriggered {
+        controller: PlayerId,
+        source_object_id: ObjectId,
+        stack_object_id: ObjectId,
+    },
+
+    /// An activated or triggered ability resolved (CR 608.3b).
+    ///
+    /// The ability was popped from the stack. Effects (M7+) would execute here.
+    /// For triggered abilities with an intervening-if clause (CR 603.4), the
+    /// condition is checked at resolution; if false, this event is still emitted
+    /// but no effects occur (M7+).
+    AbilityResolved {
+        controller: PlayerId,
+        stack_object_id: ObjectId,
+    },
 }

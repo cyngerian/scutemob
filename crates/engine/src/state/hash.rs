@@ -13,12 +13,13 @@ use blake3::Hasher;
 use im::{OrdMap, OrdSet, Vector};
 
 use super::game_object::{
-    AbilityInstance, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
+    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggeredAbilityDef, TriggerEvent,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::stack::{StackObject, StackObjectKind};
+use super::stubs::{CombatState, ContinuousEffect, DelayedTrigger, PendingTrigger, ReplacementEffect};
 use super::targeting::{SpellTarget, Target};
-use super::stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
@@ -332,6 +333,8 @@ impl HashInto for Characteristics {
         self.abilities.hash_into(hasher);
         self.keywords.hash_into(hasher);
         self.mana_abilities.hash_into(hasher);
+        self.activated_abilities.hash_into(hasher);
+        self.triggered_abilities.hash_into(hasher);
         self.power.hash_into(hasher);
         self.toughness.hash_into(hasher);
         self.loyalty.hash_into(hasher);
@@ -427,10 +430,55 @@ impl HashInto for ReplacementEffect {
     }
 }
 
-impl HashInto for TriggeredAbility {
+impl HashInto for PendingTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
+        self.ability_index.hash_into(hasher);
         self.controller.hash_into(hasher);
+    }
+}
+
+impl HashInto for ActivationCost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.requires_tap.hash_into(hasher);
+        self.mana_cost.hash_into(hasher);
+    }
+}
+
+impl HashInto for ActivatedAbility {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.cost.hash_into(hasher);
+        self.description.hash_into(hasher);
+    }
+}
+
+impl HashInto for TriggerEvent {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TriggerEvent::SelfEntersBattlefield => 0u8.hash_into(hasher),
+            TriggerEvent::AnyPermanentEntersBattlefield => 1u8.hash_into(hasher),
+            TriggerEvent::AnySpellCast => 2u8.hash_into(hasher),
+            TriggerEvent::SelfBecomesTapped => 3u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for InterveningIf {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            InterveningIf::ControllerLifeAtLeast(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for TriggeredAbilityDef {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.trigger_on.hash_into(hasher);
+        self.intervening_if.hash_into(hasher);
+        self.description.hash_into(hasher);
     }
 }
 
@@ -650,6 +698,34 @@ impl HashInto for GameEvent {
                 23u8.hash_into(hasher);
                 player.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            GameEvent::AbilityActivated {
+                player,
+                source_object_id,
+                stack_object_id,
+            } => {
+                24u8.hash_into(hasher);
+                player.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+            }
+            GameEvent::AbilityTriggered {
+                controller,
+                source_object_id,
+                stack_object_id,
+            } => {
+                25u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+            }
+            GameEvent::AbilityResolved {
+                controller,
+                stack_object_id,
+            } => {
+                26u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
             }
         }
     }

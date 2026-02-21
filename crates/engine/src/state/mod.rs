@@ -19,12 +19,13 @@ pub mod zone;
 pub use builder::{GameStateBuilder, ObjectSpec, PlayerBuilder};
 pub use error::GameStateError;
 pub use game_object::{
-    AbilityInstance, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject,
+    InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggeredAbilityDef, TriggerEvent,
 };
 pub use stack::{StackObject, StackObjectKind};
 pub use targeting::{SpellTarget, Target};
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
-pub use stubs::{CombatState, ContinuousEffect, DelayedTrigger, ReplacementEffect, TriggeredAbility};
+pub use stubs::{CombatState, ContinuousEffect, DelayedTrigger, PendingTrigger, ReplacementEffect};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 pub use zone::{Zone, ZoneId, ZoneType};
@@ -58,7 +59,7 @@ pub struct GameState {
     /// Active replacement effects (CR 614).
     pub replacement_effects: Vector<ReplacementEffect>,
     /// Triggered abilities waiting to be put on the stack.
-    pub pending_triggers: Vector<TriggeredAbility>,
+    pub pending_triggers: Vector<PendingTrigger>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

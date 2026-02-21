@@ -59,8 +59,23 @@ pub enum Command {
         /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
         targets: Vec<Target>,
     },
+    /// Activate a non-mana activated ability (CR 602).
+    ///
+    /// Unlike `TapForMana` (which resolves immediately), activated abilities
+    /// use the stack. The ability is validated, its cost paid, and a
+    /// `StackObject` is pushed. `ability_index` indexes into
+    /// `characteristics.activated_abilities` on the source object.
+    ///
+    /// `targets` contains any targets for the ability (M3-E: stored but
+    /// not type-validated; full validation in M7).
+    ActivateAbility {
+        player: PlayerId,
+        source: ObjectId,
+        ability_index: usize,
+        targets: Vec<Target>,
+    },
+
     // --- Future milestones ---
-    // ActivateAbility { player, source, ability_index, ... }   // M3-E
     // DeclareAttackers { player, attackers }                   // M6
     // DeclareBlockers { player, blockers }                     // M6
     // OrderBlockers { player, ordering }                       // M6
