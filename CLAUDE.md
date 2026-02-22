@@ -377,3 +377,11 @@ When completing a milestone:
   - Place deferred issues in the correct future milestone stub
   - Update the cross-milestone issue index and statistics
 - [ ] Commit: `M<N>: milestone complete — <summary>`
+- [ ] **Code review → fix phase** (if any HIGH or MEDIUM findings):
+  - Run the code review with **Opus 4.6** (`/model opus` or start a new Opus session)
+  - Opus authors a new `memory/fix-phase-plan.md` grouping issues into sessions of 5-8 fixes each,
+    ordered by subsystem, with exact file:line locations and fix descriptions
+  - Work through fix sessions with **Sonnet 4.6** using the same per-session workflow:
+    tests → `cargo test --all` → `cargo clippy -- -D warnings` → close issues in reviews doc → commit
+  - When all sessions complete, update "Current State" and advance to the next milestone
+  - LOW-only findings do not require a fix phase; collect them in the reviews doc and address opportunistically
