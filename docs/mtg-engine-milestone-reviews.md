@@ -287,7 +287,7 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M3: Stack, Spells & Abilities
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
@@ -295,25 +295,25 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `state/stack.rs` | 64 | StackObject, StackObjectKind |
-| `state/hash.rs` | 1,223 | HashInto trait, blake3 hashing, public/private hash |
-| `state/targeting.rs` | 36 | Target, SpellTarget types |
+| `state/stack.rs` | 64 | StackObject, StackObjectKind (Spell, ActivatedAbility, TriggeredAbility) |
+| `state/hash.rs` | 1,223 | HashInto trait, blake3 field-by-field hashing, `public_state_hash`/`private_state_hash` |
+| `state/targeting.rs` | 36 | Target (Player/Object), SpellTarget (with zone snapshot at cast) |
 
 **Source files — rules:**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `rules/mana.rs` | 112 | CR 605 mana ability handler |
-| `rules/lands.rs` | 107 | CR 305.1 land play handler |
-| `rules/casting.rs` | 302 | CR 601 spell casting, cost payment |
-| `rules/resolution.rs` | 355 | CR 608 stack resolution, fizzle, counter |
-| `rules/abilities.rs` | 448 | CR 602-603 activated/triggered abilities, APNAP, intervening-if |
+| `rules/mana.rs` | 112 | CR 605 mana ability handler (tap-activated only) |
+| `rules/lands.rs` | 107 | CR 305.1 land play handler (sorcery speed, one per turn) |
+| `rules/casting.rs` | 302 | CR 601 spell casting, target validation, mana cost payment (`can_pay_cost`/`pay_cost`) |
+| `rules/resolution.rs` | 355 | CR 608 stack resolution (LIFO), fizzle rule, `counter_stack_object` |
+| `rules/abilities.rs` | 448 | CR 602-603 activated/triggered abilities, APNAP ordering, intervening-if |
 
 **Source files — testing:**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `testing/script_schema.rs` | 325 | GameScript JSON schema types |
+| `testing/script_schema.rs` | 325 | GameScript JSON schema types (GameScript, ScriptAction with 9 variants) |
 | `testing/mod.rs` | 9 | Module exports |
 
 **Source total**: 2,981 lines
@@ -322,36 +322,100 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/mana_and_lands.rs` | 660 | ~19 | Mana abilities, land plays |
-| `tests/casting.rs` | 550 | ~12 | CastSpell, casting speed, priority reset |
-| `tests/resolution.rs` | 626 | ~10 | Stack resolution, permanent ETB |
-| `tests/targeting.rs` | 742 | ~13 | Target validation, fizzle, partial fizzle, mana cost |
-| `tests/abilities.rs` | 852 | ~15 | Activated/triggered abilities, APNAP, intervening-if |
-| `tests/state_hashing.rs` | 477 | ~19 | Determinism, sensitivity, partitioning |
-| `tests/script_schema.rs` | 128 | ~3 | JSON round-trip tests |
+| `tests/mana_and_lands.rs` | 660 | 19 | PlayLand, TapForMana, summoning sickness, land play limits, error cases |
+| `tests/casting.rs` | 550 | 12 | CastSpell, sorcery/instant speed, Flash, LIFO, priority reset |
+| `tests/resolution.rs` | 626 | 10 | Resolve to graveyard/battlefield, LIFO, countering, Flash creature ETB |
+| `tests/targeting.rs` | 742 | 13 | Target validation, fizzle (all/partial), mana cost payment, hexproof/shroud |
+| `tests/abilities.rs` | 852 | 15 | Activated abilities, triggered (ETB/SpellCast/Tap), APNAP, intervening-if |
+| `tests/state_hashing.rs` | 477 | 19 | Determinism, sensitivity (7), public/private partition (4), dual-instance proptest (3) |
+| `tests/script_schema.rs` | 128 | 3 | JSON round-trip, type tags, enum serialization |
 
-**Test total**: 4,035 lines, ~91 tests
+**Test total**: 4,035 lines, 91 tests
 
 ### CR Sections Implemented
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 305.1 | Land plays (sorcery speed, one per turn) |
-| CR 601 | Spell casting (speed validation, stack entry, priority reset) |
-| CR 601.2c-h | Target selection, mana cost payment |
-| CR 602 | Activated abilities |
-| CR 603 | Triggered abilities (check at event, flush before priority) |
-| CR 603.4 | Intervening-if (checked at trigger AND resolution) |
-| CR 605 | Mana abilities (special action, no priority change) |
-| CR 608 | Stack resolution (LIFO, permanent vs instant/sorcery) |
-| CR 608.2b | Countering a spell |
+| CR 305.1 | Land plays: sorcery speed, one per turn, validates card is land and in hand (`lands.rs:25-107`) |
+| CR 400.7 | Zone-change identity for stack objects — CastSpell creates new ObjectId (`casting.rs:123`) |
+| CR 601 | Spell casting: validates casting speed, moves to Stack zone, pushes StackObject (`casting.rs:41-152`) |
+| CR 601.2c | Target selection at cast time: validates existence, snapshots zones (`casting.rs:162-228`) |
+| CR 601.2f-h | Mana cost payment: colored strict, colorless strict (CR 106.1), generic from any remainder (`casting.rs:235-302`) |
+| CR 601.2i | After casting, active player receives priority — not necessarily the caster (`casting.rs:139-140`) |
+| CR 602 | Activated abilities: validates priority, battlefield, controller, pays tap/mana cost (`abilities.rs:46-217`) |
+| CR 603.2 | Trigger checking: scans battlefield permanents per event (`abilities.rs:233-351`) |
+| CR 603.3 | Trigger flushing: APNAP-sorted push to stack before priority grants (`abilities.rs:372-422`) |
+| CR 603.4 | Intervening-if: checked at trigger time AND resolution time (`abilities.rs:440-448`, `resolution.rs:200-225`) |
+| CR 605 | Mana abilities: special action, does not use stack, player retains priority (`mana.rs:25-112`) |
+| CR 605.5 | Mana abilities do not reset `players_passed` (`mana.rs:108-109`) |
+| CR 608.1 | Stack resolution: LIFO, top of stack resolves when all players pass (`resolution.rs:35-278`) |
+| CR 608.2b | Fizzle rule: all targets illegal → SpellFizzled, card to graveyard (`resolution.rs:50-78`) |
+| CR 608.2n | Instant/sorcery → owner's graveyard after resolution (`resolution.rs:157-166`) |
+| CR 608.3a | Permanent spell → battlefield under controller's control (`resolution.rs:135-156`) |
+| CR 701.5 | Countering a spell: remove from stack, card to graveyard (`resolution.rs:312-355`) |
+| CR 702.11a | Hexproof: can't be targeted by opponents (`casting.rs:196-216`, `abilities.rs:146-168`) |
+| CR 702.18a | Shroud: can't be targeted by any spell or ability (`casting.rs:196-216`, `abilities.rs:146-168`) |
 
-### Known Issues (to be validated during review)
+### Findings
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M3-01 | **HIGH** | resolution.rs | **Partial fizzle: targets not filtered.** When some (but not all) targets are illegal, `resolve_top_of_stack` proceeds with all original targets instead of filtering to legal ones only. Effect executes against illegal targets. | STUB |
-| MR-M3-02 | **MEDIUM** | casting.rs | **ManaCostPaid not emitted for {0} cost spells.** `pay_cost` skips if mana cost is zero, so no ManaCostPaid event fires. Matters if triggers key on ManaCostPaid. | STUB |
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M3-01 | **HIGH** | resolution.rs:79-80,122-129 | **Partial fizzle: targets not filtered.** When some (but not all) targets are illegal at resolution time, `resolve_top_of_stack` passes ALL original targets to `EffectContext` via `stack_obj.targets.clone()` (line 126), including the illegal ones. Effects execute against illegal targets instead of skipping them. Comment on line 80 says "Illegal targets will be unaffected when effects are implemented (M7+)" but M7 is now complete and this filtering was not added. **Fix:** filter `stack_obj.targets` to only legal targets before passing to `EffectContext`. | OPEN |
+| MR-M3-03 | **HIGH** | hash.rs:349-365, game_object.rs:220 | **GameObject hash omits `has_summoning_sickness`.** The `HashInto` impl for `GameObject` (hash.rs:349-365) hashes 14 fields but skips `has_summoning_sickness: bool` (game_object.rs:220). Two game states differing only in summoning sickness produce identical public hashes, breaking the distributed verification model. **Fix:** add `self.has_summoning_sickness.hash_into(hasher);` to the GameObject impl. | OPEN |
+| MR-M3-04 | **HIGH** | abilities.rs:148 | **Non-existent object target silently accepted in ability activation.** In `handle_activate_ability`, hexproof/shroud target validation (lines 146-171) uses `if let Some(obj) = state.objects.get(id)` which silently skips non-existent objects. A `Target::Object` with a bogus ObjectId passes validation — no existence check, no zone snapshot. Compare with `casting.rs:187-192` which explicitly returns `ObjectNotFound` for missing targets. **Fix:** return `GameStateError::ObjectNotFound(*id)` when object doesn't exist. | OPEN |
+| MR-M3-02 | **MEDIUM** | casting.rs:108 | **ManaCostPaid not emitted for {0} cost spells.** The `if cost.mana_value() > 0` guard (line 108) skips the entire payment block for zero-cost spells, including the `ManaCostPaid` event. Zero-cost spells like Ornithopter ({0}) and Memnite ({0}) never emit `ManaCostPaid`. Matters if triggers key on `ManaCostPaid` (e.g., "whenever a player casts a spell" that checks mana paid). **Fix:** emit `ManaCostPaid` even when cost is {0} (no pool deduction needed, just the event). | OPEN |
+| MR-M3-05 | **MEDIUM** | hash.rs:585-589, game_object.rs:89 | **ActivatedAbility hash omits `effect` field.** The `HashInto` impl (hash.rs:585-589) only hashes `cost` and `description`, but `ActivatedAbility` also has `effect: Option<Effect>` (game_object.rs:89, added in M7). In the distributed verification model, if one peer loaded a different card definition with a different effect, the hash wouldn't detect the mismatch. **Cross-milestone:** M3 wrote the hash impl; M7 added the field without updating the hash. **Fix:** add `self.effect.hash_into(hasher);` (requires `HashInto` impl for `Effect`). | OPEN |
+| MR-M3-06 | **MEDIUM** | hash.rs:658-663, game_object.rs:140 | **TriggeredAbilityDef hash omits `effect` field.** Same pattern as MR-M3-05: `HashInto` for `TriggeredAbilityDef` hashes `trigger_on`, `intervening_if`, `description` but not `effect: Option<Effect>` (game_object.rs:140). Same cross-milestone gap as MR-M3-05. **Fix:** add `self.effect.hash_into(hasher);`. | OPEN |
+| MR-M3-07 | **MEDIUM** | abilities.rs:146-171, casting.rs:196-216 | **Hexproof/shroud target validation duplicated.** `handle_activate_ability` (abilities.rs:146-171) and `validate_targets` (casting.rs:196-216) both implement hexproof/shroud checks with nearly identical code. The abilities version is weaker (silently skips non-existent objects per MR-M3-04). **Fix:** extract a shared `validate_target_protection(state, target, controller)` helper used by both paths. | OPEN |
+| MR-M3-08 | **MEDIUM** | targeting.rs:591-594 | **`matches!` used as bare statement — silent no-op assertion.** In `test_601_insufficient_mana_fails`, line 591-594: `matches!(result.unwrap_err(), mtg_engine::GameStateError::InsufficientMana);` is a bare expression, not wrapped in `assert!()`. The `matches!` macro returns a `bool` that is silently discarded — the test passes regardless of the error variant. **Fix:** wrap in `assert!(matches!(...));`. | OPEN |
+| MR-M3-09 | **LOW** | hash.rs:955-965 | **LegendaryRuleApplied event hash missing length prefix.** The `for (old_id, new_id) in put_to_graveyard` loop (lines 961-964) hashes pairs without prefixing the vec length. The generic `Vec<T>` HashInto impl uses a length prefix for unambiguous framing. Inconsistent pattern — low collision risk in practice since the discriminant byte and subsequent events provide implicit framing. **Fix:** add `(put_to_graveyard.len() as u64).hash_into(hasher);` before the loop. | OPEN |
+| MR-M3-10 | **LOW** | targeting.rs:224-269 | **Incomplete test discards results.** `test_608_2b_fizzle_player_target_concedes` constructs a fizzle scenario but the test body ends with `let _ = (final_state, events);` (line 268) and a comment "will redo below." The test has no assertions. The replacement test (`test_608_2b_fizzle_all_targets_illegal` at line 275) covers the fizzle case properly, making this test dead code. **Fix:** delete the incomplete test or complete it for the concede-specific path. | OPEN |
+| MR-M3-11 | **LOW** | abilities.rs:435 | **`apnap_order` silently defaults position with `unwrap_or(0)`.** If the active player is not found in `turn_order`, the function starts from index 0 instead of returning an error. Requires a corrupted state to trigger — `active_player` is always in `turn_order` under normal operation. Minor defensiveness gap. | OPEN |
+| MR-M3-12 | **LOW** | lands.rs:83-87 | **`NotController` error used for ownership check.** Line 83 checks `card_obj.owner != player` (ownership) but returns `NotController` error. Cards in hand are always owned, not "controlled" in the MTG sense. Misleading error name for debugging. **Fix:** add a `NotOwner` error variant or use `InvalidCommand("card is not owned by player")`. | OPEN |
+| MR-M3-13 | **INFO** | casting.rs:235-302 | **Mana payment design correct.** Colored mana strict (W/U/B/R/G exact match), colorless `{C}` strict (CR 106.1 — must use pool.colorless), generic `{N}` from any remaining. Payment order for generic (colorless→green→red→black→blue→white) is arbitrary but deterministic. Well-documented. | — |
+| MR-M3-14 | **INFO** | stack.rs | **Clean stack module design.** `StackObject` is well-typed with `StackObjectKind` covering Spell, ActivatedAbility, and TriggeredAbility. Correct use of `im::Vector` for LIFO. | — |
+| MR-M3-15 | **INFO** | hash.rs | **State hashing framework solid.** blake3 for speed, explicit field-by-field hashing (no derive magic), clear public/private separation, cross-platform deterministic. 19 tests including dual-instance proptest. Good foundation for distributed verification (M10). | — |
+| MR-M3-16 | **INFO** | — | **Well-structured test suites with CR citations.** All 7 test files consistently cite CR sections in test doc-comments. Good use of GameStateBuilder for test state construction. One assertion focus per test. | — |
+| MR-M3-17 | **INFO** | state_hashing.rs | **Dual-instance proptest strong.** Three proptest tests (state_hashing.rs) run identical command sequences on cloned states and verify hash equality. Good coverage of the determinism invariant. | — |
+| MR-M3-18 | **INFO** | script_schema.rs | **Script schema well-designed and extensible.** `GameScript` with `ScriptAction` (9 variants using `#[serde(tag = "type", rename_all = "snake_case")]`) supports future expansion. 3 round-trip tests confirm serialization fidelity. | — |
+
+### Test Coverage Assessment
+
+| M3 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| Land plays (CR 305.1) | Excellent (7 tests) | Priority, active player, main phase, stack, land count, card in hand, card is land |
+| Mana abilities (CR 605) | Good (12 tests) | Tap for mana, summoning sickness, priority, ability index, already tapped, not controlled |
+| Spell casting (CR 601) | Good (12 tests) | Sorcery/instant speed, Flash, LIFO, priority reset, card in hand, not a land |
+| Target validation (CR 601.2c) | Good (7 tests) | Hexproof, shroud, zone snapshot, player target, existence |
+| Mana cost payment (CR 601.2f-h) | Good (6 tests) | Colored, generic, insufficient, exact, colorless {C}, zero cost |
+| Stack resolution (CR 608) | Good (10 tests) | Graveyard destination, battlefield ETB, LIFO, controller set, countering |
+| Fizzle rule (CR 608.2b) | Adequate (3 tests) | All-targets fizzle, partial fizzle, but MR-M3-10 incomplete concede test |
+| Activated abilities (CR 602) | Good (5 tests) | Tap cost, mana cost, priority, error cases |
+| Triggered abilities (CR 603) | Good (7 tests) | ETB, SpellCast, SelfBecomesTapped, APNAP ordering |
+| Intervening-if (CR 603.4) | Good (3 tests) | Trigger-time check, resolution-time check, false-at-resolution |
+| State hashing | Excellent (19 tests) | Determinism, sensitivity, partitioning, dual-instance proptest |
+| Script schema | Adequate (3 tests) | Round-trip only; no invalid-input tests |
+| Mana abilities don't reset priority (CR 605.5) | Good (1 test) | Explicit test that `players_passed` unchanged |
+| CastSpell resets priority to active (CR 601.2i) | Good (1 test) | Non-active player casts, priority goes to active |
+
+### Notes
+
+- M3 is the largest milestone by file count (10 source files, 7 test files) and introduces the
+  most CR sections (19). The stack, casting, and resolution modules form the backbone of all
+  future gameplay.
+- The hash framework (1,223 lines) is the largest single file. It was written in M3 but accumulates
+  fields from later milestones. Two cross-milestone gaps (MR-M3-05, MR-M3-06) arose when M7 added
+  `effect` fields to `ActivatedAbility` and `TriggeredAbilityDef` without updating the hash impls.
+  The `has_summoning_sickness` omission (MR-M3-03) is a pure M3 gap.
+- The partial fizzle issue (MR-M3-01) is the most impactful finding: effects currently execute
+  against illegal targets. This was intentionally deferred ("M7+") when M3 was written, but M7
+  shipped without the fix. Should be addressed early in M8 or as a hotfix.
+- The duplicated hexproof/shroud validation (MR-M3-07) between `casting.rs` and `abilities.rs`
+  creates maintenance risk — the abilities version is already weaker (MR-M3-04). Extract a shared
+  helper.
+- The silent no-op assertion (MR-M3-08) in `test_601_insufficient_mana_fails` means that test
+  doesn't actually verify the error variant. Easy fix.
+- `mana.rs` and `stack.rs` are exemplary: clean, focused, well-documented, no issues found.
 
 ---
 
@@ -666,6 +730,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-02 | M2 | `.expect()` in turn_structure.rs:78 — `next_player_in_turn_order` | OPEN |
 | MR-M2-03 | M2 | Concede while active: step-advance then turn-advance overlap | OPEN |
 | MR-M2-05 | M2→M9 | Concede doesn't clean up owned objects (CR 800.4a) | DEFERRED → M9 |
+| MR-M3-01 | M3 | Partial fizzle: targets not filtered — effects execute against illegal targets | OPEN |
+| MR-M3-03 | M3 | GameObject hash omits `has_summoning_sickness` — breaks distributed verification | OPEN |
+| MR-M3-04 | M3 | Non-existent object target silently accepted in ability activation | OPEN |
 | MR-M4-01 | M4 | `.unwrap()` in sba.rs (first instance) | STUB |
 | MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T | STUB |
 | MR-M4-03 | M4 | `.unwrap()` in sba.rs (second instance) | STUB |
@@ -692,8 +759,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-05 | M1 | Panics on 0 players instead of Result | OPEN |
 | MR-M2-04 | M2 | `draw_card` has no concession/elimination guard | OPEN |
 | MR-M2-06 | M2 | `DiscardedToHandSize` event uses wrong ObjectId (new graveyard ID instead of old hand ID) | OPEN |
-| MR-M3-01 | M3 | Partial fizzle targets not filtered | STUB |
-| MR-M3-02 | M3 | ManaCostPaid not emitted for {0} cost | STUB |
+| MR-M3-02 | M3 | ManaCostPaid not emitted for {0} cost spells | OPEN |
+| MR-M3-05 | M3 (cross: M7) | ActivatedAbility hash omits `effect` field — M7 added field, hash not updated | OPEN |
+| MR-M3-06 | M3 (cross: M7) | TriggeredAbilityDef hash omits `effect` field — same gap as MR-M3-05 | OPEN |
+| MR-M3-07 | M3 | Hexproof/shroud target validation duplicated between casting.rs and abilities.rs | OPEN |
+| MR-M3-08 | M3 | `matches!` bare statement in test — silent no-op assertion | OPEN |
 | MR-M5-02 | M5 | `ptr::eq` in layers.rs | STUB |
 | MR-M6-04 | M6 | `is_blocked` contract/invariant risk | STUB |
 | MR-M6-05 | M6 | Unsafe i32→u32 cast in combat damage | STUB |
@@ -717,6 +787,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-07 | M2 | Proptest lacks library cards — limited turn coverage | OPEN |
 | MR-M2-08 | M2 | Test gap: concede while active + all others passed | OPEN |
 | MR-M2-09 | M2 | `unwrap_or(7)` for max_hand_size in cleanup | OPEN |
+| MR-M3-09 | M3 | LegendaryRuleApplied event hash missing length prefix for put_to_graveyard | OPEN |
+| MR-M3-10 | M3 | Incomplete test discards results (test_608_2b_fizzle_player_target_concedes) | OPEN |
+| MR-M3-11 | M3 | `apnap_order` silently defaults position with `unwrap_or(0)` | OPEN |
+| MR-M3-12 | M3 | `NotController` error used for ownership check in lands.rs — misleading | OPEN |
 | MR-M6-06 | M6 | Combat damage function large, needs helpers | STUB |
 | MR-M6-07 | M6 | Test gap: Defender keyword in combat | STUB |
 | MR-M6-08 | M6 | Test gap: no combat game script | STUB |
@@ -740,6 +814,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-11 | M2 | `pass_priority` query/mutation separation (good design) | — |
 | MR-M2-12 | M2 | Extra turns LIFO with correct normal-order resumption | — |
 | MR-M2-13 | M2 | Summoning sickness cleared at untap (CR 302.6) | — |
+| MR-M3-13 | M3 | Mana payment design correct (colored/colorless strict, generic any) | — |
+| MR-M3-14 | M3 | Clean stack module — well-typed StackObject/StackObjectKind | — |
+| MR-M3-15 | M3 | State hashing framework solid (blake3, explicit, cross-platform) | — |
+| MR-M3-16 | M3 | Well-structured test suites with CR citations across all 7 test files | — |
+| MR-M3-17 | M3 | Dual-instance proptest strong for determinism validation | — |
+| MR-M3-18 | M3 | Script schema well-designed and extensible | — |
 
 ---
 
@@ -747,18 +827,18 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 67 (MR-M5-03 cross-refs MR-M4-02) |
+| Total unique issue IDs | 83 (MR-M5-03 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 7 |
+| HIGH (OPEN) | 10 |
 | HIGH (DEFERRED) | 1 |
 | HIGH (STUB) | 11 |
-| MEDIUM (OPEN) | 10 |
-| MEDIUM (STUB) | 12 |
-| LOW (OPEN) | 8 |
+| MEDIUM (OPEN) | 15 |
+| MEDIUM (STUB) | 10 |
+| LOW (OPEN) | 12 |
 | LOW (STUB) | 8 |
-| INFO | 10 |
-| Milestones fully reviewed | 3 (M0, M1, M2) |
-| Milestones with stubs | 5 (M3, M4, M5, M6, M7) |
+| INFO | 16 |
+| Milestones fully reviewed | 4 (M0, M1, M2, M3) |
+| Milestones with stubs | 4 (M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
