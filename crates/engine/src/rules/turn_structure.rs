@@ -63,19 +63,25 @@ pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
 /// skips eliminated players.
 ///
 /// Returns the updated TurnState and events. Resets per-turn state.
-pub fn advance_turn(state: &GameState) -> (TurnState, Vec<GameEvent>) {
+///
+/// # Errors
+/// Returns `GameStateError::NoActivePlayers` if no active player can be found
+/// for the next turn (all players eliminated or conceded).
+pub fn advance_turn(
+    state: &GameState,
+) -> Result<(TurnState, Vec<GameEvent>), crate::state::error::GameStateError> {
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
 
-    // Determine who takes the next turn
+    // Determine who takes the next turn — MR-M2-02: typed error instead of expect.
     let next_player = if let Some(extra_turn_player) = turn.extra_turns.pop_back() {
         // LIFO: most recently added extra turn goes first.
         // Don't update last_regular_active — extra turns don't advance normal order.
         extra_turn_player
     } else {
-        // Normal turn order: resume from last regular active player
+        // Normal turn order: resume from last regular active player.
         let next = next_player_in_turn_order(state, turn.last_regular_active)
-            .expect("no active players remaining");
+            .ok_or(crate::state::error::GameStateError::NoActivePlayers)?;
         turn.last_regular_active = next;
         next
     };
@@ -102,7 +108,7 @@ pub fn advance_turn(state: &GameState) -> (TurnState, Vec<GameEvent>) {
         phase: Phase::Beginning,
     });
 
-    (turn, events)
+    Ok((turn, events))
 }
 
 /// Find the next active (non-eliminated) player in turn order after `current`.

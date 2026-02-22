@@ -145,18 +145,16 @@ impl GameState {
         mut object: GameObject,
         zone_id: ZoneId,
     ) -> Result<ObjectId, GameStateError> {
-        // Verify zone exists
-        if !self.zones.contains_key(&zone_id) {
-            return Err(GameStateError::ZoneNotFound(zone_id));
-        }
-
         let id = self.next_object_id();
         object.id = id;
         object.zone = zone_id;
         object.timestamp = self.timestamp_counter;
 
-        // Add to zone
-        let zone = self.zones.get_mut(&zone_id).unwrap();
+        // Add to zone — MR-M1-01/MR-M1-04: single access, no redundant guard.
+        let zone = self
+            .zones
+            .get_mut(&zone_id)
+            .ok_or(GameStateError::ZoneNotFound(zone_id))?;
         zone.insert(id);
 
         // Add to objects map
@@ -197,11 +195,6 @@ impl GameState {
         // Remove old object from objects map
         self.objects.remove(&object_id);
 
-        // Verify destination zone exists
-        if !self.zones.contains_key(&to) {
-            return Err(GameStateError::ZoneNotFound(to));
-        }
-
         // Create new object with fresh ID (CR 400.7)
         let new_id = self.next_object_id();
         let new_object = GameObject {
@@ -224,8 +217,11 @@ impl GameState {
             has_summoning_sickness: to == ZoneId::Battlefield,
         };
 
-        // Add to new zone
-        let to_zone = self.zones.get_mut(&to).unwrap();
+        // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
+        let to_zone = self
+            .zones
+            .get_mut(&to)
+            .ok_or(GameStateError::ZoneNotFound(to))?;
         to_zone.insert(new_id);
 
         // Insert new object

@@ -116,12 +116,14 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
         }
 
         // CR 704.5u (Commander): 21+ combat damage from a single commander.
-        let lost_to_cmdr = {
-            let p = state.players.get(&id).unwrap();
-            p.commander_damage_received
-                .values()
-                .any(|by_card| by_card.values().any(|&dmg| dmg >= 21))
+        // MR-M4-01: use if-let instead of unwrap — player may have been removed mid-pass.
+        let Some(player_ref) = state.players.get(&id) else {
+            continue;
         };
+        let lost_to_cmdr = player_ref
+            .commander_damage_received
+            .values()
+            .any(|by_card| by_card.values().any(|&dmg| dmg >= 21));
         if lost_to_cmdr {
             if let Some(p) = state.players.get_mut(&id) {
                 p.has_lost = true;
@@ -336,8 +338,11 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         }
 
         // Sort by ObjectId: highest = most recently entered. Keep the last one.
+        // MR-M4-03: let-else instead of unwrap (ids.len() >= 2 is checked above).
         ids.sort();
-        let kept = *ids.last().unwrap();
+        let Some(&kept) = ids.last() else {
+            continue;
+        };
         let to_remove = &ids[..ids.len() - 1];
 
         let mut graves: Vec<(ObjectId, ObjectId)> = Vec::new();

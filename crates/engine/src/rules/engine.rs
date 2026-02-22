@@ -164,7 +164,7 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
             events.extend(step_events);
         } else {
             // Past cleanup — advance to next turn
-            let (new_turn, turn_events) = turn_structure::advance_turn(state);
+            let (new_turn, turn_events) = turn_structure::advance_turn(state)?;
             state.turn = new_turn;
             events.extend(turn_events);
             // Reset per-turn state for new active player
@@ -256,7 +256,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             // Loop to enter the next step
         } else {
             // Past cleanup — advance to next turn
-            let (new_turn, turn_events) = turn_structure::advance_turn(state);
+            let (new_turn, turn_events) = turn_structure::advance_turn(state)?;
             state.turn = new_turn;
             events.extend(turn_events);
             turn_actions::reset_turn_state(state, state.turn.active_player);
@@ -313,7 +313,7 @@ fn handle_concede(
             let mana_events = turn_actions::empty_all_mana_pools(state);
             events.extend(mana_events);
 
-            let (new_turn, turn_events) = turn_structure::advance_turn(state);
+            let (new_turn, turn_events) = turn_structure::advance_turn(state)?;
             state.turn = new_turn;
             events.extend(turn_events);
             turn_actions::reset_turn_state(state, state.turn.active_player);

@@ -92,7 +92,10 @@ pub fn calculate_characteristics(
         // are any static Layer 7c effects.
         if layer == EffectLayer::PtModify {
             // Re-borrow: obj is still valid since we haven't mutated state.
-            let obj_ref = state.objects.get(&object_id).expect("object exists");
+            // MR-M5-01: if-let instead of expect — object may have been removed by an effect.
+            let Some(obj_ref) = state.objects.get(&object_id) else {
+                break;
+            };
             let plus_ones = obj_ref
                 .counters
                 .get(&CounterType::PlusOnePlusOne)

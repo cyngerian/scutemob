@@ -49,9 +49,9 @@ pub fn pass_priority(
         events.push(GameEvent::AllPlayersPassed);
         Ok((PriorityResult::AllPassed, events))
     } else {
-        // Find next player in APNAP order
+        // Find next player in APNAP order — MR-M2-01: typed error instead of expect.
         let next = next_priority_player(state, player)
-            .expect("at least one active player should not have passed");
+            .ok_or(crate::state::error::GameStateError::NoActivePlayers)?;
         events.push(GameEvent::PriorityGiven { player: next });
         Ok((PriorityResult::PlayerHasPriority { player: next }, events))
     }
