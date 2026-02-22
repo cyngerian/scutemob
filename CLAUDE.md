@@ -384,6 +384,13 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 8. **Tests cite their rules source.** Every test references the CR section or known
    interaction it validates. Untraceable tests are technical debt.
 
+9. **Every card in a game must have a `CardDefinition` before the game starts.** The deck
+   builder enforces this. No mid-game discovery, no graceful degradation during play. The
+   rewind/replay/pause system depends on a complete and accurate state history from turn 1 —
+   a card whose abilities silently never fired produces a corrupted history that cannot be
+   rewound to correctly. Unimplemented cards are surfaced at deck-building time with clear
+   messaging, not silently ignored at game time.
+
 ---
 
 ## Key Design Decisions Log
@@ -406,6 +413,10 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-21 | SBA check added to all priority-grant sites (enter_step, resolve_top_of_stack, fizzle, counter) | CR 704.3 says SBAs fire "whenever any player would receive priority" — all four sites must be covered |
 | 2026-02-21 | Layer 1 (Copy) and Layer 2 (Control) stubbed in M5 | Copy effects require CR 707 copiable-values logic that needs the full card definition framework (M7); control changes live on `GameObject.controller`, not `Characteristics`, so the layer calculation doesn't apply them |
 | 2026-02-21 | `SetTypeLine` depends on `AddSubtypes`/`AddCardTypes` in dependency detection | This is the Blood Moon + Urborg fix: the set always follows the add regardless of timestamp. CR 613.8 says A depends on B if B changes what A applies to or does. |
+| 2026-02-22 | `CardDefinition` uses `impl Default` (not `#[derive(Default)]`) | `CardId` doesn't implement `Default`; manual impl avoids adding Default to state types. Non-creature struct literals use `..Default::default()` for power/toughness fields. |
+| 2026-02-22 | Games cannot start with any unimplemented card | Graceful degradation (card exists but abilities don't fire) corrupts the state history that rewind/replay depends on. Cards must be fully defined before a game begins. Unimplemented cards are blocked at deck-building time. |
+| 2026-02-22 | Card definition pipeline is scripted-first, LLM-assisted second | Scryfall already provides structured mana cost, P/T, types, and keywords. A pattern library handles ~70-80% of oracle text deterministically. LLM handles the unmatched tail and feeds new patterns back into the library. No LLM calls at game runtime. |
+| 2026-02-22 | Script harness uses `enrich_spec_from_def` to populate ObjectSpec from definitions | `ObjectSpec::card()` creates naked objects. Enrichment ensures PlayLand/TapForMana/casting speed/permanent resolution all work correctly in scripts without bespoke setup per card. |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
 
@@ -487,6 +498,19 @@ Things to watch out for, accumulated over development:
   "minimum lethal before moving to next blocker" rule only applies when there are subsequent
   blockers in the damage order. The final (or only) blocker without trample absorbs all remaining
   attacker power — it is not capped at lethal. Trample + last blocker: assign lethal, rest to player.
+- **Game script harness: `ObjectSpec::card()` creates naked objects.** No card types, no mana
+  abilities, no keywords, no power/toughness. Call `enrich_spec_from_def()` to populate these
+  from `all_cards()` definitions. Without it: PlayLand fails ("not a land"), TapForMana fails
+  (no ability at index 0), instant-speed casts fail for non-active players, permanents go to
+  graveyard instead of battlefield.
+- **`CardDefinition` struct literals need `..Default::default()` for non-creature cards** after
+  the `power`/`toughness` fields were added. Bulk-fixing with a Python depth-counter script
+  will miss definitions that contain nested `TokenSpec { power, toughness }` — fix those 3
+  manually (Beast Within, Generous Gift, Swan Song).
+- **`CardRegistry::new()` returns `Arc<CardRegistry>`** — do NOT wrap in `Arc::new()` again.
+- **`EffectAmount::PowerOf(target)` returns 0 if `target.power == None`.** Creatures built
+  with `ObjectSpec::card()` have `power: None`; `enrich_spec_from_def` must propagate
+  `def.power`/`def.toughness` to fix `GainLife { amount: PowerOf(...) }` spells like STP.
 
 ---
 

@@ -653,30 +653,69 @@ At this point, the engine can run a complete Commander game programmatically. Al
 
 ### M12: Card Definition Pipeline (Bulk Generation)
 
-**Goal**: Scale from 50 hand-authored cards to 500+ using Claude-assisted generation.
+**Goal**: Scale from 50 hand-authored cards to the full Commander card pool using a scripted
+conversion pipeline. Every card that can appear in a game must have a `CardDefinition` before
+that game can start — no mid-game discovery, no graceful degradation during play.
+
+**Core constraint**: The deck builder enforces that all cards in all decks have a `CardDefinition`
+before a game begins. This is non-negotiable: the rewind/replay/pause system relies on a
+complete and accurate state history from turn 1. A card whose abilities silently never fired
+produces a corrupted history that cannot be rewound to correctly.
+
+**Pipeline architecture** (three stages):
+
+1. **Scripted converter** (handles ~70-80% of cards, zero LLM calls):
+   - Structured Scryfall fields map 1:1: mana cost, P/T, types, subtypes, color identity
+   - `keywords` array from Scryfall maps directly to `KeywordAbility` variants (Flying, Trample, etc.)
+   - Growing pattern library covers common oracle text templates:
+     - `"{T}: Add {X}."` → `ActivatedAbility { cost: Tap, effect: AddMana }`
+     - `"When ~ enters the battlefield, [effect]."` → `Triggered { WhenEntersBattlefield }`
+     - `"Whenever ~ deals combat damage to a player, [effect]."` → triggered ability
+     - `"At the beginning of your upkeep, [effect]."` → `AtBeginningOfUpkeep`
+     - etc.
+   - Each new pattern added to the library handles all past and future cards with matching text
+
+2. **LLM-assisted fallback** (handles unmatched tail):
+   - Cards that don't match any pattern are sent to an LLM with oracle text + rulings
+   - LLM generates a candidate `CardDefinition`
+   - Candidate is validated against a generated game script
+   - On success: **extract the pattern and add it to the library** so the next similar card
+     is handled by stage 1 automatically
+   - On failure: flag for human review (expected to be rare)
+
+3. **Human review** (edge cases only):
+   - Cards whose LLM-generated definition fails validation
+   - Cards with unique mechanics that appear on 1-2 cards ever (e.g., Chaos Orb)
+   - Output is either a corrected definition or a new pattern added to stage 1
 
 **Deliverables**:
-- [ ] Pipeline tool (`card-pipeline` crate): takes oracle text + rulings, outputs structured `CardDefinition`
-- [ ] Batch processing: run the pipeline over a set of cards, output JSON definitions
-- [ ] Validation harness: each generated definition is tested against known rulings
-- [ ] Failure tracking: cards that fail validation are flagged for human review
+- [ ] Scripted converter in `card-pipeline` crate: structured Scryfall fields → `CardDefinition` JSON
+- [ ] Pattern library with initial 50+ patterns covering common ability templates
+- [ ] LLM fallback integration: sends unmatched cards to Claude, extracts new patterns from successes
+- [ ] Validation harness: each generated definition runs against a game script
+- [ ] Deck builder enforcement: reject game start if any card lacks a `CardDefinition`
+- [ ] Unimplemented card UX: deck builder shows which cards aren't supported with clear messaging
 - [ ] Priority queue: cards ordered by EDHREC popularity (Commander staples first)
-- [ ] First 500 cards generated and validated
-- [ ] Coverage report: percentage of Commander-legal cards with definitions
-- [ ] Generate game scripts for newly defined cards' key interactions
+- [ ] DB storage: pipeline writes definitions to `card_definitions` SQLite table; engine loads at startup
+- [ ] Coverage report: percentage of Commander-legal cards with validated definitions
+- [ ] New set workflow: documented process for processing a new set before it becomes playable
 
 **Tests**:
-- [ ] Pipeline generates correct definitions for the original 50 hand-authored cards (baseline)
-- [ ] Newly generated cards pass individual behavior tests
-- [ ] Known interactions between newly generated cards pass integration tests
+- [ ] Scripted converter reproduces the original 50 hand-authored definitions exactly (regression)
+- [ ] Pattern library handles the 20 most common oracle text templates correctly
+- [ ] Deck builder rejects a game containing a card with no `CardDefinition`
+- [ ] Deck builder allows a game where all cards have definitions
+- [ ] Generated definitions for 500+ cards pass individual game script validation
 - [ ] New game scripts for card interactions pass through replay harness
 
 **Acceptance Criteria**:
-- 500+ cards with validated definitions
-- Pipeline has a documented process for adding more cards
-- Failure rate <10% on first-pass generation
+- 500+ cards with validated definitions stored in the DB
+- Deck builder enforces the no-undefined-cards constraint
+- Pattern library handles ≥70% of cards without LLM involvement
+- Documented new-set workflow: pipeline runs offline before players can use new cards
+- Failure rate for LLM fallback stage <10% (definitions that fail game script validation)
 
-**Dependencies**: M7 (card definition framework), M9 (engine can execute cards)
+**Dependencies**: M7 (card definition framework), M9 (engine can execute cards), M11 (deck builder UI)
 
 **Architecture doc references**: Section 5.3 (Card Definition Pipeline)
 
@@ -805,7 +844,8 @@ These are not scheduled but represent the next directions after alpha:
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
 | Layer system complexity exceeds estimates | M5 delayed 2-4 weeks | High | Start layer tests early; accept incremental correctness; reference Forge/XMage |
-| Card definition pipeline produces too many errors | M12 requires extensive manual correction | Medium | Invest in rulings RAG quality; build feedback loop early |
+| Card definition pipeline pattern library has low coverage | LLM fallback invoked too frequently; slow bulk generation | Medium | Prioritize the 50 most common oracle text templates first — these cover the majority of Commander staples; coverage grows monotonically as patterns are added |
+| Unimplemented card blocks a popular deck | Players can't start games until pipeline catches up | Medium | Process cards in EDHREC popularity order; most-played Commander cards are implemented first; clear UX tells players which cards are unsupported |
 | Networking introduces non-determinism | State divergence bugs in M10+ | Medium | Tier 1 state hashing from M3 onward catches non-determinism early; `im::OrdMap` ensures deterministic iteration |
 | Mental Poker latency unacceptable | Library search operations too slow for gameplay | Low | Protocol designed for <1s search latency; acceptable for turn-based game; fallback to trusted host mode |
 | Scryfall API changes or terms change | Card data pipeline breaks | Low | Vendor-lock only on data format, not API; cache aggressively |
