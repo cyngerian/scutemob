@@ -13,7 +13,7 @@
 
 - **Active Phase**: Fix Phase — resolving M0-M7 code review findings before starting M8
 - **Next Milestone**: M8 — Replacement & Prevention Effects (start after fix phase)
-- **Status**: M7 complete; 303 tests passing; fix phase in progress
+- **Status**: M7 complete; 327 tests passing; fix phase in progress (sessions 1-7 done)
 - **Last Updated**: 2026-02-22
 
 ### Fix Phase Instructions
@@ -27,8 +27,10 @@ work through it. Use Sonnet 4.6 for fix sessions.
 2. Work through each issue in order — the plan has exact file:line locations and fix descriptions
 3. Write tests for each fix where noted
 4. Run `~/.cargo/bin/cargo test --all` and `~/.cargo/bin/cargo clippy -- -D warnings`
-5. Check the session box in `memory/fix-phase-plan.md`
-6. Commit: `fix: session N — <summary>`
+5. Update `docs/mtg-engine-milestone-reviews.md` — for each fixed issue, change `| OPEN |` to
+   `| CLOSED — fix session N |` in BOTH the per-milestone Findings table AND the cross-milestone index
+6. Check the session box in `memory/fix-phase-plan.md`
+7. Commit: `fix: session N — <summary>`
 
 **Scope**: 21 HIGH + ~29 MEDIUM + select LOWs = ~55 issues across 9 sessions.
 When all sessions complete, update this section back to "Active Milestone: M8".
