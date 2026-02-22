@@ -421,7 +421,7 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M4: State-Based Actions
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
@@ -435,37 +435,95 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/sba.rs` | 756 | ~28 | All SBA checks, batch behavior, events |
+| `tests/sba.rs` | 756 | 28 | All SBA checks, batch behavior, convergence, event ordering |
+| `tests/keywords.rs` (M7, partial) | 677 | 2 (relevant) | Indestructible + SBA interaction (704.5f vs 704.5g) |
+
+**Test total**: 28 dedicated + 2 cross-milestone = 30 SBA-relevant tests
 
 ### CR Sections Implemented
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 704.5a | Player at 0 or less life loses |
-| CR 704.5c | 10+ poison counters |
-| CR 704.5d | Token in non-battlefield zone ceases to exist |
-| CR 704.5f | Creature toughness ≤ 0 |
-| CR 704.5g | Lethal damage on creature |
-| CR 704.5h | Deathtouch damage |
-| CR 704.5i | Planeswalker at 0 loyalty |
-| CR 704.5j | Legendary rule (auto-keeps newest) |
-| CR 704.5m | Aura attached to illegal object |
-| CR 704.5n | Equipment attached illegally |
-| CR 704.5q | +1/+1 and -1/-1 counter annihilation |
-| CR 704.5u | Commander damage 21+ |
+| CR 704.3 | Fixed-point SBA loop: check all, apply simultaneously, repeat until none fire (`sba.rs:44-54`) |
+| CR 704.5a | Player at 0 or less life loses (`sba.rs:95-103`) |
+| CR 704.5c | Player with 10+ poison counters loses (`sba.rs:107-116`) |
+| CR 704.5d | Token in non-battlefield zone ceases to exist (`sba.rs:147-171`) |
+| CR 704.5f | Creature with toughness ≤ 0 → owner's graveyard; indestructible does NOT prevent (`sba.rs:211-213`) |
+| CR 704.5g | Creature with lethal damage (damage ≥ toughness > 0) destroyed; indestructible prevents (`sba.rs:217-220`) |
+| CR 704.5h | Creature dealt deathtouch damage destroyed; indestructible prevents (`sba.rs:224-226`) |
+| CR 704.5i | Planeswalker with 0 loyalty → owner's graveyard (`sba.rs:260-301`) |
+| CR 704.5j | Legendary rule: 2+ legendaries same name/controller → keep newest ObjectId (`sba.rs:311-368`) |
+| CR 704.5m | Aura attached to illegal/non-existent object → owner's graveyard (`sba.rs:378-425`) |
+| CR 704.5n | Equipment/Fortification illegally attached → unattach, stays on battlefield (`sba.rs:436-499`) |
+| CR 704.5q | +1/+1 and -1/-1 counter pair annihilation (`sba.rs:506-573`) |
+| CR 704.5u | Commander: 21+ combat damage from one commander → player loses (`sba.rs:118-133`) |
 
-### Known Issues (to be validated during review)
+### Findings
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M4-01 | **HIGH** | sba.rs | **`.unwrap()` in engine library code.** At least two locations. Exact lines to be verified. | STUB |
-| MR-M4-02 | **HIGH** | sba.rs | **SBAs don't use `calculate_characteristics` for P/T checks.** CR 704.5f/g/h check raw `game_object.characteristics.toughness` instead of the layer-calculated value. A creature with base 1/1 and a -1/-1 effect would not be caught. Should use layer system (available since M5). | DEFERRED → M5 review |
-| MR-M4-03 | **HIGH** | sba.rs | **Second `.unwrap()` in engine library code.** Same pattern as MR-M4-01. | STUB |
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M4-01 | **HIGH** | sba.rs:120 | **`.unwrap()` in `check_player_sbas`.** `state.players.get(&id).unwrap()` for the commander damage check. The player IS guaranteed to exist (iterated from `state.players.keys()` on line 85, checked with `state.players.get(&id)` on line 87), but violates the "no unwrap/expect in engine" convention. If a future refactor between lines 87-120 invalidates the guarantee, this panics. **Fix:** `if let Some(p) = state.players.get(&id) { ... }` with early-continue on None. | OPEN |
+| MR-M4-02 | **HIGH** | sba.rs:189-226 | **SBAs don't use `calculate_characteristics` for P/T or keyword checks.** `check_creature_sbas` reads raw `obj.characteristics.toughness` and `obj.characteristics.keywords` instead of the layer-calculated values. A creature with base 2/2 under a continuous -2/-2 effect has `raw_toughness == 2` but `effective_toughness == 0` — the SBA would miss it. Same for indestructible: Humility removes keywords from the raw characteristics level, but the SBA reads from raw. The layer system (M5) provides `calculate_characteristics()` which returns the correct values. **Cross-milestone:** M4 code, M5+ fix. | DEFERRED → M5 review |
+| MR-M4-03 | **HIGH** | sba.rs:340 | **`.unwrap()` in `check_legendary_rule`.** `ids.last().unwrap()` — safe because `ids.len() < 2` guard on line 334 guarantees ≥2 elements, but violates convention. **Fix:** `let Some(&kept) = ids.last() else { continue; };` | OPEN |
+| MR-M4-04 | **MEDIUM** | sba.rs:217 | **`u32 as i32` cast in lethal damage comparison.** `obj.damage_marked as i32 >= toughness` — `damage_marked` is `u32`. If damage exceeds `i32::MAX` (2,147,483,647), the cast wraps to negative, making the comparison incorrect. Practically unreachable in normal gameplay but formally unsound. **Fix:** convert toughness to u32 instead: `toughness > 0 && obj.damage_marked >= toughness as u32`. | OPEN |
+| MR-M4-05 | **MEDIUM** | sba.rs:280 | **`u32 as i32` cast in planeswalker loyalty.** `loyalty_counter.map(|c| c as i32)` — same overflow pattern as MR-M4-04. If a planeswalker somehow had >2B loyalty counters, the cast wraps. **Fix:** compare in u32 space: if counter > 0, alive; if counter == 0, dead. | OPEN |
+| MR-M4-06 | **MEDIUM** | sba.rs (missing) | **CR 704.5b not implemented as SBA.** "If a player attempted to draw from an empty library since the last SBA check, that player loses." Currently handled as immediate loss in `turn_actions.rs:99-108` (CR 104.3b). The timing difference matters if replacement effects (M8) could replace the draw — the current approach loses the player before replacements can apply. Acceptable for M4; should be revisited when replacement effects are implemented in M8. | DEFERRED → M8 |
+| MR-M4-07 | **LOW** | sba.rs (missing) | **CR 704.5e (spell/card copies) not implemented.** "If a copy of a spell is in a zone other than the stack, it ceases to exist." No `is_copy` field on `GameObject`. Copy effects are M8+ territory — expected omission. | DEFERRED → M8+ |
+| MR-M4-08 | **LOW** | sba.rs (missing) | **CR 704.5k (world rule) not implemented.** "If two or more permanents have the supertype world..." World is an extremely rare supertype (handful of old cards, none Commander staples). Reasonable to defer indefinitely. | DEFERRED |
+| MR-M4-09 | **LOW** | sba.rs:329 | **`String::clone()` allocation in legendary rule hot path.** `obj.characteristics.name.clone()` for every legendary permanent on every SBA pass. Creates many small allocations if many legends are on the battlefield. Minor performance concern — could use `&str` references in the grouping map. | OPEN |
+| MR-M4-10 | **LOW** | sba.rs:391,449,453 | **`SubType("...".to_string())` allocates on every comparison.** Aura/Equipment/Fortification checks create new `String` allocations on every object iteration. Should use a static or pre-allocated `SubType`. Same pattern in `check_aura_sbas` and `check_equipment_sbas`. | OPEN |
+| MR-M4-11 | **LOW** | sba.rs:281 | **`unwrap_or(1)` default for missing planeswalker loyalty.** If a planeswalker has no Loyalty counter AND no `characteristics.loyalty`, effective loyalty defaults to 1 (survives). Correct for well-constructed states (planeswalkers always have `characteristics.loyalty`), but silently hides construction bugs. A `unwrap_or(0)` or logging would catch incorrectly built test states. | OPEN |
+| MR-M4-12 | **LOW** | tests/sba.rs | **Test gap: no test for planeswalker with Loyalty counters (vs characteristics.loyalty).** All planeswalker tests use `ObjectSpec::planeswalker(p, name, loyalty)` which sets `characteristics.loyalty`. No test verifies the `CounterType::Loyalty` counter path (sba.rs:278-279) which is the runtime path for planeswalkers that have used loyalty abilities. | OPEN |
+| MR-M4-13 | **LOW** | tests/sba.rs | **Test gap: no test for aura whose target left the battlefield.** The only aura test (704.5m) tests an unattached aura (`attached_to == None`). No test for the `target.zone != Battlefield` branch (sba.rs:400-404) where an aura is attached to an object that moved zones. | OPEN |
+| MR-M4-14 | **LOW** | tests/sba.rs | **Test gap: no test for 3+ legendary copies.** Only tests 2 copies of a legendary. No test verifying that with 3+ copies, all but the newest are removed simultaneously. The grouping logic (sba.rs:333-340) should handle it, but it's unverified. | OPEN |
+| MR-M4-15 | **INFO** | sba.rs:204-226 | **Correct indestructible handling for 704.5f vs 704.5g/h.** Indestructible correctly does NOT prevent 704.5f (zero toughness = "put into graveyard", not "destroy") but DOES prevent 704.5g (lethal damage) and 704.5h (deathtouch damage). Matches CR 702.12a precisely. Verified by 2 tests in keywords.rs. | — |
+| MR-M4-16 | **INFO** | sba.rs:44-54 | **Fixed-point loop correct and convergent.** Each pass removes dying objects from state, so subsequent passes find fewer objects. Convergence is guaranteed because SBAs only remove/modify — they never create new SBA-triggering conditions. Two tests verify this (convergence + no-infinite-loop). | — |
+| MR-M4-17 | **INFO** | engine.rs:202-219 | **SBA integration with engine correct.** `enter_step` calls `check_and_apply_sbas` before granting priority (CR 704.3), then checks triggers, flushes them to stack, then grants priority. `resolution.rs` also calls SBAs after resolving spells (lines 68, 260, 345). Correct sequence per CR 704.3. | — |
+| MR-M4-18 | **INFO** | sba.rs:436-499 | **Equipment unattach vs aura destroy: correct distinction.** Equipment/Fortification illegally attached → unattach and stay on battlefield (CR 704.5n). Aura illegally attached → owner's graveyard (CR 704.5m). Both correctly implemented with different event types and state mutations. | — |
+| MR-M4-19 | **INFO** | sba.rs:82-136 | **Single loss event per player per pass: correct.** `check_player_sbas` uses `continue` after emitting a loss event (lines 103, 115), ensuring only one `PlayerLost` event per player per SBA pass. A player at 0 life with 10 poison gets `LifeTotal` reason (first in CR order). This is correct — the player can only lose once. | — |
+
+### Test Coverage Assessment
+
+| M4 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| Life total ≤ 0 (CR 704.5a) | Good (4 tests) | Zero, negative, 1 survives, multiple simultaneous |
+| Poison counters (CR 704.5c) | Good (2 tests) | 10 loses, 9 survives |
+| Token in wrong zone (CR 704.5d) | Good (2 tests) | Graveyard ceases, battlefield stays |
+| Toughness ≤ 0 (CR 704.5f) | Good (3 tests) | Zero, negative, 1 survives |
+| Lethal damage (CR 704.5g) | Good (2 tests) | Lethal destroys, sub-lethal survives |
+| Deathtouch damage (CR 704.5h) | Adequate (1 test) | Deathtouch + 1 damage destroys |
+| Planeswalker loyalty (CR 704.5i) | Good (2 tests) | 0 dies, 3 survives |
+| Legendary rule (CR 704.5j) | Good (3 tests) | Duplicate, different names, different controllers |
+| Aura illegal (CR 704.5m) | Thin (1 test) | Unattached only; no "target left battlefield" test (MR-M4-13) |
+| Equipment illegal (CR 704.5n) | Adequate (1 test) | On non-creature unattaches |
+| Counter annihilation (CR 704.5q) | Good (2 tests) | Equal pairs, unequal partial |
+| Commander damage (CR 704.5u) | Good (2 tests) | 21 loses, 20 survives |
+| Indestructible + SBA | Good (2 tests in keywords.rs) | Survives lethal, dies to 0 toughness |
+| Fixed-point convergence | Good (2 tests) | Only applicable fire, no infinite loop |
+| SBA fires before priority | Good (1 test) | CreatureDied before PriorityGiven |
+| Planeswalker with Loyalty counters | **Missing** (MR-M4-12) | Only tests characteristics.loyalty path |
+| Aura target left battlefield | **Missing** (MR-M4-13) | Only tests unattached aura |
+| 3+ legendary copies | **Missing** (MR-M4-14) | Only tests 2 copies |
 
 ### Notes
 
-- MR-M4-02 is a cross-milestone issue: code is in M4 but the fix requires M5's layer system.
-  Should be addressed when the SBA + layer integration is reviewed.
+- M4 is a focused, well-structured milestone — 587 source lines implementing 12 CR 704.5 sub-rules
+  with a clean fixed-point loop. The code quality is high: each SBA is a separate function, events
+  are well-typed, and the integration with the engine's priority system is correct.
+- The two `.unwrap()` calls (MR-M4-01, MR-M4-03) are provably safe in current code but violate the
+  project's typed-error convention. Both are easy fixes.
+- MR-M4-02 (raw characteristics instead of layer-calculated) is the most significant finding. It
+  means any continuous effect modifying P/T (e.g., -X/-X from Tragic Slip) or granting/removing
+  indestructible (e.g., Humility) will not be reflected in SBA checks. This is a cross-milestone
+  issue requiring the M5 layer system.
+- MR-M4-06 (704.5b as immediate loss vs SBA) is a subtle rules deviation that becomes relevant
+  when replacement effects (M8) can replace draws. For now, the immediate-loss approach is adequate
+  and matches most other MTG engines.
+- The `u32 as i32` casts (MR-M4-04, MR-M4-05) are the same pattern seen in combat damage
+  (MR-M6-05 stub). Should be fixed systematically across the codebase.
+- CR 704.5b (empty library draw), 704.5e (copies), 704.5k (world rule) are intentionally omitted.
+  704.5b is handled differently (immediate loss); 704.5e and 704.5k are deferred to later milestones
+  or indefinitely (world rule is irrelevant for Commander).
 
 ---
 
@@ -733,9 +791,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-01 | M3 | Partial fizzle: targets not filtered — effects execute against illegal targets | OPEN |
 | MR-M3-03 | M3 | GameObject hash omits `has_summoning_sickness` — breaks distributed verification | OPEN |
 | MR-M3-04 | M3 | Non-existent object target silently accepted in ability activation | OPEN |
-| MR-M4-01 | M4 | `.unwrap()` in sba.rs (first instance) | STUB |
-| MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T | STUB |
-| MR-M4-03 | M4 | `.unwrap()` in sba.rs (second instance) | STUB |
+| MR-M4-01 | M4 | `.unwrap()` in `check_player_sbas` (sba.rs:120) — commander damage path | OPEN |
+| MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T or keyword checks | DEFERRED → M5 |
+| MR-M4-03 | M4 | `.unwrap()` in `check_legendary_rule` (sba.rs:340) — `ids.last()` | OPEN |
 | MR-M5-01 | M5 | `.expect()` in layers.rs | STUB |
 | MR-M5-03 | M5 | SBAs don't use `calculate_characteristics` (cross-ref MR-M4-02) | STUB |
 | MR-M6-01 | M6 | Attack target not validated | STUB |
@@ -764,6 +822,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-06 | M3 (cross: M7) | TriggeredAbilityDef hash omits `effect` field — same gap as MR-M3-05 | OPEN |
 | MR-M3-07 | M3 | Hexproof/shroud target validation duplicated between casting.rs and abilities.rs | OPEN |
 | MR-M3-08 | M3 | `matches!` bare statement in test — silent no-op assertion | OPEN |
+| MR-M4-04 | M4 | `u32 as i32` cast in lethal damage comparison (sba.rs:217) — wraps on overflow | OPEN |
+| MR-M4-05 | M4 | `u32 as i32` cast in planeswalker loyalty counter (sba.rs:280) | OPEN |
+| MR-M4-06 | M4→M8 | CR 704.5b not implemented as SBA — empty library loss is immediate, not SBA-checked | DEFERRED → M8 |
 | MR-M5-02 | M5 | `ptr::eq` in layers.rs | STUB |
 | MR-M6-04 | M6 | `is_blocked` contract/invariant risk | STUB |
 | MR-M6-05 | M6 | Unsafe i32→u32 cast in combat damage | STUB |
@@ -791,6 +852,14 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-10 | M3 | Incomplete test discards results (test_608_2b_fizzle_player_target_concedes) | OPEN |
 | MR-M3-11 | M3 | `apnap_order` silently defaults position with `unwrap_or(0)` | OPEN |
 | MR-M3-12 | M3 | `NotController` error used for ownership check in lands.rs — misleading | OPEN |
+| MR-M4-07 | M4 | CR 704.5e (spell/card copies) not implemented — no `is_copy` field | DEFERRED → M8+ |
+| MR-M4-08 | M4 | CR 704.5k (world rule) not implemented — irrelevant for Commander | DEFERRED |
+| MR-M4-09 | M4 | `String::clone()` allocation in legendary rule hot path (sba.rs:329) | OPEN |
+| MR-M4-10 | M4 | `SubType("...".to_string())` allocates on every SBA comparison (sba.rs:391,449,453) | OPEN |
+| MR-M4-11 | M4 | `unwrap_or(1)` default for missing planeswalker loyalty — hides construction bugs | OPEN |
+| MR-M4-12 | M4 | Test gap: no planeswalker with Loyalty counters (only characteristics.loyalty) | OPEN |
+| MR-M4-13 | M4 | Test gap: no aura whose target left battlefield (only tests unattached) | OPEN |
+| MR-M4-14 | M4 | Test gap: no 3+ legendary copies test | OPEN |
 | MR-M6-06 | M6 | Combat damage function large, needs helpers | STUB |
 | MR-M6-07 | M6 | Test gap: Defender keyword in combat | STUB |
 | MR-M6-08 | M6 | Test gap: no combat game script | STUB |
@@ -820,6 +889,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-16 | M3 | Well-structured test suites with CR citations across all 7 test files | — |
 | MR-M3-17 | M3 | Dual-instance proptest strong for determinism validation | — |
 | MR-M3-18 | M3 | Script schema well-designed and extensible | — |
+| MR-M4-15 | M4 | Correct indestructible handling: 704.5f (no prevent) vs 704.5g/h (prevent) | — |
+| MR-M4-16 | M4 | Fixed-point loop correct and convergent — each pass removes objects | — |
+| MR-M4-17 | M4 | SBA integration with engine correct — fires before priority, after resolution | — |
+| MR-M4-18 | M4 | Equipment unattach vs aura destroy — correct CR 704.5m/n distinction | — |
+| MR-M4-19 | M4 | Single loss event per player per SBA pass — correct CR ordering | — |
 
 ---
 
@@ -827,18 +901,20 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 83 (MR-M5-03 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
+| Total unique issue IDs | 99 (MR-M5-03 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 10 |
-| HIGH (DEFERRED) | 1 |
-| HIGH (STUB) | 11 |
-| MEDIUM (OPEN) | 15 |
+| HIGH (OPEN) | 12 |
+| HIGH (DEFERRED) | 2 |
+| HIGH (STUB) | 8 |
+| MEDIUM (OPEN) | 17 |
+| MEDIUM (DEFERRED) | 1 |
 | MEDIUM (STUB) | 10 |
-| LOW (OPEN) | 12 |
+| LOW (OPEN) | 18 |
+| LOW (DEFERRED) | 2 |
 | LOW (STUB) | 8 |
-| INFO | 16 |
-| Milestones fully reviewed | 4 (M0, M1, M2, M3) |
-| Milestones with stubs | 4 (M4, M5, M6, M7) |
+| INFO | 21 |
+| Milestones fully reviewed | 5 (M0, M1, M2, M3, M4) |
+| Milestones with stubs | 3 (M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
