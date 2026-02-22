@@ -529,41 +529,132 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M5: The Layer System
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
+**Source files:**
+
 | File | Lines | Purpose |
 |------|-------|---------|
-| `state/continuous_effect.rs` | 207 | EffectId, EffectLayer, EffectDuration, EffectFilter, LayerModification, ContinuousEffect |
-| `rules/layers.rs` | 497 | `calculate_characteristics`, dependency detection, toposort, effect expiry |
+| `state/continuous_effect.rs` | 208 | EffectId, EffectLayer (10 sublayers), EffectDuration (3), EffectFilter (10), LayerModification (21), ContinuousEffect |
+| `rules/layers.rs` | 498 | `calculate_characteristics`, `is_effect_active`, `effect_applies_to`, `apply_layer_modification`, `resolve_layer_order`, `toposort_with_timestamp_fallback`, `depends_on`, `expire_end_of_turn_effects` |
 
-**Source total**: 704 lines
+**Additions to existing files:**
+
+| File | Lines Added | Purpose |
+|------|-------------|---------|
+| `state/hash.rs` | ~136 (lines 419-554) | `HashInto` impls for all 6 M5 types |
+| `state/mod.rs` | 1 | `continuous_effects: Vector<ContinuousEffect>` field on GameState |
+| `state/builder.rs` | ~8 | `add_continuous_effect()` builder method |
+| `rules/mod.rs` | 1 | `pub use layers::calculate_characteristics;` |
+| `lib.rs` | 1 | Re-export `calculate_characteristics` |
+
+**Source total**: ~706 new lines + ~147 additions to existing files
 
 **Test files:**
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/layers.rs` | 1,392 | ~28 | Humility+Opalescence, Blood Moon+Urborg, CDAs, layer ordering, duration expiry |
+| `tests/layers.rs` | 1,393 | 28 | Layer ordering, timestamps, dependencies, CDAs, counters, duration tracking, Humility+Opalescence, Blood Moon+Urborg |
 
 ### CR Sections Implemented
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 613 | Full layer system (layers 1-7d) |
-| CR 613.3 | CDAs applied before other effects in their layer |
-| CR 613.4c | Counter P/T modifications at layer 7c |
-| CR 613.7 | Timestamp ordering within layers |
-| CR 613.8 | Dependency ordering (overrides timestamp) |
-| CR 613.8k | Circular dependencies fall back to timestamp |
+| CR 613.1 | Layer order: Copy(1) → Control(2) → Text(3) → Type(4) → Color(5) → Ability(6) → P/T 7a-d (`layers.rs:48-59`) |
+| CR 613.1d | Type-changing: SetTypeLine, AddCardTypes, AddSubtypes, LoseAllSubtypes (`layers.rs:238-262`) |
+| CR 613.1e | Color-changing: SetColors, AddColors, BecomeColorless (`layers.rs:265-277`) |
+| CR 613.1f | Ability add/remove: AddKeyword(s), RemoveAllAbilities, RemoveKeyword (`layers.rs:280-303`) |
+| CR 613.3 | CDAs applied before non-CDAs within each layer (`layers.rs:367`) |
+| CR 613.4a | CDA P/T: SetPtViaCda, SetPtToManaValue (`layers.rs:306-315`) |
+| CR 613.4b | P/T-setting: SetPowerToughness (`layers.rs:318-321`) |
+| CR 613.4c | P/T-modifying: ModifyPower/Toughness/Both, +1/+1 and -1/-1 counters (`layers.rs:93-115, 324-343`) |
+| CR 613.4d | P/T-switching: SwitchPowerToughness (`layers.rs:346-351`) |
+| CR 613.7 | Timestamp ordering within layers (`layers.rs:391`) |
+| CR 613.8 | Dependency ordering — SetTypeLine depends on AddSubtypes/AddCardTypes (`layers.rs:453-484`) |
+| CR 613.8b | Circular dependencies fall back to timestamp order (`layers.rs:432-439`) |
+| CR 611.2b | WhileSourceOnBattlefield duration (`layers.rs:129-137`) |
+| CR 514.2 | UntilEndOfTurn expiry at cleanup (`layers.rs:489-497`) |
 
-### Known Issues (to be validated during review)
+**Placeholder layers (deferred):**
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M5-01 | **HIGH** | layers.rs | **`.expect()` in engine library code.** Exact location to be verified. | STUB |
-| MR-M5-02 | **MEDIUM** | layers.rs | **`ptr::eq` used for effect comparison.** May have correctness issues with im-rs structural sharing (two logically equal values at different addresses). Context and impact to be verified. | STUB |
-| MR-M5-03 | **HIGH** | (cross: sba.rs) | **SBAs don't use `calculate_characteristics`.** Forwarded from MR-M4-02. SBA toughness checks should call `calculate_characteristics` now that the layer system exists. | STUB |
+| CR Section | Status |
+|------------|--------|
+| CR 613.1a / CR 707 | Layer 1 (Copy): `CopyOf` variant defined, TODO in `apply_layer_modification` → deferred to M7 |
+| CR 613.1b | Layer 2 (Control): `SetController` variant defined, controller lives on `GameObject` not `Characteristics` → handled outside `calculate_characteristics` |
+| CR 613.1c | Layer 3 (Text): `EffectLayer::Text` defined, no `LayerModification` variant → no text-changing effects in card pool |
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M5-01 | **HIGH** | layers.rs:95 | **`.expect()` in engine library code.** `state.objects.get(&object_id).expect("object exists")` in the counter P/T block (layer 7c). Provably safe — the object was retrieved at line 36 and state is `&` (immutable), so it cannot have been removed. However, violates the "no unwrap/expect in engine" convention. **Fix:** wrap counter logic in `if let Some(obj_ref) = state.objects.get(&object_id) { ... }`. | OPEN |
+| MR-M5-02 | **HIGH** | sba.rs:193,200,204-207,469,472,585 | **SBAs use raw characteristics, not `calculate_characteristics()`.** Forwarded from MR-M4-02, now validated. Seven call sites in `sba.rs` read `obj.characteristics.{toughness,card_types,keywords}` directly. Impact: (1) creature under -X/-X continuous effect: raw toughness unmodified, SBA won't kill it; (2) Humility removes Indestructible keyword: raw still has it, SBA incorrectly skips lethal-damage destroy; (3) Opalescence makes enchantment a creature: raw card_types lacks Creature, equipment attachment SBA misses it. **Fix:** call `calculate_characteristics` for each battlefield object at the start of each SBA pass. | OPEN |
+| MR-M5-03 | **MEDIUM** | layers.rs:435 | **`ptr::eq` for effect identity in cycle fallback.** Uses `std::ptr::eq(*e, *effect)` to check whether an effect was already emitted during Kahn's cycle recovery. Correct in current usage — all references point into the same `im::Vector`, so each element has a unique address. Fragile: if refactored to use cloned values or indices, `ptr::eq` silently breaks. **Fix:** compare by `EffectId`: `result.iter().any(\|e\| e.id == effect.id)`. | OPEN |
+| MR-M5-04 | **MEDIUM** | continuous_effect.rs:46-57 | **`EffectDuration` missing general condition-based durations.** Only `WhileSourceOnBattlefield`, `UntilEndOfTurn`, `Indefinite`. Missing: (1) `UntilEndOfNextTurn`/`UntilYourNextTurn` — common in Commander ("until your next turn"); (2) general `AsLongAs(Condition)` — "as long as you control a creature." Roadmap M5 deliverable says "as long as" is covered; only the most common case (`WhileSourceOnBattlefield`) is implemented. | DEFERRED → M8+ |
+| MR-M5-05 | **MEDIUM** | layers.rs:184-192 | **`AllPermanents` filter over-checks card types.** Checks `card_types.contains(Creature\|Artifact\|Enchantment\|Land\|Planeswalker\|Battle)` instead of just `obj_zone == Battlefield`. Per CR 110.4, any card on the battlefield is a permanent. If layer 4 removes all card types, `AllPermanents` incorrectly excludes the object. Extremely rare but technically wrong. **Fix:** `obj_zone == ZoneId::Battlefield`. | OPEN |
+| MR-M5-06 | **LOW** | layers.rs:417 | **`ready.remove(0)` is O(n) in Kahn's algorithm.** `Vec::remove(0)` shifts all elements on every iteration → O(n²) total. Should use `VecDeque::pop_front()` for O(1). Negligible: n ≤ 20 effects per layer. | OPEN |
+| MR-M5-07 | **LOW** | continuous_effect.rs | **Missing `AddSupertypes`/`RemoveSupertypes` layer 4 variants.** `SetTypeLine` can set supertypes, but no way to add individual supertypes (e.g., "becomes legendary" in addition to existing types). Uncommon but exists in Commander card pool. | DEFERRED → M8+ |
+| MR-M5-08 | **LOW** | tests/layers.rs:410-457 | **CDA priority test doesn't exercise same-layer partition.** `test_613_layer7a_cda_applies_before_static_pt` puts CDA in PtCda (7a) and non-CDA in PtSet (7b) — different sublayers. CDA applies first because 7a < 7b, not because of the `is_cda` partition in `resolve_layer_order` (line 367). That partition logic is untested. **Fix:** add test with two effects in the SAME sublayer, one CDA and one not, verifying CDA applies first. | OPEN |
+| MR-M5-09 | **INFO** | tests/layers.rs:461 | **Test name mismatch.** `test_613_layer7a_set_pt_to_mana_value` but effect uses `EffectLayer::PtSet` (layer 7b). Name implies 7a; should be `test_613_layer7b_set_pt_to_mana_value`. | — |
+| MR-M5-10 | **INFO** | layers.rs:77-78 | **Comment inaccuracy.** "The mana value comes from the base mana cost (printed on the card)" but `chars.mana_cost` at layer 7+ has been through layers 1-6. No current layer modifies `mana_cost`, so the value is effectively base. No correctness impact. | — |
+| MR-M5-11 | **INFO** | — | **No test scripts for layers.** `test-data/generated-scripts/layers/` doesn't exist. All 28 tests are unit tests. Unit tests are the correct approach for layer system isolated computation; script-based testing is more appropriate for full-game scenarios. | — |
+| MR-M5-12 | **INFO** | layers.rs:432-439 | **Cycle fallback code is dead code.** `depends_on()` only produces `SetTypeLine → AddSubtypes/AddCardTypes` edges. No combination creates a cycle (Add* never depends on SetTypeLine). Lines 432-439 are unreachable. Defensively correct for future dependency rules. | — |
+| MR-M5-13 | **INFO** | hash.rs:419-554 | **Complete hash coverage for all M5 types.** All 6 types have correct `HashInto` implementations. 10 `EffectFilter` variants, 21 `LayerModification` variants, and all 8 `ContinuousEffect` fields are hashed with unique discriminant bytes. No gaps. | — |
+
+### Test Coverage Assessment
+
+| M5 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| Layer ordering (1→7d) | Excellent (3 tests) | Type before ability, type before P/T, full 10-layer sequence |
+| Layer 4 (type-changing) | Good (7 tests) | AddCardTypes, SetTypeLine, filter re-evaluation, Blood Moon, Urborg |
+| Layer 5 (color-changing) | Thin (1 test) | SetColors only; no AddColors or BecomeColorless tests |
+| Layer 6 (ability add/remove) | Good (3 tests) | RemoveAllAbilities, AddKeyword, layer 4 enables layer 6 filter |
+| Layer 7a (CDA P/T) | Adequate (2 tests) | SetPtViaCda, SetPtToManaValue — but see MR-M5-08 (same-layer CDA partition untested) |
+| Layer 7b (P/T-setting) | Good (5 tests) | SetPowerToughness, timestamp wins, Humility override |
+| Layer 7c (P/T-modifying) | Good (4 tests) | ModifyBoth, ModifyPower, ModifyToughness stacking, counter integration |
+| Layer 7d (P/T-switching) | Good (1 test) | Switch after set+modify chain |
+| Timestamp ordering | Good (1 test) | Later timestamp overrides earlier |
+| Dependencies (CR 613.8) | Excellent (4 tests) | Blood Moon+Urborg both directions, dependency chain, independent fallback |
+| CDA partition (CR 613.3) | **Missing** (MR-M5-08) | No same-sublayer CDA vs non-CDA test |
+| Duration: WhileSourceOnBattlefield | Good (1 test) | Source dies → effect inactive |
+| Duration: UntilEndOfTurn | Good (1 test) | Expires at cleanup, Indefinite persists |
+| Counter P/T at layer 7c | Good (3 tests) | +1/+1, -1/-1, ordering with 7b |
+| Humility + Opalescence | Excellent (1 test, comprehensive) | Both cards verified: creature type, no abilities, 1/1 |
+| Blood Moon + Urborg | Excellent (2 tests) | Both timestamp orderings; dependency wins regardless |
+| Filter exclusion | Good (2 tests) | Non-matching objects, layer 4 enables later filter |
+| Edge cases | Good (2 tests) | No effects = base chars, nonexistent object = None |
+| AddColors, BecomeColorless | **Missing** | Defined but untested |
+| RemoveKeyword | **Missing** | Defined but untested |
+| LoseAllSubtypes | **Missing** | Defined but untested |
+| Layer 1 (Copy) | **N/A** | Deferred to M7 |
+| Layer 2 (Control) | **N/A** | Deferred (controller on GameObject) |
+| Layer 3 (Text) | **N/A** | Deferred (no cards need it) |
+
+### Notes
+
+- M5 is the highest-risk milestone in the roadmap, and the implementation is solid. The core
+  algorithm — 10-layer sequential application with per-layer CDA partition, dependency-aware
+  topological sort, and timestamp fallback — is correct for all implemented layers (4-7d).
+- The dependency model implements only one rule (`SetTypeLine → AddSubtypes/AddCardTypes`) which
+  correctly handles the Blood Moon + Urborg interaction regardless of timestamp order. This is the
+  most important dependency in Commander; additional dependency rules can be added as the card pool
+  expands.
+- The cycle fallback code (MR-M5-12) is dead code today but will become reachable when future
+  dependency rules are added. The Kahn's algorithm implementation is correct.
+- MR-M5-02 (SBAs using raw characteristics) is the most impactful finding — it's been tracked
+  since M4 (MR-M4-02) and now that the layer system exists, the fix is straightforward: call
+  `calculate_characteristics` in `check_creature_sbas` and related functions. This should be
+  addressed before M8.
+- MR-M5-01 (`.expect()`) continues the pattern seen across every milestone — provably safe but
+  violating convention. The engine now has at least 8 such violations across M1-M5.
+- Hash coverage (MR-M5-13) is complete — all M5 types are properly hashed with unique discriminants.
+  No repeat of the M3 cross-milestone gap (where M7 added fields without updating hashes).
+- Missing tests for `AddColors`, `BecomeColorless`, `RemoveKeyword`, and `LoseAllSubtypes` are
+  LOW risk — these are simple set operations with the same pattern as tested variants. The CDA
+  partition test gap (MR-M5-08) is more significant since it's the only untested branch in the
+  core sorting logic.
 
 ---
 
@@ -792,10 +883,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-03 | M3 | GameObject hash omits `has_summoning_sickness` — breaks distributed verification | OPEN |
 | MR-M3-04 | M3 | Non-existent object target silently accepted in ability activation | OPEN |
 | MR-M4-01 | M4 | `.unwrap()` in `check_player_sbas` (sba.rs:120) — commander damage path | OPEN |
-| MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T or keyword checks | DEFERRED → M5 |
+| MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T or keyword checks | OPEN — see MR-M5-02 |
 | MR-M4-03 | M4 | `.unwrap()` in `check_legendary_rule` (sba.rs:340) — `ids.last()` | OPEN |
-| MR-M5-01 | M5 | `.expect()` in layers.rs | STUB |
-| MR-M5-03 | M5 | SBAs don't use `calculate_characteristics` (cross-ref MR-M4-02) | STUB |
+| MR-M5-01 | M5 | `.expect()` in layers.rs:95 — counter P/T block | OPEN |
+| MR-M5-02 | M5 | SBAs use raw characteristics, not `calculate_characteristics` (7 call sites) | OPEN |
 | MR-M6-01 | M6 | Attack target not validated | STUB |
 | MR-M6-02 | M6 | Double-blocking not prevented | STUB |
 | MR-M6-03 | M6 | Partial blocker ordering accepted | STUB |
@@ -825,7 +916,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M4-04 | M4 | `u32 as i32` cast in lethal damage comparison (sba.rs:217) — wraps on overflow | OPEN |
 | MR-M4-05 | M4 | `u32 as i32` cast in planeswalker loyalty counter (sba.rs:280) | OPEN |
 | MR-M4-06 | M4→M8 | CR 704.5b not implemented as SBA — empty library loss is immediate, not SBA-checked | DEFERRED → M8 |
-| MR-M5-02 | M5 | `ptr::eq` in layers.rs | STUB |
+| MR-M5-03 | M5 | `ptr::eq` for effect identity in cycle fallback — correct but fragile | OPEN |
+| MR-M5-04 | M5→M8+ | `EffectDuration` missing `UntilEndOfNextTurn` and general `AsLongAs(Condition)` | DEFERRED → M8+ |
+| MR-M5-05 | M5 | `AllPermanents` filter over-checks card types instead of just checking Battlefield zone | OPEN |
 | MR-M6-04 | M6 | `is_blocked` contract/invariant risk | STUB |
 | MR-M6-05 | M6 | Unsafe i32→u32 cast in combat damage | STUB |
 | MR-M7-04 | M7 | Lifelink only works for combat damage | STUB |
@@ -860,6 +953,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M4-12 | M4 | Test gap: no planeswalker with Loyalty counters (only characteristics.loyalty) | OPEN |
 | MR-M4-13 | M4 | Test gap: no aura whose target left battlefield (only tests unattached) | OPEN |
 | MR-M4-14 | M4 | Test gap: no 3+ legendary copies test | OPEN |
+| MR-M5-06 | M5 | `ready.remove(0)` is O(n) in Kahn's algorithm — use VecDeque | OPEN |
+| MR-M5-07 | M5→M8+ | Missing `AddSupertypes`/`RemoveSupertypes` layer 4 variants | DEFERRED → M8+ |
+| MR-M5-08 | M5 | CDA partition test uses different sublayers — same-layer CDA priority untested | OPEN |
 | MR-M6-06 | M6 | Combat damage function large, needs helpers | STUB |
 | MR-M6-07 | M6 | Test gap: Defender keyword in combat | STUB |
 | MR-M6-08 | M6 | Test gap: no combat game script | STUB |
@@ -894,6 +990,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M4-17 | M4 | SBA integration with engine correct — fires before priority, after resolution | — |
 | MR-M4-18 | M4 | Equipment unattach vs aura destroy — correct CR 704.5m/n distinction | — |
 | MR-M4-19 | M4 | Single loss event per player per SBA pass — correct CR ordering | — |
+| MR-M5-09 | M5 | Test name mismatch: `test_613_layer7a_*` but effect is in PtSet (layer 7b) | — |
+| MR-M5-10 | M5 | Comment says "base mana cost" but `chars.mana_cost` is post-layer-1-6 modified | — |
+| MR-M5-11 | M5 | No test scripts for layers — unit tests are the right approach for isolated computation | — |
+| MR-M5-12 | M5 | Cycle fallback code is dead code — current `depends_on()` cannot produce cycles | — |
+| MR-M5-13 | M5 | Complete hash coverage for all 6 M5 types — no gaps | — |
 
 ---
 
@@ -901,20 +1002,20 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 99 (MR-M5-03 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
+| Total unique issue IDs | 109 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 12 |
+| HIGH (OPEN) | 14 |
 | HIGH (DEFERRED) | 2 |
-| HIGH (STUB) | 8 |
-| MEDIUM (OPEN) | 17 |
-| MEDIUM (DEFERRED) | 1 |
-| MEDIUM (STUB) | 10 |
-| LOW (OPEN) | 18 |
-| LOW (DEFERRED) | 2 |
+| HIGH (STUB) | 6 |
+| MEDIUM (OPEN) | 19 |
+| MEDIUM (DEFERRED) | 2 |
+| MEDIUM (STUB) | 9 |
+| LOW (OPEN) | 20 |
+| LOW (DEFERRED) | 3 |
 | LOW (STUB) | 8 |
-| INFO | 21 |
-| Milestones fully reviewed | 5 (M0, M1, M2, M3, M4) |
-| Milestones with stubs | 3 (M5, M6, M7) |
+| INFO | 26 |
+| Milestones fully reviewed | 6 (M0, M1, M2, M3, M4, M5) |
+| Milestones with stubs | 2 (M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
