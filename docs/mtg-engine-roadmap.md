@@ -489,6 +489,13 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Commander damage from a copy of a commander: does NOT count
 - [ ] Free mulligan then London mulligan sequence
 - [ ] 4-player game start: all commander-specific setup correct
+- [ ] 6-player game tests:
+  - [ ] Priority rotation with 6 players (all 6 must pass for stack resolution)
+  - [ ] Combat with 5 defending players declaring blockers independently
+  - [ ] APNAP trigger ordering with 6 players
+  - [ ] Turn advancement skipping eliminated players in 6-player game
+  - [ ] Concession mid-game with 6 players (priority and turn order adjust correctly)
+  - [ ] `GameStateBuilder::six_player()` convenience method
 
 **Game Script Tasks**:
 - [ ] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28) and add to `test-data/generated-scripts/commander/`
@@ -497,6 +504,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 
 **Acceptance Criteria**:
 - A full 4-player Commander game can be played programmatically (via test commands) from game start through win/loss conditions
+- 6-player test coverage: priority rotation, combat with 5 defenders, APNAP ordering, turn advancement
 - All Commander-specific rules from CR 903 tested
 - All Commander game scripts pass through replay harness
 - This milestone marks **Engine Core Complete**
@@ -517,6 +525,8 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] All approved game scripts pass through replay harness (~100+ scripts)
 - [ ] All corner case tests from `mtg-engine-corner-cases.md` pass
 - [ ] Performance benchmarks meet targets
+- [ ] 6-player game tests pass (priority, combat, APNAP, turn order, concession)
+- [ ] Performance benchmark: 4-player vs 6-player Commander (priority cycle time, SBA check, full turn processing)
 
 ---
 

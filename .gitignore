@@ -28,3 +28,4 @@ Thumbs.db
 .scryfall-cache/
 test-data/golden-games/*.result.json
 zz_scratch.md
+codebase_analysis*

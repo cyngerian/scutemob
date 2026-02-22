@@ -216,6 +216,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
 | Network Security Strategy | `docs/mtg-engine-network-security.md` | Three-tier security: state hashing, distributed verification, Mental Poker |
+| Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
 | This file | `CLAUDE.md` | Current project state; coding conventions; session context |
 
 **Read the architecture doc before implementing anything.** It explains the rationale behind
@@ -409,6 +410,7 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-21 | Deterministic state hashing from M3 onward | Catching non-determinism during engine development is dramatically cheaper than discovering it during M10 networking |
 | 2026-02-21 | M4 legendary rule auto-keeps newest permanent (highest ObjectId) | Real player choice requires a choice Command that doesn't exist until M7; auto-newest is deterministic, testable, and matches common play |
 | 2026-02-21 | Game script generation deferred to M7; schema defined in M5 | Generating scripts before the replay harness (M7) risks format drift and wasted effort since scripts can't run. Schema defined now so it compiles and evolves. All generation happens in M7 when scripts run immediately against the harness. |
+| 2026-02-22 | 6-player test coverage and benchmarks tracked as M9 deliverables | Engine is N-player by design but only tested with 1/2/4 players. 6-player Commander is common in casual play. Need tests for priority rotation, combat with 5 defenders, APNAP with 6, plus 4-vs-6-player performance benchmarks. |
 | 2026-02-21 | Rewind, pause, and manual mode are network/UI features, not engine features | im-rs structural sharing makes state history free. Engine only needs a `reveals_hidden_info()` classification method on GameEvent (M9, ~10 lines). Coordinated rewind (unanimous consent) and Pause/Resume commands live in M10 network layer. Manual state adjustment UI lives in M11. Secret information protection across rewinds is honour-system only — app surfaces a warning but does not block; this is acceptable for the trusted-friends use case. |
 | 2026-02-21 | SBA check added to all priority-grant sites (enter_step, resolve_top_of_stack, fizzle, counter) | CR 704.3 says SBAs fire "whenever any player would receive priority" — all four sites must be covered |
 | 2026-02-21 | Layer 1 (Copy) and Layer 2 (Control) stubbed in M5 | Copy effects require CR 707 copiable-values logic that needs the full card definition framework (M7); control changes live on `GameObject.controller`, not `Characteristics`, so the layer calculation doesn't apply them |
@@ -472,6 +474,10 @@ Things to watch out for, accumulated over development:
   in Cargo.toml: `im = { version = "15", features = ["serde"] }`.
 
 ### Testing Gotchas
+- **All existing tests use 1, 2, or 4 players.** The engine is designed for N players, but
+  6-player scenarios are untested. Priority rotation (6 passes to resolve), combat with 5
+  defenders, and APNAP ordering with 6 players need dedicated test cases. Add these in M9.
+  A `GameStateBuilder::six_player()` convenience method should be added alongside the tests.
 - **`ObjectSpec::card` + `.with_types([Creature])` creates a creature with `toughness: None`.**
   SBAs (704.5f/g/h) skip creatures with `None` toughness to avoid false positives.
   Use `ObjectSpec::creature(owner, name, power, toughness)` for any creature that SBAs should affect.
@@ -636,4 +642,10 @@ When completing a milestone:
 - [ ] Check off completed deliverables in `docs/mtg-engine-roadmap.md`
 - [ ] Add any new design decisions to the Decision Log
 - [ ] Add any new gotchas discovered to the Pitfalls section
+- [ ] Review all new/changed files and update `docs/mtg-engine-milestone-reviews.md`:
+  - Add file inventory with line counts
+  - List CR sections implemented
+  - Record findings (bugs, enforcement gaps, test gaps) with severity and issue IDs
+  - Place deferred issues in the correct future milestone stub
+  - Update the cross-milestone issue index and statistics
 - [ ] Commit: `M<N>: milestone complete — <summary>`
