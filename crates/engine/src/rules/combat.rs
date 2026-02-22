@@ -63,8 +63,11 @@ pub fn handle_declare_attackers(
         state.combat = Some(CombatState::new(player));
     }
 
-    // Validate each attacker.
-    for (attacker_id, _target) in &attackers {
+    // Validate each attacker and collect vigilance flags for the tapping loop below.
+    // MR-M6-12: capture has_vigilance here to avoid a second calculate_characteristics
+    //           call in the tapping loop.
+    let mut attacker_vigilance: Vec<(ObjectId, bool)> = Vec::with_capacity(attackers.len());
+    for (attacker_id, target) in &attackers {
         let obj = state.object(*attacker_id)?;
 
         if obj.zone != ZoneId::Battlefield {
@@ -112,13 +115,62 @@ pub fn handle_declare_attackers(
                 attacker_id
             )));
         }
+
+        // MR-M6-01: validate attack target (CR 508.1, CR 903.6).
+        // A player may only attack opponents or their planeswalkers.
+        match target {
+            AttackTarget::Player(pid) => {
+                if *pid == player {
+                    return Err(GameStateError::InvalidAttackTarget(
+                        "a player cannot attack themselves".into(),
+                    ));
+                }
+                let target_player =
+                    state.players.get(pid).ok_or(GameStateError::PlayerNotFound(*pid))?;
+                if target_player.has_lost || target_player.has_conceded {
+                    return Err(GameStateError::InvalidAttackTarget(format!(
+                        "player {pid:?} is eliminated"
+                    )));
+                }
+            }
+            AttackTarget::Planeswalker(pw_id) => {
+                let (pw_zone, pw_controller) = state
+                    .objects
+                    .get(pw_id)
+                    .map(|pw| (pw.zone, pw.controller))
+                    .ok_or_else(|| {
+                        GameStateError::InvalidAttackTarget(format!(
+                            "planeswalker object {pw_id:?} does not exist"
+                        ))
+                    })?;
+                if pw_zone != ZoneId::Battlefield {
+                    return Err(GameStateError::InvalidAttackTarget(format!(
+                        "planeswalker object {pw_id:?} is not on the battlefield"
+                    )));
+                }
+                if pw_controller == player {
+                    return Err(GameStateError::InvalidAttackTarget(format!(
+                        "planeswalker {pw_id:?} is controlled by the attacking player"
+                    )));
+                }
+                let pw_chars = calculate_characteristics(state, *pw_id)
+                    .ok_or(GameStateError::ObjectNotFound(*pw_id))?;
+                if !pw_chars.card_types.contains(&CardType::Planeswalker) {
+                    return Err(GameStateError::InvalidAttackTarget(format!(
+                        "object {pw_id:?} is not a Planeswalker"
+                    )));
+                }
+            }
+        }
+
+        attacker_vigilance.push((*attacker_id, has_vigilance));
     }
 
     let mut events = Vec::new();
 
     // Tap non-Vigilance attackers (CR 508.1f).
-    for (attacker_id, _target) in &attackers {
-        let has_vigilance = has_keyword(state, *attacker_id, KeywordAbility::Vigilance);
+    // Uses pre-computed vigilance flags to avoid a redundant calculate_characteristics call.
+    for (attacker_id, has_vigilance) in &attacker_vigilance {
         if !has_vigilance {
             if let Some(obj) = state.objects.get_mut(attacker_id) {
                 obj.status.tapped = true;
@@ -181,17 +233,28 @@ pub fn handle_declare_blockers(
         ));
     }
 
-    // Must not be the attacking player.
-    let combat = state
-        .combat
-        .as_ref()
-        .ok_or_else(|| GameStateError::InvalidCommand("No active combat".into()))?;
+    // Must not be the attacking player and must not have already declared blockers.
+    {
+        let combat = state
+            .combat
+            .as_ref()
+            .ok_or_else(|| GameStateError::InvalidCommand("No active combat".into()))?;
 
-    if player == combat.attacking_player {
-        return Err(GameStateError::InvalidCommand(
-            "The attacking player cannot declare blockers".into(),
-        ));
+        if player == combat.attacking_player {
+            return Err(GameStateError::InvalidCommand(
+                "The attacking player cannot declare blockers".into(),
+            ));
+        }
+
+        // MR-M6-10: each defending player may only declare blockers once per combat step
+        // (CR 509.1a — each defending player declares independently, not repeatedly).
+        if combat.defenders_declared.contains(&player) {
+            return Err(GameStateError::AlreadyDeclaredBlockers(player));
+        }
     }
+
+    // Track blocker IDs seen in this declaration to catch within-batch duplicates.
+    let mut seen_blocker_ids: Vec<ObjectId> = Vec::with_capacity(blockers.len());
 
     // Validate each blocker.
     for (blocker_id, attacker_id) in &blockers {
@@ -220,13 +283,53 @@ pub fn handle_declare_blockers(
             )));
         }
 
-        // The attacker must be a declared attacker.
-        let combat = state.combat.as_ref().unwrap();
-        if !combat.attackers.contains_key(attacker_id) {
-            return Err(GameStateError::InvalidCommand(format!(
-                "Object {:?} is not a declared attacker",
-                attacker_id
-            )));
+        // MR-M6-02: a creature can only block one attacker.
+        // Check both existing combat.blockers and within-this-declaration duplicates.
+        if seen_blocker_ids.contains(blocker_id)
+            || state
+                .combat
+                .as_ref()
+                .map(|c| c.blockers.contains_key(blocker_id))
+                .unwrap_or(false)
+        {
+            return Err(GameStateError::DuplicateBlocker(*blocker_id));
+        }
+        seen_blocker_ids.push(*blocker_id);
+
+        // MR-M6-09: a defending player can only block attackers that are attacking them
+        // (or their planeswalker). CR 509.1c.
+        // Also validates that the attacker is a declared attacker.
+        let attacker_target = state
+            .combat
+            .as_ref()
+            .and_then(|c| c.attackers.get(attacker_id).cloned());
+        match attacker_target {
+            None => {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} is not a declared attacker",
+                    attacker_id
+                )));
+            }
+            Some(AttackTarget::Player(pid)) if pid == player => {
+                // Valid: this attacker is targeting the declaring player directly.
+            }
+            Some(AttackTarget::Planeswalker(pw_id)) => {
+                // Valid only if the planeswalker is controlled by the declaring player.
+                let pw_controller =
+                    state.objects.get(&pw_id).map(|o| o.controller);
+                if pw_controller != Some(player) {
+                    return Err(GameStateError::CrossPlayerBlock {
+                        blocker: *blocker_id,
+                        attacker: *attacker_id,
+                    });
+                }
+            }
+            Some(_) => {
+                return Err(GameStateError::CrossPlayerBlock {
+                    blocker: *blocker_id,
+                    attacker: *attacker_id,
+                });
+            }
         }
 
         // CR 509.1b / CR 702.9a: A creature without flying or reach cannot block
@@ -360,6 +463,15 @@ pub fn handle_order_blockers(
                 blocker_id, attacker
             )));
         }
+    }
+
+    // MR-M6-03: the order must include every blocker assigned to this attacker
+    // (CR 509.2 — the attacker's controller orders ALL blockers, not a subset).
+    if order.len() != blocking_this.len() {
+        return Err(GameStateError::IncompleteBlockerOrder {
+            provided: order.len(),
+            required: blocking_this.len(),
+        });
     }
 
     if let Some(combat) = state.combat.as_mut() {

@@ -72,4 +72,19 @@ pub enum GameStateError {
 
     #[error("invalid target: {0}")]
     InvalidTarget(String),
+
+    #[error("invalid attack target: {0}")]
+    InvalidAttackTarget(String),
+
+    #[error("creature {0:?} is already blocking an attacker")]
+    DuplicateBlocker(ObjectId),
+
+    #[error("blocker order is incomplete: {provided} entries provided, {required} blockers blocking this attacker")]
+    IncompleteBlockerOrder { provided: usize, required: usize },
+
+    #[error("creature {blocker:?} cannot block attacker {attacker:?}: attacker is not targeting this player")]
+    CrossPlayerBlock { blocker: ObjectId, attacker: ObjectId },
+
+    #[error("player {0:?} has already declared blockers this combat phase")]
+    AlreadyDeclaredBlockers(PlayerId),
 }
