@@ -37,6 +37,7 @@ M9: Commander Rules Integration                 (~2-3 weeks)
 ───────────────────────────────────────────────────────────
     ENGINE CORE COMPLETE — Playable via tests
 ───────────────────────────────────────────────────────────
+M9.5: Game State Stepper (Dev Replay Viewer)      (~2-3 weeks)
 M10: Networking Layer (Distributed Verification)  (~3-4 weeks)
 M10.5: Mental Poker Integration (NEW)             (~2-3 weeks)
 M11: Tauri App Shell & Basic UI                  (~3-4 weeks)
@@ -530,6 +531,61 @@ At this point, the engine can run a complete Commander game programmatically. Al
 
 ---
 
+### M9.5: Game State Stepper (Developer Replay Viewer)
+
+**Goal**: Build a visual developer tool that loads game scripts and lets the developer step through them action-by-action, watching the full game state at every point. This validates engine correctness with human eyes before networking adds complexity, and produces reusable Svelte components for the main Tauri app at M11.
+
+See `docs/mtg-engine-replay-viewer.md` for full architecture design.
+
+**Architecture**: Rust HTTP server (axum) + Svelte 5 frontend, served as a local web app. Lives in `tools/replay-viewer/` as a standalone workspace member. The engine is linked as a path dependency — no engine changes required.
+
+**Deliverables**:
+
+*Phase 1 — Backend + Minimal UI:*
+- [ ] Rust HTTP server (axum) loads a game script, replays all commands, stores `Vec<StepSnapshot>` in memory (cheap via im-rs structural sharing)
+- [ ] API endpoints: `GET /api/scripts` (list available), `GET /api/session` (metadata + step count), `GET /api/step/:n` (command, events, view-model state), `POST /api/load` (switch script)
+- [ ] View model serialization: `GameState` → UI-friendly JSON (zones, players, turn info, combat)
+- [ ] Svelte app with `StepControls` (prev/next/first/last) + basic `StateView` (formatted state dump)
+- [ ] Keyboard navigation: arrow keys (prev/next command), Shift+arrow (prev/next phase), Home/End
+
+*Phase 2 — Rich Visualization:*
+- [ ] `PlayerPanel`: life, mana pool, poison counters, commander damage
+- [ ] `ZoneBattlefield`: permanent grid with tapped/counter/damage indicators
+- [ ] `ZoneStack`: ordered stack items with controller and targets
+- [ ] `ZoneHand`, `ZoneGraveyard`, `ZoneExile`: card lists
+- [ ] `PhaseIndicator`: visual turn/phase/step bar highlighting current position
+- [ ] `EventTimeline`: scrollable event list; per-command default view, expandable to per-event drill-down
+
+*Phase 3 — Polish & Script Browser:*
+- [ ] `ScriptPicker`: browse `test-data/generated-scripts/` tree, select script to load
+- [ ] `CombatView`: attacker → blocker arrows, damage assignment visualization
+- [ ] `CardDisplay`: oracle text, types, keywords, P/T, counters
+- [ ] State diff highlighting: visual indicator of what changed between consecutive steps
+- [ ] Assertion result display: pass/fail badges on steps with `assert_state` actions
+
+**Shared component strategy**: All Svelte components in `frontend/src/lib/` accept data via props, not internal fetch. At M11, the Tauri app imports the same components — only the data source changes (`fetch('/api/...')` → Tauri `invoke()`).
+
+**Tests**:
+- [ ] Backend: axum endpoints return correct JSON for a known script (unit test)
+- [ ] Replay: stepping through Lightning Bolt script shows p2 life 40 → 37 at correct step
+- [ ] Replay: combat script shows attackers/blockers/damage correctly
+- [ ] Frontend: Svelte components render without errors (Vite build succeeds)
+- [ ] Integration: `cargo run -p replay-viewer -- --script <path>` serves working app at localhost
+
+**Acceptance Criteria**:
+- [ ] Can load any approved game script and step through it visually
+- [ ] Per-command stepping with event expansion works
+- [ ] All zones rendered with correct contents at each step
+- [ ] Keyboard navigation functional
+- [ ] At least one complex script (combat or stack interaction) validated visually
+- [ ] Svelte components importable from Tauri app (verified with test import)
+
+**Dependencies**: M9 (engine core complete — all subsystems available to visualize)
+
+**Architecture doc references**: `docs/mtg-engine-replay-viewer.md`
+
+---
+
 ### M10: Networking Layer (Distributed Verification)
 
 **Goal**: Implement the distributed verification network model where all peers run the engine independently and a lightweight coordinator manages protocol sequencing. See `mtg-engine-network-security.md` for full design.
@@ -873,18 +929,18 @@ These are not scheduled but represent the next directions after alpha:
 ```
 M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6 ──→ M7 ──→ M8 ──→ M9
  │                    │Tier1│      │      │      │              │
- │                    │hash │      │      │      │              │
- │                    └──┬──┘      ▼      ▼      ▼              ▼
- │                       │       scripts scripts scripts    scripts
- │                       │       (base)  (layer) (combat)   (cmdr)
- │                       │                        (replay+
- │                       │                         cards)
- │                       │                           │
- └────────────────────────────────────────────────→ M11        M10 ←── Tier1
+ │                    │hash │      │      │      │              ├──→ M9.5
+ │                    └──┬──┘      ▼      ▼      ▼              │    (stepper)
+ │                       │       scripts scripts scripts    scripts  │
+ │                       │       (base)  (layer) (combat)   (cmdr)   │
+ │                       │                        (replay+           │
+ │                       │                         cards)            │
+ │                       │                           │               │
+ └────────────────────────────────────────────────→ M11 ←── components
                                                      │          │
-                                                     ▼          ▼
-                                        M7 ──→ M12  M13     M10.5
-                                                │    │  ←──────┘
+                                                     ▼       M10 ←── Tier1
+                                        M7 ──→ M12  M13       │
+                                                │    │  ←── M10.5
                                                 ▼    ▼
                                                 M14 ←┘
                                                   │
@@ -892,4 +948,4 @@ M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6
                                                  M15
 ```
 
-Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. The `GameScript` schema is defined in M5 so it evolves under the compiler; all script generation happens in M7 and M8-M9 when the replay harness exists to run them immediately. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.
+Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. The `GameScript` schema is defined in M5 so it evolves under the compiler; all script generation happens in M7 and M8-M9 when the replay harness exists to run them immediately. M9.5 (Game State Stepper) validates the complete engine visually and produces Svelte components reused in M11 Tauri app. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.

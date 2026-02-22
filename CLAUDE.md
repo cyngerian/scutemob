@@ -217,6 +217,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
 | Network Security Strategy | `docs/mtg-engine-network-security.md` | Three-tier security: state hashing, distributed verification, Mental Poker |
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
+| Replay Viewer Design | `docs/mtg-engine-replay-viewer.md` | M9.5 game state stepper: architecture, API, Svelte components, shared-component strategy |
 | This file | `CLAUDE.md` | Current project state; coding conventions; session context |
 
 **Read the architecture doc before implementing anything.** It explains the rationale behind
@@ -235,7 +236,8 @@ mtg-engine/
 │   ├── mtg-engine-architecture.md
 │   ├── mtg-engine-roadmap.md
 │   ├── mtg-engine-game-scripts.md
-│   └── mtg-engine-corner-cases.md
+│   ├── mtg-engine-corner-cases.md
+│   └── mtg-engine-replay-viewer.md
 ├── crates/
 │   ├── engine/                       (core rules engine — THE product)
 │   │   ├── Cargo.toml
@@ -262,7 +264,7 @@ mtg-engine/
 │   └── test-cards/                   (synthetic cards for testing)
 └── tools/
     ├── scryfall-import/              (bulk data download + SQLite population)
-    └── replay-viewer/                (future: visualize game replays)
+    └── replay-viewer/                (M9.5: axum + Svelte game state stepper — see docs/mtg-engine-replay-viewer.md)
 ```
 
 ---
@@ -419,6 +421,7 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-22 | Games cannot start with any unimplemented card | Graceful degradation (card exists but abilities don't fire) corrupts the state history that rewind/replay depends on. Cards must be fully defined before a game begins. Unimplemented cards are blocked at deck-building time. |
 | 2026-02-22 | Card definition pipeline is scripted-first, LLM-assisted second | Scryfall already provides structured mana cost, P/T, types, and keywords. A pattern library handles ~70-80% of oracle text deterministically. LLM handles the unmatched tail and feeds new patterns back into the library. No LLM calls at game runtime. |
 | 2026-02-22 | Script harness uses `enrich_spec_from_def` to populate ObjectSpec from definitions | `ObjectSpec::card()` creates naked objects. Enrichment ensures PlayLand/TapForMana/casting speed/permanent resolution all work correctly in scripts without bespoke setup per card. |
+| 2026-02-22 | M9.5 Game State Stepper: web-based (axum + Svelte), placed after engine core complete | Visual validation of engine correctness before networking; Svelte components reused in M11 Tauri app (props-based, data source is the only difference); axum battle-tested before M10 networking |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
 
