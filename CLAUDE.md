@@ -11,32 +11,39 @@
 
 ## Current State
 
-- **Active Milestone**: M8 — Replacement & Prevention Effects
-- **Status**: M7 complete — card definition framework, 50 cards, effect execution engine, game script replay harness, 7 approved scripts all passing; 303 tests passing
-- **Last Updated**: 2026-02-21
+- **Active Phase**: Fix Phase — resolving M0-M7 code review findings before starting M8
+- **Next Milestone**: M8 — Replacement & Prevention Effects (start after fix phase)
+- **Status**: M7 complete; 303 tests passing; fix phase in progress
+- **Last Updated**: 2026-02-22
+
+### Fix Phase Instructions
+
+**Read `memory/fix-phase-plan.md`** at the start of each session. It contains 9 sessions of
+grouped fixes (5-8 issues each), ordered by subsystem. Find the next unchecked session and
+work through it. Use Sonnet 4.6 for fix sessions.
+
+**Workflow per session**:
+1. Read `memory/fix-phase-plan.md`, find next unchecked session
+2. Work through each issue in order — the plan has exact file:line locations and fix descriptions
+3. Write tests for each fix where noted
+4. Run `~/.cargo/bin/cargo test --all` and `~/.cargo/bin/cargo clippy -- -D warnings`
+5. Check the session box in `memory/fix-phase-plan.md`
+6. Commit: `fix: session N — <summary>`
+
+**Scope**: 21 HIGH + ~29 MEDIUM + select LOWs = ~55 issues across 9 sessions.
+When all sessions complete, update this section back to "Active Milestone: M8".
 
 ### What Exists (M7 complete, includes M0-M6)
-- Everything from M6, plus:
-- `cards/card_definition.rs`: `CardDefinition` (with `power`/`toughness` fields + `impl Default`), `AbilityDefinition` (Activated/Triggered/Static/Keyword/Spell), `Effect` (recursive enum, 30+ primitives), `EffectAmount`, `EffectTarget`, `PlayerTarget`, `TargetRequirement`, `TargetFilter`, `Cost`, `TokenSpec`, `TypeLine`, `ZoneTarget`, `TriggerCondition`, `Condition`, `ContinuousEffectDef`, `ModeSelection`, `ForEachTarget`, `LibraryPosition`, `TimingRestriction`
-- `cards/definitions.rs`: 50 hand-authored Commander staple definitions: mana rocks (Sol Ring, Arcane Signet, …), lands (Command Tower, Forest, …), removal (Swords to Plowshares, Path to Exile, Lightning Bolt, …), counterspells, card draw, ramp, equipment, creatures (Llanowar Elves, Elvish Mystic, Birds of Paradise, Wall of Omens, Solemn Simulacrum — all with printed P/T)
-- `cards/registry.rs`: `CardRegistry` with `Arc<Self>` construction, `lookup()` by `CardId`
-- `effects/mod.rs`: `execute_effect(state, effect, ctx) -> Vec<GameEvent>` — full effect execution engine
-  - `EffectContext`: controller, source object, targets vector, target_remaps (for post-zone-change references)
-  - `resolve_target`, `resolve_player_target`, `resolve_amount` helpers
-  - Effects implemented: DealDamage (player/creature/planeswalker), GainLife, LoseLife, DrawCards, DiscardCards, ExileObject, DestroyPermanent, CounterSpell, CreateToken, AddMana, AddManaAnyColor, AddManaChoice, TapPermanent, UntapPermanent, Sequence, Conditional, ForEach, SearchLibrary, Shuffle, PutOnLibrary, ReturnToHand, PutCounter, RemoveCounter, MoveToGraveyard, Choices
-- `rules/resolution.rs`: updated to look up `card_id` in `CardRegistry` and `execute_effect` for instants/sorceries
-- `rules/keywords.rs` (or inline enforcement): Hexproof (targeting check), Shroud, Indestructible (destroy replacement), Lifelink (damage → gain trigger), Menace (≥2 blockers required), Defender (can't attack), Flash (instant speed), Haste (summoning sickness bypass), Vigilance (no tap on attack)
-- `testing/script_replay.rs`: `replay_script(script) -> Vec<ReplayResult>`, `build_initial_state`, `translate_player_action`, `check_assertions`, `enrich_spec_from_def` (populates card_types, mana_cost, keywords, mana abilities, P/T from definitions), `card_name_to_id`
-- `tests/run_all_scripts.rs`: auto-discovery of all JSON files in `test-data/generated-scripts/`, runs all `approved` scripts
-- `tests/effects.rs`: 15 direct effect execution tests (DealDamage to player/creature, ExileObject, GainLife, DrawCards, Sequence, Conditional, ForEach)
-- `tests/keywords.rs`: keyword enforcement tests
-- `test-data/generated-scripts/baseline/`: 3 approved scripts (priority pass, play land, tap for mana)
-- `test-data/generated-scripts/stack/`: 4 approved scripts (Lightning Bolt resolves, Counterspell counters, Sol Ring ETB, Swords to Plowshares exiles creature)
-- 303 total tests, zero clippy warnings
+- `cards/`: CardDefinition framework (30+ Effect primitives), 50 hand-authored cards, CardRegistry
+- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution
+- `testing/`: Script replay harness, 7 approved game scripts, 303 tests
 - Deferred to M8+: replacement/prevention effects; damage prevention; "ETB tapped" replacement; zone-change choice for commander
 
-### M7 Complete — What's Next (M8)
-- See `docs/mtg-engine-roadmap.md` for M8 (Replacement & Prevention Effects) deliverables
+### Known Issue Summary (from code reviews)
+- **21 HIGH open**: unwrap/expect violations (8), combat validation gaps (5), effect bugs (5), hash gap (1), target validation (1), concede edge case (1)
+- **~29 MEDIUM open**: SBA-layer integration, integer casts, card definition gaps, concede/cleanup, ForEach, duplicated validation
+- **Full details**: `docs/mtg-engine-milestone-reviews.md`
 
 ---
 
