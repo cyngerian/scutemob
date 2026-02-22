@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-22 (M0 and M1 re-reviewed)
+> **Last Updated**: 2026-02-22 (M0, M1, and M2 re-reviewed)
 
 ---
 
@@ -277,7 +277,7 @@ but enforce no rules — that's M1+.
 
 ## M2: Turn Structure & Priority
 
-**Review Status**: REVIEWED (2026-02-22)
+**Review Status**: RE-REVIEWED (2026-02-22)
 
 ### Files Introduced
 
@@ -341,6 +341,11 @@ but enforce no rules — that's M1+.
 | MR-M2-11 | **INFO** | priority.rs | **`pass_priority` doesn't mutate state.** The function builds a local `passed` set and returns `PriorityResult`; the caller (`handle_pass_priority`) applies the state change. Clean separation of query vs mutation. | — |
 | MR-M2-12 | **INFO** | turn_structure.rs | **Extra turns correctly use LIFO with `pop_back`.** `advance_turn` pops from the back of `extra_turns` (most recently added goes first per CR 614.10), and `last_regular_active` correctly tracks normal order resumption. 4 tests verify this behavior. | — |
 | MR-M2-13 | **INFO** | turn_actions.rs:52 | **Summoning sickness cleared at untap.** CR 302.6 implementation: `has_summoning_sickness = false` for all active player's permanents during untap. Correct. | — |
+| MR-M2-14 | **MEDIUM** | turn.rs:70, engine.rs:201 | **CR 514.3a: Cleanup step never checks SBAs or grants conditional priority.** `Step::has_priority()` unconditionally returns `false` for Cleanup. But CR 514.3a (confirmed by CR 704.3) says: after cleanup turn-based actions, check SBAs and triggered abilities; if any fire, perform them, grant priority to the active player, and when all pass start a NEW cleanup step. Currently, if an "until end of turn" effect expires during cleanup and causes a creature's toughness to drop to 0, the SBA check won't fire until the next turn's first priority-granting step. **Fix:** replace the `has_priority()` gate with cleanup-specific logic: run SBAs + check triggers; if any events produced, grant priority (and loop back to a new cleanup step when all pass); if none, auto-advance as today. | OPEN |
+| MR-M2-15 | **MEDIUM** | engine.rs:312-322 | **Active player concede during combat leaks stale `state.combat`.** When the active player concedes mid-combat, `handle_concede` calls `advance_turn` (which only modifies `TurnState`, not `GameState.combat`) then `enter_step`. The stale `CombatState` (with the old attacking player) persists into the next player's turn. When the next player's `BeginningOfCombat` fires, `begin_combat` checks `state.combat.is_none()` → false → skips creating a new `CombatState`. Consequence: stale combat data from the conceded player's turn. **Fix:** clear `state.combat = None` in `handle_concede` before calling `advance_turn` when `active_player == player`. | OPEN |
+| MR-M2-16 | **LOW** | turn_actions.rs:178-179, engine.rs:158,250 | **Redundant triple mana-pool empty + unconditional event.** During End→Cleanup→NewTurn: (1) `handle_all_passed` empties pools at step transition, (2) `cleanup_actions` empties again AND unconditionally pushes `ManaPoolsEmptied` regardless of whether pools were non-empty, (3) the auto-advance loop empties a third time. The unconditional event at line 179 is also misleading — `empty_all_mana_pools` returns conditional events but the return value is discarded. **Fix:** use the return value from `empty_all_mana_pools` in `cleanup_actions` instead of the unconditional push. | OPEN |
+| MR-M2-17 | **LOW** | concede.rs | **No test for concede during active combat phase.** The stale combat state bug (MR-M2-15) has zero test coverage. No concede test sets up a state at a combat step (e.g., `DeclareAttackers`) with `state.combat = Some(...)`. | OPEN |
+| MR-M2-18 | **INFO** | events.rs:49 | **`LossReason::Conceded` defined but never emitted.** The concede handler emits `PlayerConceded` (a separate event variant), not `PlayerLost { reason: LossReason::Conceded }`. The variant only appears in hash.rs for completeness. Harmless but dead code. | — |
 
 ### Test Coverage Assessment
 
@@ -355,10 +360,12 @@ but enforce no rules — that's M1+.
 | Extra turns | Good (4 tests) | LIFO, designated player, resumption, multi-stack |
 | Concession | Adequate (5 tests) | Priority skip, turn skip, game continues, last wins, can't re-act |
 | Concede while active + all passed | **Missing** | MR-M2-08: the complex code path has no coverage |
+| Concede during combat | **Missing** | MR-M2-17: stale `state.combat` leak has no coverage |
+| Cleanup SBA/trigger priority | **Missing** | MR-M2-14: CR 514.3a exception never tested |
 | Empty library loss | Thin (indirect) | Proptest may trigger it but no dedicated test |
 | Proptest invariants | Good (4 tests) | State validity, holder validity, monotonicity, eliminated check |
 
-### Notes
+### Notes (original)
 
 - M2 files are the backbone of the engine — `process_command`, `enter_step`, and the turn FSM
   are called by every subsequent milestone. The two `.expect()` calls (MR-M2-01, MR-M2-02) are
@@ -370,6 +377,31 @@ but enforce no rules — that's M1+.
   (MR-M2-08). The overlapping step-advance + turn-advance logic should be simplified.
 - `draw_card` (MR-M2-04) should guard against eliminated players, not just for correctness
   but to prevent confusing events in the history log.
+
+### Re-Review Notes (2026-02-22)
+
+**Re-review context**: Calibration test — M2 was the first milestone reviewed in a dedicated
+session. Comparing new finding count/severity against M0/M1 re-reviews to assess whether
+M3-M7 also need re-reviewing.
+
+**New findings**: 5 (2 MEDIUM, 2 LOW, 1 INFO). All original 9 actionable findings confirmed
+still open and accurate.
+
+**Key new findings**:
+- MR-M2-14 (MEDIUM): CR 514.3a is a genuine rules compliance gap — cleanup must conditionally
+  check SBAs and grant priority. This is the kind of subtle CR interaction that requires deep
+  rules knowledge to catch. It's latent for now (no current cards trigger SBAs during cleanup)
+  but will become a real bug as more continuous effects are implemented (M8+).
+- MR-M2-15 (MEDIUM): Stale `state.combat` on active-player concede during combat. This is a
+  cross-milestone interaction bug (M2 concede × M6 combat state lifecycle) that wasn't visible
+  during the original M2 review because combat didn't exist yet.
+
+**Calibration assessment**: The original M2 review was solid for its scope. New findings are:
+one CR rules subtlety requiring deep MTG knowledge (514.3a) and one cross-milestone interaction
+bug not visible at original review time. Neither reflects a systematic gap in review depth.
+Fewer total new findings (5) than M1 re-review (12), with comparable severity profile (no new
+HIGHs). **Recommendation: M3-M7 re-reviews are NOT warranted.** The original dedicated-session
+reviews appear adequate for their scope.
 
 ---
 
@@ -1148,6 +1180,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-12 | M1 | Core types lack `PartialEq`/`Eq` — blocked by `Effect` not deriving it | OPEN |
 | MR-M2-04 | M2 | `draw_card` has no concession/elimination guard | OPEN |
 | MR-M2-06 | M2 | `DiscardedToHandSize` event uses wrong ObjectId (new graveyard ID instead of old hand ID) | OPEN |
+| MR-M2-14 | M2 | CR 514.3a: Cleanup never checks SBAs or grants conditional priority | OPEN |
+| MR-M2-15 | M2 (cross: M6) | Active player concede during combat leaks stale `state.combat` | OPEN |
 | MR-M3-02 | M3 | ManaCostPaid not emitted for {0} cost spells | OPEN |
 | MR-M3-05 | M3 (cross: M7) | ActivatedAbility hash omits `effect` field — M7 added field, hash not updated | OPEN |
 | MR-M3-06 | M3 (cross: M7) | TriggeredAbilityDef hash omits `effect` field — same gap as MR-M3-05 | OPEN |
@@ -1191,6 +1225,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-07 | M2 | Proptest lacks library cards — limited turn coverage | OPEN |
 | MR-M2-08 | M2 | Test gap: concede while active + all others passed | OPEN |
 | MR-M2-09 | M2 | `unwrap_or(7)` for max_hand_size in cleanup | OPEN |
+| MR-M2-16 | M2 | Redundant triple mana-pool empty + unconditional ManaPoolsEmptied event in cleanup | OPEN |
+| MR-M2-17 | M2 | Test gap: concede during active combat phase (stale state.combat) | OPEN |
 | MR-M3-09 | M3 | LegendaryRuleApplied event hash missing length prefix for put_to_graveyard | OPEN |
 | MR-M3-10 | M3 | Incomplete test discards results (test_608_2b_fizzle_player_target_concedes) | OPEN |
 | MR-M3-11 | M3 | `apnap_order` silently defaults position with `unwrap_or(0)` | OPEN |
@@ -1236,6 +1272,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-11 | M2 | `pass_priority` query/mutation separation (good design) | — |
 | MR-M2-12 | M2 | Extra turns LIFO with correct normal-order resumption | — |
 | MR-M2-13 | M2 | Summoning sickness cleared at untap (CR 302.6) | — |
+| MR-M2-18 | M2 | `LossReason::Conceded` defined but never emitted — dead code | — |
 | MR-M3-13 | M3 | Mana payment design correct (colored/colorless strict, generic any) | — |
 | MR-M3-14 | M3 | Clean stack module — well-typed StackObject/StackObjectKind | — |
 | MR-M3-15 | M3 | State hashing framework solid (blake3, explicit, cross-platform) | — |
@@ -1257,7 +1294,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M6-07 | M6 | Defender tested in keywords.rs — `test_702_3_defender_cannot_attack` (stub resolved) | — |
 | MR-M6-15 | M6 | Blocked status persistence design correct per CR 509.1h | — |
 | MR-M6-16 | M6 | Two-phase collect+apply prevents use-after-free; simultaneous damage per CR 510.2 | — |
-| MR-M6-17 | M6 | Combat state lifecycle correct — init at BeginningOfCombat, cleared at EndOfCombat | — |
+| MR-M6-17 | M6 | Combat state lifecycle correct — init at BeginningOfCombat, cleared at EndOfCombat | — (but see MR-M2-15: concede during combat leaks stale state) |
 
 ---
 
@@ -1265,17 +1302,17 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 141 (129 original + 12 new M1 re-review findings) |
+| Total unique issue IDs | 146 (129 original + 12 M1 re-review + 5 M2 re-review) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 21 |
 | HIGH (CLOSED) | 1 (MR-M0-01 — false positive) |
 | HIGH (DEFERRED) | 2 |
-| MEDIUM (OPEN) | 28 (+1 from M1 re-review: MR-M1-12) |
+| MEDIUM (OPEN) | 30 (+1 M1 re-review: MR-M1-12, +2 M2 re-review: MR-M2-14, MR-M2-15) |
 | MEDIUM (DEFERRED) | 4 |
-| LOW (OPEN) | 37 (+8 from M1 re-review: MR-M1-13 through MR-M1-20) |
+| LOW (OPEN) | 39 (+8 M1 re-review: MR-M1-13–MR-M1-20, +2 M2 re-review: MR-M2-16, MR-M2-17) |
 | LOW (DEFERRED) | 5 |
-| INFO | 42 (+3 from M1 re-review: MR-M1-21 through MR-M1-23) |
-| Milestones reviewed | 8 (M0 re-reviewed, M1 re-reviewed, M2, M3, M4, M5, M6, M7) |
+| INFO | 43 (+3 M1 re-review: MR-M1-21–MR-M1-23, +1 M2 re-review: MR-M2-18) |
+| Milestones reviewed | 8 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
