@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-22
+> **Last Updated**: 2026-02-22 (M0 re-reviewed)
 
 ---
 
@@ -51,9 +51,11 @@
 
 ## M0: Project Scaffold & Data Foundation
 
-**Review Status**: REVIEWED (2026-02-22)
+**Review Status**: RE-REVIEWED (2026-02-22) — original review covered tools only; re-review adds engine state module coverage and corrects one false positive
 
 ### Files Introduced
+
+**Tools & Infrastructure** (original review scope):
 
 | File | Lines | Purpose |
 |------|-------|---------|
@@ -66,17 +68,45 @@
 | `tools/scryfall-import/Cargo.toml` | — | ureq, anyhow, serde_json |
 | `tools/mcp-server/Cargo.toml` | — | rmcp, tokio, schemars |
 
-**Source total**: ~1,276 lines | **Tests**: (inline in rules_db.rs only)
+**Engine State Module** (added in re-review — M0 scaffolded these types, later milestones expanded):
+
+| File | Lines (current) | Purpose |
+|------|-----------------|---------|
+| `crates/engine/src/state/mod.rs` | 268 | GameState struct, zone/object accessors, move_object_to_zone |
+| `crates/engine/src/state/types.rs` | 105 | Color, ManaColor, SuperType, CardType, SubType, CounterType, KeywordAbility |
+| `crates/engine/src/state/player.rs` | 83 | PlayerId, CardId, ManaPool, PlayerState |
+| `crates/engine/src/state/zone.rs` | 185 | ZoneType, ZoneId, Zone (Ordered/Unordered storage) |
+| `crates/engine/src/state/game_object.rs` | 221 | ObjectId, ManaCost, ManaAbility, Characteristics, GameObject |
+| `crates/engine/src/state/turn.rs` | 121 | Phase, Step, TurnState |
+| `crates/engine/src/state/stack.rs` | 64 | StackObject, StackObjectKind |
+| `crates/engine/src/state/targeting.rs` | 36 | Target, SpellTarget |
+| `crates/engine/src/state/combat.rs` | 105 | CombatState, AttackTarget |
+| `crates/engine/src/state/continuous_effect.rs` | 207 | ContinuousEffect, EffectLayer, LayerModification |
+| `crates/engine/src/state/error.rs` | 75 | GameStateError enum (15 variants) |
+| `crates/engine/src/state/stubs.rs` | 43 | DelayedTrigger, ReplacementEffect, PendingTrigger |
+| `crates/engine/src/state/builder.rs` | 676 | GameStateBuilder, ObjectSpec, PlayerBuilder |
+| `crates/engine/src/state/hash.rs` | 1223 | blake3 state hashing, HashInto trait |
+
+**Source total**: ~4,688 lines (tools ~1,276 + state ~3,412) | **Tests**: rules_db.rs inline, schema.rs inline
 
 ### CR Sections Implemented
 
 None directly — M0 is infrastructure. CR text is parsed and indexed for lookup.
+State types cite CR sections in documentation (109.3, 400.7, 500-514, 611, 613, etc.)
+but enforce no rules — that's M1+.
 
 ### Findings
 
+**Status changes from re-review**:
+
+| ID | Original | Revised | Reason |
+|----|----------|---------|--------|
+| MR-M0-01 | HIGH | ~~CLOSED — FALSE POSITIVE~~ | Both `import_cards` and `import_rulings` wrap DELETE+INSERT in an explicit `conn.transaction()` (lines 142/230). Any failure between DELETE and INSERT causes the transaction to roll back, preserving the prior data. WAL mode further protects against process-kill corruption. The original finding's recommendation ("wrap in explicit transaction with rollback") is already implemented. |
+
+**Confirmed findings** (no change):
+
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
-| MR-M0-01 | **HIGH** | scryfall-import/main.rs | **Delete-then-import pattern risks data loss.** Lines ~145: `DELETE FROM card_faces; DELETE FROM cards;` clears all data before reimport. If import fails midway (network, OOM, disk full), database is left empty or partial. Should use temp table + atomic swap, or wrap in explicit transaction with rollback. | OPEN |
 | MR-M0-02 | **HIGH** | mcp-server/main.rs | **FTS5 MATCH operator injection.** User queries passed directly to `WHERE rules_fts MATCH ?1`. FTS5 interprets operators (`AND`, `OR`, `NOT`, quotes, parentheses). Malformed queries can cause FTS5 parse errors. Parameterized queries protect against SQL injection but not FTS syntax injection. Fix: wrap input in double-quotes to force literal matching. | OPEN |
 | MR-M0-03 | **MEDIUM** | mcp-server/rules_db.rs | **Multi-line CR rules not fully captured.** Parser treats each line independently. CR rules spanning 2+ lines in the text file have only the first line captured as `rule_text`. Affects completeness of FTS index. | OPEN |
 | MR-M0-04 | **MEDIUM** | mcp-server/rules_db.rs | **CR format assumptions fragile.** Parsing relies on "Glossary" and "Credits" as exact case-sensitive stop markers, position-based detection (after `seen_rules`). No CR version metadata captured. If Wizards changes the format or casing, import silently produces fewer rules with no validation. | OPEN |
@@ -89,6 +119,17 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 | MR-M0-11 | **INFO** | card-db/lib.rs | Clean error types, WAL mode, foreign keys enabled. No issues. | — |
 | MR-M0-12 | **INFO** | mcp-server/rules_db.rs | Good test coverage: section headers, rule lines, parent computation, TOC edge cases. | — |
 
+**New findings from re-review**:
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-M0-13 | **MEDIUM** | state/mod.rs | **`move_object_to_zone` non-atomic — removes source before validating destination.** Lines 188-201: removes object from source zone (line 193) and objects map (line 198), then checks destination zone exists (line 201). If destination is invalid, the object is gone and the state is corrupted. In practice, `process_command` clones state before mutation so the caller's state is safe, but `move_object_to_zone` is a public method — any direct caller without pre-cloning gets silent corruption. Fix: validate destination zone existence before removing from source. | OPEN |
+| MR-M0-14 | **MEDIUM** | scryfall-import/main.rs | **Entire ~200MB JSON deserialized into memory.** Line 136: `serde_json::from_reader(reader)` materializes the full `Vec<ScryfallCard>` (~37K cards). With Serde overhead this can consume 1-2GB RAM. A streaming/iterative parser (serde_json `StreamDeserializer` or `simd-json`) would be more robust for CI/automated use. | OPEN |
+| MR-M0-15 | **LOW** | rules_db.rs | **`rulings_fts` missing UPDATE/DELETE triggers.** Lines 65-68: only an INSERT trigger is defined for `rulings_fts`, unlike `rules_fts` which has INSERT, DELETE, and UPDATE triggers. Individual ruling updates/deletes would leave the FTS index stale. Currently mitigated by bulk `rebuild_rulings_fts()`, but inconsistent and fragile if usage patterns change. | OPEN |
+| MR-M0-16 | **LOW** | scryfall-import/main.rs | **Cards without `oracle_id` stored as empty string.** Line 165: `oracle_id.as_deref().unwrap_or("")`. Non-game cards (tokens, art series, emblems) without an oracle_id all share `oracle_id = ""`, so ruling lookups could cross-contaminate. Low impact because these cards are filtered out by the MCP server's layout exclusion. | OPEN |
+| MR-M0-17 | **INFO** | state/ (all) | **Engine state module type design is strong.** `ZoneId` makes invalid per-player/shared zone combinations unrepresentable. `Zone` enum separates ordered vs unordered storage. `OrdMap`/`OrdSet` ensure deterministic iteration. `ObjectId` newtype prevents ID confusion. Commander-specific fields (tax, damage tracking, partner support) are first-class. | — |
+| MR-M0-18 | **INFO** | state/hash.rs | **State hashing framework well-designed.** Length-prefixed strings prevent concatenation collisions. Discriminant bytes on all enums. Public hash excludes hidden zones (hand/library contents) but includes their sizes. Private hash per-player. Cross-platform determinism via explicit `to_le_bytes()`. | — |
+
 ### Notes
 
 - M0 files are **tools/binaries**, not core engine. `unwrap()`/`expect()` and `anyhow` are
@@ -96,8 +137,18 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 - `card-db` is a library crate using `thiserror` — correct pattern.
 - The MCP server is consumed by Claude Code only (trusted input), so the FTS injection risk
   is low-probability but should be fixed for defense-in-depth.
-- Scryfall importer is run manually and infrequently. The delete-then-import pattern is
-  tolerable for dev use but unacceptable for any automated pipeline (M12).
+- **Re-review coverage note**: The original M0 review examined only the tools/infrastructure
+  files (~1,276 lines). The engine state module (~3,412 lines) was scaffolded in M0 but not
+  reviewed until this re-review. Many state files evolved significantly in M1-M7; findings
+  from those later changes are attributed to their respective milestone reviews (e.g.,
+  MR-M3-03 for `has_summoning_sickness` hash omission, MR-M3-05/06 for `effect` field hash
+  omissions). The state module findings here (MR-M0-13 through MR-M0-18) cover issues
+  present since M0 that were not caught in later reviews.
+- **MR-M0-01 false positive**: The original finding recommended wrapping deletes in a
+  transaction — but the code already does exactly this (`conn.transaction()` at lines 142
+  and 230). Both `import_cards` and `import_rulings` DELETE within an explicit transaction
+  that only commits on success. This was the only HIGH-severity tool finding; with it
+  closed, the remaining HIGH is MR-M0-02 (FTS injection).
 
 ---
 
@@ -1016,7 +1067,7 @@ All findings across all milestones, sorted by severity then milestone.
 
 | ID | Milestone | Summary | Status |
 |----|-----------|---------|--------|
-| MR-M0-01 | M0 | Delete-then-import data loss risk in scryfall-import | OPEN |
+| MR-M0-01 | M0 | ~~Delete-then-import data loss risk in scryfall-import~~ | CLOSED — FALSE POSITIVE (already in transaction) |
 | MR-M0-02 | M0 | FTS5 MATCH operator injection in MCP server | OPEN |
 | MR-M1-01 | M1 | `.unwrap()` in `add_object()` (state/mod.rs:159) | OPEN |
 | MR-M1-02 | M1 | `.unwrap()` in `move_object_to_zone()` (state/mod.rs:228) | OPEN |
@@ -1052,6 +1103,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-05 | M0 | FTS index probe fragile | OPEN |
 | MR-M0-06 | M0 | JSON parse errors lose context | OPEN |
 | MR-M0-07 | M0 | No download integrity check | OPEN |
+| MR-M0-13 | M0 | `move_object_to_zone` non-atomic — removes source before validating dest | OPEN |
+| MR-M0-14 | M0 | Entire ~200MB JSON deserialized into memory | OPEN |
 | MR-M1-03 | M1 | `.expect()` in builder.rs:318 | OPEN |
 | MR-M1-04 | M1 | Check-then-access pattern in state/mod.rs | OPEN |
 | MR-M1-05 | M1 | Panics on 0 players instead of Result | OPEN |
@@ -1085,6 +1138,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-08 | M0 | No ON DELETE CASCADE for card_faces FK | OPEN |
 | MR-M0-09 | M0 | JSON columns stored as TEXT | OPEN |
 | MR-M0-10 | M0 | Partial card name matching too broad | OPEN |
+| MR-M0-15 | M0 | `rulings_fts` missing UPDATE/DELETE triggers | OPEN |
+| MR-M0-16 | M0 | Cards without `oracle_id` stored as empty string | OPEN |
 | MR-M1-06 | M1 | structural_sharing.rs uses mock types | OPEN |
 | MR-M1-07 | M1 | ManaPool tests thin (1 test) | OPEN |
 | MR-M2-07 | M2 | Proptest lacks library cards — limited turn coverage | OPEN |
@@ -1122,6 +1177,8 @@ All findings across all milestones, sorted by severity then milestone.
 |----|-----------|---------|--------|
 | MR-M0-11 | M0 | card-db/lib.rs clean | — |
 | MR-M0-12 | M0 | rules_db.rs good test coverage | — |
+| MR-M0-17 | M0 | Engine state module type design strong (ZoneId, Zone enum, OrdMap/OrdSet) | — |
+| MR-M0-18 | M0 | State hashing framework well-designed (length-prefix, discriminants, public/private split) | — |
 | MR-M1-08 | M1 | object_identity.rs exemplary CR citation | — |
 | MR-M1-09 | M1 | state_invariants.rs good property-based foundation | — |
 | MR-M1-10 | M1 | Commander format compliance verified | — |
@@ -1159,15 +1216,16 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 123 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7; MR-M6-11 depends on MR-M6-02) |
+| Total unique issue IDs | 129 (MR-M0-01 closed as false positive; 6 new M0 findings; cross-refs unchanged) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 22 |
+| HIGH (OPEN) | 21 (MR-M0-01 closed) |
+| HIGH (CLOSED) | 1 (MR-M0-01 — false positive) |
 | HIGH (DEFERRED) | 2 |
-| MEDIUM (OPEN) | 25 |
+| MEDIUM (OPEN) | 27 |
 | MEDIUM (DEFERRED) | 4 |
-| LOW (OPEN) | 27 |
+| LOW (OPEN) | 29 |
 | LOW (DEFERRED) | 5 |
-| INFO | 37 |
+| INFO | 39 |
 | Milestones fully reviewed | 8 (M0, M1, M2, M3, M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
