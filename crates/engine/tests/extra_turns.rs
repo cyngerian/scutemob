@@ -22,7 +22,7 @@ fn four_player_with_libraries(step: Step) -> GameState {
             );
         }
     }
-    builder.build()
+    builder.build().unwrap()
 }
 
 /// Complete the current turn by passing priority until the turn number increases.

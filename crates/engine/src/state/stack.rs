@@ -30,6 +30,10 @@ pub struct StackObject {
     /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
     /// Validated again at resolution for the fizzle rule (CR 608.2b).
     pub targets: Vec<SpellTarget>,
+    /// CR 101.6: If true, this spell can't be countered by spells or abilities.
+    /// Set from the card definition at cast time.
+    #[serde(default)]
+    pub cant_be_countered: bool,
 }
 
 /// The kind of object on the stack.

@@ -48,7 +48,7 @@ fn test_601_2c_targeting_active_player_is_valid() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -89,7 +89,7 @@ fn test_601_2c_targeting_object_is_valid() {
         .at_step(Step::Upkeep)
         .object(creature)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let creature_id = *state
         .zones
@@ -135,7 +135,7 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -173,7 +173,7 @@ fn test_601_2c_targeting_eliminated_player_fails() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     // Eliminate p2 by having them concede.
     let (state, _) = process_command(state, Command::Concede { player: p2 }).unwrap();
@@ -233,7 +233,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -302,7 +302,7 @@ fn test_608_2b_fizzle_all_targets_illegal() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -390,7 +390,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -479,7 +479,7 @@ fn test_601_mana_cost_deducted_on_cast() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -537,7 +537,7 @@ fn test_601_mana_cost_colored_and_generic() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -588,7 +588,7 @@ fn test_601_insufficient_mana_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -643,7 +643,7 @@ fn test_601_generic_paid_from_any_color() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(spell)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -695,7 +695,7 @@ fn test_601_colorless_requirement_must_use_colorless() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(spell)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -734,7 +734,7 @@ fn test_601_no_mana_cost_casts_free() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -804,7 +804,7 @@ fn doom_blade_state(
         .object(black_creature)
         .object(other_creature)
         .with_registry(registry)
-        .build();
+        .build().unwrap();
 
     let doom_card_id = *state
         .zones
@@ -948,7 +948,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
         .object(doom_blade)
         .object(enchantment)
         .with_registry(registry)
-        .build();
+        .build().unwrap();
 
     let doom_card = *state
         .zones

@@ -343,6 +343,11 @@ fn execute_effect_inner(
                             matches!(&so.kind, crate::state::stack::StackObjectKind::Spell { source_object } if *source_object == id)
                         });
                     if let Some(pos) = pos {
+                        // CR 101.6: If the spell can't be countered, the CounterSpell
+                        // has no effect on it (does as much as possible — CR 101.2).
+                        if state.stack_objects[pos].cant_be_countered {
+                            continue;
+                        }
                         let stack_obj = state.stack_objects.remove(pos);
                         let controller = stack_obj.controller;
                         if let crate::state::stack::StackObjectKind::Spell { source_object } =
@@ -551,6 +556,35 @@ fn execute_effect_inner(
         }
 
         // ── Library ───────────────────────────────────────────────────────
+        Effect::PutOnLibrary { player, count, from } => {
+            // CR 701.20: Put N cards from the source zone onto the top of a library.
+            // M7 deterministic: takes the first N objects (by ObjectId ascending).
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                let from_zone = resolve_zone_target(from, state, ctx);
+                let lib_zone = ZoneId::Library(p);
+                // Collect candidate objects from the source zone (deterministic order).
+                let mut ids: Vec<ObjectId> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| obj.zone == from_zone)
+                    .map(|(id, _)| *id)
+                    .collect();
+                ids.sort_by_key(|id| id.0);
+                ids.truncate(n);
+                for id in ids {
+                    if let Ok((new_id, _)) = state.move_object_to_zone(id, lib_zone) {
+                        events.push(GameEvent::ObjectPutOnLibrary {
+                            player: p,
+                            object_id: id,
+                            new_lib_id: new_id,
+                        });
+                    }
+                }
+            }
+        }
+
         Effect::SearchLibrary {
             player,
             filter,
@@ -1176,6 +1210,9 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
         if chars.colors.iter().any(|c| excluded.contains(c)) {
             return false;
         }
+    }
+    if filter.non_creature && chars.card_types.contains(&CardType::Creature) {
+        return false;
     }
     if filter.non_land && chars.card_types.contains(&CardType::Land) {
         return false;

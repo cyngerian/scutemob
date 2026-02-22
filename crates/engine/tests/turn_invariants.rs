@@ -6,7 +6,7 @@ use proptest::prelude::*;
 
 /// Run N random PassPriority commands and verify invariants hold.
 fn run_pass_sequence(num_passes: usize) -> GameState {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
     let (mut state, _) = start_game(state).unwrap();
 
     for _ in 0..num_passes {
@@ -49,7 +49,7 @@ proptest! {
     #[test]
     /// Turn number monotonically increases
     fn prop_turn_number_monotonic(num_passes in 1..200usize) {
-        let state = GameStateBuilder::four_player().build();
+        let state = GameStateBuilder::four_player().build().unwrap();
         let (mut state, _) = start_game(state).unwrap();
         let mut last_turn = state.turn.turn_number;
 
@@ -77,7 +77,7 @@ proptest! {
         concede_player in 2u64..=4u64,
         num_passes in 1..300usize
     ) {
-        let state = GameStateBuilder::four_player().build();
+        let state = GameStateBuilder::four_player().build().unwrap();
         let (state, _) = start_game(state).unwrap();
 
         let target = PlayerId(concede_player);

@@ -70,7 +70,7 @@ fn build_complex_state() -> GameState {
         }
     }
 
-    builder.build()
+    builder.build().unwrap()
 }
 
 #[test]

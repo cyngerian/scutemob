@@ -4,7 +4,7 @@ use mtg_engine::state::*;
 
 #[test]
 fn test_four_player_construction_defaults() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
 
     // 4 players created
     assert_eq!(state.players.len(), 4);
@@ -27,7 +27,7 @@ fn test_four_player_construction_defaults() {
 
 #[test]
 fn test_four_player_turn_state_defaults() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
 
     assert_eq!(state.turn.active_player, PlayerId(1));
     assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
@@ -47,7 +47,7 @@ fn test_four_player_turn_state_defaults() {
 
 #[test]
 fn test_zones_created_for_each_player() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
 
     // Shared zones exist
     assert!(state.zone(&ZoneId::Battlefield).is_ok());
@@ -69,28 +69,28 @@ fn test_zones_created_for_each_player() {
 
 #[test]
 fn test_empty_state_has_no_objects() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
     assert_eq!(state.total_objects(), 0);
     assert!(state.objects.is_empty());
 }
 
 #[test]
 fn test_player_accessor_not_found() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
     let result = state.player(PlayerId(99));
     assert!(result.is_err());
 }
 
 #[test]
 fn test_object_accessor_not_found() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
     let result = state.object(ObjectId(99));
     assert!(result.is_err());
 }
 
 #[test]
 fn test_zone_accessor_not_found() {
-    let state = GameStateBuilder::four_player().build();
+    let state = GameStateBuilder::four_player().build().unwrap();
     // Player 99 doesn't exist, so their library zone doesn't exist
     let result = state.zone(&ZoneId::Library(PlayerId(99)));
     assert!(result.is_err());
@@ -101,7 +101,7 @@ fn test_custom_player_life() {
     let state = GameStateBuilder::new()
         .add_player_with(PlayerId(1), |p| p.life(20))
         .add_player_with(PlayerId(2), |p| p.life(30))
-        .build();
+        .build().unwrap();
 
     assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
     assert_eq!(state.player(PlayerId(2)).unwrap().life_total, 30);
@@ -145,7 +145,7 @@ fn test_mana_cost_mana_value() {
 
 #[test]
 fn test_active_players_excludes_lost() {
-    let mut state = GameStateBuilder::four_player().build();
+    let mut state = GameStateBuilder::four_player().build().unwrap();
 
     // All 4 active initially
     assert_eq!(state.active_players().len(), 4);
@@ -165,6 +165,6 @@ fn test_active_players_excludes_lost() {
 
 #[test]
 fn test_turn_number_configurable() {
-    let state = GameStateBuilder::four_player().turn_number(5).build();
+    let state = GameStateBuilder::four_player().turn_number(5).build().unwrap();
     assert_eq!(state.turn.turn_number, 5);
 }

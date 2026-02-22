@@ -21,7 +21,7 @@ fn four_player_with_libraries(cards_per_player: usize) -> GameState {
             );
         }
     }
-    builder.build()
+    builder.build().unwrap()
 }
 
 /// Pass priority through all active players until the step advances.
@@ -216,7 +216,7 @@ fn test_turn_order_wraparound() {
             );
         }
     }
-    let state = builder.build();
+    let state = builder.build().unwrap();
 
     assert_eq!(state.turn.active_player, PlayerId(4));
 

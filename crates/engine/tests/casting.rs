@@ -31,7 +31,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery_card)
-        .build();
+        .build().unwrap();
 
     // Find the card's ObjectId in hand.
     let card_id = *state
@@ -88,7 +88,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
         .active_player(p1)
         .at_step(Step::PostCombatMain)
         .object(sorcery_card)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -127,7 +127,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant_card)
-        .build();
+        .build().unwrap();
 
     // Manually give priority to p2 (simulate p1 passing).
     let mut state = state;
@@ -173,7 +173,7 @@ fn test_cast_spell_flash_at_instant_speed() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(flash_creature)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -217,7 +217,7 @@ fn test_cast_spell_lifo_stack_order() {
         .at_step(Step::PreCombatMain)
         .object(spell1)
         .object(spell2)
-        .build();
+        .build().unwrap();
 
     // Cast first spell.
     let hand_ids: Vec<_> = state
@@ -280,7 +280,7 @@ fn test_cast_spell_not_priority_holder_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -319,7 +319,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
     state.turn.priority_holder = Some(p2);
 
     let card_id = *state
@@ -353,7 +353,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -390,7 +390,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
         .at_step(Step::PreCombatMain)
         .object(spell1)
         .object(spell2)
-        .build();
+        .build().unwrap();
 
     // Cast the instant first (puts something on the stack).
     let hand_ids: Vec<_> = state
@@ -452,7 +452,7 @@ fn test_cast_spell_land_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(land)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -486,7 +486,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -521,7 +521,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
     state.turn.priority_holder = Some(p2);
     // Simulate p1 already having passed.
     state.turn.players_passed.insert(p1);

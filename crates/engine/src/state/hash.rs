@@ -732,6 +732,7 @@ impl HashInto for StackObject {
         self.controller.hash_into(hasher);
         self.kind.hash_into(hasher);
         self.targets.hash_into(hasher);
+        self.cant_be_countered.hash_into(hasher);
     }
 }
 
@@ -1162,6 +1163,7 @@ impl HashInto for TargetFilter {
         self.has_keywords.hash_into(hasher);
         self.colors.hash_into(hasher);
         self.exclude_colors.hash_into(hasher);
+        self.non_creature.hash_into(hasher);
         self.non_land.hash_into(hasher);
         self.basic.hash_into(hasher);
         self.controller.hash_into(hasher);
@@ -1191,6 +1193,10 @@ impl HashInto for TargetRequirement {
                 filter.hash_into(hasher);
             }
             TargetRequirement::TargetPlayerOrPlaneswalker => 12u8.hash_into(hasher),
+            TargetRequirement::TargetSpellWithFilter(filter) => {
+                13u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -1593,6 +1599,12 @@ impl HashInto for Effect {
                 or_else.hash_into(hasher);
             }
             Effect::Nothing => 26u8.hash_into(hasher),
+            Effect::PutOnLibrary { player, count, from } => {
+                27u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+                from.hash_into(hasher);
+            }
         }
     }
 }
@@ -1632,11 +1644,13 @@ impl HashInto for AbilityDefinition {
                 effect,
                 targets,
                 modes,
+                cant_be_countered,
             } => {
                 4u8.hash_into(hasher);
                 effect.hash_into(hasher);
                 targets.hash_into(hasher);
                 modes.hash_into(hasher);
+                cant_be_countered.hash_into(hasher);
             }
         }
     }

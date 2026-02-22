@@ -48,7 +48,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -108,7 +108,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     // p1 has priority at start of upkeep — pass to p2.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
@@ -161,7 +161,7 @@ fn test_608_3a_creature_enters_battlefield() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -230,7 +230,7 @@ fn test_608_3a_artifact_enters_battlefield() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(artifact)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -277,7 +277,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
         .active_player(p1)
         .at_step(Step::Upkeep)
         .object(instant)
-        .build();
+        .build().unwrap();
 
     // p1 passes → p2 has priority.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
@@ -329,7 +329,7 @@ fn test_608_1_lifo_resolves_top_first() {
         .at_step(Step::PreCombatMain)
         .object(sorcery1)
         .object(instant2)
-        .build();
+        .build().unwrap();
 
     // Find both cards in hand.
     let hand_ids: Vec<_> = state
@@ -429,7 +429,7 @@ fn test_608_1_empty_stack_all_pass_advances_step() {
     let state = GameStateBuilder::four_player()
         .active_player(p(1))
         .at_step(Step::Upkeep)
-        .build();
+        .build().unwrap();
 
     // All four pass priority — should advance past Upkeep.
     let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
@@ -460,7 +460,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -532,7 +532,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones
@@ -592,7 +592,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
         .active_player(p1)
         .at_step(Step::Upkeep) // Not main phase — valid only due to Flash
         .object(flash_creature)
-        .build();
+        .build().unwrap();
 
     let card_id = *state
         .zones

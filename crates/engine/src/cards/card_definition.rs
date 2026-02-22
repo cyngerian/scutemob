@@ -95,6 +95,9 @@ pub enum AbilityDefinition {
         effect: Effect,
         targets: Vec<TargetRequirement>,
         modes: Option<ModeSelection>,
+        /// CR 101.6: If true, this spell can't be countered by spells or abilities.
+        #[serde(default)]
+        cant_be_countered: bool,
     },
 }
 
@@ -212,6 +215,16 @@ pub enum Effect {
     },
 
     // ── Library ─────────────────────────────────────────────────────────────
+    /// CR 701.20: Put N cards from a zone onto the top of a player's library.
+    ///
+    /// M7: Deterministic — moves the first N objects (by ObjectId ascending) from
+    /// the source zone. M9+: interactive (player chooses which cards to put back).
+    PutOnLibrary {
+        player: PlayerTarget,
+        count: EffectAmount,
+        /// The zone to take cards from (typically the player's hand).
+        from: ZoneTarget,
+    },
     /// CR 701.19: Search a library for a card matching a filter.
     SearchLibrary {
         player: PlayerTarget,
@@ -351,6 +364,8 @@ pub enum TargetRequirement {
     TargetPermanentWithFilter(TargetFilter),
     /// "target player or planeswalker"
     TargetPlayerOrPlaneswalker,
+    /// "target noncreature spell" — must be on the stack and match the filter.
+    TargetSpellWithFilter(TargetFilter),
 }
 
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
@@ -369,7 +384,9 @@ pub struct TargetFilter {
     /// Must NOT be any of these colors (exclusion — object must share none). None = no restriction.
     /// Used for cards like Doom Blade ("target non-black creature").
     pub exclude_colors: Option<OrdSet<Color>>,
-    /// Must be non-land.
+    /// Must not be a creature.
+    pub non_creature: bool,
+    /// Must not be a land.
     pub non_land: bool,
     /// Must be basic.
     pub basic: bool,

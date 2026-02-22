@@ -71,7 +71,7 @@ fn test_613_layer4_add_creature_type() {
     let state = GameStateBuilder::new()
         .add_player(p1())
         .object(ObjectSpec::land(p1(), "Test Land"))
-        .build();
+        .build().unwrap();
     let land_effect = effect(
         1,
         None,
@@ -85,7 +85,7 @@ fn test_613_layer4_add_creature_type() {
         .add_player(p1())
         .object(ObjectSpec::land(p1(), "Test Land"))
         .add_continuous_effect(land_effect)
-        .build();
+        .build().unwrap();
     let land_id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -128,7 +128,7 @@ fn test_613_layer4_set_type_line_replaces_all() {
             },
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -165,7 +165,7 @@ fn test_613_layer7b_set_pt() {
                 toughness: 1,
             },
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -193,7 +193,7 @@ fn test_613_layer7c_modify_pt() {
             EffectFilter::AllCreatures,
             LayerModification::ModifyBoth(3),
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -229,7 +229,7 @@ fn test_613_layer7c_multiple_modifications_stack() {
             EffectFilter::AllCreatures,
             LayerModification::ModifyToughness(3),
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -279,7 +279,7 @@ fn test_613_layer7d_pt_switch() {
             EffectFilter::AllCreatures,
             LayerModification::SwitchPowerToughness,
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -320,7 +320,7 @@ fn test_613_layer5_set_colors() {
             modification: LayerModification::SetColors(ordset![Color::Blue]),
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -357,7 +357,7 @@ fn test_613_layer6_remove_all_abilities() {
             EffectFilter::AllCreatures,
             LayerModification::RemoveAllAbilities,
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -387,7 +387,7 @@ fn test_613_layer6_add_keyword() {
             EffectFilter::AllCreatures,
             LayerModification::AddKeyword(KeywordAbility::Flying),
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -439,7 +439,7 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
             },
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -486,7 +486,7 @@ fn test_613_layer7a_set_pt_to_mana_value() {
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -535,7 +535,7 @@ fn test_613_timestamp_ordering_later_wins() {
                 toughness: 3,
             },
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -566,7 +566,7 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
         .add_player(p1())
         .object(ObjectSpec::creature(p1(), "Source", 1, 1))
         .object(ObjectSpec::creature(p1(), "Target", 2, 2))
-        .build();
+        .build().unwrap();
 
     let battlefield_ids: Vec<_> = state
         .zones
@@ -648,7 +648,7 @@ fn test_613_until_end_of_turn_expires_at_cleanup() {
             modification: LayerModification::ModifyBoth(1),
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
 
     let id = *state
         .zones
@@ -701,7 +701,7 @@ fn test_613_plus_one_counters_modify_pt() {
         .object(
             ObjectSpec::creature(p1(), "Test", 2, 2).with_counter(CounterType::PlusOnePlusOne, 3),
         )
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -725,7 +725,7 @@ fn test_613_minus_one_counters_reduce_pt() {
         .object(
             ObjectSpec::creature(p1(), "Test", 5, 5).with_counter(CounterType::MinusOneMinusOne, 2),
         )
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -764,7 +764,7 @@ fn test_613_counters_apply_after_set_before_switch() {
         ))
         // Layer 7d: switch P/T — applied after counters
         // After 7b: 1/1. After 7c (counters): 3/3. After 7d: 3/3 (symmetric).
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -827,7 +827,7 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -934,7 +934,7 @@ fn test_613_humility_plus_opalescence() {
             },
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
 
     // Get both objects (Opalescence = first, Humility = second)
     let bf_ids: Vec<_> = state
@@ -1019,7 +1019,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_newer() {
             },
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1078,7 +1078,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_older_dependency_wins() {
             modification: LayerModification::AddSubtypes(ordset![SubType("Swamp".to_string())]),
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1149,7 +1149,7 @@ fn test_613_dependency_chain_three_effects() {
             },
             is_cda: false,
         })
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1205,7 +1205,7 @@ fn test_613_independent_effects_apply_in_timestamp_order() {
             EffectFilter::AllCreatures,
             LayerModification::AddKeyword(KeywordAbility::Trample),
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1242,7 +1242,7 @@ fn test_613_filter_excludes_non_matching_objects() {
                 toughness: 5,
             },
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1285,7 +1285,7 @@ fn test_613_layer4_type_change_enables_later_filter() {
             EffectFilter::AllCreatures, // Now matches the enchantment (became creature in layer 4)
             LayerModification::RemoveAllAbilities,
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1317,7 +1317,7 @@ fn test_613_no_effects_returns_base_characteristics() {
         .object(
             ObjectSpec::creature(p1(), "Grizzly Bears", 2, 2).with_keyword(KeywordAbility::Trample),
         )
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)
@@ -1336,7 +1336,7 @@ fn test_613_no_effects_returns_base_characteristics() {
 /// calculate_characteristics returns None for a nonexistent object.
 #[test]
 fn test_613_nonexistent_object_returns_none() {
-    let state = GameStateBuilder::new().add_player(p1()).build();
+    let state = GameStateBuilder::new().add_player(p1()).build().unwrap();
     let result = calculate_characteristics(&state, mtg_engine::ObjectId(9999));
     assert!(
         result.is_none(),
@@ -1374,7 +1374,7 @@ fn test_613_layer_ordering_type_before_ability() {
             EffectFilter::AllCreatures,
             LayerModification::RemoveAllAbilities,
         ))
-        .build();
+        .build().unwrap();
     let id = *state
         .zones
         .get(&mtg_engine::ZoneId::Battlefield)

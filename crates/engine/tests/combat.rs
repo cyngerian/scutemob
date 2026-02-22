@@ -43,7 +43,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
         .object(ObjectSpec::creature(p1, "Bear", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     // Find the attacker ID.
     let attacker_id = state
@@ -118,7 +118,7 @@ fn test_509_blocked_attacker_no_player_damage() {
         .object(ObjectSpec::creature(p2, "Blocker", 1, 1))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -196,7 +196,7 @@ fn test_510_mutual_combat_damage_both_die() {
         .object(ObjectSpec::creature(p2, "Troll", 3, 3))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -271,7 +271,7 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
         .object(ObjectSpec::creature(p2, "Blocker", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -356,7 +356,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
         )
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -459,7 +459,7 @@ fn test_702_19_trample_excess_to_player() {
         .object(ObjectSpec::creature(p2, "Blocker", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -547,7 +547,7 @@ fn test_702_deathtouch_with_trample() {
         .object(ObjectSpec::creature(p2, "BigBlocker", 3, 3))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -631,7 +631,7 @@ fn test_509_2_multiple_blockers_damage_order() {
         .object(ObjectSpec::creature(p2, "Blocker2", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -760,7 +760,7 @@ fn test_603_self_attacks_trigger_fires() {
         )
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -816,7 +816,7 @@ fn test_903_10a_commander_damage_tracked() {
         .object(ObjectSpec::creature(p1, "Commander", 5, 5).with_card_id(commander_card.clone()))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -880,7 +880,7 @@ fn test_506_multiplayer_simultaneous_attacks() {
         .object(ObjectSpec::creature(p1, "Attacker2", 3, 3))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let att1_id = state
         .objects
@@ -952,7 +952,7 @@ fn test_508_attack_self_rejected() {
         .object(ObjectSpec::creature(p1, "Bear", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let bear_id = state.objects.values().find(|o| o.controller == p1).unwrap().id;
 
@@ -981,7 +981,7 @@ fn test_508_attack_nonexistent_player_rejected() {
         .object(ObjectSpec::creature(p1, "Bear", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let bear_id = state.objects.values().find(|o| o.controller == p1).unwrap().id;
 
@@ -1011,7 +1011,7 @@ fn test_508_attack_own_planeswalker_rejected() {
         .object(ObjectSpec::planeswalker(p1, "Jace", 5))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let bear_id = state
         .objects
@@ -1052,7 +1052,7 @@ fn test_508_attack_opponent_planeswalker_accepted() {
         .object(ObjectSpec::planeswalker(p2, "Jace", 5))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let bear_id = state
         .objects
@@ -1095,7 +1095,7 @@ fn test_509_duplicate_blocker_rejected() {
         .object(ObjectSpec::creature(p2, "Blocker", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker1_id = state
         .objects
@@ -1163,7 +1163,7 @@ fn test_509_incomplete_blocker_order_rejected() {
         .object(ObjectSpec::creature(p2, "Blocker2", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -1244,7 +1244,7 @@ fn test_509_cross_player_block_rejected() {
         .object(ObjectSpec::creature(p3, "Blocker", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects
@@ -1307,7 +1307,7 @@ fn test_509_redeclare_blockers_rejected() {
         .object(ObjectSpec::creature(p1, "Attacker", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build();
+        .build().unwrap();
 
     let attacker_id = state
         .objects

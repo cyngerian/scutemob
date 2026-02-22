@@ -65,6 +65,7 @@ fn lightning_bolt_def() -> CardDefinition {
             },
             targets: vec![mtg_engine::TargetRequirement::TargetAny],
             modes: None,
+            cant_be_countered: false,
         }],
         ..Default::default()
     }
@@ -99,6 +100,7 @@ fn swords_to_plowshares_def() -> CardDefinition {
             ]),
             targets: vec![mtg_engine::TargetRequirement::TargetCreature],
             modes: None,
+            cant_be_countered: false,
         }],
         ..Default::default()
     }
@@ -126,6 +128,7 @@ fn divination_def() -> CardDefinition {
             },
             targets: vec![],
             modes: None,
+            cant_be_countered: false,
         }],
         ..Default::default()
     }
@@ -159,7 +162,7 @@ fn test_effect_deal_damage_to_player() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build();
+        .build().unwrap();
 
     let initial_p2_life = state.players[&p2].life_total;
     let mut state = state;
@@ -232,7 +235,7 @@ fn test_effect_deal_damage_to_creature() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build();
+        .build().unwrap();
 
     let mut state = state;
     state
@@ -306,7 +309,7 @@ fn test_effect_exile_and_gain_life() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build();
+        .build().unwrap();
 
     let initial_p2_life = state.players[&p2].life_total;
     let mut state = state;
@@ -395,7 +398,7 @@ fn test_effect_draw_cards() {
             ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
         );
     }
-    let state = builder.build();
+    let state = builder.build().unwrap();
 
     let initial_hand_size = state
         .objects
@@ -457,7 +460,7 @@ fn test_effect_nothing() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
     let p1 = p(1);
-    let state_builder = GameStateBuilder::new().add_player(p1).build();
+    let state_builder = GameStateBuilder::new().add_player(p1).build().unwrap();
     let mut state = state_builder;
     let source = ObjectId(0);
     let mut ctx = EffectContext::new(p1, source, vec![]);
@@ -478,7 +481,7 @@ fn test_effect_sequence() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .build();
+        .build().unwrap();
     let source = ObjectId(0);
 
     // Sequence: gain 5 life then lose 2 life → net +3.
@@ -520,7 +523,7 @@ fn test_effect_conditional_true() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
     let p1 = p(1);
-    let mut state = GameStateBuilder::new().add_player(p1).build();
+    let mut state = GameStateBuilder::new().add_player(p1).build().unwrap();
     let source = ObjectId(0);
 
     // Condition: controller has 40+ life (true for Commander). Gain 3 life.
@@ -561,7 +564,7 @@ fn test_move_zone_to_graveyard_emits_correct_event() {
             ObjectSpec::creature(p1, "Goblin", 1, 1)
                 .in_zone(ZoneId::Battlefield),
         )
-        .build();
+        .build().unwrap();
 
     let goblin_id = find_object(&state, "Goblin");
     let source = ObjectId(0);
@@ -620,7 +623,7 @@ fn test_move_zone_to_hand_emits_correct_event() {
             ObjectSpec::creature(p2, "Dragon", 5, 5)
                 .in_zone(ZoneId::Battlefield),
         )
-        .build();
+        .build().unwrap();
 
     let dragon_id = find_object(&state, "Dragon");
     let source = ObjectId(0);
@@ -671,7 +674,7 @@ fn test_move_zone_uses_owner_player_target() {
         .object(
             ObjectSpec::card(p1, "Token").in_zone(ZoneId::Battlefield),
         )
-        .build();
+        .build().unwrap();
 
     let token_id = find_object(&state, "Token");
     let source = ObjectId(0);
@@ -718,7 +721,7 @@ fn test_deal_damage_negative_amount_clamped_to_zero() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .build();
+        .build().unwrap();
 
     let initial_life = state.players[&p2].life_total;
     let source = ObjectId(0);
@@ -752,7 +755,7 @@ fn test_foreach_each_opponent_applies_to_all_opponents() {
         .add_player(p1)
         .add_player(p2)
         .add_player(p3)
-        .build();
+        .build().unwrap();
 
     let p2_initial = state.players[&p2].life_total;
     let p3_initial = state.players[&p3].life_total;
@@ -803,7 +806,7 @@ fn test_search_library_enters_battlefield_tapped() {
             ObjectSpec::creature(p1, "Forest Bear", 2, 2)
                 .in_zone(ZoneId::Library(p1)),
         )
-        .build();
+        .build().unwrap();
 
     let source = ObjectId(0);
 
@@ -836,7 +839,7 @@ fn test_effect_conditional_false() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
     let p1 = p(1);
-    let mut state = GameStateBuilder::new().add_player(p1).build();
+    let mut state = GameStateBuilder::new().add_player(p1).build().unwrap();
     // Set life below threshold.
     state.players.get_mut(&p1).unwrap().life_total = 20;
     let source = ObjectId(0);
@@ -859,5 +862,146 @@ fn test_effect_conditional_false() {
         state.players[&p1].life_total,
         initial_life - 3,
         "Conditional should execute if_false when condition is false"
+    );
+}
+
+// ── CreateToken effect ─────────────────────────────────────────────────────────
+
+#[test]
+/// CR 701.6 — CreateToken puts a token on the battlefield and emits TokenCreated.
+///
+/// MR-M7-15: unit test for CreateToken effect.
+fn test_effect_create_token_enters_battlefield() {
+    use mtg_engine::cards::card_definition::TokenSpec;
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::{CardType, Color, SubType};
+
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new().add_player(p1).build().unwrap();
+    let source = ObjectId(0);
+
+    // 3/3 green Beast token.
+    let spec = TokenSpec {
+        name: "Beast".to_string(),
+        power: 3,
+        toughness: 3,
+        colors: [Color::Green].into_iter().collect(),
+        card_types: [CardType::Creature].into_iter().collect(),
+        subtypes: [SubType("Beast".to_string())].into_iter().collect(),
+        count: 1,
+        tapped: false,
+        ..Default::default()
+    };
+
+    let effect = Effect::CreateToken { spec };
+    let mut ctx = EffectContext::new(p1, source, vec![]);
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // Token appears on battlefield.
+    let on_bf: Vec<_> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.characteristics.name == "Beast")
+        .collect();
+    assert_eq!(on_bf.len(), 1, "one Beast token should be on battlefield");
+    let token_id = *on_bf[0].0;
+    assert!(
+        on_bf[0].1.is_token,
+        "created object should be flagged as a token"
+    );
+
+    // TokenCreated event emitted.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::TokenCreated { player, object_id } if *player == p1 && *object_id == token_id)),
+        "expected TokenCreated event"
+    );
+}
+
+// ── CounterSpell effect ────────────────────────────────────────────────────────
+
+#[test]
+/// CR 701.5 — CounterSpell removes the spell from the stack and moves its card to
+/// the graveyard, emitting SpellCountered.
+///
+/// MR-M7-15: unit test for CounterSpell effect.
+fn test_effect_counter_spell_removes_from_stack() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::stack::{StackObject, StackObjectKind};
+    use mtg_engine::state::targeting::SpellTarget;
+    use mtg_engine::{Target, ZoneId};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .build()
+        .unwrap();
+
+    // Place a card in the Stack zone (as if it was just cast).
+    let spell_card = ObjectSpec::card(p2, "Lightning Bolt").in_zone(ZoneId::Stack);
+    state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(spell_card)
+        .build()
+        .unwrap();
+
+    // Grab the card's ObjectId in state.objects (zone == Stack).
+    let spell_obj_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.zone == ZoneId::Stack)
+        .map(|(id, _)| *id)
+        .expect("spell card should be in Stack zone");
+
+    // Push a StackObject representing the spell.
+    let stack_entry_id = state.next_object_id();
+    state.stack_objects.push_back(StackObject {
+        id: stack_entry_id,
+        controller: p2,
+        kind: StackObjectKind::Spell {
+            source_object: spell_obj_id,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+    });
+
+    // Fire CounterSpell targeting the spell's source object.
+    let source = ObjectId(0);
+    let effect = Effect::CounterSpell {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+    };
+    let mut ctx = EffectContext::new(
+        p1,
+        source,
+        vec![SpellTarget {
+            target: Target::Object(spell_obj_id),
+            zone_at_cast: Some(ZoneId::Stack),
+        }],
+    );
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // Stack object removed.
+    assert!(
+        state.stack_objects.is_empty(),
+        "stack should be empty after CounterSpell"
+    );
+
+    // Spell card moved to graveyard.
+    let in_graveyard = state
+        .objects
+        .iter()
+        .any(|(_, obj)| obj.zone == ZoneId::Graveyard(p2) && obj.characteristics.name == "Lightning Bolt");
+    assert!(in_graveyard, "countered spell card should go to owner's graveyard");
+
+    // SpellCountered event emitted.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::SpellCountered { player, .. } if *player == p2)),
+        "expected SpellCountered event"
     );
 }

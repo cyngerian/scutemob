@@ -21,7 +21,7 @@ fn test_play_land_enters_battlefield() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let hand_count = state.objects_in_zone(&ZoneId::Hand(PlayerId(1))).len();
     let bf_count = state.objects_in_zone(&ZoneId::Battlefield).len();
@@ -67,7 +67,7 @@ fn test_play_land_decrements_land_plays() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     assert_eq!(state.player(PlayerId(1)).unwrap().land_plays_remaining, 1);
 
@@ -98,7 +98,7 @@ fn test_play_land_resets_priority_round() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -126,7 +126,7 @@ fn test_play_land_wrong_player_fails() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(2), "Forest").in_zone(ZoneId::Hand(PlayerId(2))))
-        .build();
+        .build().unwrap();
 
     // Give priority to player 2 so the NotPriorityHolder check doesn't fire first
     // (actually player 1 has priority here, so player 2 can't issue any command)
@@ -155,7 +155,7 @@ fn test_play_land_non_main_phase_fails() {
         .at_step(Step::Upkeep)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -180,7 +180,7 @@ fn test_play_land_no_plays_remaining_fails() {
         .active_player(PlayerId(1))
         .add_player_with(PlayerId(1), |p| p.land_plays(0))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -207,7 +207,7 @@ fn test_play_land_non_land_fails() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::card(PlayerId(1), "Lightning Bolt").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let card_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -233,7 +233,7 @@ fn test_play_land_stack_nonempty_fails() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -247,6 +247,7 @@ fn test_play_land_stack_nonempty_fails() {
             source_object: fake_id,
         },
         targets: vec![],
+        cant_be_countered: false,
     });
 
     let result = mtg_engine::process_command(
@@ -275,7 +276,7 @@ fn test_tap_for_mana_adds_to_pool() {
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").with_mana_ability(forest_ability))
-        .build();
+        .build().unwrap();
 
     assert_eq!(state.player(PlayerId(1)).unwrap().mana_pool.green, 0);
 
@@ -316,7 +317,7 @@ fn test_tap_for_mana_taps_permanent() {
             ObjectSpec::land(PlayerId(1), "Island")
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Blue)),
         )
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -355,7 +356,7 @@ fn test_tap_already_tapped_land_fails() {
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Green))
                 .tapped(),
         )
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -386,7 +387,7 @@ fn test_tap_for_mana_opponent_land_fails() {
             ObjectSpec::land(PlayerId(2), "Forest")
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -415,7 +416,7 @@ fn test_tap_for_mana_player_retains_priority() {
             ObjectSpec::land(PlayerId(1), "Forest")
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
-        .build();
+        .build().unwrap();
 
     assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
 
@@ -455,7 +456,7 @@ fn test_tap_multiple_lands_accumulates_mana() {
             ObjectSpec::land(PlayerId(1), "Island")
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Blue)),
         )
-        .build();
+        .build().unwrap();
 
     let bf = state.objects_in_zone(&ZoneId::Battlefield);
     let id0 = bf[0].id;
@@ -506,7 +507,7 @@ fn test_play_land_only_one_per_turn() {
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest 1").in_zone(ZoneId::Hand(PlayerId(1))))
         .object(ObjectSpec::land(PlayerId(1), "Forest 2").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let hand = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)));
     let id0 = hand[0].id;
@@ -546,7 +547,7 @@ fn test_play_land_postcombat_main_is_legal() {
         .at_step(Step::PostCombatMain)
         .active_player(PlayerId(1))
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -574,7 +575,7 @@ fn test_tap_for_mana_invalid_ability_index_fails() {
             ObjectSpec::land(PlayerId(1), "Forest")
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -607,7 +608,7 @@ fn test_tap_for_mana_non_battlefield_fails() {
                 .in_zone(ZoneId::Hand(PlayerId(1)))
                 .with_mana_ability(ManaAbility::tap_for(ManaColor::Green)),
         )
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -642,7 +643,7 @@ fn test_play_land_does_not_clear_mana_pool() {
             },
         )
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build();
+        .build().unwrap();
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 

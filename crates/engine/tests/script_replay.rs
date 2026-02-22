@@ -28,6 +28,7 @@
 
 use std::collections::HashMap;
 
+use im::OrdMap;
 use mtg_engine::state::{CounterType, ObjectId};
 use mtg_engine::testing::script_schema::{GameScript, InitialState, ScriptAction};
 use mtg_engine::{
@@ -329,7 +330,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
 
-    let mut state = builder.build();
+    let mut state = builder.build().unwrap();
 
     // Patch life totals, mana pools, and land plays (can't do these via builder).
     for (name, pstate) in &init.players {
@@ -699,8 +700,8 @@ fn enrich_spec_from_def(
 /// in scripts instead of TapForMana.
 fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
     if let Effect::AddMana { mana, .. } = effect {
-        // Collect non-zero color entries.
-        let colors = [
+        // Collect all non-zero color entries (supports multi-mana like Sol Ring's {CC}).
+        let color_amounts = [
             (ManaColor::White, mana.white),
             (ManaColor::Blue, mana.blue),
             (ManaColor::Black, mana.black),
@@ -708,12 +709,24 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
             (ManaColor::Green, mana.green),
             (ManaColor::Colorless, mana.colorless),
         ];
-        let non_zero: Vec<_> = colors.iter().filter(|(_, a)| *a > 0).collect();
+        let non_zero: Vec<_> = color_amounts
+            .iter()
+            .filter(|(_, amount)| *amount > 0)
+            .collect();
 
-        // Only handle single-color, single-mana basics.
-        if non_zero.len() == 1 && non_zero[0].1 == 1 {
-            return Some(ManaAbility::tap_for(non_zero[0].0));
+        // Must produce at least one mana in at least one color.
+        if non_zero.is_empty() {
+            return None;
         }
+
+        let mut produces = OrdMap::new();
+        for (color, amount) in &non_zero {
+            produces.insert(*color, *amount as u32);
+        }
+        return Some(ManaAbility {
+            produces,
+            requires_tap: true,
+        });
     }
     None
 }

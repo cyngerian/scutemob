@@ -88,7 +88,7 @@ proptest! {
             );
         }
 
-        let state = builder.build();
+        let state = builder.build().unwrap();
         check_zone_integrity(&state);
     }
 
@@ -104,7 +104,7 @@ proptest! {
             );
         }
 
-        let state = builder.build();
+        let state = builder.build().unwrap();
         check_unique_ids(&state);
         prop_assert_eq!(state.total_objects(), obj_count as usize);
     }
@@ -116,7 +116,7 @@ proptest! {
         for i in 1..=num_players {
             builder = builder.add_player(PlayerId(i));
         }
-        let state = builder.build();
+        let state = builder.build().unwrap();
         prop_assert_eq!(state.players.len(), num_players as usize);
         prop_assert_eq!(state.turn.turn_order.len(), num_players as usize);
     }
@@ -133,7 +133,7 @@ proptest! {
                 ObjectSpec::creature(p1, &format!("C {}", i), 1, 1),
             );
         }
-        let mut state = builder.build();
+        let mut state = builder.build().unwrap();
         let count_before = state.total_objects();
 
         // Move the first object to graveyard
@@ -153,7 +153,7 @@ proptest! {
         let p1 = PlayerId(1);
         let mut state = GameStateBuilder::four_player()
             .object(ObjectSpec::creature(p1, "Nomad", 2, 2))
-            .build();
+            .build().unwrap();
 
         let zones = vec![
             ZoneId::Graveyard(p1),

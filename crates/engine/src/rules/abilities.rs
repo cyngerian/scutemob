@@ -187,6 +187,7 @@ pub fn handle_activate_ability(
             ability_index,
         },
         targets: spell_targets,
+        cant_be_countered: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -392,6 +393,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 ability_index: trigger.ability_index,
             },
             targets: vec![],
+            cant_be_countered: false,
         };
         state.stack_objects.push_back(stack_obj);
 

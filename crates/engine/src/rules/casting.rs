@@ -103,15 +103,20 @@ pub fn handle_cast_spell(
         }
     }
 
-    // Look up target requirements from the card definition (CR 601.2c).
-    let requirements: Vec<TargetRequirement> = {
+    // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
+    let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) = {
         let registry = state.card_registry.clone();
         card_id
             .and_then(|cid| registry.get(cid))
             .and_then(|def| {
                 def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Spell { targets, .. } = a {
-                        Some(targets.clone())
+                    if let AbilityDefinition::Spell {
+                        targets,
+                        cant_be_countered,
+                        ..
+                    } = a
+                    {
+                        Some((targets.clone(), *cant_be_countered))
                     } else {
                         None
                     }
@@ -154,6 +159,7 @@ pub fn handle_cast_spell(
             source_object: new_card_id,
         },
         targets: spell_targets,
+        cant_be_countered,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -265,8 +271,8 @@ fn validate_player_satisfies_requirement(
         | TargetRequirement::TargetAny
         | TargetRequirement::TargetPlayerOrPlaneswalker => Ok(()),
         _ => Err(GameStateError::InvalidTarget(format!(
-            "player {:?} does not satisfy requirement (expected an object)",
-            id
+            "player {:?} does not satisfy requirement {:?} (expected an object)",
+            id, req
         ))),
     }
 }
@@ -288,16 +294,29 @@ fn validate_object_satisfies_requirement(
         .get(&id)
         .ok_or(GameStateError::ObjectNotFound(id))?;
 
-    // TargetSpell: object must be in the stack zone (CR 601.2c).
-    if matches!(req, TargetRequirement::TargetSpell) {
-        if obj.zone == ZoneId::Stack {
-            return Ok(());
-        } else {
+    // TargetSpell / TargetSpellWithFilter: object must be in the stack zone (CR 601.2c).
+    if matches!(
+        req,
+        TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_)
+    ) {
+        if obj.zone != ZoneId::Stack {
             return Err(GameStateError::InvalidTarget(format!(
                 "object {:?} is not on the stack",
                 id
             )));
         }
+        // For TargetSpellWithFilter, also check the filter against the spell's characteristics.
+        if let TargetRequirement::TargetSpellWithFilter(filter) = req {
+            let chars: Characteristics = calculate_characteristics(state, id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            if !crate::effects::matches_filter(&chars, filter) {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} does not match the filter for {:?}",
+                    id, req
+                )));
+            }
+        }
+        return Ok(());
     }
 
     // Use calculate_characteristics to respect continuous effects (CR 613).
@@ -352,8 +371,8 @@ fn validate_object_satisfies_requirement(
         }
         // Player requirement — object target is illegal
         TargetRequirement::TargetPlayer => false,
-        // TargetSpell handled above (zone check)
-        TargetRequirement::TargetSpell => false,
+        // TargetSpell and TargetSpellWithFilter handled above via early return (zone + filter check).
+        TargetRequirement::TargetSpell | TargetRequirement::TargetSpellWithFilter(_) => false,
     };
 
     if valid {

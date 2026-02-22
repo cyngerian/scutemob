@@ -26,7 +26,7 @@ fn four_player_at(step: Step) -> GameState {
             );
         }
     }
-    builder.build()
+    builder.build().unwrap()
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn test_concede_last_player_wins() {
         .add_player(PlayerId(1))
         .add_player(PlayerId(2))
         .at_step(Step::PreCombatMain)
-        .build();
+        .build().unwrap();
 
     let (_state, events) = concede(state, PlayerId(2));
 

@@ -7,7 +7,7 @@ fn test_builder_creature_on_battlefield() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Grizzly Bears", 2, 2))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs.len(), 1);
@@ -27,7 +27,7 @@ fn test_builder_artifact_on_battlefield() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::artifact(p1, "Sol Ring"))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs.len(), 1);
@@ -44,7 +44,7 @@ fn test_builder_land_on_battlefield() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::land(p1, "Forest"))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs.len(), 1);
@@ -56,7 +56,7 @@ fn test_builder_enchantment_on_battlefield() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::enchantment(p1, "Rhystic Study"))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs.len(), 1);
@@ -71,7 +71,7 @@ fn test_builder_planeswalker_on_battlefield() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::planeswalker(p1, "Jace, the Mind Sculptor", 3))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs.len(), 1);
@@ -87,7 +87,7 @@ fn test_builder_card_in_hand() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(p1, "Lightning Bolt"))
-        .build();
+        .build().unwrap();
 
     let hand_objs = state.objects_in_zone(&ZoneId::Hand(p1));
     assert_eq!(hand_objs.len(), 1);
@@ -100,7 +100,7 @@ fn test_builder_card_in_library() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
-        .build();
+        .build().unwrap();
 
     let library_objs = state.objects_in_zone(&ZoneId::Library(p1));
     assert_eq!(library_objs.len(), 1);
@@ -111,7 +111,7 @@ fn test_builder_card_in_exile() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(p1, "Exiled Card").in_zone(ZoneId::Exile))
-        .build();
+        .build().unwrap();
 
     let exile_objs = state.objects_in_zone(&ZoneId::Exile);
     assert_eq!(exile_objs.len(), 1);
@@ -126,7 +126,7 @@ fn test_builder_card_in_command_zone() {
                 .in_zone(ZoneId::Command(p1))
                 .with_supertypes(vec![SuperType::Legendary]),
         )
-        .build();
+        .build().unwrap();
 
     let cmd_objs = state.objects_in_zone(&ZoneId::Command(p1));
     assert_eq!(cmd_objs.len(), 1);
@@ -141,7 +141,7 @@ fn test_builder_card_in_graveyard() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(p1, "Dead Card").in_zone(ZoneId::Graveyard(p1)))
-        .build();
+        .build().unwrap();
 
     let gy_objs = state.objects_in_zone(&ZoneId::Graveyard(p1));
     assert_eq!(gy_objs.len(), 1);
@@ -152,7 +152,7 @@ fn test_builder_tapped_permanent() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::land(p1, "Tapped Land").tapped())
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert!(objs[0].status.tapped);
@@ -167,7 +167,7 @@ fn test_builder_permanent_with_counters() {
                 .with_counter(CounterType::PlusOnePlusOne, 5)
                 .with_counter(CounterType::Shield, 2),
         )
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs[0].counters.get(&CounterType::PlusOnePlusOne), Some(&5));
@@ -181,7 +181,7 @@ fn test_builder_controller_different_from_owner() {
 
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Stolen Creature", 3, 3).controlled_by(p2))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs[0].owner, p1);
@@ -193,7 +193,7 @@ fn test_builder_token() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Soldier", 1, 1).token())
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert!(objs[0].is_token);
@@ -205,7 +205,7 @@ fn test_builder_with_card_id() {
     let card_id = CardId("sol-ring-uuid".to_string());
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::artifact(p1, "Sol Ring").with_card_id(card_id.clone()))
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(objs[0].card_id, Some(card_id));
@@ -218,7 +218,7 @@ fn test_builder_with_colors() {
         .object(
             ObjectSpec::creature(p1, "Niv-Mizzet", 5, 5).with_colors(vec![Color::Blue, Color::Red]),
         )
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert!(objs[0].characteristics.colors.contains(&Color::Blue));
@@ -236,7 +236,7 @@ fn test_builder_with_subtypes() {
                 SubType("Pirate".to_string()),
             ]),
         )
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     assert!(objs[0]
@@ -260,7 +260,7 @@ fn test_builder_with_mana_cost() {
                 ..ManaCost::default()
             }),
         )
-        .build();
+        .build().unwrap();
 
     let objs = state.objects_in_zone(&ZoneId::Battlefield);
     let cost = objs[0].characteristics.mana_cost.as_ref().unwrap();
@@ -288,7 +288,7 @@ fn test_builder_multiple_objects_multiple_zones() {
         .object(ObjectSpec::card(p1, "Dead Spell").in_zone(ZoneId::Graveyard(p1)))
         // Exile
         .object(ObjectSpec::card(p1, "Exiled Card").in_zone(ZoneId::Exile))
-        .build();
+        .build().unwrap();
 
     assert_eq!(state.total_objects(), 8);
     assert_eq!(state.objects_in_zone(&ZoneId::Battlefield).len(), 4);
@@ -307,7 +307,7 @@ fn test_builder_player_with_fluent_config() {
                 .commander(CardId("cmd-1".to_string()))
         })
         .add_player(PlayerId(2))
-        .build();
+        .build().unwrap();
 
     let p1 = state.player(PlayerId(1)).unwrap();
     assert_eq!(p1.life_total, 30);
@@ -326,7 +326,7 @@ fn test_builder_unique_object_ids() {
         .object(ObjectSpec::creature(p1, "A", 1, 1))
         .object(ObjectSpec::creature(p1, "B", 2, 2))
         .object(ObjectSpec::creature(p1, "C", 3, 3))
-        .build();
+        .build().unwrap();
 
     let ids: Vec<ObjectId> = state.objects.keys().cloned().collect();
     // All IDs are unique
@@ -337,10 +337,16 @@ fn test_builder_unique_object_ids() {
     }
 }
 
+/// MR-M1-05: build() now returns Err instead of panicking on zero players.
 #[test]
-#[should_panic(expected = "must have at least one player")]
-fn test_builder_panics_no_players() {
-    GameStateBuilder::new().build();
+fn test_builder_err_no_players() {
+    let result = GameStateBuilder::new().build();
+    assert!(result.is_err(), "expected Err for builder with no players");
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("must have at least one player"),
+        "unexpected error message: {err_msg}"
+    );
 }
 
 #[test]

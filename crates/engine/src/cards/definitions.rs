@@ -501,6 +501,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetCreature],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -535,6 +536,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetCreature],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -569,6 +571,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetPermanent],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -603,6 +606,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetPermanent],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -621,6 +625,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![TargetRequirement::TargetAny],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -641,6 +646,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     ..Default::default()
                 })],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -664,6 +670,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -685,6 +692,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -706,6 +714,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![],
                 modes: None,
+                cant_be_countered: true,
             }],
             ..Default::default()
         },
@@ -725,6 +734,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![TargetRequirement::TargetSpell],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -740,8 +750,12 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 effect: Effect::CounterSpell {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
-                targets: vec![TargetRequirement::TargetSpell],
+                targets: vec![TargetRequirement::TargetSpellWithFilter(TargetFilter {
+                    non_creature: true,
+                    ..Default::default()
+                })],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -776,6 +790,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetSpell],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -801,6 +816,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetSpell],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -821,6 +837,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -839,6 +856,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -863,6 +881,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -887,6 +906,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![TargetRequirement::TargetPlayer],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -913,6 +933,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -938,12 +959,13 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
 
-        // 39. Brainstorm — {U}, Instant; draw 3, put 2 on top.
-        //     (Put-back simplified as discard 2 for now.)
+        // 39. Brainstorm — {U}, Instant; draw 3, then put 2 cards from hand on top of library.
+        //     (CR 701.20 "put on top": deterministic M7 — takes first 2 by ObjectId ascending.)
         CardDefinition {
             card_id: cid("brainstorm"),
             name: "Brainstorm".to_string(),
@@ -951,12 +973,22 @@ pub fn all_cards() -> Vec<CardDefinition> {
             types: types(&[CardType::Instant]),
             oracle_text: "Draw three cards, then put two cards from your hand on top of your library in any order.".to_string(),
             abilities: vec![AbilityDefinition::Spell {
-                effect: Effect::DrawCards {
-                    player: PlayerTarget::Controller,
-                    count: EffectAmount::Fixed(3),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(3),
+                    },
+                    Effect::PutOnLibrary {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(2),
+                        from: super::card_definition::ZoneTarget::Hand {
+                            owner: PlayerTarget::Controller,
+                        },
+                    },
+                ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -989,6 +1021,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -1018,6 +1051,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -1042,6 +1076,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },
@@ -1072,6 +1107,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 ]),
                 targets: vec![],
                 modes: None,
+                cant_be_countered: false,
             }],
             ..Default::default()
         },

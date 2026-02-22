@@ -19,6 +19,7 @@ use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
+use super::error::GameStateError;
 use super::GameState;
 
 /// Builder for constructing `GameState` values in tests.
@@ -176,9 +177,13 @@ impl GameStateBuilder {
         self
     }
 
-    /// Build the `GameState`. Panics if configuration is invalid (no players).
-    pub fn build(self) -> GameState {
-        assert!(!self.players.is_empty(), "must have at least one player");
+    /// Build the `GameState`. Returns `Err` if configuration is invalid (e.g. no players).
+    pub fn build(self) -> Result<GameState, GameStateError> {
+        if self.players.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "must have at least one player".to_string(),
+            ));
+        }
 
         let player_ids: Vec<PlayerId> = self.players.iter().map(|p| p.id).collect();
         let active_player = self.active_player.unwrap_or(player_ids[0]);
@@ -314,12 +319,10 @@ impl GameStateBuilder {
                 has_summoning_sickness: false,
             };
 
-            state
-                .add_object(object, zone)
-                .expect("failed to add object in builder");
+            state.add_object(object, zone)?;
         }
 
-        state
+        Ok(state)
     }
 }
 
