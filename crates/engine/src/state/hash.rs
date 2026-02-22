@@ -20,6 +20,11 @@ use super::game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
     ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
+use crate::cards::card_definition::{
+    AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
+    ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, TargetController, TargetFilter,
+    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+};
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::stack::{StackObject, StackObjectKind};
 use super::stubs::{DelayedTrigger, PendingTrigger, ReplacementEffect};
@@ -143,6 +148,12 @@ impl<K: HashInto + Ord + Clone, V: HashInto + Clone> HashInto for OrdMap<K, V> {
             k.hash_into(hasher);
             v.hash_into(hasher);
         }
+    }
+}
+
+impl<T: HashInto> HashInto for Box<T> {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        (**self).hash_into(hasher);
     }
 }
 
@@ -362,6 +373,7 @@ impl HashInto for GameObject {
         self.deathtouch_damage.hash_into(hasher);
         self.is_token.hash_into(hasher);
         self.timestamp.hash_into(hasher);
+        self.has_summoning_sickness.hash_into(hasher);
     }
 }
 
@@ -586,6 +598,7 @@ impl HashInto for ActivatedAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.cost.hash_into(hasher);
         self.description.hash_into(hasher);
+        self.effect.hash_into(hasher);
     }
 }
 
@@ -660,6 +673,7 @@ impl HashInto for TriggeredAbilityDef {
         self.trigger_on.hash_into(hasher);
         self.intervening_if.hash_into(hasher);
         self.description.hash_into(hasher);
+        self.effect.hash_into(hasher);
     }
 }
 
@@ -958,6 +972,7 @@ impl HashInto for GameEvent {
             } => {
                 33u8.hash_into(hasher);
                 kept_id.hash_into(hasher);
+                put_to_graveyard.len().hash_into(hasher);
                 for (old_id, new_id) in put_to_graveyard {
                     old_id.hash_into(hasher);
                     new_id.hash_into(hasher);
@@ -1114,6 +1129,514 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_lib_id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+// --- Card definition type implementations (MR-M3-05/06) ---
+
+impl HashInto for TypeLine {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.supertypes.hash_into(hasher);
+        self.card_types.hash_into(hasher);
+        self.subtypes.hash_into(hasher);
+    }
+}
+
+impl HashInto for TargetController {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TargetController::Any => 0u8.hash_into(hasher),
+            TargetController::You => 1u8.hash_into(hasher),
+            TargetController::Opponent => 2u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for TargetFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.max_power.hash_into(hasher);
+        self.min_power.hash_into(hasher);
+        self.has_card_type.hash_into(hasher);
+        self.has_keywords.hash_into(hasher);
+        self.colors.hash_into(hasher);
+        self.exclude_colors.hash_into(hasher);
+        self.non_land.hash_into(hasher);
+        self.basic.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.has_subtype.hash_into(hasher);
+    }
+}
+
+impl HashInto for TargetRequirement {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TargetRequirement::TargetCreature => 0u8.hash_into(hasher),
+            TargetRequirement::TargetPlayer => 1u8.hash_into(hasher),
+            TargetRequirement::TargetPermanent => 2u8.hash_into(hasher),
+            TargetRequirement::TargetCreatureOrPlayer => 3u8.hash_into(hasher),
+            TargetRequirement::TargetAny => 4u8.hash_into(hasher),
+            TargetRequirement::TargetSpell => 5u8.hash_into(hasher),
+            TargetRequirement::TargetArtifact => 6u8.hash_into(hasher),
+            TargetRequirement::TargetEnchantment => 7u8.hash_into(hasher),
+            TargetRequirement::TargetLand => 8u8.hash_into(hasher),
+            TargetRequirement::TargetPlaneswalker => 9u8.hash_into(hasher),
+            TargetRequirement::TargetCreatureWithFilter(filter) => {
+                10u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TargetRequirement::TargetPermanentWithFilter(filter) => {
+                11u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TargetRequirement::TargetPlayerOrPlaneswalker => 12u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for TokenSpec {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.name.hash_into(hasher);
+        self.power.hash_into(hasher);
+        self.toughness.hash_into(hasher);
+        self.colors.hash_into(hasher);
+        self.card_types.hash_into(hasher);
+        self.subtypes.hash_into(hasher);
+        self.keywords.hash_into(hasher);
+        self.count.hash_into(hasher);
+        self.tapped.hash_into(hasher);
+        self.mana_color.hash_into(hasher);
+    }
+}
+
+impl HashInto for EffectTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EffectTarget::DeclaredTarget { index } => {
+                0u8.hash_into(hasher);
+                index.hash_into(hasher);
+            }
+            EffectTarget::Controller => 1u8.hash_into(hasher),
+            EffectTarget::EachPlayer => 2u8.hash_into(hasher),
+            EffectTarget::EachOpponent => 3u8.hash_into(hasher),
+            EffectTarget::AllCreatures => 4u8.hash_into(hasher),
+            EffectTarget::AllPermanents => 5u8.hash_into(hasher),
+            EffectTarget::AllPermanentsMatching(filter) => {
+                6u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            EffectTarget::Source => 7u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for PlayerTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            PlayerTarget::Controller => 0u8.hash_into(hasher),
+            PlayerTarget::EachPlayer => 1u8.hash_into(hasher),
+            PlayerTarget::EachOpponent => 2u8.hash_into(hasher),
+            PlayerTarget::DeclaredTarget { index } => {
+                3u8.hash_into(hasher);
+                index.hash_into(hasher);
+            }
+            PlayerTarget::ControllerOf(target) => {
+                4u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for LibraryPosition {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            LibraryPosition::Top => 0u8.hash_into(hasher),
+            LibraryPosition::Bottom => 1u8.hash_into(hasher),
+            LibraryPosition::ShuffledIn => 2u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ZoneTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ZoneTarget::Battlefield { tapped } => {
+                0u8.hash_into(hasher);
+                tapped.hash_into(hasher);
+            }
+            ZoneTarget::Graveyard { owner } => {
+                1u8.hash_into(hasher);
+                owner.hash_into(hasher);
+            }
+            ZoneTarget::Hand { owner } => {
+                2u8.hash_into(hasher);
+                owner.hash_into(hasher);
+            }
+            ZoneTarget::Library { owner, position } => {
+                3u8.hash_into(hasher);
+                owner.hash_into(hasher);
+                position.hash_into(hasher);
+            }
+            ZoneTarget::Exile => 4u8.hash_into(hasher),
+            ZoneTarget::CommandZone => 5u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for EffectAmount {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EffectAmount::Fixed(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            EffectAmount::XValue => 1u8.hash_into(hasher),
+            EffectAmount::PowerOf(target) => {
+                2u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            EffectAmount::ToughnessOf(target) => {
+                3u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            EffectAmount::ManaValueOf(target) => {
+                4u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            EffectAmount::CardCount { zone, player, filter } => {
+                5u8.hash_into(hasher);
+                zone.hash_into(hasher);
+                player.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for ForEachTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ForEachTarget::EachOpponent => 0u8.hash_into(hasher),
+            ForEachTarget::EachPlayer => 1u8.hash_into(hasher),
+            ForEachTarget::EachCreature => 2u8.hash_into(hasher),
+            ForEachTarget::EachCreatureYouControl => 3u8.hash_into(hasher),
+            ForEachTarget::EachOpponentsCreature => 4u8.hash_into(hasher),
+            ForEachTarget::EachPermanentMatching(filter) => {
+                5u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for TimingRestriction {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TimingRestriction::SorcerySpeed => 0u8.hash_into(hasher),
+            TimingRestriction::AnyTime => 1u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for TriggerCondition {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TriggerCondition::WhenEntersBattlefield => 0u8.hash_into(hasher),
+            TriggerCondition::WhenDies => 1u8.hash_into(hasher),
+            TriggerCondition::WhenAttacks => 2u8.hash_into(hasher),
+            TriggerCondition::WhenBlocks => 3u8.hash_into(hasher),
+            TriggerCondition::WhenDealsCombatDamageToPlayer => 4u8.hash_into(hasher),
+            TriggerCondition::WheneverOpponentCastsSpell => 5u8.hash_into(hasher),
+            TriggerCondition::WheneverPlayerDrawsCard => 6u8.hash_into(hasher),
+            TriggerCondition::WheneverCreatureDies => 7u8.hash_into(hasher),
+            TriggerCondition::WheneverCreatureEntersBattlefield { filter } => {
+                8u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TriggerCondition::WheneverPermanentEntersBattlefield { filter } => {
+                9u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            TriggerCondition::AtBeginningOfYourUpkeep => 10u8.hash_into(hasher),
+            TriggerCondition::AtBeginningOfEachUpkeep => 11u8.hash_into(hasher),
+            TriggerCondition::AtBeginningOfYourEndStep => 12u8.hash_into(hasher),
+            TriggerCondition::AtBeginningOfCombat => 13u8.hash_into(hasher),
+            TriggerCondition::WheneverYouCastSpell => 14u8.hash_into(hasher),
+            TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
+            TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for Condition {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            Condition::ControllerLifeAtLeast(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Condition::SourceOnBattlefield => 1u8.hash_into(hasher),
+            Condition::YouControlPermanent(filter) => {
+                2u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            Condition::OpponentControlsPermanent(filter) => {
+                3u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            Condition::TargetIsLegal { index } => {
+                4u8.hash_into(hasher);
+                index.hash_into(hasher);
+            }
+            Condition::SourceHasCounters { counter, min } => {
+                5u8.hash_into(hasher);
+                counter.hash_into(hasher);
+                min.hash_into(hasher);
+            }
+            Condition::Always => 6u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ContinuousEffectDef {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.layer.hash_into(hasher);
+        self.modification.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        self.duration.hash_into(hasher);
+    }
+}
+
+impl HashInto for Cost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            Cost::Mana(mc) => {
+                0u8.hash_into(hasher);
+                mc.hash_into(hasher);
+            }
+            Cost::Tap => 1u8.hash_into(hasher),
+            Cost::Sacrifice(filter) => {
+                2u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            Cost::PayLife(n) => {
+                3u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            Cost::DiscardCard => 4u8.hash_into(hasher),
+            Cost::Sequence(costs) => {
+                5u8.hash_into(hasher);
+                costs.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for ModeSelection {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.min_modes.hash_into(hasher);
+        self.max_modes.hash_into(hasher);
+        self.modes.hash_into(hasher);
+    }
+}
+
+impl HashInto for Effect {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            Effect::DealDamage { target, amount } => {
+                0u8.hash_into(hasher);
+                target.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            Effect::GainLife { player, amount } => {
+                1u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            Effect::LoseLife { player, amount } => {
+                2u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            Effect::DrawCards { player, count } => {
+                3u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::DiscardCards { player, count } => {
+                4u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::MillCards { player, count } => {
+                5u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::CreateToken { spec } => {
+                6u8.hash_into(hasher);
+                spec.hash_into(hasher);
+            }
+            Effect::DestroyPermanent { target } => {
+                7u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            Effect::ExileObject { target } => {
+                8u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            Effect::CounterSpell { target } => {
+                9u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            Effect::TapPermanent { target } => {
+                10u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            Effect::UntapPermanent { target } => {
+                11u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            Effect::AddMana { player, mana } => {
+                12u8.hash_into(hasher);
+                player.hash_into(hasher);
+                mana.hash_into(hasher);
+            }
+            Effect::AddManaAnyColor { player } => {
+                13u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            Effect::AddManaChoice { player, count } => {
+                14u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::AddCounter {
+                target,
+                counter,
+                count,
+            } => {
+                15u8.hash_into(hasher);
+                target.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::RemoveCounter {
+                target,
+                counter,
+                count,
+            } => {
+                16u8.hash_into(hasher);
+                target.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            Effect::MoveZone { target, to } => {
+                17u8.hash_into(hasher);
+                target.hash_into(hasher);
+                to.hash_into(hasher);
+            }
+            Effect::SearchLibrary {
+                player,
+                filter,
+                reveal,
+                destination,
+            } => {
+                18u8.hash_into(hasher);
+                player.hash_into(hasher);
+                filter.hash_into(hasher);
+                reveal.hash_into(hasher);
+                destination.hash_into(hasher);
+            }
+            Effect::Shuffle { player } => {
+                19u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            Effect::ApplyContinuousEffect { effect_def } => {
+                20u8.hash_into(hasher);
+                effect_def.hash_into(hasher);
+            }
+            Effect::Conditional {
+                condition,
+                if_true,
+                if_false,
+            } => {
+                21u8.hash_into(hasher);
+                condition.hash_into(hasher);
+                if_true.hash_into(hasher);
+                if_false.hash_into(hasher);
+            }
+            Effect::ForEach { over, effect } => {
+                22u8.hash_into(hasher);
+                over.hash_into(hasher);
+                effect.hash_into(hasher);
+            }
+            Effect::Choose { prompt, choices } => {
+                23u8.hash_into(hasher);
+                prompt.hash_into(hasher);
+                choices.hash_into(hasher);
+            }
+            Effect::Sequence(effects) => {
+                24u8.hash_into(hasher);
+                effects.hash_into(hasher);
+            }
+            Effect::MayPayOrElse {
+                cost,
+                payer,
+                or_else,
+            } => {
+                25u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                payer.hash_into(hasher);
+                or_else.hash_into(hasher);
+            }
+            Effect::Nothing => 26u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for AbilityDefinition {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            AbilityDefinition::Activated {
+                cost,
+                effect,
+                timing_restriction,
+            } => {
+                0u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                effect.hash_into(hasher);
+                timing_restriction.hash_into(hasher);
+            }
+            AbilityDefinition::Triggered {
+                trigger_condition,
+                effect,
+                intervening_if,
+            } => {
+                1u8.hash_into(hasher);
+                trigger_condition.hash_into(hasher);
+                effect.hash_into(hasher);
+                intervening_if.hash_into(hasher);
+            }
+            AbilityDefinition::Static { continuous_effect } => {
+                2u8.hash_into(hasher);
+                continuous_effect.hash_into(hasher);
+            }
+            AbilityDefinition::Keyword(kw) => {
+                3u8.hash_into(hasher);
+                kw.hash_into(hasher);
+            }
+            AbilityDefinition::Spell {
+                effect,
+                targets,
+                modes,
+            } => {
+                4u8.hash_into(hasher);
+                effect.hash_into(hasher);
+                targets.hash_into(hasher);
+                modes.hash_into(hasher);
             }
         }
     }

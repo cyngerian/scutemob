@@ -57,7 +57,7 @@ impl Default for CardDefinition {
 }
 
 /// Type line of a card: supertypes, card types, and subtypes (CR 205).
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLine {
     pub supertypes: OrdSet<SuperType>,
     pub card_types: OrdSet<CardType>,
@@ -67,7 +67,7 @@ pub struct TypeLine {
 // ── Ability Definitions ───────────────────────────────────────────────────────
 
 /// One ability on a card (CR 112). Encodes behavior the engine can execute.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AbilityDefinition {
     /// Activated ability: "[Cost]: [Effect]" (CR 602).
     Activated {
@@ -101,7 +101,7 @@ pub enum AbilityDefinition {
 // ── Cost ─────────────────────────────────────────────────────────────────────
 
 /// The cost to activate an ability or cast a spell (CR 118).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cost {
     /// Pay a mana cost (CR 202).
     Mana(ManaCost),
@@ -126,7 +126,7 @@ pub enum Cost {
 /// `Choose`, and `ForEach`.
 ///
 /// See architecture doc Section 3.7 for the full list of primitives.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Effect {
     // ── Damage & Life ───────────────────────────────────────────────────────
     /// CR 119: Deal damage to a target (player, creature, or planeswalker).
@@ -260,7 +260,7 @@ pub enum Effect {
 // ── Effect Targets ────────────────────────────────────────────────────────────
 
 /// How an effect identifies its primary target.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectTarget {
     /// One of the targets chosen when the spell/ability was put on the stack (0-indexed).
     DeclaredTarget { index: usize },
@@ -281,7 +281,7 @@ pub enum EffectTarget {
 }
 
 /// How an effect identifies a player.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlayerTarget {
     /// The controller of the spell or ability.
     Controller,
@@ -297,7 +297,7 @@ pub enum PlayerTarget {
 }
 
 /// How an effect produces a numeric value.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectAmount {
     /// A fixed number.
     Fixed(i32),
@@ -323,7 +323,7 @@ pub enum EffectAmount {
 ///
 /// This is declared on the spell/ability at definition time and used to validate
 /// targets when the spell or ability is put on the stack.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TargetRequirement {
     /// "target creature"
     TargetCreature,
@@ -354,7 +354,7 @@ pub enum TargetRequirement {
 }
 
 /// A filter on game objects, used for target requirements and `SearchLibrary`.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TargetFilter {
     /// Max power (inclusive). None = no restriction.
     pub max_power: Option<i32>,
@@ -391,7 +391,7 @@ pub enum TargetController {
 // ── Trigger Conditions ────────────────────────────────────────────────────────
 
 /// What game event causes a triggered ability to fire (CR 603.1).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TriggerCondition {
     /// "When ~ enters the battlefield" — self-referential ETB.
     WhenEntersBattlefield,
@@ -432,7 +432,7 @@ pub enum TriggerCondition {
 // ── Conditions ────────────────────────────────────────────────────────────────
 
 /// A boolean condition checked at trigger time or in Conditional effects (CR 603.4).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Condition {
     /// "if your life total is N or more"
     ControllerLifeAtLeast(u32),
@@ -453,7 +453,7 @@ pub enum Condition {
 // ── Mode Selection ────────────────────────────────────────────────────────────
 
 /// Modal spells/abilities: choose N of M modes (CR 700.2).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModeSelection {
     /// Minimum number of modes the caster must choose.
     pub min_modes: usize,
@@ -466,7 +466,7 @@ pub struct ModeSelection {
 // ── Token Specification ───────────────────────────────────────────────────────
 
 /// Everything needed to create a token (CR 111).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenSpec {
     pub name: String,
     pub power: i32,
@@ -503,7 +503,7 @@ impl Default for TokenSpec {
 // ── Zone Target ───────────────────────────────────────────────────────────────
 
 /// A destination zone for zone-change effects (CR 400).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ZoneTarget {
     /// "enters the battlefield" — optionally tapped.
     Battlefield { tapped: bool },
@@ -523,7 +523,7 @@ pub enum ZoneTarget {
 }
 
 /// Where in the library an object is placed (CR 401).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LibraryPosition {
     Top,
     Bottom,
@@ -534,7 +534,7 @@ pub enum LibraryPosition {
 // ── For Each Target ───────────────────────────────────────────────────────────
 
 /// The collection `ForEach` iterates over.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ForEachTarget {
     /// Each opponent of the controller.
     EachOpponent,
@@ -553,7 +553,7 @@ pub enum ForEachTarget {
 // ── Timing Restriction ────────────────────────────────────────────────────────
 
 /// When an activated ability can be used.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimingRestriction {
     /// Only during your main phase when the stack is empty (sorcery speed).
     SorcerySpeed,
@@ -568,7 +568,7 @@ pub enum TimingRestriction {
 /// References layer types from `state::continuous_effect`. Static abilities
 /// create these when the source is on the battlefield; some instant/sorcery effects
 /// create them temporarily.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContinuousEffectDef {
     pub layer: crate::state::EffectLayer,
     pub modification: crate::state::LayerModification,

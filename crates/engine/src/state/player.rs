@@ -60,7 +60,7 @@ impl ManaPool {
 /// - `commander_tax` tracks additional cost per commander cast from command zone
 /// - `commander_damage_received` tracks combat damage per source commander per
 ///   opponent, nested for partner commander tracking (CR 903.10a)
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerState {
     pub id: PlayerId,
     pub life_total: i32,

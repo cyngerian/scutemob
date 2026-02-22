@@ -39,7 +39,7 @@ impl ManaCost {
 /// For M3-A, only tap-activated mana abilities are supported (the most common
 /// case: basic lands, dual lands, etc.). Future milestones will add additional
 /// cost components (pay life, sacrifice a permanent, etc.).
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ManaAbility {
     /// The mana produced when this ability resolves, keyed by color.
     /// e.g., `{Green: 1}` for a Forest's "{T}: Add {G}".
@@ -65,7 +65,7 @@ impl ManaAbility {
 ///
 /// For M3-E, activation costs can include tapping and paying mana.
 /// Future milestones will add sacrificing permanents, paying life, etc.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivationCost {
     /// True if activating requires tapping the source (CR 602.2).
     pub requires_tap: bool,
@@ -77,7 +77,7 @@ pub struct ActivationCost {
 ///
 /// Written as "Cost: Effect." Distinct from `ManaAbility` (CR 605) which
 /// resolves immediately without the stack.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivatedAbility {
     /// The cost to activate this ability.
     pub cost: ActivationCost,
@@ -125,7 +125,7 @@ pub enum InterveningIf {
 /// `GameState::pending_triggers` for APNAP ordering and placement on the stack.
 ///
 /// Effects are described textually for M3-E; full implementation is M7+.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TriggeredAbilityDef {
     /// The event that causes this ability to trigger.
     pub trigger_on: TriggerEvent,
@@ -143,7 +143,7 @@ pub struct TriggeredAbilityDef {
 /// The observable characteristics of a game object (CR 109.3).
 ///
 /// These are the copiable values of an object — what a copy effect copies.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Characteristics {
     pub name: String,
     pub mana_cost: Option<ManaCost>,
@@ -179,7 +179,7 @@ pub struct ObjectStatus {
 
 /// An instance of an ability on a game object.
 /// Placeholder — will be fully defined in M3/M7.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AbilityInstance {
     pub id: u64,
     pub description: String,
@@ -191,7 +191,7 @@ pub struct AbilityInstance {
 /// unique ObjectId. When an object changes zones, it gets a new ObjectId
 /// per CR 400.7 ("an object that moves from one zone to another becomes a
 /// new object with no memory of, or relation to, its previous existence").
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameObject {
     pub id: ObjectId,
     /// Links back to the physical card identity (survives zone changes).

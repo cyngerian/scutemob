@@ -255,19 +255,37 @@ fn test_608_2b_fizzle_player_target_concedes() {
     .unwrap();
     assert_eq!(state.stack_objects.len(), 1);
 
-    // p2 concedes between cast and resolution (before all players pass).
-    // After cast, p1 (active player) has priority. p2 concedes.
+    // p2 concedes between cast and resolution — target becomes illegal.
     let (state, _) = process_command(state, Command::Concede { player: p2 }).unwrap();
 
-    // Now all remaining active players pass priority. The spell should fizzle
-    // because p2 (its only target) is eliminated.
-    // Active player p1 has priority; p3 and p4 also need to pass.
-    let (final_state, events) = pass_all_four(state, [p(1), p(3), p(4), p(1)]);
-    // Note: p2 is eliminated so we pass for p1, p3, p4, then p1 again to complete the round.
-    // Actually, with 3 active players (p1, p3, p4), pass_all_four won't work directly.
-    // Let me restructure this test.
-    let _ = (final_state, events); // discard, will redo below
-                                   // (the assertion is below in the properly-structured test)
+    // Pass for all remaining active players (p1, p3, p4) until the stack resolves.
+    let (mut state, mut all_events) = (state, Vec::new());
+    for _ in 0..6 {
+        // safety: max 6 passes for 3 active players × 2 rounds
+        if state.stack_objects.is_empty() {
+            break;
+        }
+        let holder = match state.turn.priority_holder {
+            Some(h) => h,
+            None => break,
+        };
+        let (ns, evs) =
+            process_command(state, Command::PassPriority { player: holder }).unwrap();
+        all_events.extend(evs);
+        state = ns;
+    }
+
+    // Spell should have fizzled — stack is empty and SpellFizzled was emitted.
+    assert!(
+        state.stack_objects.is_empty(),
+        "stack should be empty after fizzle"
+    );
+    assert!(
+        all_events
+            .iter()
+            .any(|e| matches!(e, mtg_engine::rules::events::GameEvent::SpellFizzled { .. })),
+        "expected SpellFizzled event"
+    );
 }
 
 // Better fizzle test that handles 3 active players properly:
