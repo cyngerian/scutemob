@@ -660,52 +660,130 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M6: Combat
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `state/combat.rs` | 105 | AttackTarget, CombatState |
-| `rules/combat.rs` | 789 | Declare attackers/blockers, order blockers, apply_combat_damage, first strike detection |
+| `state/combat.rs` | 105 | `AttackTarget` enum, `CombatState` struct (attackers, blockers, damage_assignment_order, defenders_declared) |
+| `rules/combat.rs` | 789 | `handle_declare_attackers`, `handle_declare_blockers`, `handle_order_blockers`, `apply_combat_damage`, `should_have_first_strike_step`, helpers (`get_effective_power/toughness`, `has_keyword`, `deals_damage_in_step`, `push_player_or_pw_damage`) |
 
-**Source total**: 894 lines
+**Additions to existing files:**
+
+| File | Lines Added | Purpose |
+|------|-------------|---------|
+| `rules/turn_actions.rs` | ~33 (lines 233-273) | `begin_combat`, `first_strike_damage_step`, `combat_damage_step`, `end_combat` turn-based actions + dispatch in `execute_turn_based_actions` |
+| `rules/turn_structure.rs` | ~7 (lines 37-44) | Conditional `FirstStrikeDamage` step insertion between DeclareBlockers and CombatDamage |
+| `rules/events.rs` | — | `AttackersDeclared`, `BlockersDeclared`, `CombatDamageDealt`, `CombatEnded` events; `CombatDamageAssignment`, `CombatDamageTarget` types |
+| `rules/command.rs` | — | `DeclareAttackers`, `DeclareBlockers`, `OrderBlockers` command variants |
+| `state/mod.rs` | 1 | `combat: Option<CombatState>` field on GameState |
+| `state/hash.rs` | ~8 (lines 724-733) | `HashInto` impls for `CombatState`, `AttackTarget` |
+
+**Source total**: ~894 new lines + ~49 additions to existing files
 
 **Test files:**
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/combat.rs` | 937 | ~11 | Unblocked, blocked, mutual death, first/double strike, trample, deathtouch+trample, multiple blockers, triggers, commander damage, multiplayer |
+| `tests/combat.rs` | 938 | 11 | Unblocked, blocked, mutual death, first/double strike, trample, deathtouch+trample, multiple blockers, triggers, commander damage, multiplayer |
 
 ### CR Sections Implemented
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 506 | Begin combat step |
-| CR 508 | Declare attackers (tap non-vigilance) |
-| CR 509 | Declare blockers |
-| CR 509.2 | Damage assignment order |
-| CR 510 | Combat damage (simultaneous, two-phase collect+apply) |
-| CR 510.1c | Last blocker gets all remaining power (no trample) |
-| CR 702.2 | First strike |
-| CR 702.4 | Double strike |
-| CR 702.19 | Trample (excess to player/planeswalker) |
-| CR 702.2+702.19 | Deathtouch + trample (1 to each blocker, rest to player) |
-| CR 903.10a | Commander damage tracking |
-| CR 511 | End of combat step |
+| CR 506 | Begin combat step — `begin_combat` initializes `CombatState` (`turn_actions.rs:241-247`) |
+| CR 508.1 | Declare attackers — validation (creature, not tapped, no summoning sickness, no defender), tap non-vigilance (`combat.rs:34-161`) |
+| CR 508.1f | Non-vigilance attackers tapped on declaration (`combat.rs:119-131`) |
+| CR 509.1 | Declare blockers — validation (creature, untapped, controlled by declaring player, flying/reach) (`combat.rs:172-305`) |
+| CR 509.1h | Blocked status persists even if all blockers removed — `is_blocked()` queries declaration map (`combat.rs:86-93, 440-465`) |
+| CR 509.2 | Damage assignment order — `handle_order_blockers` command (`combat.rs:316-370`) |
+| CR 510.1c | Lethal damage to each blocker in order before excess flows to next; last blocker absorbs all remaining (`combat.rs:467-530`) |
+| CR 510.2 | Simultaneous damage — two-phase collect+apply pattern (`combat.rs:386-697`) |
+| CR 510.4 | First-strike damage step conditionally inserted (`turn_structure.rs:37-44`) |
+| CR 702.7 | First strike — `deals_damage_in_step` routes FS creatures to first-strike step only (`combat.rs:755-764`) |
+| CR 702.4 | Double strike — deals damage in both steps (`combat.rs:755-764`) |
+| CR 702.19b | Trample — excess to player/planeswalker after lethal to each blocker (`combat.rs:491-510`) |
+| CR 702.2c+702.19b | Deathtouch + trample — 1 damage is lethal for assignment (`combat.rs:479-480`) |
+| CR 702.15a | Lifelink — controller gains life equal to combat damage dealt (`combat.rs:674-694`) |
+| CR 702.110a | Menace — requires ≥2 blockers (`combat.rs:247-277`) |
+| CR 903.10a | Commander damage tracking — per-player per-commander `OrdMap` (`combat.rs:636-662`) |
+| CR 511.1 | End of combat — clear `CombatState` (`turn_actions.rs:270-273`) |
 
-### Known Issues (to be validated during review)
+### Findings
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M6-01 | **HIGH** | combat.rs | **Attack target not validated.** `DeclareAttackers` accepts any `AttackTarget` (Player/Planeswalker) without validating the target exists or is a legal attack target (e.g., attacking your own planeswalker). | STUB |
-| MR-M6-02 | **HIGH** | combat.rs | **Double-blocking not prevented.** Same creature can be declared as blocker for multiple attackers. CR 509.1a says each creature blocks at most one attacking creature. | STUB |
-| MR-M6-03 | **HIGH** | combat.rs | **Partial ordering accepted.** `OrderBlockers` command accepts incomplete ordering (not all blockers listed). Should require all blockers for the specified attacker. | STUB |
-| MR-M6-04 | **MEDIUM** | combat.rs | **`is_blocked` contract/invariant risk.** If `blocker_map` is pruned (e.g., blocker removed by SBA), an attacker with no remaining blockers might still be treated as blocked (CR 509.1h: remains blocked even if all blockers removed). Need to verify this is correctly handled. | STUB |
-| MR-M6-05 | **MEDIUM** | combat.rs | **Unsafe `i32→u32` cast in damage calculation.** Power is `i32` but damage is `u32`. Negative power (from layer effects) cast to u32 wraps to very large number. Should clamp to 0. | STUB |
-| MR-M6-06 | **LOW** | combat.rs | **Performance: `apply_combat_damage` could extract helpers.** Large function with repeated patterns. Not a correctness issue. | STUB |
-| MR-M6-07 | **LOW** | combat.rs | **Test gap: no test for creature that can't attack (Defender keyword).** Defender enforcement exists but may not be tested in combat.rs (may be in keywords.rs). | STUB |
-| MR-M6-08 | **LOW** | combat.rs | **Test gap: no game script for combat.** All combat tests are Rust unit tests; no JSON script exercises combat through the replay harness. | STUB |
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M6-01 | **HIGH** | combat.rs:67 | **Attack target not validated.** `handle_declare_attackers` validates each attacker (battlefield, controller, creature type, defender, tapped, summoning sickness) but completely ignores the `AttackTarget`. The `_target` variable on line 67 is never inspected. Accepts: (1) attacking yourself `AttackTarget::Player(self)`, (2) attacking a non-existent player, (3) attacking your own planeswalker, (4) attacking a planeswalker not on the battlefield. **Fix:** validate that `Player(pid)` is an opponent and exists; validate that `Planeswalker(pw_id)` is on the battlefield and controlled by an opponent. | OPEN |
+| MR-M6-02 | **HIGH** | combat.rs:282-284 | **Same creature can block multiple attackers.** `combat.blockers.insert(*blocker_id, *attacker_id)` uses OrdMap insert which silently overwrites. If the `blockers` Vec parameter contains the same `blocker_id` twice with different attacker_ids (e.g., `[(B, A1), (B, A2)]`), the last entry wins. CR 509.1a: "For each of the chosen creatures, the defending player chooses one creature for it to block." A creature blocks exactly one attacker. **Fix:** before inserting, check `combat.blockers.contains_key(blocker_id)` or validate no duplicate blocker_ids in the input Vec. | OPEN |
+| MR-M6-03 | **HIGH** | combat.rs:356-363 | **Partial blocker ordering accepted.** `handle_order_blockers` validates that every blocker in `order` is blocking the attacker (line 356-362) but does NOT validate that every blocker OF the attacker is in `order`. Submitting a partial order (e.g., ordering 1 of 3 blockers) silently accepts; the other 2 blockers are excluded from `damage_assignment_order` and receive no attacker damage. CR 509.2: the attacking player orders ALL blocking creatures. **Fix:** add `if order.len() != blocking_this.len() { return Err(...) }` after line 363. | OPEN |
+| MR-M6-09 | **HIGH** | combat.rs:196-230 | **Blocker can block attacker targeting a different player.** `handle_declare_blockers` validates that the attacker is a declared attacker (line 225) but never checks that the attacker is targeting the declaring player or their planeswalker. In multiplayer, p2 could declare their creature blocks an attacker that's attacking p3. CR 509.1a: "the defending player chooses one creature for it to block that's attacking that player or a planeswalker that player controls." **Fix:** after line 230, resolve the attacker's `AttackTarget` and verify it matches the declaring player. | OPEN |
+| MR-M6-10 | **HIGH** | combat.rs:172-305 | **`defenders_declared` tracked but never enforced.** The `CombatState::defenders_declared` set is populated on line 286 but never checked as a guard at the top of `handle_declare_blockers`. The same player can call `DeclareBlockers` multiple times, overwriting earlier blocker assignments (OrdMap insert). This allows: (1) changing which attacker a creature blocks mid-step, (2) adding new blockers after already finishing declaration. **Fix:** add guard: `if combat.defenders_declared.contains(&player) { return Err(...) }` after line 193. | OPEN |
+| MR-M6-11 | **MEDIUM** | combat.rs:249-276 | **Menace check counts Vec entries, not unique creatures.** The menace check sums `blocker_count_for_attacker` from both existing combat blockers and the new `blockers` Vec. If MR-M6-02 allows the same blocker_id to appear twice for the same attacker, the count would be 2 (satisfying menace) even though only 1 unique creature is blocking. **Dependency:** fixing MR-M6-02 (duplicate blocker prevention) also fixes this. | OPEN — depends on MR-M6-02 |
+| MR-M6-12 | **MEDIUM** | combat.rs:98,121 | **Redundant `calculate_characteristics` for vigilance.** Vigilance is checked twice in `handle_declare_attackers`: first via `chars.keywords.contains(&Vigilance)` (line 98, from the full `calculate_characteristics` call at line 81), then again via the `has_keyword` helper (line 121, which calls `calculate_characteristics` a second time). The second call is unnecessary — `has_vigilance` from line 98 should be reused. Not a correctness bug (both calls see the same immutable state) but wasteful and fragile. | OPEN |
+| MR-M6-04 | **INFO** | combat.rs:86-93,440-465 | **RESOLVED — `is_blocked` correctly implements CR 509.1h.** The `blockers` OrdMap is never pruned during combat; entries persist until `end_combat` clears the entire `CombatState`. When `ordered_blockers` is empty (all blockers left battlefield), `is_blocked()` still returns true because the declaration entries remain. The damage code at lines 440-465 correctly distinguishes: (1) never blocked → damage to player, (2) was blocked + blockers gone + trample → damage to player, (3) was blocked + blockers gone + no trample → no damage. Stub concern was unfounded. | RESOLVED |
+| MR-M6-05 | **INFO** | combat.rs:404-407,554-557 | **RESOLVED — i32→u32 cast is safe.** `get_effective_power` returns `i32`; the guard `if power <= 0 { continue; }` (lines 405, 555) ensures only positive values reach `power as u32`. All intermediate values (`to_blocker`, `trample_amount`, `remaining`) are provably non-negative: `remaining` starts positive and decreases by non-negative amounts; `to_blocker = remaining.min(lethal)` where `lethal >= 0`; `trample_amount = remaining - to_blocker >= 0`. Stub concern was unfounded. | RESOLVED |
+| MR-M6-06 | **LOW** | combat.rs:386-697 | **`apply_combat_damage` is 312 lines.** Attacker damage (lines 398-531) and blocker damage (lines 533-564) could be extracted into helper functions. The two-phase collect+apply pattern (lines 570-694) could also be a helper. Not a correctness issue. | OPEN |
+| MR-M6-07 | **INFO** | — | **RESOLVED — Defender tested in keywords.rs.** `test_702_3_defender_cannot_attack` in `tests/keywords.rs` verifies that `DeclareAttackers` returns an error for creatures with Defender. Coverage exists; no need to duplicate in `combat.rs`. | RESOLVED |
+| MR-M6-08 | **LOW** | — | **Test gap: no combat game script.** All 11 combat tests are Rust unit tests. The `test-data/generated-scripts/combat/` directory is empty. No JSON script exercises combat through the replay harness. Combat is complex enough to warrant at least one basic script (declare attackers → declare blockers → damage). | OPEN |
+| MR-M6-13 | **LOW** | — | **Test gap: no test for blocker-removed-before-damage (CR 509.1h).** The `is_blocked` behavior is correct (MR-M6-04) but untested for the specific scenario where all blockers leave the battlefield before combat damage. `test_509_blocked_attacker_no_player_damage` has the blocker present during damage. A test where the blocker is killed (e.g., by first-strike damage from a different attacker, or by a spell during DeclareBlockers priority) would exercise the "was blocked, blockers gone, no trample → no player damage" branch at line 465. | OPEN |
+| MR-M6-14 | **LOW** | combat.rs:74-83 | **`blockers_for()` rebuilds list on every call.** Iterates the entire `blockers` OrdMap filtering by attacker. Called in `apply_combat_damage` (line 413 path) and `handle_order_blockers` (line 349). For n total blockers, each call is O(n). Typical combat has ≤10 blockers so impact is negligible. Could cache in `CombatState` if it becomes a bottleneck. | OPEN |
+| MR-M6-15 | **INFO** | combat.rs:86-93 | **Blocked status persistence is correct per CR 509.1h.** "An attacking creature with one or more creatures declared as blockers for it becomes a blocked creature [...] A creature remains blocked even if all the creatures blocking it are removed from combat." The `blockers` OrdMap serves as both the blocker assignment and the blocked-status record. Clean design. | — |
+| MR-M6-16 | **INFO** | combat.rs:570-612 | **Two-phase collect+apply prevents use-after-free.** Pre-extracting deathtouch, lifelink, controller, and commander info (lines 570-612) before mutating state (lines 618-679) ensures consistent reads. Simultaneous damage per CR 510.2. Sound design. | — |
+| MR-M6-17 | **INFO** | turn_actions.rs:241-273 | **Combat state lifecycle correct.** Initialized at BeginningOfCombat (`begin_combat`), cleared at EndOfCombat (`end_combat` sets `state.combat = None`). FirstStrikeDamage conditionally inserted per `should_have_first_strike_step`. All combat turn-based actions correctly dispatched via `execute_turn_based_actions`. | — |
+
+### Test Coverage Assessment
+
+| M6 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| Declare attackers (active player, tap, summoning sickness) | Good (implicit in all 11 tests) | Every test declares attackers; errors tested in keywords.rs (Defender, summoning sickness, haste) |
+| Declare blockers (defending player, flying/reach, menace) | Good (tested) | Blocking validated in blocked/mutual/first-strike/trample tests; flying/reach/menace in keywords.rs |
+| Unblocked attacker → player damage | Excellent (test 1) | 2/2 deals 2 to p2, life 40→38 |
+| Blocked attacker → no player damage | Good (test 2) | 5/5 blocked by 1/1, p2 life unchanged |
+| Mutual combat death (simultaneous damage) | Good (test 3) | 3/3 vs 3/3, both die, 2 CreatureDied events |
+| First strike kills before regular damage | Good (test 4) | 2/1 FS kills 2/2 blocker; attacker survives |
+| Double strike (both damage steps) | Good (test 5) | 2/2 DS deals 2+2=4 to player |
+| Trample excess to player | Good (test 6) | 5/5 trample vs 2/2: 2 to blocker, 3 to player |
+| Deathtouch + trample (1 lethal) | Excellent (test 7) | 4/4 DT+T vs 3/3: 1 to blocker, 3 to player |
+| Multiple blockers + damage order | Good (test 8) | 5/5 vs [2/2, 2/2]: first gets 2, second gets 3 |
+| SelfAttacks trigger | Good (test 9) | AbilityTriggered event + stack entry verified |
+| Commander damage tracking | Good (test 10) | `commander_damage_received[p1][card_id] == 5` |
+| Multiplayer simultaneous attacks | Good (test 11) | Attack p2 and p3; both take damage correctly |
+| Vigilance (no tap on attack) | Tested in keywords.rs | Not in combat.rs; `test_702_20_vigilance_no_tap_on_attack` |
+| Defender (can't attack) | Tested in keywords.rs | `test_702_3_defender_cannot_attack` |
+| Lifelink (gain life on combat damage) | Tested in keywords.rs | `test_702_15_lifelink_grants_life_on_combat_damage` |
+| Attack target validation | **MISSING** | No test for illegal targets (MR-M6-01) |
+| Double-blocking prevention | **MISSING** | No test that same creature can't block two attackers (MR-M6-02) |
+| Cross-player blocking prevention | **MISSING** | No test that p2 can't block attackers targeting p3 (MR-M6-09) |
+| Re-declaration prevention | **MISSING** | No test that same player can't call DeclareBlockers twice (MR-M6-10) |
+| Complete ordering requirement | **MISSING** | No test that OrderBlockers rejects partial orders (MR-M6-03) |
+| Blocker removed before damage | **MISSING** | CR 509.1h behavior untested for blocker-gone scenario (MR-M6-13) |
+| Combat game scripts | **MISSING** | No JSON scripts in `test-data/generated-scripts/combat/` (MR-M6-08) |
+
+### Notes
+
+- **Architecture is solid.** The core combat damage calculation — two-phase collect+apply,
+  simultaneous damage, deathtouch+trample interaction, first/double strike step routing,
+  and damage assignment order — is correct and well-tested. The 11 tests cover the main
+  mechanical interactions comprehensively.
+- **Blocked status (CR 509.1h) is correctly implemented.** The `blockers` OrdMap naturally
+  preserves blocked status because entries are never removed during combat. `is_blocked()`
+  queries declaration history, not current battlefield state. The damage code at lines
+  440-465 correctly uses this to determine whether an attacker deals player damage. Stub
+  concern MR-M6-04 was unfounded.
+- **i32→u32 casts are safe.** The `power <= 0` guard prevents negative values from reaching
+  any `as u32` cast. All intermediate values (`remaining`, `to_blocker`, `trample_amount`)
+  are provably non-negative. Stub concern MR-M6-05 was unfounded.
+- **The 5 HIGH findings are all validation gaps**, not algorithmic bugs. The damage calculation,
+  step routing, keyword handling, and state lifecycle are all correct. The missing checks are:
+  (1) attack target legality, (2) one-creature-one-attacker, (3) complete blocker ordering,
+  (4) defenders can only block their own attackers, (5) no re-declaration. All fixes are
+  localized to `handle_declare_attackers` and `handle_declare_blockers`.
+- **MR-M6-09 and MR-M6-10 are multiplayer-specific.** In 1v1 games, there's only one
+  defending player and one attack target, so these issues are benign. In 4-player Commander
+  (the target format), they allow illegal cross-player blocking and blocker re-assignment.
+- The `defenders_declared` field was clearly intended to prevent re-declaration but the guard
+  check was never added. This is likely an oversight during implementation.
 
 ---
 
@@ -887,9 +965,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M4-03 | M4 | `.unwrap()` in `check_legendary_rule` (sba.rs:340) — `ids.last()` | OPEN |
 | MR-M5-01 | M5 | `.expect()` in layers.rs:95 — counter P/T block | OPEN |
 | MR-M5-02 | M5 | SBAs use raw characteristics, not `calculate_characteristics` (7 call sites) | OPEN |
-| MR-M6-01 | M6 | Attack target not validated | STUB |
-| MR-M6-02 | M6 | Double-blocking not prevented | STUB |
-| MR-M6-03 | M6 | Partial blocker ordering accepted | STUB |
+| MR-M6-01 | M6 | Attack target not validated — accepts self, non-existent, own planeswalker | OPEN |
+| MR-M6-02 | M6 | Double-blocking not prevented — same creature can block multiple attackers | OPEN |
+| MR-M6-03 | M6 | Partial blocker ordering accepted — OrderBlockers doesn't require completeness | OPEN |
+| MR-M6-09 | M6 | Cross-player blocking — blocker can block attacker targeting a different player | OPEN |
+| MR-M6-10 | M6 | `defenders_declared` tracked but never enforced — same player can re-declare | OPEN |
 | MR-M7-01 | M7 | MoveToZone effect doesn't emit correct zone-change event | STUB |
 | MR-M7-02 | M7 | Doom Blade filter not enforced | STUB |
 | MR-M7-03 | M7 | Owner vs controller confusion in effects | STUB |
@@ -919,8 +999,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M5-03 | M5 | `ptr::eq` for effect identity in cycle fallback — correct but fragile | OPEN |
 | MR-M5-04 | M5→M8+ | `EffectDuration` missing `UntilEndOfNextTurn` and general `AsLongAs(Condition)` | DEFERRED → M8+ |
 | MR-M5-05 | M5 | `AllPermanents` filter over-checks card types instead of just checking Battlefield zone | OPEN |
-| MR-M6-04 | M6 | `is_blocked` contract/invariant risk | STUB |
-| MR-M6-05 | M6 | Unsafe i32→u32 cast in combat damage | STUB |
+| MR-M6-11 | M6 | Menace check counts raw entries not unique creatures — depends on MR-M6-02 | OPEN |
+| MR-M6-12 | M6 | Redundant `calculate_characteristics` for vigilance in declare_attackers | OPEN |
 | MR-M7-04 | M7 | Lifelink only works for combat damage | STUB |
 | MR-M7-05 | M7 | Controller filter not checked in target resolution | STUB |
 | MR-M7-06 | M7 | ForEach players not APNAP ordered | STUB |
@@ -956,9 +1036,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M5-06 | M5 | `ready.remove(0)` is O(n) in Kahn's algorithm — use VecDeque | OPEN |
 | MR-M5-07 | M5→M8+ | Missing `AddSupertypes`/`RemoveSupertypes` layer 4 variants | DEFERRED → M8+ |
 | MR-M5-08 | M5 | CDA partition test uses different sublayers — same-layer CDA priority untested | OPEN |
-| MR-M6-06 | M6 | Combat damage function large, needs helpers | STUB |
-| MR-M6-07 | M6 | Test gap: Defender keyword in combat | STUB |
-| MR-M6-08 | M6 | Test gap: no combat game script | STUB |
+| MR-M6-06 | M6 | `apply_combat_damage` is 312 lines — extract attacker/blocker helpers | OPEN |
+| MR-M6-08 | M6 | Test gap: no combat game script in replay harness | OPEN |
+| MR-M6-13 | M6 | Test gap: blocker-removed-before-damage (CR 509.1h) untested | OPEN |
+| MR-M6-14 | M6 | `blockers_for()` rebuilds list on every call — O(n) in hot path | OPEN |
 | MR-M7-11 | M7 | Casting helper extraction | STUB |
 | MR-M7-12 | M7 | Redundant check in lands.rs | STUB |
 | MR-M7-13 | M7 | Test gap: SBA cascade after spell resolution | STUB |
@@ -995,6 +1076,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M5-11 | M5 | No test scripts for layers — unit tests are the right approach for isolated computation | — |
 | MR-M5-12 | M5 | Cycle fallback code is dead code — current `depends_on()` cannot produce cycles | — |
 | MR-M5-13 | M5 | Complete hash coverage for all 6 M5 types — no gaps | — |
+| MR-M6-04 | M6 | `is_blocked` correctly implements CR 509.1h — blocked status persists (stub resolved) | — |
+| MR-M6-05 | M6 | i32→u32 cast safe — `power <= 0` guard prevents negative values (stub resolved) | — |
+| MR-M6-07 | M6 | Defender tested in keywords.rs — `test_702_3_defender_cannot_attack` (stub resolved) | — |
+| MR-M6-15 | M6 | Blocked status persistence design correct per CR 509.1h | — |
+| MR-M6-16 | M6 | Two-phase collect+apply prevents use-after-free; simultaneous damage per CR 510.2 | — |
+| MR-M6-17 | M6 | Combat state lifecycle correct — init at BeginningOfCombat, cleared at EndOfCombat | — |
 
 ---
 
@@ -1002,20 +1089,20 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 109 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7) |
+| Total unique issue IDs | 118 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7; MR-M6-11 depends on MR-M6-02) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 14 |
+| HIGH (OPEN) | 19 |
 | HIGH (DEFERRED) | 2 |
-| HIGH (STUB) | 6 |
-| MEDIUM (OPEN) | 19 |
+| HIGH (STUB) | 3 |
+| MEDIUM (OPEN) | 21 |
 | MEDIUM (DEFERRED) | 2 |
-| MEDIUM (STUB) | 9 |
-| LOW (OPEN) | 20 |
+| MEDIUM (STUB) | 7 |
+| LOW (OPEN) | 24 |
 | LOW (DEFERRED) | 3 |
-| LOW (STUB) | 8 |
-| INFO | 26 |
-| Milestones fully reviewed | 6 (M0, M1, M2, M3, M4, M5) |
-| Milestones with stubs | 2 (M6, M7) |
+| LOW (STUB) | 5 |
+| INFO | 32 |
+| Milestones fully reviewed | 7 (M0, M1, M2, M3, M4, M5, M6) |
+| Milestones with stubs | 1 (M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
