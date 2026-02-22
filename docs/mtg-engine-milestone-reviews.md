@@ -789,7 +789,7 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M7: Card Definition Framework & First Cards
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
@@ -797,27 +797,35 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `cards/card_definition.rs` | 574 | CardDefinition, AbilityDefinition, Effect (recursive, 30+ variants), EffectAmount, EffectTarget, etc. |
-| `cards/definitions.rs` | 1,230 | 50 hand-authored Commander staple definitions |
-| `cards/registry.rs` | 52 | CardRegistry with Arc<Self>, lookup by CardId |
-| `cards/mod.rs` | 21 | Module exports |
+| `cards/card_definition.rs` | 574 | CardDefinition, AbilityDefinition, Effect (recursive enum, 30+ variants), EffectAmount, EffectTarget, PlayerTarget, TargetRequirement, TargetFilter, Cost, TokenSpec, TypeLine, ZoneTarget, TriggerCondition, Condition, ContinuousEffectDef, ModeSelection, ForEachTarget, LibraryPosition, TimingRestriction |
+| `cards/definitions.rs` | 1,230 | 50 hand-authored Commander staple definitions (8 mana rocks, 10 lands, 6 targeted removal, 3 mass removal, 4 counterspells, 7 card draw, 4 ramp spells, 2 equipment, 7 utility creatures) |
+| `cards/registry.rs` | 52 | CardRegistry with `Arc<Self>` construction, `get()` by CardId, `empty()` for tests |
+| `cards/mod.rs` | 21 | Module declarations and re-exports |
 
 **Source files — effects:**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `effects/mod.rs` | 1,209 | `execute_effect` engine, EffectContext, all effect implementations |
+| `effects/mod.rs` | 1,209 | `execute_effect` engine: EffectContext (controller, source, targets, target_remaps), all effect implementations (DealDamage, GainLife, LoseLife, DrawCards, DiscardCards, MillCards, CreateToken, DestroyPermanent, ExileObject, CounterSpell, TapPermanent, UntapPermanent, AddMana, AddManaAnyColor, AddManaChoice, AddCounter, RemoveCounter, MoveZone, SearchLibrary, Shuffle, ApplyContinuousEffect, Conditional, ForEach, Choose, MayPayOrElse, Sequence, Nothing), resolve helpers, token creation, filter matching, condition checking |
 
-**Source total**: 3,086 lines
+**Source files — updates to existing files:**
+
+| File | M7 Changes | Purpose |
+|------|------------|---------|
+| `rules/resolution.rs` | ~50 lines | Updated `resolve_top_of_stack` to look up `CardDefinition` from `CardRegistry` and call `execute_effect` for Spell/ActivatedAbility/TriggeredAbility kinds |
+
+**Source total**: 3,086 lines new + ~50 lines modified
 
 **Test files:**
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/effects.rs` | 578 | ~15 | Direct effect execution (DealDamage, Exile, GainLife, DrawCards, Sequence, Conditional, ForEach) |
-| `tests/keywords.rs` | 677 | — | Keyword enforcement (Hexproof, Shroud, Indestructible, Lifelink, Menace, Defender, Haste, Vigilance, Flash) |
-| `tests/run_all_scripts.rs` | 155 | — | Auto-discovery of approved game scripts |
-| `tests/script_replay.rs` | 1,247 | — | Script replay harness (build_initial_state, translate_player_action, check_assertions, enrich_spec_from_def) |
+| `tests/effects.rs` | 578 | 8 | Direct effect execution: DealDamage to player, DealDamage to creature, ExileObject+GainLife (STP), DrawCards, Nothing, Sequence, Conditional true/false |
+| `tests/keywords.rs` | 677 | 14 | Keyword enforcement: Defender, Summoning Sickness (3), Flying/Reach (3), Hexproof, Shroud, Indestructible (2), Menace (2), Lifelink |
+| `tests/run_all_scripts.rs` | 155 | 1 | Auto-discovery and replay of all approved game scripts |
+| `tests/script_replay.rs` | 1,247 | 4 | Replay harness module: `replay_script`, `build_initial_state`, `translate_player_action`, `check_assertions`, `enrich_spec_from_def`, `card_name_to_id` |
+
+**Test total**: 2,657 lines, 27 tests (8 effects + 14 keywords + 1 script runner + 4 replay tests)
 
 **Test data:**
 
@@ -837,35 +845,94 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 702.11 | Hexproof (targeting check) |
-| CR 702.18 | Shroud (targeting check) |
-| CR 702.12 | Indestructible (destroy replacement) |
-| CR 702.15 | Lifelink (damage → gain life) |
-| CR 702.121 | Menace (≥2 blockers required) |
-| CR 702.3 | Defender (can't attack) |
-| CR 702.10 | Flash (instant-speed casting) |
-| CR 702.10 | Haste (no summoning sickness) |
-| CR 702.20 | Vigilance (no tap on attack) |
+| CR 106 | Mana production effects: AddMana, AddManaAnyColor, AddManaChoice (`effects/mod.rs:404-445`) |
+| CR 111 | Token creation: `make_token` from TokenSpec (`effects/mod.rs:940-997`) |
+| CR 118.4 | Life gain/loss effects (`effects/mod.rs:178-210`) |
+| CR 119 | Damage to players: DealDamage reduces life, emits DamageDealt+LifeLost (`effects/mod.rs:111-176`) |
+| CR 120.3b | Damage to creatures: marks `damage_marked` on creature (`effects/mod.rs:153-159`) |
+| CR 120.3c | Damage to planeswalkers: removes loyalty counters (`effects/mod.rs:140-151`) |
+| CR 121.1 | Card draw effect: `draw_one_card` helper (`effects/mod.rs:1001-1028`) |
+| CR 122 | Counter manipulation: AddCounter, RemoveCounter (`effects/mod.rs:448-497`) |
+| CR 608.2 | Spell effect execution: resolution.rs looks up CardDefinition, finds Spell ability, calls execute_effect (`resolution.rs:106-133`) |
+| CR 608.3b | Activated/Triggered ability effect execution: resolution.rs looks up ability effect from characteristics (`resolution.rs:168-250`) |
+| CR 701.5 | CounterSpell effect: removes from stack, card to graveyard (`effects/mod.rs:329-365`) |
+| CR 701.6 | CreateToken effect: builds GameObject from TokenSpec (`effects/mod.rs:241-255`) |
+| CR 701.7 | DestroyPermanent effect: checks Indestructible, moves to graveyard (`effects/mod.rs:257-301`) |
+| CR 701.7 | DiscardCards effect: deterministic first-by-ObjectId (`effects/mod.rs:1030-1051`) |
+| CR 701.13 | MillCards effect: top-of-library to graveyard (`effects/mod.rs:1053-1064`) |
+| CR 701.19 | SearchLibrary: deterministic fallback (first matching by ObjectId) (`effects/mod.rs:520-561`) |
+| CR 701.20 | Shuffle effect (`effects/mod.rs:563-572`) |
+| CR 702.3 | Defender: can't attack (`tests/keywords.rs:52-80`) |
+| CR 702.9 | Flying: can't be blocked by ground creatures (`tests/keywords.rs:236-272`) |
+| CR 702.10 | Haste: bypasses summoning sickness (`tests/keywords.rs:130-163`) |
+| CR 702.11 | Hexproof: opponents can't target (`tests/keywords.rs:416-468`) |
+| CR 702.12 | Indestructible: survives lethal damage, not zero toughness (`tests/keywords.rs:472-529`) |
+| CR 702.15 | Lifelink: controller gains life equal to combat damage (`tests/keywords.rs:622-677`) |
+| CR 702.17 | Reach: can block flying (`tests/keywords.rs:276-314`) |
+| CR 702.18 | Shroud: can't be targeted by any player (`tests/keywords.rs:358-412`) |
+| CR 702.110 | Menace: must be blocked by 2+ creatures (`tests/keywords.rs:535-616`) |
 
-### Known Issues (to be validated during review)
+### Findings
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M7-01 | **HIGH** | effects/mod.rs | **MoveToZone effect doesn't emit correct zone-change event.** `execute_effect` for zone moves may not fire the expected `move_object_to_zone` path that generates proper CR 400.7 events. | STUB |
-| MR-M7-02 | **HIGH** | effects/mod.rs | **Doom Blade filter: "non-black" not enforced.** `DestroyPermanent` effect may not check target color filter. Doom Blade should not destroy black creatures. | STUB |
-| MR-M7-03 | **HIGH** | effects/mod.rs | **Owner vs controller confusion in effects.** Some effects use `controller` where `owner` is correct (e.g., "return to its owner's hand") or vice versa. | STUB |
-| MR-M7-04 | **MEDIUM** | effects/mod.rs | **Lifelink only works for combat damage, not spell damage.** Lifelink applies to ALL damage (CR 702.15), not just combat. If a creature with lifelink deals damage via a fight effect or similar, lifelink should trigger. | STUB |
-| MR-M7-05 | **MEDIUM** | effects/mod.rs | **Controller filter not checked in some target resolution.** `resolve_target` may not filter by controller when the effect specifies "target creature you control." | STUB |
-| MR-M7-06 | **MEDIUM** | effects/mod.rs | **ForEach on "each player" may not iterate in APNAP order.** CR requires player-affecting actions in APNAP order. | STUB |
-| MR-M7-07 | **MEDIUM** | effects/mod.rs | **Unsafe `i32→u32` casts.** Power/toughness are i32 but some effect amounts use u32. Negative values wrap. | STUB |
-| MR-M7-08 | **MEDIUM** | effects/mod.rs | **Unsafe cast in another location.** Second instance of i32→u32 issue. | STUB |
-| MR-M7-09 | **MEDIUM** | abilities.rs | **`unwrap_or(0)` in effect resolution paths.** Used by M7 effect system when resolving EffectAmount::PowerOf. If power is None, returns 0 silently. Should this warn or log? | STUB |
-| MR-M7-10 | **MEDIUM** | abilities.rs | **Second `unwrap_or` in abilities.** Similar pattern, different location. | STUB |
-| MR-M7-11 | **LOW** | casting.rs | **Casting helper could be extracted.** `handle_cast_spell` is large; common validation patterns repeated. | STUB |
-| MR-M7-12 | **LOW** | lands.rs | **Redundant check in land play handler.** Validates a condition already guaranteed by earlier check. | STUB |
-| MR-M7-13 | **LOW** | — | **Test gap: no SBA cascade test.** No test verifying that SBAs triggered by spell resolution correctly chain (e.g., Lightning Bolt kills creature → CreatureDied event → triggers checked). | STUB |
-| MR-M7-14 | **LOW** | — | **Test gap: no layer + SBA interaction test.** No test verifying that a continuous effect reducing toughness to 0 triggers SBA correctly via `calculate_characteristics`. | STUB |
-| MR-M7-15 | **LOW** | — | **Test gap: no combat game script.** All 7 scripts are baseline/stack; no script exercises the combat system through the replay harness. | STUB |
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M7-01 | **HIGH** | effects/mod.rs:509 | **`MoveZone` effect always emits `ObjectExiled` regardless of destination.** Line 509: `events.push(GameEvent::ObjectExiled { ... })` fires for every MoveZone, even when the destination is Battlefield, Hand, Graveyard, or Library. A creature bounced to hand would emit `ObjectExiled`. **Fix:** match on destination zone and emit the appropriate event (`PermanentEnteredBattlefield` for battlefield, `CardDrawn` or a generic `ObjectMoved` for hand, etc.). | OPEN |
+| MR-M7-02 | **HIGH** | casting.rs:162 / card_definition.rs:358 | **`TargetRequirement` filters not validated at cast time.** `validate_targets` (casting.rs:162) only checks existence, zone snapshot, and hexproof/shroud — it does NOT check `TargetRequirement` type restrictions. Comment on line 160 says "Full type-restriction validation deferred to M7" but M7 is now complete and this was not implemented. Doom Blade (`TargetCreatureWithFilter`) can target non-creatures. Negate (`TargetSpell`) can counter creature spells. Any `TargetRequirement` variant beyond basic existence is unenforced. **Fix:** validate each target against its `TargetRequirement` (creature type, permanent type, color filter, etc.) during `validate_targets`. | OPEN |
+| MR-M7-03 | **HIGH** | card_definition.rs:639-641 / effects/mod.rs:1090 | **Doom Blade's "non-black" filter semantically inverted.** `TargetFilter { colors: Some([Color::Black]) }` combined with `matches_filter` (line 1090) means "object MUST be black." Doom Blade says "destroy target NON-black creature" — the filter selects the exact opposite set. Additionally, `TargetFilter` has no negation field for colors (unlike `non_land: bool`). **Fix:** add a `non_colors: Option<OrdSet<Color>>` field to `TargetFilter`, or a `negate_colors: bool` flag, and use it for Doom Blade. Even once MR-M7-02 is fixed, this filter would admit only black creatures. | OPEN |
+| MR-M7-04 | **HIGH** | effects/mod.rs:914-927 | **`resolve_zone_target` ignores `owner` field — always uses spell controller.** Lines 917-923: all three owner-bearing `ZoneTarget` variants (Graveyard, Hand, Library) discard the `owner: PlayerTarget` field and use the passed `controller` instead. Comment on line 918 says "For simplicity, use controller." For effects like "return target permanent to its owner's hand" (e.g., Unsummon), this puts the card in the CASTER's hand, not the card owner's. Currently no card definition in the 50 uses `MoveZone` for cross-player returns, but this will break when added. **Fix:** resolve the `PlayerTarget` in the `owner` field using `resolve_player_target_list`, or accept a resolved `PlayerId` directly. | OPEN |
+| MR-M7-05 | **HIGH** | effects/mod.rs:112 | **`i32` to `u32` cast wraps negative values in DealDamage.** `resolve_amount` returns `i32`; line 112 casts `as u32`. If `EffectAmount::PowerOf` resolves to a negative value (creature with negative power from layer effects), the cast wraps to ~4 billion, dealing massive damage. The `if dmg == 0 { return; }` guard on line 113 doesn't catch wrapping. Same pattern in GainLife (line 179), LoseLife (line 196), DrawCards (line 214: `as usize`). **Fix:** clamp to 0 before casting: `let dmg = resolve_amount(...).max(0) as u32;`. | OPEN |
+| MR-M7-06 | **MEDIUM** | effects/mod.rs:1206-1207 | **`ForEachTarget::EachPlayer` and `EachOpponent` return empty vec.** `collect_for_each` returns `Vec<ObjectId>` — player-based ForEach targets return `vec![]` with a comment "players aren't ObjectIds." Effects like "each player draws a card" via ForEach can't work. The `ForEach` combinator only handles object iteration, not player iteration. **Fix:** either refactor `collect_for_each` to return an enum of ObjectId/PlayerId collections, or handle player ForEach variants separately in `execute_effect_inner`. | OPEN |
+| MR-M7-07 | **MEDIUM** | effects/mod.rs:900-907 | **`EffectAmount::CardCount` always returns 0.** The match arm has a comment "M7+: implement card counting if needed. Defaults to 0." Any card definition using CardCount for damage/draw amounts produces zero effect. No current definition uses it, but the variant exists and silently fails. **Fix:** implement the zone-card-count logic or remove the variant until needed. | OPEN |
+| MR-M7-08 | **MEDIUM** | definitions.rs:697, 738, 788 | **Supreme Verdict "can't be countered" not modeled.** Definition encodes only the destroy-all-creatures effect; the uncounterable restriction is in oracle text but not in abilities. Similarly, Negate's "noncreature spell" restriction uses `TargetSpell` without a filter (no `TargetSpellWithFilter` variant exists). Arcane Denial's delayed draw triggers simplified to immediate draw. These are known simplifications but may confuse script authors expecting correct behavior. | OPEN |
+| MR-M7-09 | **MEDIUM** | effects/mod.rs:432-445 | **`AddManaAnyColor` and `AddManaChoice` default to colorless.** Both variants add 1 colorless instead of letting the player choose a color. Affects 4 definitions: Arcane Signet, Command Tower, Birds of Paradise, Darksteel Ingot. Documented as "M9+: interactive mana color choice" but means these cards produce wrong mana (colorless instead of any-color). In most games this would produce incorrect mana pool states. | OPEN → M9 |
+| MR-M7-10 | **MEDIUM** | effects/mod.rs:930-936, 542-547 | **`dest_tapped` helper ignores `ZoneTarget::Battlefield { tapped: true }` flag.** `dest_tapped()` takes a `ZoneId` (not `ZoneTarget`) and always returns `Some(false)` for Battlefield. The `tapped: true` flag from `ZoneTarget::Battlefield { tapped: true }` is only captured in the SearchLibrary handler via a separate check (lines 542-548 manually apply `tapped`). If other effects use `dest_tapped` expecting it to detect "enters tapped," they'll get the wrong answer. The function is misleading. **Fix:** pass `ZoneTarget` instead of `ZoneId`, or remove the function and inline the tapped check. | OPEN |
+| MR-M7-11 | **MEDIUM** | definitions.rs:946-961 | **Brainstorm only draws 3 — does not put 2 cards back.** Oracle text says "Draw three cards, then put two cards from your hand on top of your library in any order." The effect is `DrawCards { count: 3 }` only — the put-back is missing entirely. Comment says "simplified as draw without scry" (confusing Brainstorm with a scry card). This makes Brainstorm strictly better than intended — pure card advantage instead of card selection. | OPEN |
+| MR-M7-12 | **MEDIUM** | definitions.rs:509-539 | **Path to Exile's search is unconditional but should be "may".** Oracle says the exiled creature's controller "may search their library." Currently encoded as an unconditional `SearchLibrary`, which always fetches a land. Requires interactive choice (`MayPayOrElse` pattern) for correctness. Note: `MayPayOrElse` already exists in the Effect enum and defaults to "don't pay → apply or_else" — could model as `MayPayOrElse { cost: ..., payer: ControllerOf, or_else: Nothing }` with SearchLibrary in the "may" branch once M9 interactive choice is implemented. | OPEN → M9 |
+| MR-M7-13 | **LOW** | definitions.rs:1083-1108 | **Equipment definitions have empty ability lists.** Lightning Greaves and Swiftfoot Boots have `abilities: vec![]` — they are blank permanents on the battlefield. The equip cost, keyword grants (haste+shroud / haste+hexproof) are described only in oracle text. These cards do nothing until the equipment/attach system is implemented. Expected for M7; flagged for completeness. | OPEN → M8+ |
+| MR-M7-14 | **LOW** | definitions.rs:160-177, 362-396 | **"No maximum hand size" ability not modeled.** Thought Vessel, Reliquary Tower, and Rogue's Passage second ability ({4},{T}: unblockable) are described in oracle text but not encoded in abilities. Only the tap-for-mana ability exists on each. | OPEN → M8+ |
+| MR-M7-15 | **LOW** | tests/effects.rs | **No test for CreateToken or CounterSpell effects.** The 8 effect tests cover DealDamage (2), ExileObject+GainLife (1), DrawCards (1), Nothing (1), Sequence (1), Conditional (2). Token creation and spell countering are exercised only by game scripts, not by direct effect unit tests. | OPEN |
+| MR-M7-16 | **LOW** | tests/ | **No combat game script.** All 7 approved scripts cover baseline and stack interactions. No script exercises the combat system (declare attackers/blockers, damage step) through the replay harness. Combat is tested via unit tests in `tests/combat.rs` and `tests/keywords.rs`, but not via the engine-independent script format. | OPEN |
+| MR-M7-17 | **LOW** | effects/mod.rs:567 | **Shuffle uses `from_entropy()` — non-deterministic in effect execution.** `SearchLibrary` and `Shuffle` effects call `rand::rngs::StdRng::from_entropy()` (line 567), making the shuffle non-deterministic across replays. Tests use seeded RNG at the `GameState` level, but effect-level shuffles bypass this. For replay determinism, the shuffle should use the state's seeded RNG. | OPEN |
+| MR-M7-18 | **LOW** | script_replay.rs:700-718 | **`try_as_tap_mana_ability` only converts single-mana single-color abilities.** Sol Ring ({T}: Add {C}{C}) is NOT converted to a ManaAbility by `enrich_spec_from_def` because it produces 2 colorless. Scripts must use ActivateAbility instead of TapForMana for Sol Ring. Documented in CLAUDE.md but creates an asymmetry. | OPEN |
+| MR-M7-19 | **INFO** | card_definition.rs | **Effect DSL is well-designed and extensible.** The recursive `Effect` enum with `Box` for Conditional/ForEach/MayPayOrElse avoids stack overflow. `EffectTarget` and `PlayerTarget` properly separate object and player targeting. `EffectContext.target_remaps` elegantly solves the STP "exile then reference power" pattern. `Condition` enum covers the main intervening-if patterns. | — |
+| MR-M7-20 | **INFO** | effects/mod.rs | **No `unwrap()`/`expect()` in effect execution code.** All object lookups use `if let Some(obj)` or `.get()` with graceful fallback. Contrast with earlier milestones' `.unwrap()` violations. Clean engine-library code. | — |
+| MR-M7-21 | **INFO** | script_replay.rs | **Script replay harness well-structured.** Deterministic player ordering (alphabetical sort → sequential PlayerId). Comprehensive assertion paths (life, poison, zone counts, includes/excludes, permanent status, counters). `enrich_spec_from_def` correctly bridges `ObjectSpec::card()` to engine expectations. Unknown actions skipped gracefully (future-proof). | — |
+| MR-M7-22 | **INFO** | definitions.rs | **Card definitions cover a good cross-section of Commander staples.** 50 cards across 9 categories. All creatures have printed P/T. Mana costs are correct. `..Default::default()` used consistently for non-creature cards. Oracle text matches official Scryfall text. Token specs for Beast Within, Generous Gift, Swan Song manually verified correct. | — |
+| MR-M7-23 | **INFO** | registry.rs | **CardRegistry is clean and minimal.** `new()` returns `Arc<Self>` (avoids double-wrapping documented in CLAUDE.md). `HashMap<CardId, CardDefinition>` is the right choice for O(1) lookup (not shared across state snapshots since it's static). `empty()` for tests that don't need card effects. | — |
+
+### Test Coverage Assessment
+
+| M7 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| DealDamage to player | Good (1 test) | Lightning Bolt → player life decreases, DamageDealt event |
+| DealDamage to creature | Good (1 test) | Lightning Bolt → damage marked, SBA kills creature |
+| ExileObject + GainLife | Good (1 test) | STP → exile + power-based life gain with target_remaps |
+| DrawCards | Good (1 test) | Divination → draws 2, hand size changes |
+| Nothing effect | Good (1 test) | No events, no state change |
+| Sequence combinator | Good (1 test) | GainLife+LoseLife → net correct |
+| Conditional combinator | Good (2 tests) | True/false branches both verified |
+| CreateToken | **Missing** (0 tests) | Only exercised via game scripts |
+| CounterSpell | **Missing** (0 tests) | Only exercised via game scripts |
+| DestroyPermanent | **Missing** (0 tests) | Exercised indirectly via SBA tests |
+| ForEach combinator | **Indirect** | Used by Wrath of God definition but no direct unit test |
+| Keyword: Defender | Good (1 test) | Can't attack |
+| Keyword: Summoning Sickness | Good (3 tests) | Prevents attack, cleared after untap, haste bypass |
+| Keyword: Flying/Reach | Good (3 tests) | Ground can't block, reach can, flying can |
+| Keyword: Hexproof/Shroud | Good (2 tests) | Opponent can't target, nobody can target |
+| Keyword: Indestructible | Good (2 tests) | Survives lethal, dies to zero toughness |
+| Keyword: Menace | Good (2 tests) | Requires 2 blockers, allows 2 blockers |
+| Keyword: Lifelink | Good (1 test) | Life gained on combat damage |
+| Script replay | Good (7 scripts) | Baseline + stack scenarios all approved |
+| Script auto-discovery | Good (1 test) | Runs all approved scripts, vacuous pass if none |
+| Card definitions | Adequate | 50 cards defined; correctness verified by script replay |
+
+### Notes
+
+- **Effect execution is clean.** No unwrap/expect violations, graceful fallback for missing objects, proper event emission for most effects. The `EffectContext.target_remaps` design is particularly good.
+- **MR-M7-02 is the most impactful finding** — `TargetRequirement` filter validation was explicitly deferred to M7 in the casting.rs comments, but M7 completed without implementing it. This means ALL type restrictions (TargetCreature, TargetPermanent, TargetCreatureWithFilter, etc.) are unenforced at cast time. Players can target anything with any spell.
+- **MR-M7-05 (i32→u32 wrapping) is a correctness bug** that will surface as soon as a creature has negative power from layer effects and is referenced by a DealDamage/GainLife/LoseLife effect.
+- **Simplification decisions are well-documented** — AddManaAnyColor → colorless, Choose → first option, MayPayOrElse → don't pay, SearchLibrary → first match. These are all tagged with "M9+" comments.
+- **The 50 card definitions are a good foundation** — they cover the most common Commander staples across multiple effect categories. The incomplete definitions (equipment, some abilities) are clearly documented.
 
 ---
 
@@ -970,9 +1037,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M6-03 | M6 | Partial blocker ordering accepted — OrderBlockers doesn't require completeness | OPEN |
 | MR-M6-09 | M6 | Cross-player blocking — blocker can block attacker targeting a different player | OPEN |
 | MR-M6-10 | M6 | `defenders_declared` tracked but never enforced — same player can re-declare | OPEN |
-| MR-M7-01 | M7 | MoveToZone effect doesn't emit correct zone-change event | STUB |
-| MR-M7-02 | M7 | Doom Blade filter not enforced | STUB |
-| MR-M7-03 | M7 | Owner vs controller confusion in effects | STUB |
+| MR-M7-01 | M7 | `MoveZone` always emits `ObjectExiled` regardless of destination zone | OPEN |
+| MR-M7-02 | M7 | `TargetRequirement` filters not validated at cast time — all type restrictions unenforced | OPEN |
+| MR-M7-03 | M7 | Doom Blade "non-black" filter semantically inverted — `colors` field is inclusion-only | OPEN |
+| MR-M7-04 | M7 | `resolve_zone_target` ignores `owner` field — always uses spell controller | OPEN |
+| MR-M7-05 | M7 | `i32→u32` cast wraps negative values in DealDamage/GainLife/LoseLife/DrawCards | OPEN |
 
 ### MEDIUM
 
@@ -1001,13 +1070,13 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M5-05 | M5 | `AllPermanents` filter over-checks card types instead of just checking Battlefield zone | OPEN |
 | MR-M6-11 | M6 | Menace check counts raw entries not unique creatures — depends on MR-M6-02 | OPEN |
 | MR-M6-12 | M6 | Redundant `calculate_characteristics` for vigilance in declare_attackers | OPEN |
-| MR-M7-04 | M7 | Lifelink only works for combat damage | STUB |
-| MR-M7-05 | M7 | Controller filter not checked in target resolution | STUB |
-| MR-M7-06 | M7 | ForEach players not APNAP ordered | STUB |
-| MR-M7-07 | M7 | Unsafe i32→u32 cast in effects (first) | STUB |
-| MR-M7-08 | M7 | Unsafe i32→u32 cast in effects (second) | STUB |
-| MR-M7-09 | M7 | `unwrap_or(0)` for PowerOf resolution | STUB |
-| MR-M7-10 | M7 | Second `unwrap_or` in abilities | STUB |
+| MR-M7-06 | M7 | `ForEachTarget::EachPlayer/EachOpponent` returns empty vec — player iteration broken | OPEN |
+| MR-M7-07 | M7 | `EffectAmount::CardCount` always returns 0 — unimplemented stub | OPEN |
+| MR-M7-08 | M7 | Supreme Verdict "can't be countered", Negate "noncreature" restrictions not modeled | OPEN |
+| MR-M7-09 | M7 | AddManaAnyColor/AddManaChoice default to colorless — 4 cards produce wrong mana | OPEN → M9 |
+| MR-M7-10 | M7 | `dest_tapped` takes ZoneId not ZoneTarget — ignores "enters tapped" flag | OPEN |
+| MR-M7-11 | M7 | Brainstorm only draws 3 — does not put 2 cards back on library | OPEN |
+| MR-M7-12 | M7 | Path to Exile's search unconditional — should be "may" | OPEN → M9 |
 
 ### LOW
 
@@ -1040,11 +1109,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M6-08 | M6 | Test gap: no combat game script in replay harness | OPEN |
 | MR-M6-13 | M6 | Test gap: blocker-removed-before-damage (CR 509.1h) untested | OPEN |
 | MR-M6-14 | M6 | `blockers_for()` rebuilds list on every call — O(n) in hot path | OPEN |
-| MR-M7-11 | M7 | Casting helper extraction | STUB |
-| MR-M7-12 | M7 | Redundant check in lands.rs | STUB |
-| MR-M7-13 | M7 | Test gap: SBA cascade after spell resolution | STUB |
-| MR-M7-14 | M7 | Test gap: layer + SBA interaction | STUB |
-| MR-M7-15 | M7 | Test gap: combat game script | STUB |
+| MR-M7-13 | M7 | Equipment definitions (Lightning Greaves, Swiftfoot Boots) have empty ability lists | OPEN → M8+ |
+| MR-M7-14 | M7 | "No maximum hand size" ability not modeled (Thought Vessel, Reliquary Tower) | OPEN → M8+ |
+| MR-M7-15 | M7 | Test gap: no CreateToken or CounterSpell effect unit tests | OPEN |
+| MR-M7-16 | M7 | Test gap: no combat game script in replay harness | OPEN |
+| MR-M7-17 | M7 | Shuffle in effects uses `from_entropy()` — non-deterministic across replays | OPEN |
+| MR-M7-18 | M7 | `try_as_tap_mana_ability` doesn't convert multi-mana abilities (Sol Ring) | OPEN |
 
 ### INFO
 
@@ -1089,20 +1159,16 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 118 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7; MR-M6-11 depends on MR-M6-02) |
+| Total unique issue IDs | 123 (MR-M5-02 cross-refs MR-M4-02; MR-M3-05/06 cross-ref M7; MR-M6-11 depends on MR-M6-02) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 19 |
+| HIGH (OPEN) | 22 |
 | HIGH (DEFERRED) | 2 |
-| HIGH (STUB) | 3 |
-| MEDIUM (OPEN) | 21 |
-| MEDIUM (DEFERRED) | 2 |
-| MEDIUM (STUB) | 7 |
-| LOW (OPEN) | 24 |
-| LOW (DEFERRED) | 3 |
-| LOW (STUB) | 5 |
-| INFO | 32 |
-| Milestones fully reviewed | 7 (M0, M1, M2, M3, M4, M5, M6) |
-| Milestones with stubs | 1 (M7) |
+| MEDIUM (OPEN) | 25 |
+| MEDIUM (DEFERRED) | 4 |
+| LOW (OPEN) | 27 |
+| LOW (DEFERRED) | 5 |
+| INFO | 37 |
+| Milestones fully reviewed | 8 (M0, M1, M2, M3, M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
