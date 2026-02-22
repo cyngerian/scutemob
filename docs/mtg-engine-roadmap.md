@@ -471,6 +471,9 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Mulligan: Commander-specific free mulligan, then London mulligan
 - [ ] Starting life: 40
 
+**Additional deliverable — rewind prerequisites**:
+- [ ] `GameEvent::reveals_hidden_info() -> bool` method: returns `true` for any event that reveals or commits to hidden information (library draws, scry peeks, face-down reveals). Used by the network layer in M10 to identify safe rewind checkpoints. No engine logic changes — purely a classification method on the existing enum.
+
 **Tests** (minimum):
 - [ ] Deck validation: reject 99-card deck, reject off-color-identity cards, reject banned cards
 - [ ] Cast commander: first cast costs printed cost, second costs +2, third costs +4
@@ -534,6 +537,11 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Reconnection protocol: public state sync from majority peers
 - [ ] Trusted host fallback mode: legacy authoritative model for debugging/simplicity
 - [ ] Basic latency tolerance: commands are timestamped and ordered
+- [ ] **State history ring buffer**: retain the last N `GameState` snapshots (im-rs structural sharing makes this O(1) per snapshot); snapshots are keyed by turn number + step + priority sequence number
+- [ ] **Safe checkpoint identification**: use `GameEvent::reveals_hidden_info()` (from M9) to mark state snapshots taken before hidden-information events as safe rewind targets; checkpoints at all-empty-stack priority grants are always safe
+- [ ] **Coordinated rewind protocol**: any player can propose a rewind to a named checkpoint; requires unanimous acceptance from all connected peers before the rewind is applied; dissent cancels the proposal; engine simply restores the retained `GameState` snapshot
+- [ ] **"Pause for rules discussion" command**: any player can send a Pause request; all peers acknowledge and freeze — no further Commands are processed until all peers send Resume; the paused state is the implicit rewind target if players agree to undo actions taken since the pause point
+- [ ] Resumption from pause: all peers send Resume acknowledgment; game continues from the frozen state
 
 **Tests** (minimum):
 - [ ] Coordinator starts game, 4 peers connect, game begins
@@ -545,6 +553,11 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Invalid command rejection: all peers reject illegal command independently
 - [ ] Latency simulation: 200ms delay, game plays correctly
 - [ ] Trusted host fallback: same game works in legacy mode
+- [ ] Pause: any player sends Pause, all peers freeze, no further Commands processed
+- [ ] Resume from pause: all peers acknowledge Resume, game continues from frozen state
+- [ ] Rewind proposal: player proposes rewind to a safe checkpoint; all accept; state is restored and hashes match
+- [ ] Rewind rejected: one peer dissents; proposal is cancelled; game continues from current state
+- [ ] Rewind across hidden-info boundary: checkpoint identified as unsafe; proposal is flagged to players (not blocked — honour system; just surfaced clearly)
 
 **Acceptance Criteria**:
 - 4-player Commander game playable over localhost via programmatic clients
@@ -611,6 +624,10 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Priority indicator: whose turn to act
 - [ ] Basic input: click to cast spell, click to pass priority, click to select targets
 - [ ] Life total display and commander damage tracker per opponent
+- [ ] **Rewind UI**: show a timeline of recent safe checkpoints (turn/step labels); any player can propose a rewind by clicking a checkpoint; all players see a consent prompt; unanimous accept → state rolls back; any decline → proposal dismissed
+- [ ] **"Pause for rules discussion" button**: one click sends the Pause command to all peers; all players see "Game paused — discussing rules" overlay with a Resume button; game is frozen until all players resume
+- [ ] **Manual state adjustment mode** (active only while paused): players can collaboratively edit the current game state — adjust life totals, move permanents between zones, add/remove counters. Changes are applied locally and broadcast as a proposed new state hash. All peers must accept before the adjusted state becomes official and automation resumes.
+- [ ] Clear visual indicator when a proposed rewind would cross a hidden-information boundary (e.g., "Note: a card was drawn after this checkpoint — rewinding requires good faith")
 
 **Tests**: UI tests are manual at this stage. Checklist:
 - [ ] Launch app, connect to local host, see game state
@@ -618,6 +635,9 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [ ] Pass priority
 - [ ] See stack update when opponents cast spells
 - [ ] See battlefield update when permanents enter/leave
+- [ ] Pause button freezes the game for all connected players
+- [ ] Rewind proposal appears on all peers' screens; accepting rolls state back; declining dismisses
+- [ ] Manual life total adjustment while paused is reflected on all peers after unanimous accept
 
 **Acceptance Criteria**:
 - A human player can play a simplified Commander game through the UI (against programmatic opponents or other humans on localhost)
@@ -789,6 +809,8 @@ These are not scheduled but represent the next directions after alpha:
 | Scope creep from Commander complexity | Milestones slip | High | Strict MVP: basic Commander first, variants and edge cases in post-alpha |
 | Game script schema changes break existing scripts | Accumulated scripts need rework | Medium | Version the schema; write migration tooling; prefer additive changes |
 | Engine and scripts disagree on correct behavior | Ambiguous which is wrong | Medium | Always trace back to CR text; when in doubt, check Forge/XMage; human judge review |
+| Manual mode state editor produces an invalid GameState | Engine rejects re-entry; game stuck | Low | Validate the proposed state against known invariants before broadcasting; surface specific errors to players so they can correct |
+| Rewind proposed across hidden-info boundary | Player who drew a card knows its identity after rewind | Low | Accepted risk for trusted-player use case; engine surfaces a clear warning but does not block; honour system |
 
 ---
 
