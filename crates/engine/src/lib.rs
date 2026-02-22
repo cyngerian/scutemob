@@ -2,6 +2,7 @@ pub mod cards;
 pub mod effects;
 pub mod rules;
 pub mod state;
+pub mod testing;
 
 // Convenience re-exports of primary types
 pub use state::{

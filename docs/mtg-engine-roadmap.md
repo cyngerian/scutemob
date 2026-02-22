@@ -6,7 +6,7 @@ This document defines the development roadmap as a sequence of milestones, each 
 
 This roadmap is designed in lockstep with the Architecture & Testing Strategy (`mtg-engine-architecture.md`). Each milestone builds on the architecture defined there, and the testing requirements at each phase are integral to the milestone's completion criteria.
 
-The Game Script Generation & Validation Strategy (`mtg-engine-game-scripts.md`) defines an engine-independent testing methodology that runs parallel to engine development. Script generation tasks are integrated into the milestones below.
+The Game Script Generation & Validation Strategy (`mtg-engine-game-scripts.md`) defines an engine-independent testing methodology. **Hybrid approach**: the `GameScript` schema is defined as Rust types now (M5) so it evolves under the compiler, but actual script generation is deferred to M7 when the replay harness is built. Generating scripts before they can run risks format drift and wasted effort. M7 generates all baseline + subsystem scripts together and runs them immediately through the harness.
 
 ---
 
@@ -71,8 +71,8 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [x] MCP server configuration for Claude Code: CR search + card/rulings lookup
 - [x] CI pipeline: `cargo test`, `cargo clippy`, `cargo fmt` on every commit
 - [x] `im-rs` dependency added; basic proof-of-concept showing structural sharing works for game state
-- [ ] Game script JSON schema defined as Rust types in `engine` crate (see `mtg-engine-game-scripts.md` Hook 1)
-- [ ] `test-data/generated-scripts/` directory structure with subdirectories per subsystem
+- [x] Game script JSON schema defined as Rust types in `engine` crate (see `mtg-engine-game-scripts.md` Hook 1) — done in M5
+- [x] `test-data/generated-scripts/` directory structure with subdirectories per subsystem — done in M5
 
 **Acceptance Criteria**:
 - [x] `cargo build` succeeds for all crates
@@ -80,7 +80,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [x] SQLite DB contains all Standard-legal cards with oracle text and rulings
 - [x] MCP server responds to CR and card queries
 - [x] Tauri app launches and shows a blank window
-- [ ] `GameScript` Rust type compiles and can round-trip serialize/deserialize a sample JSON script
+- [x] `GameScript` Rust type compiles and can round-trip serialize/deserialize a sample JSON script — done in M5
 
 **Dependencies**: None (this is the root)
 
@@ -240,16 +240,12 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [x] Multiple players at 0 life simultaneously: all lose simultaneously
 - [x] SBA triggers go on stack in APNAP order after all SBAs finish (framework in place; M7 adds effects)
 
-**Game Script Tasks**:
-- [ ] Generate 5-10 baseline game scripts covering simple scenarios: vanilla combat, basic spell resolution, simple priority passing. Use Claude Code with MCP tools, following the generation process in `mtg-engine-game-scripts.md`.
-- [ ] Scripts stored in `test-data/generated-scripts/baseline/`
-- [ ] All generated scripts human-reviewed and marked `approved` before use
+**Game Script Tasks**: *(deferred to M7 — see note at top of roadmap)*
 
 **Acceptance Criteria**:
 - All SBAs from CR 704.5 implemented and individually tested
 - Fixed-point loop terminates for all tested states (property test)
 - SBA check integrates correctly with priority system
-- Baseline game scripts generated and reviewed (not yet replayable — replay harness comes in M7)
 
 **Dependencies**: M3 (SBAs reference the stack for trigger placement)
 
@@ -289,18 +285,12 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Circular dependency: falls back to timestamp order
 - [ ] At least 20 additional corner cases from Appendix A of architecture doc
 
-**Game Script Tasks**:
-- [ ] Generate scripts for each layer system corner case in `mtg-engine-corner-cases.md` (cases 1-7, 30). These scripts document the expected behavior with full CR citations, independent of the engine.
-- [ ] Generate 5-10 additional scripts for layer interactions not covered by the corner cases doc (e.g., basic continuous effects from enchantments, +1/+1 counters interacting with setting effects)
-- [ ] Scripts stored in `test-data/generated-scripts/layers/`
-- [ ] Cross-validate each script (second Claude Code pass verifying CR citations)
-- [ ] All scripts human-reviewed
+**Game Script Tasks**: *(deferred to M7 — see note at top of roadmap)*
 
 **Acceptance Criteria**:
 - All 20+ corner case tests pass
 - Layer system produces correct characteristics for every object in any test state
 - Performance benchmark: <1ms for 50 continuous effects
-- Layer system game scripts generated, cross-validated, and reviewed
 
 **Dependencies**: M1 (state model), M3 (effects reference stack for spell-based continuous effects)
 
@@ -341,18 +331,12 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Commander combat damage tracked in matrix
 - [ ] Multiplayer: player A attacks player B and player C simultaneously
 
-**Game Script Tasks**:
-- [ ] Generate scripts for combat corner cases from `mtg-engine-corner-cases.md` (cases 8, 9, 20, 21, 22)
-- [ ] Generate keyword interaction matrix scripts: create a script for every meaningful pair of combat keywords (first strike × deathtouch, trample × protection, flying × reach, menace × single blocker, etc.)
-- [ ] Generate multiplayer combat scripts: player A attacks both player B and player C, each declares blockers independently
-- [ ] Scripts stored in `test-data/generated-scripts/combat/`
-- [ ] All scripts cross-validated and human-reviewed
+**Game Script Tasks**: *(deferred to M7 — see note at top of roadmap)*
 
 **Acceptance Criteria**:
 - Full combat phase executes correctly for multiplayer
 - All combat keyword interactions tested
 - Commander damage tracking accurate
-- Combat game scripts generated, cross-validated, and reviewed
 
 **Dependencies**: M4 (SBAs check lethal damage), M5 (continuous effects modify P/T and abilities)
 
@@ -386,13 +370,15 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Test harness that loads a card definition and verifies its behavior in isolation
 - [ ] **Game script replay harness** (see `mtg-engine-game-scripts.md` Hook 2): loads a `GameScript` JSON, constructs initial state via `GameStateBuilder`, feeds actions as `Command`s to the engine, asserts state at every `assert_state` checkpoint
 - [ ] **Script auto-discovery test** (see `mtg-engine-game-scripts.md` Hook 3): `cargo test` automatically finds and runs all approved scripts in `test-data/generated-scripts/`
-- [ ] Run all previously generated scripts (from M4-M6) through the replay harness; fix mismatches
 
-**Game Script Tasks**:
-- [ ] Generate scripts for the first 50 cards' individual behaviors (cast Sol Ring, tap for mana; cast Swords to Plowshares, exile creature and gain life; etc.)
-- [ ] Generate scripts for keyword ability scenarios using real cards
-- [ ] Scripts stored in `test-data/generated-scripts/` organized by subsystem
-- [ ] All scripts cross-validated and reviewed
+**Game Script Tasks** *(all script generation happens here — schema was defined in M5)*:
+- [ ] Generate 5-10 baseline scripts: vanilla combat, basic spell resolution, simple priority passing (`test-data/generated-scripts/baseline/`)
+- [ ] Generate scripts for layer system corner cases from `mtg-engine-corner-cases.md` (cases 1-7, 30) + 5-10 additional layer interactions (`test-data/generated-scripts/layers/`)
+- [ ] Generate scripts for combat corner cases (cases 8, 9, 20, 21, 22) + keyword interaction matrix (first strike × deathtouch, trample × protection, etc.) + multiplayer combat (`test-data/generated-scripts/combat/`)
+- [ ] Generate scripts for the first 50 cards' individual behaviors (`test-data/generated-scripts/stack/`)
+- [ ] Cross-validate each script (second Claude Code pass verifying CR citations)
+- [ ] All scripts human-reviewed and marked `approved` before running through harness
+- [ ] Run all generated scripts through the replay harness; fix mismatches
 
 **Tests** (minimum):
 - [ ] Each keyword ability in a combat or game scenario
@@ -411,7 +397,7 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - 50 real cards implemented and individually tested
 - All keyword abilities functional
 - Card definition system is extensible (adding a new card doesn't require engine changes)
-- Replay harness runs all approved scripts from M4-M6; all pass
+- Replay harness runs all approved scripts generated in M7; all pass
 - Any script failures investigated and resolved (engine fix or script correction)
 
 **Dependencies**: M3-M6 (the card framework exercises all prior systems)
@@ -445,11 +431,9 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] Commander zone-change replacement: commander would die → choose command zone or graveyard
 
 **Game Script Tasks**:
-- [ ] Generate scripts for replacement effect corner cases from `mtg-engine-corner-cases.md` (cases 16-19, 28, 33)
-- [ ] Generate scripts for prevention effect scenarios (damage prevention shields, protection preventing damage)
-- [ ] Generate scripts for replacement + prevention interaction ordering
-- [ ] Scripts stored in `test-data/generated-scripts/replacement/`
-- [ ] All scripts cross-validated and reviewed
+- [ ] Generate scripts for replacement effect corner cases from `mtg-engine-corner-cases.md` (cases 16-19, 28, 33) and add to `test-data/generated-scripts/replacement/`
+- [ ] Generate scripts for prevention effects and replacement + prevention interaction ordering
+- [ ] Cross-validate and human-review; run through replay harness
 
 **Acceptance Criteria**:
 - Replacement effects integrate cleanly with existing event system
@@ -500,12 +484,9 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 - [ ] 4-player game start: all commander-specific setup correct
 
 **Game Script Tasks**:
-- [ ] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28)
-- [ ] Generate scripts for full Commander game setup: mulligan sequence, first few turns with commander casting and tax
-- [ ] Generate scripts for commander damage tracking across multiple combats and zone changes
-- [ ] Generate scripts for partner commander interactions
-- [ ] Scripts stored in `test-data/generated-scripts/commander/`
-- [ ] All scripts cross-validated and reviewed
+- [ ] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28) and add to `test-data/generated-scripts/commander/`
+- [ ] Generate scripts for full Commander game setup: mulligan sequence, first few turns with commander casting and tax; partner commander interactions
+- [ ] Cross-validate and human-review; run through replay harness
 
 **Acceptance Criteria**:
 - A full 4-player Commander game can be played programmatically (via test commands) from game start through win/loss conditions
@@ -835,4 +816,4 @@ M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6
                                                  M15
 ```
 
-Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. Game script generation runs as a parallel workstream starting at M4, producing scripts that become executable tests when the replay harness arrives in M7. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.
+Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. The `GameScript` schema is defined in M5 so it evolves under the compiler; all script generation happens in M7 and M8-M9 when the replay harness exists to run them immediately. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.

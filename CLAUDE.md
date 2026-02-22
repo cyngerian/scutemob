@@ -341,6 +341,9 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-21 | Distributed verification replaces authoritative host | Eliminates trusted host; all peers run engine independently; coordinator is lightweight; see `docs/mtg-engine-network-security.md` |
 | 2026-02-21 | Three-tier network security (hashing → distributed → Mental Poker) | Tier 1 (state hashing) catches non-determinism early; Tier 2 (all peers verify) prevents tampering; Tier 3 (cryptographic dealing) protects hidden information |
 | 2026-02-21 | Deterministic state hashing from M3 onward | Catching non-determinism during engine development is dramatically cheaper than discovering it during M10 networking |
+| 2026-02-21 | M4 legendary rule auto-keeps newest permanent (highest ObjectId) | Real player choice requires a choice Command that doesn't exist until M7; auto-newest is deterministic, testable, and matches common play |
+| 2026-02-21 | Game script generation deferred to M7; schema defined in M5 | Generating scripts before the replay harness (M7) risks format drift and wasted effort since scripts can't run. Schema defined now so it compiles and evolves. All generation happens in M7 when scripts run immediately against the harness. |
+| 2026-02-21 | SBA check added to all priority-grant sites (enter_step, resolve_top_of_stack, fizzle, counter) | CR 704.3 says SBAs fire "whenever any player would receive priority" — all four sites must be covered |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
 
@@ -396,6 +399,9 @@ Things to watch out for, accumulated over development:
   in Cargo.toml: `im = { version = "15", features = ["serde"] }`.
 
 ### Testing Gotchas
+- **`ObjectSpec::card` + `.with_types([Creature])` creates a creature with `toughness: None`.**
+  SBAs (704.5f/g/h) skip creatures with `None` toughness to avoid false positives.
+  Use `ObjectSpec::creature(owner, name, power, toughness)` for any creature that SBAs should affect.
 - **Don't test implementation details.** Test observable behavior. "After casting Lightning
   Bolt targeting player B, player B's life is 37" — not "the stack has one item of type
   InstantSpell with damage field 3."
