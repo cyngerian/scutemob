@@ -1,5 +1,7 @@
 # MTG Commander Rules Engine: Network Security Enhancements
 
+> **Deferred: relevant at M10+. Do not load in earlier sessions.**
+
 ## Purpose
 
 This document defines a three-tier network security strategy that eliminates the need for

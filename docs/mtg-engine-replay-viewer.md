@@ -1,5 +1,7 @@
 # Game State Stepper: Developer Replay Viewer
 
+> **Deferred: relevant at M9.5. Do not load in earlier sessions.**
+
 ## Purpose
 
 A visual developer tool for stepping through game scripts and watching the MTG engine
