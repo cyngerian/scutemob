@@ -109,7 +109,8 @@ fn execute_effect_inner(
     match effect {
         // ── Damage & Life ──────────────────────────────────────────────────
         Effect::DealDamage { target, amount } => {
-            let dmg = resolve_amount(state, amount, ctx) as u32;
+            // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
+            let dmg = resolve_amount(state, amount, ctx).max(0) as u32;
             if dmg == 0 {
                 return;
             }
@@ -176,7 +177,8 @@ fn execute_effect_inner(
         }
 
         Effect::GainLife { player, amount } => {
-            let gain = resolve_amount(state, amount, ctx) as u32;
+            // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
+            let gain = resolve_amount(state, amount, ctx).max(0) as u32;
             if gain == 0 {
                 return;
             }
@@ -193,7 +195,8 @@ fn execute_effect_inner(
         }
 
         Effect::LoseLife { player, amount } => {
-            let loss = resolve_amount(state, amount, ctx) as u32;
+            // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
+            let loss = resolve_amount(state, amount, ctx).max(0) as u32;
             if loss == 0 {
                 return;
             }
@@ -211,7 +214,8 @@ fn execute_effect_inner(
 
         // ── Cards ──────────────────────────────────────────────────────────
         Effect::DrawCards { player, count } => {
-            let n = resolve_amount(state, count, ctx) as usize;
+            // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
                 for _ in 0..n {
@@ -498,19 +502,49 @@ fn execute_effect_inner(
 
         // ── Zone ──────────────────────────────────────────────────────────
         Effect::MoveZone { target, to } => {
+            // MR-M7-04: resolve zone using owner PlayerTarget (not always controller).
+            // MR-M7-01: emit destination-correct event instead of always ObjectExiled.
             let targets = resolve_effect_target_list_indexed(state, target, ctx);
             for (idx_opt, resolved) in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    let dest = resolve_zone_target(to, ctx.controller);
+                    let dest = resolve_zone_target(to, state, ctx);
                     if let Ok((new_id, _)) = state.move_object_to_zone(id, dest) {
                         if let Some(idx) = idx_opt {
                             ctx.target_remaps.insert(idx, new_id);
                         }
-                        events.push(GameEvent::ObjectExiled {
-                            player: ctx.controller,
-                            object_id: id,
-                            new_exile_id: new_id,
-                        });
+                        let event = match dest {
+                            ZoneId::Exile => GameEvent::ObjectExiled {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_exile_id: new_id,
+                            },
+                            ZoneId::Battlefield => GameEvent::PermanentEnteredBattlefield {
+                                player: ctx.controller,
+                                object_id: new_id,
+                            },
+                            ZoneId::Graveyard(_) => GameEvent::ObjectPutInGraveyard {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_grave_id: new_id,
+                            },
+                            ZoneId::Hand(_) => GameEvent::ObjectReturnedToHand {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_hand_id: new_id,
+                            },
+                            ZoneId::Library(_) => GameEvent::ObjectPutOnLibrary {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_lib_id: new_id,
+                            },
+                            // Command zone and stack: rare edge case, emit generic exile-like event.
+                            ZoneId::Command(_) | ZoneId::Stack => GameEvent::ObjectExiled {
+                                player: ctx.controller,
+                                object_id: id,
+                                new_exile_id: new_id,
+                            },
+                        };
+                        events.push(event);
                     }
                 }
             }
@@ -538,8 +572,11 @@ fn execute_effect_inner(
                     .collect();
 
                 if let Some(&card_id) = candidates.iter().min_by_key(|&&id| id.0) {
-                    let dest = resolve_zone_target(destination, ctx.controller);
-                    if let Some(tap) = dest_tapped(&dest) {
+                    // MR-M7-10: check tapped flag before resolving to ZoneId.
+                    // MR-M7-04: resolve owner from PlayerTarget, not blindly controller.
+                    let tapped_opt = dest_tapped(destination);
+                    let dest = resolve_zone_target(destination, state, ctx);
+                    if let Some(tap) = tapped_opt {
                         if let Ok((new_id, _)) = state.move_object_to_zone(card_id, dest) {
                             // If the destination is battlefield tapped, apply tapped status.
                             if tap {
@@ -561,10 +598,14 @@ fn execute_effect_inner(
         }
 
         Effect::Shuffle { player } => {
+            // MR-M7-17: use timestamp_counter as seed instead of from_entropy() so
+            // shuffles are deterministic given the same game state sequence.
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
+                let seed = state.timestamp_counter;
+                state.timestamp_counter += 1;
                 if let Some(zone) = state.zones.get_mut(&ZoneId::Library(p)) {
-                    let mut rng = rand::rngs::StdRng::from_entropy();
+                    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
                     zone.shuffle(&mut rng);
                 }
                 events.push(GameEvent::LibraryShuffled { player: p });
@@ -610,19 +651,45 @@ fn execute_effect_inner(
         }
 
         Effect::ForEach { over, effect } => {
-            let collection = collect_for_each(state, over, ctx);
-            for id in collection {
-                // Build a synthetic single-object context for the inner effect.
-                let mut inner_ctx = EffectContext {
-                    controller: ctx.controller,
-                    source: ctx.source,
-                    targets: vec![SpellTarget {
-                        target: Target::Object(id),
-                        zone_at_cast: Some(ZoneId::Battlefield),
-                    }],
-                    target_remaps: HashMap::new(),
-                };
-                execute_effect_inner(state, effect, &mut inner_ctx, events);
+            // MR-M7-06: handle player-based ForEach targets separately — collect_for_each
+            // returns Vec<ObjectId> and cannot represent players.
+            match over {
+                ForEachTarget::EachPlayer | ForEachTarget::EachOpponent => {
+                    let player_target = match over {
+                        ForEachTarget::EachPlayer => PlayerTarget::EachPlayer,
+                        ForEachTarget::EachOpponent => PlayerTarget::EachOpponent,
+                        _ => unreachable!(),
+                    };
+                    let players = resolve_player_target_list(state, &player_target, ctx);
+                    for p in players {
+                        let mut inner_ctx = EffectContext {
+                            controller: ctx.controller,
+                            source: ctx.source,
+                            targets: vec![SpellTarget {
+                                target: Target::Player(p),
+                                zone_at_cast: None,
+                            }],
+                            target_remaps: HashMap::new(),
+                        };
+                        execute_effect_inner(state, effect, &mut inner_ctx, events);
+                    }
+                }
+                _ => {
+                    let collection = collect_for_each(state, over, ctx);
+                    for id in collection {
+                        // Build a synthetic single-object context for the inner effect.
+                        let mut inner_ctx = EffectContext {
+                            controller: ctx.controller,
+                            source: ctx.source,
+                            targets: vec![SpellTarget {
+                                target: Target::Object(id),
+                                zone_at_cast: Some(ZoneId::Battlefield),
+                            }],
+                            target_remaps: HashMap::new(),
+                        };
+                        execute_effect_inner(state, effect, &mut inner_ctx, events);
+                    }
+                }
             }
         }
 
@@ -897,39 +964,52 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .next()
                 .unwrap_or(0)
         }
-        EffectAmount::CardCount {
-            zone: _,
-            player: _,
-            filter: _,
-        } => {
-            // M7+: implement card counting if needed. Defaults to 0.
-            0
+        EffectAmount::CardCount { zone, player: _, filter } => {
+            // MR-M7-07: count objects in the specified zone matching the filter.
+            // Resolve the zone target using the current controller context.
+            let zone_id = resolve_zone_target(zone, state, ctx);
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == zone_id
+                        && filter
+                            .as_ref()
+                            .map(|f| matches_filter(&obj.characteristics, f))
+                            .unwrap_or(true)
+                })
+                .count() as i32
         }
     }
 }
 
 // ── Zone resolution helpers ───────────────────────────────────────────────────
 
-/// Convert a `ZoneTarget` to a concrete `ZoneId` for the given controller.
-fn resolve_zone_target(zone: &ZoneTarget, controller: PlayerId) -> ZoneId {
+/// Convert a `ZoneTarget` to a concrete `ZoneId`, resolving the owner `PlayerTarget`
+/// via the execution context (MR-M7-04: previously always used controller).
+fn resolve_zone_target(zone: &ZoneTarget, state: &GameState, ctx: &EffectContext) -> ZoneId {
+    // Resolve the owner PlayerTarget to a concrete PlayerId, falling back to controller.
+    let resolve_owner = |owner: &PlayerTarget| -> PlayerId {
+        resolve_player_target_list(state, owner, ctx)
+            .into_iter()
+            .next()
+            .unwrap_or(ctx.controller)
+    };
     match zone {
         ZoneTarget::Battlefield { .. } => ZoneId::Battlefield,
-        ZoneTarget::Graveyard { owner } => {
-            // For simplicity, use controller for "owner" in PlayerTarget::Controller.
-            let _ = owner;
-            ZoneId::Graveyard(controller)
-        }
-        ZoneTarget::Hand { .. } => ZoneId::Hand(controller),
-        ZoneTarget::Library { owner: _, .. } => ZoneId::Library(controller),
+        ZoneTarget::Graveyard { owner } => ZoneId::Graveyard(resolve_owner(owner)),
+        ZoneTarget::Hand { owner } => ZoneId::Hand(resolve_owner(owner)),
+        ZoneTarget::Library { owner, .. } => ZoneId::Library(resolve_owner(owner)),
         ZoneTarget::Exile => ZoneId::Exile,
-        ZoneTarget::CommandZone => ZoneId::Command(controller),
+        ZoneTarget::CommandZone => ZoneId::Command(ctx.controller),
     }
 }
 
-/// Returns `Some(tapped)` if the zone target is Battlefield, else None.
-fn dest_tapped(zone_id: &ZoneId) -> Option<bool> {
-    if *zone_id == ZoneId::Battlefield {
-        Some(false) // Will be overridden by `tapped` from ZoneTarget::Battlefield
+/// Returns `Some(tapped)` if the zone target is Battlefield (with the tapped flag),
+/// else `None` for all other destinations (MR-M7-10: previously ignored the tapped field).
+fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
+    if let ZoneTarget::Battlefield { tapped } = zone {
+        Some(*tapped)
     } else {
         None
     }

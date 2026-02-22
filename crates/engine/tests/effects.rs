@@ -544,6 +544,291 @@ fn test_effect_conditional_true() {
     );
 }
 
+// ── Session 3 fix tests ───────────────────────────────────────────────────────
+
+#[test]
+/// MR-M7-01 (CR 400): MoveZone to graveyard emits ObjectPutInGraveyard, not ObjectExiled.
+fn test_move_zone_to_graveyard_emits_correct_event() {
+    use mtg_engine::cards::card_definition::ZoneTarget;
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::targeting::SpellTarget;
+    use mtg_engine::state::targeting::Target;
+
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .object(
+            ObjectSpec::creature(p1, "Goblin", 1, 1)
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build();
+
+    let goblin_id = find_object(&state, "Goblin");
+    let source = ObjectId(0);
+
+    let effect = Effect::MoveZone {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        to: ZoneTarget::Graveyard {
+            owner: PlayerTarget::Controller,
+        },
+    };
+
+    let mut ctx = EffectContext::new(
+        p1,
+        source,
+        vec![SpellTarget {
+            target: Target::Object(goblin_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    let has_put_in_graveyard = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::ObjectPutInGraveyard {
+                object_id,
+                ..
+            } if *object_id == goblin_id
+        )
+    });
+    assert!(
+        has_put_in_graveyard,
+        "MoveZone to Graveyard should emit ObjectPutInGraveyard, not ObjectExiled"
+    );
+    let has_exiled = events.iter().any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
+    assert!(
+        !has_exiled,
+        "MoveZone to Graveyard must NOT emit ObjectExiled"
+    );
+}
+
+#[test]
+/// MR-M7-01 (CR 400): MoveZone to hand emits ObjectReturnedToHand, not ObjectExiled.
+fn test_move_zone_to_hand_emits_correct_event() {
+    use mtg_engine::cards::card_definition::ZoneTarget;
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::targeting::SpellTarget;
+    use mtg_engine::state::targeting::Target;
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p2, "Dragon", 5, 5)
+                .in_zone(ZoneId::Battlefield),
+        )
+        .build();
+
+    let dragon_id = find_object(&state, "Dragon");
+    let source = ObjectId(0);
+
+    // "Return target creature to its controller's hand."
+    let effect = Effect::MoveZone {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        to: ZoneTarget::Hand {
+            owner: PlayerTarget::Controller,
+        },
+    };
+
+    let mut ctx = EffectContext::new(
+        p1,
+        source,
+        vec![SpellTarget {
+            target: Target::Object(dragon_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    let has_returned = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ObjectReturnedToHand { object_id, .. } if *object_id == dragon_id));
+    assert!(
+        has_returned,
+        "MoveZone to Hand should emit ObjectReturnedToHand"
+    );
+    let has_exiled = events.iter().any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
+    assert!(!has_exiled, "MoveZone to Hand must NOT emit ObjectExiled");
+}
+
+#[test]
+/// MR-M7-04 (CR 400): resolve_zone_target uses owner PlayerTarget, not always controller.
+/// Verify that Hand { owner: EachOpponent } puts the card in the opponent's hand.
+fn test_move_zone_uses_owner_player_target() {
+    use mtg_engine::cards::card_definition::ZoneTarget;
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::state::targeting::SpellTarget;
+    use mtg_engine::state::targeting::Target;
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Token").in_zone(ZoneId::Battlefield),
+        )
+        .build();
+
+    let token_id = find_object(&state, "Token");
+    let source = ObjectId(0);
+
+    // Move to opponent's hand (owner: EachOpponent — first opponent is p2).
+    let effect = Effect::MoveZone {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        to: ZoneTarget::Hand {
+            owner: PlayerTarget::EachOpponent,
+        },
+    };
+
+    let mut ctx = EffectContext::new(
+        p1, // controller is p1
+        source,
+        vec![SpellTarget {
+            target: Target::Object(token_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+    execute_effect(&mut state, &effect, &mut ctx);
+
+    // The object should now be in p2's hand, not p1's hand.
+    let in_p2_hand = state
+        .objects
+        .values()
+        .any(|obj| obj.zone == ZoneId::Hand(p2));
+    assert!(in_p2_hand, "Card should be in opponent (p2)'s hand");
+
+    let in_p1_hand = state
+        .objects
+        .values()
+        .any(|obj| obj.zone == ZoneId::Hand(p1));
+    assert!(!in_p1_hand, "Card must NOT be in controller (p1)'s hand");
+}
+
+#[test]
+/// MR-M7-05: Negative EffectAmount::Fixed doesn't wrap to huge u32 — damage is 0.
+fn test_deal_damage_negative_amount_clamped_to_zero() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .build();
+
+    let initial_life = state.players[&p2].life_total;
+    let source = ObjectId(0);
+
+    // Deal -3 damage (should clamp to 0, no life loss or wrapping).
+    let effect = Effect::DealDamage {
+        target: CardEffectTarget::Controller, // p1 controls source → player target
+        amount: EffectAmount::Fixed(-3),
+    };
+
+    // Use p2 as controller so DealDamage { target: Controller } targets p2.
+    let mut ctx2 = EffectContext::new(p2, source, vec![]);
+    execute_effect(&mut state, &effect, &mut ctx2);
+
+    assert_eq!(
+        state.players[&p2].life_total,
+        initial_life,
+        "Negative damage amount must be clamped to 0, causing no life loss"
+    );
+}
+
+#[test]
+/// MR-M7-06 (CR 608.2): ForEach EachOpponent applies the effect to each opponent.
+fn test_foreach_each_opponent_applies_to_all_opponents() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .build();
+
+    let p2_initial = state.players[&p2].life_total;
+    let p3_initial = state.players[&p3].life_total;
+    let p1_initial = state.players[&p1].life_total;
+    let source = ObjectId(0);
+
+    // "Each opponent loses 2 life." — inner effect targets DeclaredTarget(0) as player.
+    use mtg_engine::cards::card_definition::ForEachTarget;
+    let effect = Effect::ForEach {
+        over: ForEachTarget::EachOpponent,
+        effect: Box::new(Effect::LoseLife {
+            player: PlayerTarget::DeclaredTarget { index: 0 },
+            amount: EffectAmount::Fixed(2),
+        }),
+    };
+
+    let mut ctx = EffectContext::new(p1, source, vec![]);
+    execute_effect(&mut state, &effect, &mut ctx);
+
+    assert_eq!(
+        state.players[&p2].life_total,
+        p2_initial - 2,
+        "Opponent p2 should lose 2 life"
+    );
+    assert_eq!(
+        state.players[&p3].life_total,
+        p3_initial - 2,
+        "Opponent p3 should lose 2 life"
+    );
+    assert_eq!(
+        state.players[&p1].life_total,
+        p1_initial,
+        "Controller p1 should NOT lose life"
+    );
+}
+
+#[test]
+/// MR-M7-10 (CR 400): SearchLibrary with Battlefield { tapped: true } causes
+/// the permanent to enter the battlefield tapped.
+fn test_search_library_enters_battlefield_tapped() {
+    use mtg_engine::cards::card_definition::{TargetFilter, ZoneTarget};
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = p(1);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .object(
+            ObjectSpec::creature(p1, "Forest Bear", 2, 2)
+                .in_zone(ZoneId::Library(p1)),
+        )
+        .build();
+
+    let source = ObjectId(0);
+
+    // SearchLibrary → put onto battlefield tapped.
+    let effect = Effect::SearchLibrary {
+        player: PlayerTarget::Controller,
+        filter: TargetFilter::default(),
+        reveal: false,
+        destination: ZoneTarget::Battlefield { tapped: true },
+    };
+
+    let mut ctx = EffectContext::new(p1, source, vec![]);
+    execute_effect(&mut state, &effect, &mut ctx);
+
+    let bear = state
+        .objects
+        .values()
+        .find(|obj| obj.characteristics.name == "Forest Bear" && obj.zone == ZoneId::Battlefield)
+        .expect("Forest Bear should be on the battlefield");
+    assert!(
+        bear.status.tapped,
+        "Permanent should enter the battlefield tapped when ZoneTarget::Battlefield {{ tapped: true }}"
+    );
+}
+
 #[test]
 /// Effect::Conditional executes if_false when condition is false.
 fn test_effect_conditional_false() {

@@ -395,4 +395,41 @@ pub enum GameEvent {
         counter: crate::state::types::CounterType,
         count: u32,
     },
+
+    // ── MR-M7-01: Correct zone-move events ─────────────────────────────────
+    /// An object was returned to a player's hand by a spell or ability (CR 400).
+    ///
+    /// Distinct from `CardDrawn` (library→hand) and `DiscardedToHandSize` (reverse).
+    ObjectReturnedToHand {
+        /// Controlling player of the effect.
+        player: PlayerId,
+        /// ObjectId before zone change (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in hand (CR 400.7).
+        new_hand_id: ObjectId,
+    },
+
+    /// An object was put into a graveyard by a spell or ability, not via
+    /// destruction or death (CR 400).
+    ///
+    /// Creature/permanent death emits `CreatureDied`/`PermanentDestroyed`.
+    /// This event covers direct zone moves (e.g., Entomb, Buried Alive).
+    ObjectPutInGraveyard {
+        /// Controlling player of the effect.
+        player: PlayerId,
+        /// ObjectId before zone change (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in the graveyard (CR 400.7).
+        new_grave_id: ObjectId,
+    },
+
+    /// An object was put onto a player's library by a spell or ability (CR 400).
+    ObjectPutOnLibrary {
+        /// Whose library the object was placed in.
+        player: PlayerId,
+        /// ObjectId before zone change (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in the library (CR 400.7).
+        new_lib_id: ObjectId,
+    },
 }

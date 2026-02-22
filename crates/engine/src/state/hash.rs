@@ -1084,6 +1084,37 @@ impl HashInto for GameEvent {
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // MR-M7-01: new zone-move event variants (discriminants 50-52)
+            GameEvent::ObjectReturnedToHand {
+                player,
+                object_id,
+                new_hand_id,
+            } => {
+                50u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_hand_id.hash_into(hasher);
+            }
+            GameEvent::ObjectPutInGraveyard {
+                player,
+                object_id,
+                new_grave_id,
+            } => {
+                51u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_grave_id.hash_into(hasher);
+            }
+            GameEvent::ObjectPutOnLibrary {
+                player,
+                object_id,
+                new_lib_id,
+            } => {
+                52u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_lib_id.hash_into(hasher);
+            }
         }
     }
 }
