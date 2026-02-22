@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_002",
+    "name": "Play a basic land from hand",
+    "description": "Active player plays a Forest from hand during precombat main phase. Forest enters the battlefield untapped; it is no longer in hand.",
+    "cr_sections_tested": ["305.1", "116.2a"],
+    "corner_case_ref": null,
+    "tags": ["baseline", "land", "zone-change"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Tests PlayLand command: card moves from Hand to Battlefield; land_plays_remaining decrements. Forest enters untapped by default.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 plays their one land for the turn",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Before playing land: Forest is in p1's hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Forest"] }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "play_land",
+          "card": "Forest",
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "305.1",
+          "note": "CR 305.1: Playing a land is a special action, not a spell. Doesn't use the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After playing land: Forest is on battlefield, hand is empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
+            "permanent.Forest.tapped": false
+          },
+          "note": "Forest entered battlefield untapped (no special ETB tapped effect)"
+        }
+      ]
+    }
+  ]
+}

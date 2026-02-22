@@ -14,6 +14,7 @@
 
 use im::OrdSet;
 
+use crate::effects::{execute_effect, EffectContext};
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
@@ -80,9 +81,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             }
 
             // Determine destination zone based on card type (CR 608.2n vs 608.3).
-            let (card_types, owner) = {
+            let (card_types, owner, card_id) = {
                 let card = state.object(source_object)?;
-                (card.characteristics.card_types.clone(), card.owner)
+                (
+                    card.characteristics.card_types.clone(),
+                    card.owner,
+                    card.card_id.clone(),
+                )
             };
 
             let is_permanent = card_types.iter().any(|t| {
@@ -95,6 +100,37 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         | CardType::Battle
                 )
             });
+
+            // CR 608.2: Execute the card's effect before it moves to its final zone.
+            // Look up the CardDefinition from the registry (if available) and run its Spell effect.
+            {
+                let registry = state.card_registry.clone();
+                if let Some(cid) = card_id {
+                    if let Some(def) = registry.get(cid) {
+                        // Find the Spell ability variant.
+                        let spell_effect = def.abilities.iter().find_map(|a| {
+                            if let crate::cards::card_definition::AbilityDefinition::Spell {
+                                effect,
+                                ..
+                            } = a
+                            {
+                                Some(effect.clone())
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(effect) = spell_effect {
+                            let mut ctx = EffectContext::new(
+                                controller,
+                                source_object,
+                                stack_obj.targets.clone(),
+                            );
+                            let effect_events = execute_effect(state, &effect, &mut ctx);
+                            events.extend(effect_events);
+                        }
+                    }
+                }
+            }
 
             if is_permanent {
                 // CR 608.3a: Permanent spell — card enters the battlefield under
@@ -129,9 +165,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             }
         }
-        StackObjectKind::ActivatedAbility { .. } => {
-            // CR 608.3b: Activated ability resolves — execute its effect (M7+).
-            // For M3-E, emit AbilityResolved to signal it left the stack.
+        StackObjectKind::ActivatedAbility {
+            source_object,
+            ability_index,
+        } => {
+            // CR 608.3b: Activated ability resolves — execute its effect.
+            // Look up the ability from the Characteristics (inline abilities) or registry.
+            let ability_effect = state
+                .objects
+                .get(&source_object)
+                .and_then(|obj| obj.characteristics.activated_abilities.get(ability_index))
+                .and_then(|ab| ab.effect.clone());
+
+            if let Some(effect) = ability_effect {
+                let mut ctx = EffectContext::new(
+                    stack_obj.controller,
+                    source_object,
+                    stack_obj.targets.clone(),
+                );
+                let effect_events = execute_effect(state, &effect, &mut ctx);
+                events.extend(effect_events);
+            }
+
             events.push(GameEvent::AbilityResolved {
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,
@@ -169,9 +224,25 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             };
 
-            // CR 608.3b: Triggered ability resolves — execute effect if condition holds.
-            // For M3-E, emit AbilityResolved regardless (no effects to conditionally skip).
-            let _ = condition_holds; // M7+: only execute effects if condition_holds
+            // CR 608.3b: Execute effect if condition holds.
+            if condition_holds {
+                let triggered_effect = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|obj| obj.characteristics.triggered_abilities.get(ability_index))
+                    .and_then(|ab| ab.effect.clone());
+
+                if let Some(effect) = triggered_effect {
+                    let mut ctx = EffectContext::new(
+                        stack_obj.controller,
+                        source_object,
+                        stack_obj.targets.clone(),
+                    );
+                    let effect_events = execute_effect(state, &effect, &mut ctx);
+                    events.extend(effect_events);
+                }
+            }
+
             events.push(GameEvent::AbilityResolved {
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,

@@ -9,6 +9,7 @@
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
+use crate::state::types::{CardType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -68,6 +69,20 @@ pub fn handle_tap_for_mana(
     if ability.requires_tap {
         if obj.status.tapped {
             return Err(GameStateError::PermanentAlreadyTapped(source));
+        }
+        // CR 302.6 / CR 702.10: Summoning sickness prevents using {T} mana abilities
+        // on creatures unless they have haste.
+        if obj.characteristics.card_types.contains(&CardType::Creature)
+            && obj.has_summoning_sickness
+            && !obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Haste)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "object {:?} has summoning sickness and cannot tap for mana (no haste)",
+                source
+            )));
         }
         let obj_mut = state.object_mut(source)?;
         obj_mut.status.tapped = true;

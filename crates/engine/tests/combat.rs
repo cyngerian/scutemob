@@ -749,6 +749,7 @@ fn test_603_self_attacks_trigger_fires() {
         trigger_on: TriggerEvent::SelfAttacks,
         intervening_if: None,
         description: "When this attacks, do something".to_string(),
+        effect: None,
     };
 
     let state = GameStateBuilder::new()

@@ -98,7 +98,7 @@ pub fn handle_cast_spell(
     }
 
     // CR 601.2c: Validate and record targets at cast time.
-    let spell_targets = validate_targets(state, &targets)?;
+    let spell_targets = validate_targets(state, &targets, player)?;
 
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mana_cost = card_obj.characteristics.mana_cost.clone();
@@ -162,6 +162,7 @@ pub fn handle_cast_spell(
 fn validate_targets(
     state: &GameState,
     targets: &[Target],
+    caster: PlayerId,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
     let mut spell_targets = Vec::with_capacity(targets.len());
 
@@ -188,6 +189,32 @@ fn validate_targets(
                     .objects
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
+
+                // CR 702.11a: Hexproof — can't be targeted by spells or abilities
+                // controlled by opponents.
+                // CR 702.18a: Shroud — can't be targeted by any spell or ability.
+                let has_hexproof = obj
+                    .characteristics
+                    .keywords
+                    .contains(&KeywordAbility::Hexproof);
+                let has_shroud = obj
+                    .characteristics
+                    .keywords
+                    .contains(&KeywordAbility::Shroud);
+
+                if has_shroud {
+                    return Err(GameStateError::InvalidTarget(format!(
+                        "object {:?} has shroud and cannot be targeted",
+                        id
+                    )));
+                }
+                if has_hexproof && obj.controller != caster {
+                    return Err(GameStateError::InvalidTarget(format!(
+                        "object {:?} has hexproof and cannot be targeted by opponents",
+                        id
+                    )));
+                }
+
                 SpellTarget {
                     target: Target::Object(*id),
                     zone_at_cast: Some(obj.zone),

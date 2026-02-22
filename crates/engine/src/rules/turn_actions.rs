@@ -30,24 +30,31 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
 /// [...] Then the active player untaps all tapped permanents they control."
 ///
 /// For M2 we skip phasing and just untap.
+///
+/// Also clears summoning sickness (CR 302.6) for all permanents the active player
+/// controls — they have now been under that player's control since the beginning
+/// of their most recent turn.
 pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let mut untapped = Vec::new();
 
-    // Collect object IDs to untap (controlled by active player, on battlefield, tapped)
-    let ids_to_untap: Vec<ObjectId> = state
+    // Collect object IDs on the battlefield controlled by the active player.
+    let ids_on_battlefield: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| {
-            obj.controller == active && obj.zone == ZoneId::Battlefield && obj.status.tapped
-        })
+        .filter(|(_, obj)| obj.controller == active && obj.zone == ZoneId::Battlefield)
         .map(|(id, _)| *id)
         .collect();
 
-    for id in &ids_to_untap {
+    for id in &ids_on_battlefield {
         if let Some(obj) = state.objects.get_mut(id) {
-            obj.status.tapped = false;
-            untapped.push(*id);
+            // CR 302.6: Clear summoning sickness for permanents the player now controls.
+            obj.has_summoning_sickness = false;
+            // CR 502.2: Untap tapped permanents.
+            if obj.status.tapped {
+                obj.status.tapped = false;
+                untapped.push(*id);
+            }
         }
     }
 

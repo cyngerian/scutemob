@@ -100,6 +100,24 @@ pub fn handle_activate_ability(
         if obj.status.tapped {
             return Err(GameStateError::PermanentAlreadyTapped(source));
         }
+        // CR 302.6 / CR 702.10: Summoning sickness prevents using {T} abilities
+        // on creatures unless they have haste.
+        let is_creature = obj
+            .characteristics
+            .card_types
+            .contains(&crate::state::types::CardType::Creature);
+        if is_creature && obj.has_summoning_sickness {
+            let has_haste = obj
+                .characteristics
+                .keywords
+                .contains(&crate::state::types::KeywordAbility::Haste);
+            if !has_haste {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "object {:?} has summoning sickness and cannot use abilities with {{T}}",
+                    source
+                )));
+            }
+        }
         if let Some(obj) = state.objects.get_mut(&source) {
             obj.status.tapped = true;
         }
@@ -124,7 +142,35 @@ pub fn handle_activate_ability(
         }
     }
 
-    // Snapshot targets (CR 602.2c — targets validated at resolution per M7+).
+    // CR 602.2c: Validate targets for hexproof and shroud.
+    for t in &targets {
+        if let Target::Object(id) = t {
+            if let Some(obj) = state.objects.get(id) {
+                let has_shroud = obj
+                    .characteristics
+                    .keywords
+                    .contains(&crate::state::types::KeywordAbility::Shroud);
+                let has_hexproof = obj
+                    .characteristics
+                    .keywords
+                    .contains(&crate::state::types::KeywordAbility::Hexproof);
+                if has_shroud {
+                    return Err(GameStateError::InvalidTarget(format!(
+                        "object {:?} has shroud and cannot be targeted",
+                        id
+                    )));
+                }
+                if has_hexproof && obj.controller != player {
+                    return Err(GameStateError::InvalidTarget(format!(
+                        "object {:?} has hexproof and cannot be targeted by opponents",
+                        id
+                    )));
+                }
+            }
+        }
+    }
+
+    // Snapshot targets (zone recorded at activation time for fizzle check at resolution).
     let spell_targets: Vec<SpellTarget> = targets
         .iter()
         .map(|t| match t {

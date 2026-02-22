@@ -77,15 +77,16 @@ pub struct ActivationCost {
 ///
 /// Written as "Cost: Effect." Distinct from `ManaAbility` (CR 605) which
 /// resolves immediately without the stack.
-///
-/// For M3-E, the effect is tracked via description only. Full effect
-/// execution is implemented in M7 when card definitions are added.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ActivatedAbility {
     /// The cost to activate this ability.
     pub cost: ActivationCost,
     /// Human-readable description of the effect (CR-compatible text).
     pub description: String,
+    /// The structured effect executed on resolution (M7+). None for abilities
+    /// that have no automated effect (e.g., abilities that rely on player choice in M9+).
+    #[serde(default)]
+    pub effect: Option<crate::cards::card_definition::Effect>,
 }
 
 /// Trigger event patterns for triggered abilities (CR 603).
@@ -133,6 +134,10 @@ pub struct TriggeredAbilityDef {
     pub intervening_if: Option<InterveningIf>,
     /// Human-readable description of the effect (CR-compatible text).
     pub description: String,
+    /// The structured effect executed on resolution (M7+). None for abilities
+    /// that have no automated effect yet.
+    #[serde(default)]
+    pub effect: Option<crate::cards::card_definition::Effect>,
 }
 
 /// The observable characteristics of a game object (CR 109.3).
@@ -206,4 +211,11 @@ pub struct GameObject {
     pub is_token: bool,
     /// Timestamp for continuous effect ordering (CR 613.7).
     pub timestamp: u64,
+    /// True if this permanent has summoning sickness (CR 302.6).
+    ///
+    /// Set to `true` whenever a permanent enters the battlefield. Cleared at the
+    /// beginning of each player's untap step for all permanents they control.
+    /// A creature with summoning sickness cannot attack or have its activated
+    /// abilities with {T} in the cost used, unless it has Haste (CR 702.10).
+    pub has_summoning_sickness: bool,
 }

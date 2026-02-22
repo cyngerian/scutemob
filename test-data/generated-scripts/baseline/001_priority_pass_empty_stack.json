@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_001",
+    "name": "Priority pass with empty stack",
+    "description": "All players pass priority in sequence during precombat main phase with an empty stack. Stack must remain empty throughout.",
+    "cr_sections_tested": ["116.3", "116.3a", "116.3b", "500.2"],
+    "corner_case_ref": null,
+    "tags": ["baseline", "priority"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Simple baseline script — confirms the priority-pass → step-advance flow. No spell casting.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Main phase 1 — both players pass with empty stack",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: stack is empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3a: p1 (active) passes, then p2 passes. Empty stack → step advances to BeginningOfCombat."
+        },
+        {
+          "type": "assert_state",
+          "description": "After all-pass: stack still empty, life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Step has advanced but we can only observe zone/life state"
+        }
+      ]
+    }
+  ]
+}

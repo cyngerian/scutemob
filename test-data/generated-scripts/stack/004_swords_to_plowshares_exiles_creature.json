@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_004",
+    "name": "Swords to Plowshares exiles a creature",
+    "description": "p2 has a Llanowar Elves on the battlefield. p1 casts Swords to Plowshares targeting it. After resolution, the Elves are exiled and p2 gains 1 life (its power).",
+    "cr_sections_tested": ["601.2", "608.2", "608.2c", "701.18"],
+    "corner_case_ref": null,
+    "tags": ["stack", "instant", "exile", "swords-to-plowshares", "life-gain"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Tests targeted removal: Llanowar Elves (1/1) is exiled; its controller gains 1 life (equal to its power). Tests ExileObject effect + GainLife effect in sequence. p2 starts at 40 and ends at 41.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "tapped": false, "summoning_sick": true, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Swords to Plowshares", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 has priority and casts Swords to Plowshares targeting p2's Llanowar Elves",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield, p2 at 40 life",
+          "assertions": {
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Swords to Plowshares",
+          "targets": [
+            { "type": "creature", "card": "Llanowar Elves", "player": null, "controller": null }
+          ],
+          "mana_paid": { "white": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Swords to Plowshares ({W}) targeting p2's Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: STP on stack, Elves still on battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "The target still exists; the spell is on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass priority — Swords to Plowshares resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Swords to Plowshares",
+          "resolution": [
+            {
+              "effect": "exile_object",
+              "target": { "type": "creature", "card": "Llanowar Elves" },
+              "amount": null,
+              "card": "Llanowar Elves",
+              "owner": "p2",
+              "cr_ref": "701.18",
+              "note": "Llanowar Elves is exiled (not destroyed, so regeneration/indestructible don't apply)."
+            },
+            {
+              "effect": "gain_life",
+              "target": null,
+              "player": "p2",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2c",
+              "note": "p2 gains life equal to Llanowar Elves's power (1)."
+            }
+          ],
+          "note": "STP resolves: exile creature, its controller gains life equal to its power."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Elves exiled, p2 at 41 life, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "excludes": ["Llanowar Elves"] },
+            "players.p2.life": 41,
+            "players.p1.life": 40
+          },
+          "note": "Llanowar Elves is gone; p2 gained 1 life. STP goes to p1's graveyard."
+        }
+      ]
+    }
+  ]
+}

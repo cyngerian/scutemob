@@ -123,6 +123,7 @@ fn test_clone_independence_object_modification() {
                 deathtouch_damage: false,
                 is_token: false,
                 timestamp: 0,
+                has_summoning_sickness: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

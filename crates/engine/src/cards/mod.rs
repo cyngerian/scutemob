@@ -1,1 +1,21 @@
 //! Card definition types and keyword ability implementations.
+//!
+//! A `CardDefinition` encodes what a card does in a structured form the engine
+//! can execute. It is separate from `Characteristics` (the runtime game-state
+//! representation). Card definitions are static data loaded once at startup
+//! into a `CardRegistry`, which `GameState` holds as `Arc<CardRegistry>`.
+//!
+//! See architecture doc Section 3.7 for the full design.
+
+pub mod card_definition;
+pub mod definitions;
+pub mod registry;
+
+pub use card_definition::Effect;
+pub use card_definition::{
+    AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost, EffectAmount,
+    EffectTarget, ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, TargetController,
+    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
+    ZoneTarget,
+};
+pub use registry::CardRegistry;

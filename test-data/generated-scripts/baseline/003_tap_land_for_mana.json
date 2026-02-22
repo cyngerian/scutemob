@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_003",
+    "name": "Tap basic land for mana",
+    "description": "Active player taps a Forest already on the battlefield to add {G} to their mana pool. Forest becomes tapped.",
+    "cr_sections_tested": ["605.3a", "106.4"],
+    "corner_case_ref": null,
+    "tags": ["baseline", "mana", "tap"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Tests TapForMana command: Forest taps (status changes), mana added to pool. Mana pool state is not directly assertable via current harness, but Forest.tapped=true confirms the tap occurred.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Forest", "tapped": false, "summoning_sick": false, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps their Forest for green mana",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Before tapping: Forest is untapped",
+          "assertions": {
+            "permanent.Forest.tapped": false
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Forest",
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "605.3a",
+          "note": "CR 605.3: Mana abilities don't use the stack and can be activated any time."
+        },
+        {
+          "type": "assert_state",
+          "description": "After tapping: Forest is tapped",
+          "assertions": {
+            "permanent.Forest.tapped": true
+          },
+          "note": "Mana pool assertions not available in harness v1; tap status confirms the action ran."
+        }
+      ]
+    }
+  ]
+}

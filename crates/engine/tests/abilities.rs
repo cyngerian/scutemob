@@ -24,6 +24,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             mana_cost: None,
         },
         description: description.to_string(),
+        effect: None,
     }
 }
 
@@ -35,6 +36,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             mana_cost: Some(mana),
         },
         description: description.to_string(),
+        effect: None,
     }
 }
 
@@ -44,6 +46,7 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
         trigger_on: TriggerEvent::SelfEntersBattlefield,
         intervening_if: None,
         description: description.to_string(),
+        effect: None,
     }
 }
 
@@ -53,6 +56,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
         intervening_if: None,
         description: description.to_string(),
+        effect: None,
     }
 }
 
@@ -681,6 +685,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(50)),
             description: "When ~ enters, if you have 50+ life, do something.".into(),
+            effect: None,
         })
         .in_zone(ZoneId::Hand(p1));
 
@@ -733,6 +738,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(30)),
             description: "When ~ enters, if you have 30+ life, do something.".into(),
+            effect: None,
         })
         .in_zone(ZoneId::Hand(p1));
 

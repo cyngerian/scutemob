@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_003",
+    "name": "Sol Ring enters the battlefield",
+    "description": "p1 casts Sol Ring (artifact, {1}). After both players pass priority, Sol Ring resolves and enters the battlefield under p1's control.",
+    "cr_sections_tested": ["601.2", "608.3a", "305.2"],
+    "corner_case_ref": null,
+    "tags": ["stack", "artifact", "permanent", "sol-ring"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Tests permanent spell resolution: artifact enters battlefield (CR 608.3a). No target required. Sol Ring has no ETB effect, so only zone change observed.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Sol Ring", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Sol Ring on their first turn",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sol Ring in p1 hand, not on battlefield",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Sol Ring"] }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Sol Ring",
+          "targets": [],
+          "mana_paid": { "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Sol Ring for {1}. It goes on the stack as a spell."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Sol Ring on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Sol Ring"] }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass — Sol Ring resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sol Ring",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": null,
+              "amount": null,
+              "card": "Sol Ring",
+              "owner": "p1",
+              "cr_ref": "608.3a",
+              "note": "CR 608.3a: Artifact permanent resolves and enters the battlefield."
+            }
+          ],
+          "note": null
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Sol Ring on p1's battlefield, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] },
+            "permanent.Sol Ring.tapped": false
+          },
+          "note": "Sol Ring entered untapped. p1 can now tap it for {CC}."
+        }
+      ]
+    }
+  ]
+}

@@ -996,6 +996,94 @@ impl HashInto for GameEvent {
             GameEvent::CombatEnded => {
                 37u8.hash_into(hasher);
             }
+            GameEvent::LifeGained { player, amount } => {
+                38u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            GameEvent::LifeLost { player, amount } => {
+                39u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            // ── M7 events (discriminants 40–49) ──
+            GameEvent::DamageDealt {
+                source,
+                target,
+                amount,
+            } => {
+                40u8.hash_into(hasher);
+                source.hash_into(hasher);
+                target.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
+            GameEvent::ObjectExiled {
+                player,
+                object_id,
+                new_exile_id,
+            } => {
+                41u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_exile_id.hash_into(hasher);
+            }
+            GameEvent::PermanentDestroyed {
+                object_id,
+                new_grave_id,
+            } => {
+                42u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_grave_id.hash_into(hasher);
+            }
+            GameEvent::PermanentUntapped { player, object_id } => {
+                43u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            GameEvent::CardDiscarded {
+                player,
+                object_id,
+                new_id,
+            } => {
+                44u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_id.hash_into(hasher);
+            }
+            GameEvent::CardMilled { player, new_id } => {
+                45u8.hash_into(hasher);
+                player.hash_into(hasher);
+                new_id.hash_into(hasher);
+            }
+            GameEvent::TokenCreated { player, object_id } => {
+                46u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            GameEvent::LibraryShuffled { player } => {
+                47u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            GameEvent::CounterAdded {
+                object_id,
+                counter,
+                count,
+            } => {
+                48u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            GameEvent::CounterRemoved {
+                object_id,
+                counter,
+                count,
+            } => {
+                49u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }

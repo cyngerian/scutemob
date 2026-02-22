@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_002",
+    "name": "Counterspell counters a spell",
+    "description": "p1 casts Divination (sorcery). p1 passes priority to p2. p2 casts Counterspell targeting Divination. Both pass priority. Counterspell resolves first (LIFO), countering Divination. Both cards end up in their owners' graveyards.",
+    "cr_sections_tested": ["601.2", "608.2b", "116.4"],
+    "corner_case_ref": null,
+    "tags": ["stack", "counterspell", "LIFO"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-21",
+    "generation_notes": "Tests LIFO stack order: Counterspell is cast on top of Divination, resolves first. CR 608.2b: a countered spell is put into its owner's graveyard. After Counterspell resolves, stack is empty (one object resolved, one countered). Divination draw effect never executes.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 3 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "blue": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Divination", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Counterspell", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Divination; p2 responds with Counterspell",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Divination",
+          "targets": [],
+          "mana_paid": { "blue": 3 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Divination ({2U}); no targets required. Active player gets priority."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Divination cast: 1 spell on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "CR 116.3a: p1 passes priority to p2."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Counterspell",
+          "targets": [
+            { "type": "spell", "card": "Divination", "player": null, "controller": null }
+          ],
+          "mana_paid": { "blue": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Counterspell targeting Divination on the stack. Stack now has 2 objects."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Counterspell cast: 2 spells on stack",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p2.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass — Counterspell (top of stack, LIFO) resolves first."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Counterspell",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": { "type": "spell", "card": "Divination" },
+              "amount": null,
+              "card": "Divination",
+              "owner": "p1",
+              "cr_ref": "608.2b",
+              "note": "CR 608.2b: Divination is put into p1's graveyard without resolving."
+            }
+          ],
+          "note": "Counterspell resolves; Divination is countered and goes to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Counterspell resolves: both spells in graveyards, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p2": { "includes": [{ "card": "Counterspell" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Divination" }] }
+          },
+          "note": "Counterspell in p2's graveyard; Divination countered into p1's graveyard. p1 never drew 2 cards."
+        }
+      ]
+    }
+  ]
+}

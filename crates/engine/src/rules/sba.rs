@@ -201,18 +201,27 @@ fn check_creature_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 return false;
             };
 
-            // CR 704.5f: toughness ≤ 0.
+            let is_indestructible = obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Indestructible);
+
+            // CR 704.5f: toughness ≤ 0. Indestructible does NOT prevent this
+            // (CR 702.12a only prevents "destroy"; zero-toughness is a state replacement).
             if toughness <= 0 {
                 return true;
             }
 
             // CR 704.5g: lethal damage (damage ≥ toughness > 0).
-            if obj.damage_marked > 0 && obj.damage_marked as i32 >= toughness {
+            // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
+            if !is_indestructible && obj.damage_marked > 0 && obj.damage_marked as i32 >= toughness
+            {
                 return true;
             }
 
             // CR 704.5h: any damage from a deathtouch source.
-            if obj.deathtouch_damage && obj.damage_marked > 0 {
+            // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
+            if !is_indestructible && obj.deathtouch_damage && obj.damage_marked > 0 {
                 return true;
             }
 

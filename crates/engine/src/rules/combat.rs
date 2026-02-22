@@ -87,11 +87,30 @@ pub fn handle_declare_attackers(
             )));
         }
 
-        // Must not already be tapped (unless Vigilance).
+        // CR 702.3a: A creature with defender can't attack.
+        if chars.keywords.contains(&KeywordAbility::Defender) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} has defender and cannot attack",
+                attacker_id
+            )));
+        }
+
         let has_vigilance = chars.keywords.contains(&KeywordAbility::Vigilance);
+        let has_haste = chars.keywords.contains(&KeywordAbility::Haste);
         let obj = state.object(*attacker_id)?;
+
+        // Must not already be tapped (unless Vigilance).
         if obj.status.tapped && !has_vigilance {
             return Err(GameStateError::PermanentAlreadyTapped(*attacker_id));
+        }
+
+        // CR 302.6 / CR 702.10: Summoning sickness prevents attacking unless the
+        // creature has haste.
+        if obj.has_summoning_sickness && !has_haste {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} has summoning sickness and cannot attack (no haste)",
+                attacker_id
+            )));
         }
     }
 
@@ -192,9 +211,9 @@ pub fn handle_declare_blockers(
         }
 
         // Must be a creature.
-        let chars = calculate_characteristics(state, *blocker_id)
+        let blocker_chars = calculate_characteristics(state, *blocker_id)
             .ok_or(GameStateError::ObjectNotFound(*blocker_id))?;
-        if !chars.card_types.contains(&CardType::Creature) {
+        if !blocker_chars.card_types.contains(&CardType::Creature) {
             return Err(GameStateError::InvalidCommand(format!(
                 "Object {:?} is not a creature",
                 blocker_id
@@ -208,6 +227,52 @@ pub fn handle_declare_blockers(
                 "Object {:?} is not a declared attacker",
                 attacker_id
             )));
+        }
+
+        // CR 509.1b / CR 702.9a: A creature without flying or reach cannot block
+        // a creature with flying.
+        let attacker_chars = calculate_characteristics(state, *attacker_id)
+            .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
+        let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
+        let blocker_has_flying = blocker_chars.keywords.contains(&KeywordAbility::Flying);
+        let blocker_has_reach = blocker_chars.keywords.contains(&KeywordAbility::Reach);
+        if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has flying, blocker has neither flying nor reach)",
+                blocker_id, attacker_id
+            )));
+        }
+    }
+
+    // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.
+    // Check that no attacker with menace is being blocked by only one creature.
+    {
+        // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).
+        use std::collections::HashMap;
+        let mut blocker_count_for_attacker: HashMap<ObjectId, usize> = HashMap::new();
+
+        // Existing blockers already recorded in combat state.
+        if let Some(combat) = state.combat.as_ref() {
+            for (_, &att) in &combat.blockers {
+                *blocker_count_for_attacker.entry(att).or_insert(0) += 1;
+            }
+        }
+        // New blockers being declared now.
+        for (_, attacker_id) in &blockers {
+            *blocker_count_for_attacker.entry(*attacker_id).or_insert(0) += 1;
+        }
+
+        for (attacker_id, count) in &blocker_count_for_attacker {
+            if *count == 1 {
+                let chars = calculate_characteristics(state, *attacker_id)
+                    .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
+                if chars.keywords.contains(&KeywordAbility::Menace) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "Object {:?} has menace and must be blocked by two or more creatures",
+                        attacker_id
+                    )));
+                }
+            }
         }
     }
 
@@ -503,19 +568,24 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     }
 
     // --- Collect application info before mutating state ---
-    // Pre-extract per-assignment: (source_deathtouch, commander_info)
+    // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_controller, commander_info)
     // commander_info = Some((attacking_player_id, card_id)) if source is a commander.
-    let app_info: Vec<(bool, Option<(PlayerId, CardId)>)> = assignments
+    type DamageAppInfo = (bool, bool, PlayerId, Option<(PlayerId, CardId)>);
+    let app_info: Vec<DamageAppInfo> = assignments
         .iter()
         .map(|a| {
             let obj = state.objects.get(&a.source);
-            let source_deathtouch = obj
-                .map(|_o| {
-                    calculate_characteristics(state, a.source)
-                        .map(|c| c.keywords.contains(&KeywordAbility::Deathtouch))
-                        .unwrap_or(false)
-                })
+            let chars = calculate_characteristics(state, a.source);
+            let source_deathtouch = chars
+                .as_ref()
+                .map(|c| c.keywords.contains(&KeywordAbility::Deathtouch))
                 .unwrap_or(false);
+            // CR 702.15a: Damage dealt by a source with lifelink causes its controller to gain life.
+            let source_lifelink = chars
+                .as_ref()
+                .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
+                .unwrap_or(false);
+            let source_controller = obj.map(|o| o.controller).unwrap_or(PlayerId(0));
 
             let commander_info = obj.and_then(|o| {
                 let controller = o.controller;
@@ -532,12 +602,21 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 }
             });
 
-            (source_deathtouch, commander_info)
+            (
+                source_deathtouch,
+                source_lifelink,
+                source_controller,
+                commander_info,
+            )
         })
         .collect();
 
-    // --- Apply damage ---
-    for (assignment, (source_deathtouch, commander_info)) in assignments.iter().zip(app_info.iter())
+    // --- Apply damage and collect lifelink gains ---
+    // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
+    let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
+
+    for (assignment, (source_deathtouch, source_lifelink, source_controller, commander_info)) in
+        assignments.iter().zip(app_info.iter())
     {
         match &assignment.target {
             CombatDamageTarget::Creature(obj_id) => {
@@ -591,9 +670,30 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 }
             }
         }
+
+        // CR 702.15a: Lifelink — source's controller gains life equal to damage dealt.
+        if *source_lifelink && assignment.amount > 0 {
+            let entry = lifelink_gains.entry(*source_controller).or_insert(0);
+            *entry += assignment.amount;
+        }
     }
 
-    vec![GameEvent::CombatDamageDealt { assignments }]
+    let mut events = vec![GameEvent::CombatDamageDealt {
+        assignments: assignments.clone(),
+    }];
+
+    // Apply lifelink gains and emit LifeGained events.
+    for (controller, amount) in &lifelink_gains {
+        if let Some(player) = state.players.get_mut(controller) {
+            player.life_total += *amount as i32;
+        }
+        events.push(GameEvent::LifeGained {
+            player: *controller,
+            amount: *amount,
+        });
+    }
+
+    events
 }
 
 // ---------------------------------------------------------------------------

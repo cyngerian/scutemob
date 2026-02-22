@@ -36,9 +36,12 @@ pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 pub use zone::{Zone, ZoneId, ZoneType};
 
+use std::sync::Arc;
+
 use im::{OrdMap, Vector};
 use serde::{Deserialize, Serialize};
 
+use crate::cards::CardRegistry;
 use crate::rules::events::GameEvent;
 
 /// The complete state of an MTG game at a point in time.
@@ -74,6 +77,13 @@ pub struct GameState {
     pub timestamp_counter: u64,
     /// Append-only event log for triggers that look back at history.
     pub history: Vector<GameEvent>,
+    /// Card definitions registry: maps CardId → CardDefinition.
+    ///
+    /// Static data, never changes during a game. Held as `Arc` so state clones
+    /// share the registry without copying it. Excluded from state hashing and
+    /// serialization (reconstructed from the card database on load).
+    #[serde(skip)]
+    pub card_registry: Arc<CardRegistry>,
 }
 
 impl GameState {
@@ -209,6 +219,9 @@ impl GameState {
             deathtouch_damage: false,
             is_token: old_object.is_token,
             timestamp: self.timestamp_counter,
+            // CR 302.6: a permanent entering the battlefield has summoning sickness
+            // until the beginning of its controller's next untap step.
+            has_summoning_sickness: to == ZoneId::Battlefield,
         };
 
         // Add to new zone

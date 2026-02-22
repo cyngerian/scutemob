@@ -184,6 +184,7 @@ fn test_add_object_to_state() {
         deathtouch_damage: false,
         is_token: false,
         timestamp: 0,
+        has_summoning_sickness: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

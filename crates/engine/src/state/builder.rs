@@ -4,7 +4,11 @@
 //! production API. Tests should always use `GameStateBuilder` rather than
 //! constructing `GameState` structs directly, ensuring all invariants hold.
 
+use std::sync::Arc;
+
 use im::{OrdMap, OrdSet, Vector};
+
+use crate::cards::CardRegistry;
 
 use super::continuous_effect::ContinuousEffect;
 use super::game_object::{
@@ -26,6 +30,7 @@ pub struct GameStateBuilder {
     step: Option<Step>,
     active_player: Option<PlayerId>,
     is_first_turn_of_game: bool,
+    card_registry: Arc<CardRegistry>,
 }
 
 struct PlayerConfig {
@@ -48,7 +53,14 @@ impl GameStateBuilder {
             step: None,
             active_player: None,
             is_first_turn_of_game: false,
+            card_registry: CardRegistry::empty(),
         }
+    }
+
+    /// Set the card registry for effect execution in tests that use real card definitions.
+    pub fn with_registry(mut self, registry: Arc<CardRegistry>) -> Self {
+        self.card_registry = registry;
+        self
     }
 
     /// Create a builder pre-configured with 4 players (IDs 1-4) at 40 life.
@@ -236,6 +248,7 @@ impl GameStateBuilder {
             combat: None,
             timestamp_counter: 0,
             history: Vector::new(),
+            card_registry: self.card_registry,
         };
 
         // Add continuous effects
@@ -294,6 +307,10 @@ impl GameStateBuilder {
                 deathtouch_damage: spec.deathtouch_damage,
                 is_token: spec.is_token,
                 timestamp: 0, // Assigned by add_object
+                // Summoning sickness is set based on zone when the object is added.
+                // test-placed permanents on the battlefield are treated as having
+                // been there since the beginning of their controller's turn.
+                has_summoning_sickness: false,
             };
 
             state

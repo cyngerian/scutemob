@@ -11,8 +11,8 @@
 
 ## Current State
 
-- **Active Milestone**: M7 — Card Definition Framework & First Cards
-- **Status**: M6 complete — combat phase (CR 506-511) fully implemented and tested; 272 tests passing
+- **Active Milestone**: M8 — Replacement & Prevention Effects
+- **Status**: M7 complete — card definition framework, 50 cards, effect execution engine, game script replay harness, 7 approved scripts all passing; 303 tests passing
 - **Last Updated**: 2026-02-21
 
 ### What Exists (M6 complete)
@@ -173,9 +173,28 @@
 ### M3 Complete — What's Next (M4)
 - See `docs/mtg-engine-roadmap.md` for M4 deliverables
 
-### M6 Complete — What's Next (M7)
-- See `docs/mtg-engine-roadmap.md` for M7 (Card Definition Framework & First Cards) deliverables
-- Key M7 deliverables: `CardDefinition`/`Effect` types, keyword implementations, first 50 real cards, game script replay harness, script auto-discovery
+### What Exists (M7 complete)
+- Everything from M6, plus:
+- `cards/card_definition.rs`: `CardDefinition` (with `power`/`toughness` fields + `impl Default`), `AbilityDefinition` (Activated/Triggered/Static/Keyword/Spell), `Effect` (recursive enum, 30+ primitives), `EffectAmount`, `EffectTarget`, `PlayerTarget`, `TargetRequirement`, `TargetFilter`, `Cost`, `TokenSpec`, `TypeLine`, `ZoneTarget`, `TriggerCondition`, `Condition`, `ContinuousEffectDef`, `ModeSelection`, `ForEachTarget`, `LibraryPosition`, `TimingRestriction`
+- `cards/definitions.rs`: 50 hand-authored Commander staple definitions: mana rocks (Sol Ring, Arcane Signet, …), lands (Command Tower, Forest, …), removal (Swords to Plowshares, Path to Exile, Lightning Bolt, …), counterspells, card draw, ramp, equipment, creatures (Llanowar Elves, Elvish Mystic, Birds of Paradise, Wall of Omens, Solemn Simulacrum — all with printed P/T)
+- `cards/registry.rs`: `CardRegistry` with `Arc<Self>` construction, `lookup()` by `CardId`
+- `effects/mod.rs`: `execute_effect(state, effect, ctx) -> Vec<GameEvent>` — full effect execution engine
+  - `EffectContext`: controller, source object, targets vector, target_remaps (for post-zone-change references)
+  - `resolve_target`, `resolve_player_target`, `resolve_amount` helpers
+  - Effects implemented: DealDamage (player/creature/planeswalker), GainLife, LoseLife, DrawCards, DiscardCards, ExileObject, DestroyPermanent, CounterSpell, CreateToken, AddMana, AddManaAnyColor, AddManaChoice, TapPermanent, UntapPermanent, Sequence, Conditional, ForEach, SearchLibrary, Shuffle, PutOnLibrary, ReturnToHand, PutCounter, RemoveCounter, MoveToGraveyard, Choices
+- `rules/resolution.rs`: updated to look up `card_id` in `CardRegistry` and `execute_effect` for instants/sorceries
+- `rules/keywords.rs` (or inline enforcement): Hexproof (targeting check), Shroud, Indestructible (destroy replacement), Lifelink (damage → gain trigger), Menace (≥2 blockers required), Defender (can't attack), Flash (instant speed), Haste (summoning sickness bypass), Vigilance (no tap on attack)
+- `testing/script_replay.rs`: `replay_script(script) -> Vec<ReplayResult>`, `build_initial_state`, `translate_player_action`, `check_assertions`, `enrich_spec_from_def` (populates card_types, mana_cost, keywords, mana abilities, P/T from definitions), `card_name_to_id`
+- `tests/run_all_scripts.rs`: auto-discovery of all JSON files in `test-data/generated-scripts/`, runs all `approved` scripts
+- `tests/effects.rs`: 15 direct effect execution tests (DealDamage to player/creature, ExileObject, GainLife, DrawCards, Sequence, Conditional, ForEach)
+- `tests/keywords.rs`: keyword enforcement tests
+- `test-data/generated-scripts/baseline/`: 3 approved scripts (priority pass, play land, tap for mana)
+- `test-data/generated-scripts/stack/`: 4 approved scripts (Lightning Bolt resolves, Counterspell counters, Sol Ring ETB, Swords to Plowshares exiles creature)
+- 303 total tests, zero clippy warnings
+- Deferred to M8+: replacement/prevention effects; damage prevention; "ETB tapped" replacement; zone-change choice for commander
+
+### M7 Complete — What's Next (M8)
+- See `docs/mtg-engine-roadmap.md` for M8 (Replacement & Prevention Effects) deliverables
 
 ---
 
