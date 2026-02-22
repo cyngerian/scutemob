@@ -1,5 +1,6 @@
-//! Turn-based actions: untap, draw, cleanup, mana pool emptying (CR 500-514).
+//! Turn-based actions: untap, draw, cleanup, mana pool emptying, combat (CR 500-514).
 
+use crate::state::combat::CombatState;
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
@@ -15,6 +16,10 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
     match state.turn.step {
         Step::Untap => Ok(untap_active_player_permanents(state)),
         Step::Draw => draw_for_turn(state),
+        Step::BeginningOfCombat => Ok(begin_combat(state)),
+        Step::FirstStrikeDamage => Ok(first_strike_damage_step(state)),
+        Step::CombatDamage => Ok(combat_damage_step(state)),
+        Step::EndOfCombat => Ok(end_combat(state)),
         Step::Cleanup => Ok(cleanup_actions(state)),
         _ => Ok(Vec::new()),
     }
@@ -196,7 +201,9 @@ pub fn clear_damage(state: &mut GameState) {
     let ids: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && (obj.damage_marked > 0 || obj.deathtouch_damage))
+        .filter(|(_, obj)| {
+            obj.zone == ZoneId::Battlefield && (obj.damage_marked > 0 || obj.deathtouch_damage)
+        })
         .map(|(id, _)| *id)
         .collect();
 
@@ -214,4 +221,46 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Combat turn-based actions (M6)
+// ---------------------------------------------------------------------------
+
+/// CR 507.1: Initialize combat state at the start of the combat phase.
+///
+/// Sets up `GameState::combat` so that the combat phase tracking is ready.
+/// Called as a turn-based action on entering `BeginningOfCombat`.
+fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
+    let active = state.turn.active_player;
+    if state.combat.is_none() {
+        state.combat = Some(CombatState::new(active));
+    }
+    Vec::new()
+}
+
+/// CR 510: Apply first-strike combat damage (creatures with FirstStrike or DoubleStrike).
+///
+/// Called as a turn-based action in `Step::FirstStrikeDamage`.
+fn first_strike_damage_step(state: &mut GameState) -> Vec<GameEvent> {
+    let events = super::combat::apply_combat_damage(state, true);
+    if let Some(c) = state.combat.as_mut() {
+        c.first_strike_damage_resolved = true;
+    }
+    events
+}
+
+/// CR 510: Apply regular combat damage (creatures without exclusive FirstStrike).
+///
+/// Called as a turn-based action in `Step::CombatDamage`.
+fn combat_damage_step(state: &mut GameState) -> Vec<GameEvent> {
+    super::combat::apply_combat_damage(state, false)
+}
+
+/// CR 511.1: Clear combat state at the end of the combat phase.
+///
+/// Called as a turn-based action in `Step::EndOfCombat`.
+fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
+    state.combat = None;
+    vec![GameEvent::CombatEnded]
 }

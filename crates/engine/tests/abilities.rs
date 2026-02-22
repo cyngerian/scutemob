@@ -4,14 +4,13 @@
 //! intervening-if clause, and ability resolution from the stack.
 
 use mtg_engine::rules::{process_command, Command, GameEvent};
-use mtg_engine::state::{
-    error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder,
-    InterveningIf, ManaColor, ManaCost, ObjectSpec, PlayerId, StackObjectKind, TriggerEvent,
-    TriggeredAbilityDef,
-};
-use mtg_engine::state::zone::ZoneId;
-use mtg_engine::state::turn::Step;
 use mtg_engine::state::player::ManaPool;
+use mtg_engine::state::turn::Step;
+use mtg_engine::state::zone::ZoneId;
+use mtg_engine::state::{
+    error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder, InterveningIf,
+    ManaColor, ManaCost, ObjectSpec, PlayerId, StackObjectKind, TriggerEvent, TriggeredAbilityDef,
+};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -108,9 +107,9 @@ fn test_activate_ability_tap_places_on_stack() {
     assert!(source.status.tapped, "source permanent should be tapped");
 
     // Events: PermanentTapped, AbilityActivated, PriorityGiven.
-    assert!(events
-        .iter()
-        .any(|e| matches!(e, GameEvent::PermanentTapped { object_id, .. } if *object_id == source_id)));
+    assert!(events.iter().any(
+        |e| matches!(e, GameEvent::PermanentTapped { object_id, .. } if *object_id == source_id)
+    ));
     assert!(events.iter().any(|e| matches!(
         e,
         GameEvent::AbilityActivated {
@@ -293,10 +292,7 @@ fn test_activate_ability_wrong_controller_fails() {
             targets: vec![],
         },
     );
-    assert!(matches!(
-        result,
-        Err(GameStateError::NotController { .. })
-    ));
+    assert!(matches!(result, Err(GameStateError::NotController { .. })));
 }
 
 #[test]
@@ -460,14 +456,10 @@ fn test_activated_ability_resolves_after_all_pass() {
     assert_eq!(state.stack_objects.len(), 1);
 
     // All four players pass priority → stack resolves.
-    let (state, _) =
-        process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state, _) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
-    let (state, _) =
-        process_command(state, Command::PassPriority { player: p3 }).unwrap();
-    let (state, events) =
-        process_command(state, Command::PassPriority { player: p4 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p3 }).unwrap();
+    let (state, events) = process_command(state, Command::PassPriority { player: p4 }).unwrap();
 
     // Stack is empty after resolution.
     assert!(
@@ -549,8 +541,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
         .in_zone(ZoneId::Battlefield);
 
     // A creature that p2 will cast.
-    let creature_card = ObjectSpec::creature(p2, "Llanowar Elves", 2, 2)
-        .in_zone(ZoneId::Hand(p2));
+    let creature_card = ObjectSpec::creature(p2, "Llanowar Elves", 2, 2).in_zone(ZoneId::Hand(p2));
 
     // p2's turn, empty stack, main phase.
     let state = GameStateBuilder::four_player()
@@ -596,7 +587,10 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
         "watcher's triggered ability should be on the stack"
     );
     let trigger = &state.stack_objects[0];
-    assert!(matches!(trigger.kind, StackObjectKind::TriggeredAbility { .. }));
+    assert!(matches!(
+        trigger.kind,
+        StackObjectKind::TriggeredAbility { .. }
+    ));
     // The trigger controller is p1 (watcher's controller).
     assert_eq!(trigger.controller, p1);
 }
@@ -618,8 +612,7 @@ fn test_triggered_ability_apnap_ordering() {
         .in_zone(ZoneId::Battlefield);
 
     // A creature that will enter the battlefield.
-    let creature_card = ObjectSpec::creature(p1, "Goblin Guide", 2, 2)
-        .in_zone(ZoneId::Hand(p1));
+    let creature_card = ObjectSpec::creature(p1, "Goblin Guide", 2, 2).in_zone(ZoneId::Hand(p1));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)

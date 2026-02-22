@@ -5,11 +5,34 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::state::combat::AttackTarget;
 use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::ManaColor;
 use crate::state::zone::ZoneId;
+
+/// The target of a combat damage assignment: a creature, player, or planeswalker.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CombatDamageTarget {
+    /// Damage dealt to a creature (blocker or attacker).
+    Creature(ObjectId),
+    /// Damage dealt directly to a player.
+    Player(PlayerId),
+    /// Damage dealt to a planeswalker permanent.
+    Planeswalker(ObjectId),
+}
+
+/// A single source-to-target combat damage assignment (CR 510.2).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CombatDamageAssignment {
+    /// The creature dealing damage.
+    pub source: ObjectId,
+    /// Where the damage is directed.
+    pub target: CombatDamageTarget,
+    /// Amount of damage assigned.
+    pub amount: u32,
+}
 
 /// Why a player lost the game.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -205,7 +228,6 @@ pub enum GameEvent {
     },
 
     // ── M4: State-Based Action events ──────────────────────────────────────
-
     /// A creature was put into its owner's graveyard as a state-based action
     /// (CR 704.5f: toughness ≤ 0; CR 704.5g: lethal damage; CR 704.5h: deathtouch damage).
     CreatureDied {
@@ -254,4 +276,35 @@ pub enum GameEvent {
         kept_id: ObjectId,
         put_to_graveyard: Vec<(ObjectId, ObjectId)>,
     },
+
+    // ── M6: Combat events ──────────────────────────────────────────────────
+    /// The active player declared attacking creatures (CR 508.1).
+    ///
+    /// Each attacker is paired with its attack target (player or planeswalker).
+    /// Non-Vigilance attackers are tapped as a side effect (separate PermanentTapped events).
+    AttackersDeclared {
+        attacking_player: PlayerId,
+        /// (attacker ObjectId, attack target) pairs.
+        attackers: Vec<(ObjectId, AttackTarget)>,
+    },
+
+    /// A defending player declared blocking creatures (CR 509.1).
+    ///
+    /// In multiplayer, each defending player declares independently.
+    BlockersDeclared {
+        defending_player: PlayerId,
+        /// (blocker ObjectId, attacker ObjectId being blocked) pairs.
+        blockers: Vec<(ObjectId, ObjectId)>,
+    },
+
+    /// Combat damage was dealt simultaneously (CR 510.2).
+    ///
+    /// All damage is assigned and dealt in a single batch. After this event,
+    /// state-based actions fire and may cause creatures to die.
+    CombatDamageDealt {
+        assignments: Vec<CombatDamageAssignment>,
+    },
+
+    /// The combat phase ended and combat state was cleared (CR 511.1).
+    CombatEnded,
 }

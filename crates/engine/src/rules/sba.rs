@@ -118,9 +118,9 @@ fn check_player_sbas(state: &mut GameState) -> Vec<GameEvent> {
         // CR 704.5u (Commander): 21+ combat damage from a single commander.
         let lost_to_cmdr = {
             let p = state.players.get(&id).unwrap();
-            p.commander_damage_received.values().any(|by_card| {
-                by_card.values().any(|&dmg| dmg >= 21)
-            })
+            p.commander_damage_received
+                .values()
+                .any(|by_card| by_card.values().any(|&dmg| dmg >= 21))
         };
         if lost_to_cmdr {
             if let Some(p) = state.players.get_mut(&id) {
@@ -190,11 +190,7 @@ fn check_creature_sbas(state: &mut GameState) -> Vec<GameEvent> {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
-            if !obj
-                .characteristics
-                .card_types
-                .contains(&CardType::Creature)
-            {
+            if !obj.characteristics.card_types.contains(&CardType::Creature) {
                 return false;
             }
 
@@ -322,10 +318,7 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
             continue;
         }
         let key = (obj.controller, obj.characteristics.name.clone());
-        by_controller_name
-            .entry(key)
-            .or_default()
-            .push(*id);
+        by_controller_name.entry(key).or_default().push(*id);
     }
 
     for ((controller, _name), mut ids) in by_controller_name {
@@ -509,8 +502,18 @@ fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
         .iter()
         .filter(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
-                && obj.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0) > 0
-                && obj.counters.get(&CounterType::MinusOneMinusOne).copied().unwrap_or(0) > 0
+                && obj
+                    .counters
+                    .get(&CounterType::PlusOnePlusOne)
+                    .copied()
+                    .unwrap_or(0)
+                    > 0
+                && obj
+                    .counters
+                    .get(&CounterType::MinusOneMinusOne)
+                    .copied()
+                    .unwrap_or(0)
+                    > 0
         })
         .map(|(id, _)| *id)
         .collect();

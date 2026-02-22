@@ -6,6 +6,7 @@ use crate::state::player::PlayerId;
 use crate::state::turn::{Phase, Step, TurnState};
 use crate::state::GameState;
 
+use super::combat;
 use super::events::GameEvent;
 
 /// All steps in a normal turn, in order.
@@ -28,8 +29,20 @@ pub const STEP_ORDER: &[Step] = &[
 /// Advance to the next step within the current turn.
 /// Returns the updated TurnState and any events generated.
 /// Returns None if the turn is over (past Cleanup).
+///
+/// When leaving `DeclareBlockers`, checks whether any combatant has FirstStrike
+/// or DoubleStrike (CR 510.4); if so, inserts `Step::FirstStrikeDamage` before
+/// the normal `Step::CombatDamage`.
 pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
-    let next = state.turn.step.next()?;
+    // CR 510.4: Conditionally insert FirstStrikeDamage between DeclareBlockers and CombatDamage.
+    let next = if state.turn.step == Step::DeclareBlockers
+        && combat::should_have_first_strike_step(state)
+    {
+        Step::FirstStrikeDamage
+    } else {
+        state.turn.step.next()?
+    };
+
     let mut turn = state.turn.clone();
     let mut events = Vec::new();
 

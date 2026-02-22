@@ -47,10 +47,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // CR 608.2b: Check target legality before resolving.
             let targets = &stack_obj.targets;
             if !targets.is_empty() {
-                let legal_count = targets
-                    .iter()
-                    .filter(|t| is_target_legal(state, t))
-                    .count();
+                let legal_count = targets.iter().filter(|t| is_target_legal(state, t)).count();
 
                 if legal_count == 0 {
                     // CR 608.2b: All targets illegal — fizzle.
@@ -151,10 +148,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 let source_obj = state.objects.get(&source_object);
                 match source_obj {
                     Some(obj) => {
-                        let ability_def = obj
-                            .characteristics
-                            .triggered_abilities
-                            .get(ability_index);
+                        let ability_def =
+                            obj.characteristics.triggered_abilities.get(ability_index);
                         match ability_def {
                             Some(def) => def
                                 .intervening_if

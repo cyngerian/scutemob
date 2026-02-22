@@ -11,12 +11,12 @@
 //! - The card is a land in the player's hand
 
 use crate::state::error::GameStateError;
+use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::turn::Step;
 use crate::state::types::CardType;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-use crate::state::game_object::ObjectId;
 
 use super::events::GameEvent;
 
@@ -46,10 +46,7 @@ pub fn handle_play_land(
     }
 
     // 3. Must be a main phase (CR 305.1).
-    if !matches!(
-        state.turn.step,
-        Step::PreCombatMain | Step::PostCombatMain
-    ) {
+    if !matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain) {
         return Err(GameStateError::NotMainPhase);
     }
 
@@ -78,9 +75,7 @@ pub fn handle_play_land(
         .card_types
         .contains(&CardType::Land)
     {
-        return Err(GameStateError::InvalidCommand(
-            "card is not a land".into(),
-        ));
+        return Err(GameStateError::InvalidCommand("card is not a land".into()));
     }
 
     // 8. Player must own (and thereby control) the card in hand.

@@ -5,11 +5,11 @@
 //! and mana cost payment with validation.
 
 use mtg_engine::rules::{process_command, Command, GameEvent};
+use mtg_engine::state::game_object::ManaCost;
+use mtg_engine::state::turn::Step;
 use mtg_engine::state::{
     CardType, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, Target, ZoneId,
 };
-use mtg_engine::state::game_object::ManaCost;
-use mtg_engine::state::turn::Step;
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -23,8 +23,7 @@ fn pass_all_four(
     let mut s = state;
     let mut all_events = Vec::new();
     for player in &turn_order {
-        let (ns, evs) =
-            process_command(s, Command::PassPriority { player: *player }).unwrap();
+        let (ns, evs) = process_command(s, Command::PassPriority { player: *player }).unwrap();
         all_events.extend(evs);
         s = ns;
     }
@@ -50,7 +49,13 @@ fn test_601_2c_targeting_active_player_is_valid() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     // Cast targeting p2 (active player p1 has priority at Upkeep).
     let result = process_command(
@@ -85,8 +90,20 @@ fn test_601_2c_targeting_object_is_valid() {
         .object(instant)
         .build();
 
-    let creature_id = *state.zones.get(&ZoneId::Battlefield).unwrap().object_ids().first().unwrap();
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let creature_id = *state
+        .zones
+        .get(&ZoneId::Battlefield)
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let result = process_command(
         state,
@@ -119,7 +136,13 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
     let bogus_id = ObjectId(9999);
 
     let result = process_command(
@@ -130,7 +153,10 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
             targets: vec![Target::Object(bogus_id)],
         },
     );
-    assert!(result.is_err(), "targeting a non-existent object should fail");
+    assert!(
+        result.is_err(),
+        "targeting a non-existent object should fail"
+    );
 }
 
 #[test]
@@ -155,7 +181,13 @@ fn test_601_2c_targeting_eliminated_player_fails() {
     // let's manually check — in the four-player game after p2 concedes,
     // p1 should still hold priority or get it).
     // Re-check who has priority and get the card.
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     // Ensure p1 has priority before trying to cast.
     let state = if state.turn.priority_holder == Some(p1) {
@@ -163,7 +195,9 @@ fn test_601_2c_targeting_eliminated_player_fails() {
     } else {
         // Pass from whoever has priority until p1 gets it.
         let holder = state.turn.priority_holder.unwrap();
-        process_command(state, Command::PassPriority { player: holder }).unwrap().0
+        process_command(state, Command::PassPriority { player: holder })
+            .unwrap()
+            .0
     };
 
     let result = process_command(
@@ -174,7 +208,10 @@ fn test_601_2c_targeting_eliminated_player_fails() {
             targets: vec![Target::Player(p2)], // p2 is eliminated
         },
     );
-    assert!(result.is_err(), "targeting an eliminated player should fail");
+    assert!(
+        result.is_err(),
+        "targeting an eliminated player should fail"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +234,13 @@ fn test_608_2b_fizzle_player_target_concedes() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     // p1 casts targeting p2.
     let (state, _) = process_command(
@@ -207,7 +250,8 @@ fn test_608_2b_fizzle_player_target_concedes() {
             card: card_id,
             targets: vec![Target::Player(p2)],
         },
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(state.stack_objects.len(), 1);
 
     // p2 concedes between cast and resolution (before all players pass).
@@ -222,7 +266,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
     // Actually, with 3 active players (p1, p3, p4), pass_all_four won't work directly.
     // Let me restructure this test.
     let _ = (final_state, events); // discard, will redo below
-    // (the assertion is below in the properly-structured test)
+                                   // (the assertion is below in the properly-structured test)
 }
 
 // Better fizzle test that handles 3 active players properly:
@@ -241,7 +285,13 @@ fn test_608_2b_fizzle_all_targets_illegal() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     // Cast targeting p2.
     let (state, _) = process_command(
@@ -251,7 +301,8 @@ fn test_608_2b_fizzle_all_targets_illegal() {
             card: card_id,
             targets: vec![Target::Player(p2)],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     // p2 concedes — target becomes illegal.
     let (state, _) = process_command(state, Command::Concede { player: p2 }).unwrap();
@@ -276,7 +327,10 @@ fn test_608_2b_fizzle_all_targets_illegal() {
     }
 
     // Spell should have fizzled.
-    assert!(state.stack_objects.is_empty(), "stack should be empty after fizzle");
+    assert!(
+        state.stack_objects.is_empty(),
+        "stack should be empty after fizzle"
+    );
     assert!(state.zones.get(&ZoneId::Stack).unwrap().is_empty());
 
     // Card is in p1's graveyard (not on battlefield).
@@ -285,11 +339,15 @@ fn test_608_2b_fizzle_all_targets_illegal() {
 
     // SpellFizzled event emitted, NOT SpellResolved.
     assert!(
-        all_events.iter().any(|e| matches!(e, GameEvent::SpellFizzled { player, .. } if *player == p1)),
+        all_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::SpellFizzled { player, .. } if *player == p1)),
         "SpellFizzled event expected"
     );
     assert!(
-        !all_events.iter().any(|e| matches!(e, GameEvent::SpellResolved { .. })),
+        !all_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::SpellResolved { .. })),
         "SpellResolved should NOT be emitted on fizzle"
     );
 }
@@ -315,7 +373,13 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     // Cast targeting both p2 and p3.
     let (state, _) = process_command(
@@ -325,7 +389,8 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
             card: card_id,
             targets: vec![Target::Player(p2), Target::Player(p3)],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     // p2 concedes — one target becomes illegal, but p3 is still legal.
     let (state, _) = process_command(state, Command::Concede { player: p2 }).unwrap();
@@ -348,11 +413,15 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
     // Spell resolved (NOT fizzled) because p3 is still a legal target.
     assert!(state.stack_objects.is_empty());
     assert!(
-        all_events.iter().any(|e| matches!(e, GameEvent::SpellResolved { player, .. } if *player == p1)),
+        all_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::SpellResolved { player, .. } if *player == p1)),
         "SpellResolved expected for partial fizzle"
     );
     assert!(
-        !all_events.iter().any(|e| matches!(e, GameEvent::SpellFizzled { .. })),
+        !all_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::SpellFizzled { .. })),
         "SpellFizzled should NOT be emitted in partial fizzle"
     );
 
@@ -370,11 +439,21 @@ fn test_601_mana_cost_deducted_on_cast() {
     let p1 = p(1);
     let sorcery = ObjectSpec::card(p1, "Mind Rot")
         .with_types(vec![CardType::Sorcery])
-        .with_mana_cost(ManaCost { black: 1, generic: 2, ..ManaCost::default() }) // {2}{B}
+        .with_mana_cost(ManaCost {
+            black: 1,
+            generic: 2,
+            ..ManaCost::default()
+        }) // {2}{B}
         .in_zone(ZoneId::Hand(p1));
 
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| b.mana(ManaPool { black: 1, colorless: 2, ..ManaPool::default() }))
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                black: 1,
+                colorless: 2,
+                ..ManaPool::default()
+            })
+        })
         .add_player(p(2))
         .add_player(p(3))
         .add_player(p(4))
@@ -383,7 +462,13 @@ fn test_601_mana_cost_deducted_on_cast() {
         .object(sorcery)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let (new_state, events) = process_command(
         state,
@@ -392,7 +477,8 @@ fn test_601_mana_cost_deducted_on_cast() {
             card: card_id,
             targets: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     // Mana pool should be empty after paying {2}{B}.
     let pool = &new_state.players[&p1].mana_pool;
@@ -401,7 +487,9 @@ fn test_601_mana_cost_deducted_on_cast() {
     assert_eq!(pool.total(), 0);
 
     // ManaCostPaid event emitted.
-    assert!(events.iter().any(|e| matches!(e, GameEvent::ManaCostPaid { player, .. } if *player == p1)));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ManaCostPaid { player, .. } if *player == p1)));
 }
 
 #[test]
@@ -410,12 +498,20 @@ fn test_601_mana_cost_colored_and_generic() {
     let p1 = p(1);
     let sorcery = ObjectSpec::card(p1, "Counterspell")
         .with_types(vec![CardType::Sorcery])
-        .with_mana_cost(ManaCost { blue: 2, ..ManaCost::default() }) // {U}{U}
+        .with_mana_cost(ManaCost {
+            blue: 2,
+            ..ManaCost::default()
+        }) // {U}{U}
         .in_zone(ZoneId::Hand(p1));
 
     // Player has exactly {U}{U}.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| b.mana(ManaPool { blue: 2, ..ManaPool::default() }))
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                blue: 2,
+                ..ManaPool::default()
+            })
+        })
         .add_player(p(2))
         .add_player(p(3))
         .add_player(p(4))
@@ -424,7 +520,13 @@ fn test_601_mana_cost_colored_and_generic() {
         .object(sorcery)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let (new_state, _) = process_command(
         state,
@@ -433,7 +535,8 @@ fn test_601_mana_cost_colored_and_generic() {
             card: card_id,
             targets: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(new_state.players[&p1].mana_pool.blue, 0);
     assert_eq!(new_state.players[&p1].mana_pool.total(), 0);
@@ -445,12 +548,21 @@ fn test_601_insufficient_mana_fails() {
     let p1 = p(1);
     let sorcery = ObjectSpec::card(p1, "Wrath of God")
         .with_types(vec![CardType::Sorcery])
-        .with_mana_cost(ManaCost { white: 2, generic: 2, ..ManaCost::default() }) // {2}{W}{W}
+        .with_mana_cost(ManaCost {
+            white: 2,
+            generic: 2,
+            ..ManaCost::default()
+        }) // {2}{W}{W}
         .in_zone(ZoneId::Hand(p1));
 
     // Player has only {W} — not enough.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| b.mana(ManaPool { white: 1, ..ManaPool::default() }))
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                white: 1,
+                ..ManaPool::default()
+            })
+        })
         .add_player(p(2))
         .add_player(p(3))
         .add_player(p(4))
@@ -459,7 +571,13 @@ fn test_601_insufficient_mana_fails() {
         .object(sorcery)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let result = process_command(
         state,
@@ -470,7 +588,10 @@ fn test_601_insufficient_mana_fails() {
         },
     );
     assert!(result.is_err(), "casting without enough mana should fail");
-    matches!(result.unwrap_err(), mtg_engine::GameStateError::InsufficientMana);
+    matches!(
+        result.unwrap_err(),
+        mtg_engine::GameStateError::InsufficientMana
+    );
 }
 
 #[test]
@@ -480,12 +601,23 @@ fn test_601_generic_paid_from_any_color() {
     let p1 = p(1);
     let spell = ObjectSpec::card(p1, "Divination")
         .with_types(vec![CardType::Sorcery])
-        .with_mana_cost(ManaCost { blue: 1, generic: 2, ..ManaCost::default() }) // {2}{U}
+        .with_mana_cost(ManaCost {
+            blue: 1,
+            generic: 2,
+            ..ManaCost::default()
+        }) // {2}{U}
         .in_zone(ZoneId::Hand(p1));
 
     // Pay {U} + {R} + {G} (red and green satisfy generic {2}).
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| b.mana(ManaPool { blue: 1, red: 1, green: 1, ..ManaPool::default() }))
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                blue: 1,
+                red: 1,
+                green: 1,
+                ..ManaPool::default()
+            })
+        })
         .add_player(p(2))
         .add_player(p(3))
         .add_player(p(4))
@@ -494,7 +626,13 @@ fn test_601_generic_paid_from_any_color() {
         .object(spell)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let (new_state, _) = process_command(
         state,
@@ -503,7 +641,8 @@ fn test_601_generic_paid_from_any_color() {
             card: card_id,
             targets: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     // Pool should be empty — all mana spent.
     assert_eq!(new_state.players[&p1].mana_pool.total(), 0);
@@ -516,12 +655,21 @@ fn test_601_colorless_requirement_must_use_colorless() {
     let p1 = p(1);
     let spell = ObjectSpec::card(p1, "Eldrazi Temple Effect")
         .with_types(vec![CardType::Sorcery])
-        .with_mana_cost(ManaCost { colorless: 2, ..ManaCost::default() }) // {C}{C}
+        .with_mana_cost(ManaCost {
+            colorless: 2,
+            ..ManaCost::default()
+        }) // {C}{C}
         .in_zone(ZoneId::Hand(p1));
 
     // Player has {R}{G} but no colorless — cannot pay {C}{C}.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| b.mana(ManaPool { red: 1, green: 1, ..ManaPool::default() }))
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                red: 1,
+                green: 1,
+                ..ManaPool::default()
+            })
+        })
         .add_player(p(2))
         .add_player(p(3))
         .add_player(p(4))
@@ -530,7 +678,13 @@ fn test_601_colorless_requirement_must_use_colorless() {
         .object(spell)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let result = process_command(
         state,
@@ -540,7 +694,10 @@ fn test_601_colorless_requirement_must_use_colorless() {
             targets: vec![],
         },
     );
-    assert!(result.is_err(), "colored mana cannot pay colorless {{C}} cost");
+    assert!(
+        result.is_err(),
+        "colored mana cannot pay colorless {{C}} cost"
+    );
 }
 
 #[test]
@@ -560,7 +717,13 @@ fn test_601_no_mana_cost_casts_free() {
         .object(instant)
         .build();
 
-    let card_id = *state.zones.get(&ZoneId::Hand(p1)).unwrap().object_ids().first().unwrap();
+    let card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
 
     let (_, events) = process_command(
         state,
@@ -569,8 +732,11 @@ fn test_601_no_mana_cost_casts_free() {
             card: card_id,
             targets: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     // No ManaCostPaid event for a free spell.
-    assert!(!events.iter().any(|e| matches!(e, GameEvent::ManaCostPaid { .. })));
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ManaCostPaid { .. })));
 }

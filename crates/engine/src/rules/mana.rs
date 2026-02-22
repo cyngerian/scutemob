@@ -7,10 +7,10 @@
 //! For M3-A, only tap-activated mana abilities are supported.
 
 use crate::state::error::GameStateError;
+use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
-use crate::state::game_object::ObjectId;
 
 use super::events::GameEvent;
 

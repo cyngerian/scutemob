@@ -10,6 +10,7 @@ use crate::state::GameState;
 
 use super::abilities;
 use super::casting;
+use super::combat;
 use super::command::Command;
 use super::events::GameEvent;
 use super::lands;
@@ -61,7 +62,11 @@ pub fn process_command(
             let events = lands::handle_play_land(&mut state, player, card)?;
             all_events.extend(events);
         }
-        Command::CastSpell { player, card, targets } => {
+        Command::CastSpell {
+            player,
+            card,
+            targets,
+        } => {
             validate_player_active(&state, player)?;
             let events = casting::handle_cast_spell(&mut state, player, card, targets)?;
             all_events.extend(events);
@@ -73,8 +78,32 @@ pub fn process_command(
             targets,
         } => {
             validate_player_active(&state, player)?;
-            let events =
-                abilities::handle_activate_ability(&mut state, player, source, ability_index, targets)?;
+            let events = abilities::handle_activate_ability(
+                &mut state,
+                player,
+                source,
+                ability_index,
+                targets,
+            )?;
+            all_events.extend(events);
+        }
+        Command::DeclareAttackers { player, attackers } => {
+            validate_player_active(&state, player)?;
+            let events = combat::handle_declare_attackers(&mut state, player, attackers)?;
+            all_events.extend(events);
+        }
+        Command::DeclareBlockers { player, blockers } => {
+            validate_player_active(&state, player)?;
+            let events = combat::handle_declare_blockers(&mut state, player, blockers)?;
+            all_events.extend(events);
+        }
+        Command::OrderBlockers {
+            player,
+            attacker,
+            order,
+        } => {
+            validate_player_active(&state, player)?;
+            let events = combat::handle_order_blockers(&mut state, player, attacker, order)?;
             all_events.extend(events);
         }
     }

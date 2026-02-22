@@ -312,38 +312,38 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Implement the complete combat system: attacker declaration, blocker declaration, damage assignment, and all combat-related mechanics.
 
 **Deliverables**:
-- [ ] `CombatState` tracking: attackers, blockers, damage assignment orders
-- [ ] Attacker declaration: legal attack targets (player or planeswalker, expanded in Commander to "any opponent or opponent's planeswalker"), restrictions and requirements
-- [ ] Blocker declaration: legal blocks, blocking restrictions/requirements, damage assignment order
-- [ ] Combat damage assignment: lethal damage rule, player choice for ordering
-- [ ] First strike / double strike: extra combat damage step
-- [ ] Trample: excess damage to defending player/planeswalker
-- [ ] Deathtouch + trample interaction: 1 damage is lethal
-- [ ] Damage prevention in combat (foreshadowing M8 but basic framework here)
-- [ ] "Whenever this creature attacks/blocks" triggers
-- [ ] "Whenever this creature deals combat damage to a player" triggers
-- [ ] Commander damage tracking: combat damage from a commander increments the matrix
-- [ ] Multiplayer combat: active player attacks one or more opponents; each opponent declares blockers for creatures attacking them
+- [x] `CombatState` tracking: attackers, blockers, damage assignment orders (`state/combat.rs`)
+- [x] Attacker declaration: legal attack targets (player or planeswalker), restrictions and requirements (`rules/combat.rs::handle_declare_attackers`)
+- [x] Blocker declaration: legal blocks, damage assignment order (`handle_declare_blockers`, `handle_order_blockers`)
+- [x] Combat damage assignment: lethal damage rule, player choice for ordering (`apply_combat_damage`)
+- [x] First strike / double strike: extra combat damage step (`should_have_first_strike_step`, `deals_damage_in_step`)
+- [x] Trample: excess damage to defending player/planeswalker
+- [x] Deathtouch + trample interaction: 1 damage is lethal
+- [ ] Damage prevention in combat — deferred to M8 (no prevention effects framework yet)
+- [x] "Whenever this creature attacks/blocks" triggers (`TriggerEvent::SelfAttacks`, `SelfBlocks`)
+- [ ] "Whenever this creature deals combat damage to a player" triggers — deferred to M7 (needs card effect framework for the ability body)
+- [x] Commander damage tracking: combat damage from a commander increments the matrix (CR 903.10a)
+- [x] Multiplayer combat: active player attacks one or more opponents; each opponent declares blockers
 
 **Tests** (minimum):
-- [ ] Basic combat: 2/2 attacks, unblocked, defending player takes 2
-- [ ] Blocked combat: 2/2 attacks, blocked by 3/3, 2/2 dies
-- [ ] Mutual destruction: 3/3 attacks, blocked by 3/3, both die
-- [ ] First strike: first striker kills blocker before blocker deals damage
-- [ ] Double strike: deals damage in both steps
-- [ ] Trample: 5/5 with trample blocked by 2/2, 3 damage to player
-- [ ] Deathtouch + trample: 1 to blocker (lethal), rest to player
-- [ ] Multiple blockers: damage assignment order, distribute lethal
-- [ ] Combat triggers fire at correct timing
-- [ ] Commander combat damage tracked in matrix
-- [ ] Multiplayer: player A attacks player B and player C simultaneously
+- [x] Basic combat: 2/2 attacks, unblocked, defending player takes 2 (`test_510_unblocked_attacker_deals_damage_to_player`)
+- [x] Blocked combat: 5/5 blocked by 1/1, no player damage (`test_509_blocked_attacker_no_player_damage`)
+- [x] Mutual destruction: 3/3 attacks, blocked by 3/3, both die (`test_510_mutual_combat_damage_both_die`)
+- [x] First strike: first striker kills blocker before blocker deals damage (`test_702_7_first_strike_kills_blocker_before_regular_damage`)
+- [x] Double strike: deals damage in both steps (`test_702_4_double_strike_deals_in_both_steps`)
+- [x] Trample: 5/5 with trample blocked by 2/2, 3 damage to player (`test_702_19_trample_excess_to_player`)
+- [x] Deathtouch + trample: 1 to blocker (lethal), rest to player (`test_702_deathtouch_with_trample`)
+- [x] Multiple blockers: damage assignment order, distribute lethal (`test_509_2_multiple_blockers_damage_order`)
+- [x] Combat triggers fire at correct timing (`test_603_self_attacks_trigger_fires`)
+- [x] Commander combat damage tracked in matrix (`test_903_10a_commander_damage_tracked`)
+- [x] Multiplayer: player A attacks player B and player C simultaneously (`test_506_multiplayer_simultaneous_attacks`)
 
 **Game Script Tasks**: *(deferred to M7 — see note at top of roadmap)*
 
 **Acceptance Criteria**:
-- Full combat phase executes correctly for multiplayer
-- All combat keyword interactions tested
-- Commander damage tracking accurate
+- [x] Full combat phase executes correctly for multiplayer
+- [x] All combat keyword interactions tested
+- [x] Commander damage tracking accurate
 
 **Dependencies**: M4 (SBAs check lethal damage), M5 (continuous effects modify P/T and abilities)
 

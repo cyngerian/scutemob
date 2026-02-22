@@ -102,6 +102,10 @@ pub enum TriggerEvent {
     AnySpellCast,
     /// Triggers when the source permanent becomes tapped (CR 603.5).
     SelfBecomesTapped,
+    /// Triggers when this creature attacks (CR 603.5, CR 508.1).
+    SelfAttacks,
+    /// Triggers when this creature blocks (CR 603.5, CR 509.1).
+    SelfBlocks,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

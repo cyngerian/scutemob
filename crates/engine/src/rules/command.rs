@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::state::combat::AttackTarget;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::targeting::Target;
@@ -75,8 +76,38 @@ pub enum Command {
         targets: Vec<Target>,
     },
 
-    // --- Future milestones ---
-    // DeclareAttackers { player, attackers }                   // M6
-    // DeclareBlockers { player, blockers }                     // M6
-    // OrderBlockers { player, ordering }                       // M6
+    // ── M6: Combat commands ───────────────────────────────────────────────
+    /// Declare attacking creatures and their targets (CR 508.1).
+    ///
+    /// Legal only in the DeclareAttackers step for the active player, who must
+    /// have priority. Non-Vigilance attackers become tapped as a side effect.
+    /// Pass an empty vec to attack with no creatures (legal — ends the attack step).
+    DeclareAttackers {
+        player: PlayerId,
+        /// (attacker ObjectId, attack target) pairs.
+        attackers: Vec<(ObjectId, AttackTarget)>,
+    },
+
+    /// Declare blocking creatures (CR 509.1).
+    ///
+    /// Legal only in the DeclareBlockers step. Each defending player may declare
+    /// independently; priority is not required. Pass an empty vec to block with
+    /// no creatures.
+    DeclareBlockers {
+        player: PlayerId,
+        /// (blocker ObjectId, attacker ObjectId being blocked) pairs.
+        blockers: Vec<(ObjectId, ObjectId)>,
+    },
+
+    /// Set the damage assignment order for an attacker with multiple blockers (CR 509.2).
+    ///
+    /// The attacking player chooses the order in which their attacker's damage
+    /// is assigned when multiple creatures are blocking. `order` lists blocker
+    /// ObjectIds front-to-back (front receives damage first; must receive lethal
+    /// before damage flows to the next).
+    OrderBlockers {
+        player: PlayerId,
+        attacker: ObjectId,
+        order: Vec<ObjectId>,
+    },
 }

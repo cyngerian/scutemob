@@ -6,14 +6,15 @@ pub mod testing;
 
 // Convenience re-exports of primary types
 pub use state::{
-    AbilityInstance, CardId, CardType, Characteristics, Color, ContinuousEffect, CounterType,
-    EffectDuration, EffectFilter, EffectId, EffectLayer, GameObject, GameState, GameStateBuilder,
-    GameStateError, KeywordAbility, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
-    ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder, PlayerId, PlayerState, SpellTarget,
-    StackObject, StackObjectKind, Step, SubType, SuperType, Target, TurnState, Zone, ZoneId,
-    ZoneType,
+    AbilityInstance, AttackTarget, CardId, CardType, Characteristics, Color, CombatState,
+    ContinuousEffect, CounterType, EffectDuration, EffectFilter, EffectId, EffectLayer, GameObject,
+    GameState, GameStateBuilder, GameStateError, KeywordAbility, LayerModification, ManaAbility,
+    ManaColor, ManaCost, ManaPool, ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder,
+    PlayerId, PlayerState, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
+    Target, TriggerEvent, TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
 };
 
 pub use rules::engine::{process_command, start_game};
+pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
 pub use rules::{Command, GameEvent, LossReason};

@@ -27,9 +27,7 @@ fn test_play_land_enters_battlefield() {
     let bf_count = state.objects_in_zone(&ZoneId::Battlefield).len();
 
     // Find the land's ObjectId
-    let land_id = state
-        .objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0]
-        .id;
+    let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
     let (new_state, events) = mtg_engine::process_command(
         state,
@@ -51,9 +49,13 @@ fn test_play_land_enters_battlefield() {
     );
 
     // LandPlayed event emitted
-    assert!(events
-        .iter()
-        .any(|e| matches!(e, GameEvent::LandPlayed { player: PlayerId(1), .. })));
+    assert!(events.iter().any(|e| matches!(
+        e,
+        GameEvent::LandPlayed {
+            player: PlayerId(1),
+            ..
+        }
+    )));
 }
 
 #[test]
@@ -67,10 +69,7 @@ fn test_play_land_decrements_land_plays() {
         .object(ObjectSpec::land(PlayerId(1), "Forest").in_zone(ZoneId::Hand(PlayerId(1))))
         .build();
 
-    assert_eq!(
-        state.player(PlayerId(1)).unwrap().land_plays_remaining,
-        1
-    );
+    assert_eq!(state.player(PlayerId(1)).unwrap().land_plays_remaining, 1);
 
     let land_id = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)))[0].id;
 
@@ -275,10 +274,7 @@ fn test_tap_for_mana_adds_to_pool() {
         .add_player(PlayerId(2))
         .at_step(Step::PreCombatMain)
         .active_player(PlayerId(1))
-        .object(
-            ObjectSpec::land(PlayerId(1), "Forest")
-                .with_mana_ability(forest_ability),
-        )
+        .object(ObjectSpec::land(PlayerId(1), "Forest").with_mana_ability(forest_ability))
         .build();
 
     assert_eq!(state.player(PlayerId(1)).unwrap().mana_pool.green, 0);
@@ -660,8 +656,5 @@ fn test_play_land_does_not_clear_mana_pool() {
     .unwrap();
 
     // Mana pool should still have the 3 green (PlayLand doesn't clear pools)
-    assert_eq!(
-        new_state.player(PlayerId(1)).unwrap().mana_pool.green,
-        3
-    );
+    assert_eq!(new_state.player(PlayerId(1)).unwrap().mana_pool.green, 3);
 }

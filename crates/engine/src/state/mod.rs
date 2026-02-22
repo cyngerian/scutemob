@@ -4,6 +4,7 @@
 //! enabling cheap snapshots and deterministic replay.
 
 pub mod builder;
+pub mod combat;
 pub mod continuous_effect;
 pub mod error;
 pub mod game_object;
@@ -18,18 +19,19 @@ pub mod zone;
 
 // Re-export primary types for convenient access via `use mtg_engine::state::*`
 pub use builder::{GameStateBuilder, ObjectSpec, PlayerBuilder};
-pub use error::GameStateError;
-pub use game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject,
-    InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggeredAbilityDef, TriggerEvent,
-};
-pub use stack::{StackObject, StackObjectKind};
-pub use targeting::{SpellTarget, Target};
-pub use player::{CardId, ManaPool, PlayerId, PlayerState};
+pub use combat::{AttackTarget, CombatState};
 pub use continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
-pub use stubs::{CombatState, DelayedTrigger, PendingTrigger, ReplacementEffect};
+pub use error::GameStateError;
+pub use game_object::{
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
+    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+};
+pub use player::{CardId, ManaPool, PlayerId, PlayerState};
+pub use stack::{StackObject, StackObjectKind};
+pub use stubs::{DelayedTrigger, PendingTrigger, ReplacementEffect};
+pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 pub use zone::{Zone, ZoneId, ZoneType};

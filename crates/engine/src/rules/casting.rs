@@ -89,10 +89,7 @@ pub fn handle_cast_spell(
                 "sorcery-speed spells can only be cast during your own turn".into(),
             ));
         }
-        if !matches!(
-            state.turn.step,
-            Step::PreCombatMain | Step::PostCombatMain
-        ) {
+        if !matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain) {
             return Err(GameStateError::NotMainPhase);
         }
         if !state.stack_objects.is_empty() {
@@ -208,13 +205,28 @@ fn validate_targets(
 /// Colored mana (W/U/B/R/G) must be paid with the matching color.
 /// Colorless mana (`{C}`) must be paid with colorless mana specifically (CR 106.1).
 /// Generic mana (`{N}`) can be paid with any remaining mana in the pool.
-pub fn can_pay_cost(pool: &crate::state::player::ManaPool, cost: &crate::state::game_object::ManaCost) -> bool {
-    if pool.white < cost.white { return false; }
-    if pool.blue < cost.blue { return false; }
-    if pool.black < cost.black { return false; }
-    if pool.red < cost.red { return false; }
-    if pool.green < cost.green { return false; }
-    if pool.colorless < cost.colorless { return false; }
+pub fn can_pay_cost(
+    pool: &crate::state::player::ManaPool,
+    cost: &crate::state::game_object::ManaCost,
+) -> bool {
+    if pool.white < cost.white {
+        return false;
+    }
+    if pool.blue < cost.blue {
+        return false;
+    }
+    if pool.black < cost.black {
+        return false;
+    }
+    if pool.red < cost.red {
+        return false;
+    }
+    if pool.green < cost.green {
+        return false;
+    }
+    if pool.colorless < cost.colorless {
+        return false;
+    }
 
     // Remaining mana after paying colored and colorless requirements.
     let remaining = (pool.white - cost.white)
@@ -232,7 +244,10 @@ pub fn can_pay_cost(pool: &crate::state::player::ManaPool, cost: &crate::state::
 /// For generic mana, mana is taken from remaining colored/colorless in order:
 /// colorless, then green, red, black, blue, white. The specific order doesn't
 /// affect correctness since generic can use any color.
-pub fn pay_cost(pool: &mut crate::state::player::ManaPool, cost: &crate::state::game_object::ManaCost) {
+pub fn pay_cost(
+    pool: &mut crate::state::player::ManaPool,
+    cost: &crate::state::game_object::ManaCost,
+) {
     pool.white -= cost.white;
     pool.blue -= cost.blue;
     pool.black -= cost.black;

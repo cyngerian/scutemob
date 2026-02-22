@@ -7,7 +7,8 @@
 use im::{ordset, OrdSet};
 use mtg_engine::{
     calculate_characteristics, CardType, ContinuousEffect, EffectDuration, EffectFilter, EffectId,
-    EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectSpec, PlayerId, SubType,
+    EffectLayer, GameStateBuilder, KeywordAbility, LayerModification, ObjectSpec, PlayerId,
+    SubType,
 };
 
 // ---------------------------------------------------------------------------
@@ -159,7 +160,10 @@ fn test_613_layer7b_set_pt() {
             10,
             EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+            LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
         ))
         .build();
     let id = *state
@@ -252,7 +256,10 @@ fn test_613_layer7d_pt_switch() {
             10,
             EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::SetPowerToughness { power: 3, toughness: 3 },
+            LayerModification::SetPowerToughness {
+                power: 3,
+                toughness: 3,
+            },
         ))
         // Then: +1/+0 (7c)
         .add_continuous_effect(effect(
@@ -284,7 +291,11 @@ fn test_613_layer7d_pt_switch() {
     // 7b: 3/3, 7c: 4/3, 7d: switch → 3/4
     let chars = calculate_characteristics(&state, id).unwrap();
     assert_eq!(chars.power, Some(3), "switched: toughness becomes power");
-    assert_eq!(chars.toughness, Some(4), "switched: power becomes toughness");
+    assert_eq!(
+        chars.toughness,
+        Some(4),
+        "switched: power becomes toughness"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -298,9 +309,7 @@ fn test_613_layer5_set_colors() {
 
     let state = GameStateBuilder::new()
         .add_player(p1())
-        .object(
-            ObjectSpec::creature(p1(), "Test", 2, 2).with_colors(vec![Color::Red]),
-        )
+        .object(ObjectSpec::creature(p1(), "Test", 2, 2).with_colors(vec![Color::Red]))
         .add_continuous_effect(ContinuousEffect {
             id: EffectId(1),
             source: None,
@@ -410,7 +419,10 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
             layer: EffectLayer::PtCda,
             duration: EffectDuration::Indefinite,
             filter: EffectFilter::AllCreatures,
-            modification: LayerModification::SetPtViaCda { power: 3, toughness: 4 },
+            modification: LayerModification::SetPtViaCda {
+                power: 3,
+                toughness: 4,
+            },
             is_cda: true,
         })
         // Non-CDA in 7b with EARLIER timestamp: should apply after the CDA
@@ -421,7 +433,10 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
             layer: EffectLayer::PtSet,
             duration: EffectDuration::Indefinite,
             filter: EffectFilter::AllCreatures,
-            modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+            modification: LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
             is_cda: false,
         })
         .build();
@@ -503,7 +518,10 @@ fn test_613_timestamp_ordering_later_wins() {
             10, // earlier
             EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+            LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
         ))
         // Newer timestamp: set to 3/3
         .add_continuous_effect(effect(
@@ -512,7 +530,10 @@ fn test_613_timestamp_ordering_later_wins() {
             20, // later → wins
             EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::SetPowerToughness { power: 3, toughness: 3 },
+            LayerModification::SetPowerToughness {
+                power: 3,
+                toughness: 3,
+            },
         ))
         .build();
     let id = *state
@@ -524,7 +545,11 @@ fn test_613_timestamp_ordering_later_wins() {
         .unwrap();
 
     let chars = calculate_characteristics(&state, id).unwrap();
-    assert_eq!(chars.power, Some(3), "newer effect (3/3) should override older (1/1)");
+    assert_eq!(
+        chars.power,
+        Some(3),
+        "newer effect (3/3) should override older (1/1)"
+    );
     assert_eq!(chars.toughness, Some(3));
 }
 
@@ -566,14 +591,24 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
 
     // Before source leaves: target should have +5/+5
     let chars_before = calculate_characteristics(&state, target_id).unwrap();
-    assert_eq!(chars_before.power, Some(7), "2 + 5 = 7 while source is on battlefield");
+    assert_eq!(
+        chars_before.power,
+        Some(7),
+        "2 + 5 = 7 while source is on battlefield"
+    );
 
     // Move source to graveyard (simulating it dying)
-    state.move_object_to_zone(source_id, mtg_engine::ZoneId::Graveyard(p1())).unwrap();
+    state
+        .move_object_to_zone(source_id, mtg_engine::ZoneId::Graveyard(p1()))
+        .unwrap();
 
     // After source leaves: effect is no longer active (source not on battlefield)
     let chars_after = calculate_characteristics(&state, target_id).unwrap();
-    assert_eq!(chars_after.power, Some(2), "back to base 2 after source left battlefield");
+    assert_eq!(
+        chars_after.power,
+        Some(2),
+        "back to base 2 after source left battlefield"
+    );
 }
 
 /// CR 514.2: "Until end of turn" effects are removed at cleanup.
@@ -713,8 +748,7 @@ fn test_613_counters_apply_after_set_before_switch() {
         .add_player(p1())
         .object(
             // Base: 1/1, with 2 +1/+1 counters = 3/3 after layer 7c
-            ObjectSpec::creature(p1(), "Test", 1, 1)
-                .with_counter(CounterType::PlusOnePlusOne, 2),
+            ObjectSpec::creature(p1(), "Test", 1, 1).with_counter(CounterType::PlusOnePlusOne, 2),
         )
         // Layer 7b: set to 1/1 (overrides base)
         .add_continuous_effect(effect(
@@ -723,7 +757,10 @@ fn test_613_counters_apply_after_set_before_switch() {
             10,
             EffectLayer::PtSet,
             EffectFilter::AllCreatures,
-            LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+            LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
         ))
         // Layer 7d: switch P/T — applied after counters
         // After 7b: 1/1. After 7c (counters): 3/3. After 7d: 3/3 (symmetric).
@@ -754,9 +791,16 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
     use mtg_engine::ManaCost;
 
     // An enchantment with mana value 4 (simulating Opalescence making it a creature).
-    let enchantment_spec = ObjectSpec::enchantment(p1(), "Test Enchantment").with_mana_cost(
-        ManaCost { white: 0, blue: 0, black: 0, red: 0, green: 0, colorless: 0, generic: 4 },
-    );
+    let enchantment_spec =
+        ObjectSpec::enchantment(p1(), "Test Enchantment").with_mana_cost(ManaCost {
+            white: 0,
+            blue: 0,
+            black: 0,
+            red: 0,
+            green: 0,
+            colorless: 0,
+            generic: 4,
+        });
 
     let state = GameStateBuilder::new()
         .add_player(p1())
@@ -840,7 +884,7 @@ fn test_613_humility_plus_opalescence() {
     let state = GameStateBuilder::new()
         .add_player(p1())
         .object(opalescence_spec) // timestamp 1 (older)
-        .object(humility_spec)    // timestamp 2 (newer)
+        .object(humility_spec) // timestamp 2 (newer)
         // Opalescence effects (timestamp 5 = entered at time 5):
         // Layer 4: enchantments become creatures
         .add_continuous_effect(ContinuousEffect {
@@ -884,7 +928,10 @@ fn test_613_humility_plus_opalescence() {
             layer: EffectLayer::PtSet,
             duration: EffectDuration::Indefinite,
             filter: EffectFilter::AllCreatures,
-            modification: LayerModification::SetPowerToughness { power: 1, toughness: 1 },
+            modification: LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
             is_cda: false,
         })
         .build();
@@ -1116,7 +1163,10 @@ fn test_613_dependency_chain_three_effects() {
     let chars = calculate_characteristics(&state, id).unwrap();
     assert!(chars.subtypes.contains(&SubType("Mountain".to_string())));
     assert!(!chars.subtypes.contains(&SubType("Swamp".to_string())));
-    assert!(!chars.card_types.contains(&CardType::Artifact), "SetTypeLine overrides AddCardTypes");
+    assert!(
+        !chars.card_types.contains(&CardType::Artifact),
+        "SetTypeLine overrides AddCardTypes"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1187,7 +1237,10 @@ fn test_613_filter_excludes_non_matching_objects() {
             10,
             EffectLayer::PtSet,
             EffectFilter::AllCreatures, // Land doesn't match
-            LayerModification::SetPowerToughness { power: 5, toughness: 5 },
+            LayerModification::SetPowerToughness {
+                power: 5,
+                toughness: 5,
+            },
         ))
         .build();
     let id = *state
@@ -1262,8 +1315,7 @@ fn test_613_no_effects_returns_base_characteristics() {
     let state = GameStateBuilder::new()
         .add_player(p1())
         .object(
-            ObjectSpec::creature(p1(), "Grizzly Bears", 2, 2)
-                .with_keyword(KeywordAbility::Trample),
+            ObjectSpec::creature(p1(), "Grizzly Bears", 2, 2).with_keyword(KeywordAbility::Trample),
         )
         .build();
     let id = *state
@@ -1286,7 +1338,10 @@ fn test_613_no_effects_returns_base_characteristics() {
 fn test_613_nonexistent_object_returns_none() {
     let state = GameStateBuilder::new().add_player(p1()).build();
     let result = calculate_characteristics(&state, mtg_engine::ObjectId(9999));
-    assert!(result.is_none(), "should return None for nonexistent object");
+    assert!(
+        result.is_none(),
+        "should return None for nonexistent object"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1300,9 +1355,7 @@ fn test_613_nonexistent_object_returns_none() {
 fn test_613_layer_ordering_type_before_ability() {
     let state = GameStateBuilder::new()
         .add_player(p1())
-        .object(
-            ObjectSpec::enchantment(p1(), "Test").with_keyword(KeywordAbility::Vigilance),
-        )
+        .object(ObjectSpec::enchantment(p1(), "Test").with_keyword(KeywordAbility::Vigilance))
         // Layer 4 (type): makes enchantments into creatures
         .add_continuous_effect(effect(
             1,

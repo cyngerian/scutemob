@@ -209,12 +209,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
             GameEvent::SpellCast { .. } => {
                 // AnySpellCast: fires on all permanents that watch for spell casts.
-                collect_triggers_for_event(
-                    state,
-                    &mut triggers,
-                    TriggerEvent::AnySpellCast,
-                    None,
-                );
+                collect_triggers_for_event(state, &mut triggers, TriggerEvent::AnySpellCast, None);
             }
 
             GameEvent::PermanentTapped { object_id, .. } => {
@@ -225,6 +220,30 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     TriggerEvent::SelfBecomesTapped,
                     Some(*object_id),
                 );
+            }
+
+            GameEvent::AttackersDeclared { attackers, .. } => {
+                // SelfAttacks: fires on each creature that is attacking (CR 603.5).
+                for (attacker_id, _) in attackers {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::SelfAttacks,
+                        Some(*attacker_id),
+                    );
+                }
+            }
+
+            GameEvent::BlockersDeclared { blockers, .. } => {
+                // SelfBlocks: fires on each creature that is blocking (CR 603.5).
+                for (blocker_id, _) in blockers {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::SelfBlocks,
+                        Some(*blocker_id),
+                    );
+                }
             }
 
             _ => {}
@@ -372,11 +391,7 @@ pub fn apnap_order(state: &GameState) -> Vec<PlayerId> {
 }
 
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
-pub fn check_intervening_if(
-    state: &GameState,
-    cond: &InterveningIf,
-    controller: PlayerId,
-) -> bool {
+pub fn check_intervening_if(state: &GameState, cond: &InterveningIf, controller: PlayerId) -> bool {
     match cond {
         InterveningIf::ControllerLifeAtLeast(n) => state
             .players

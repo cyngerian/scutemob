@@ -29,7 +29,10 @@ use crate::state::{
 /// within each layer.
 ///
 /// Returns `None` if the object does not exist in the game state.
-pub fn calculate_characteristics(state: &GameState, object_id: ObjectId) -> Option<Characteristics> {
+pub fn calculate_characteristics(
+    state: &GameState,
+    object_id: ObjectId,
+) -> Option<Characteristics> {
     let obj = state.objects.get(&object_id)?;
     let obj_zone = obj.zone;
     let mut chars = obj.characteristics.clone();
@@ -63,7 +66,9 @@ pub fn calculate_characteristics(state: &GameState, object_id: ObjectId) -> Opti
         let layer_effects: Vec<&ContinuousEffect> = active_effects
             .iter()
             .copied()
-            .filter(|e| e.layer == layer && effect_applies_to(state, e, object_id, obj_zone, &chars))
+            .filter(|e| {
+                e.layer == layer && effect_applies_to(state, e, object_id, obj_zone, &chars)
+            })
             .collect();
 
         // Sort by CDAs first, then dependency/timestamp order (CR 613.3, 613.7, 613.8).
@@ -71,7 +76,11 @@ pub fn calculate_characteristics(state: &GameState, object_id: ObjectId) -> Opti
 
         // The mana value comes from the base mana cost (printed on the card).
         // Used by SetPtToManaValue modifications (Opalescence-style).
-        let mana_value = chars.mana_cost.as_ref().map(|c| c.mana_value()).unwrap_or(0);
+        let mana_value = chars
+            .mana_cost
+            .as_ref()
+            .map(|c| c.mana_value())
+            .unwrap_or(0);
 
         for effect in ordered {
             apply_layer_modification(&mut chars, &effect.modification, mana_value);
@@ -226,7 +235,11 @@ fn apply_layer_modification(
         }
 
         // Layer 4: Type-changing
-        LayerModification::SetTypeLine { supertypes, card_types, subtypes } => {
+        LayerModification::SetTypeLine {
+            supertypes,
+            card_types,
+            subtypes,
+        } => {
             chars.supertypes = supertypes.clone();
             chars.card_types = card_types.clone();
             chars.subtypes = subtypes.clone();

@@ -3,12 +3,12 @@
 //! Each test targets a specific SBA in isolation, then integration tests
 //! cover chains and convergence.
 
-use mtg_engine::{start_game, GameEvent, LossReason};
 use mtg_engine::state::builder::{GameStateBuilder, ObjectSpec};
 use mtg_engine::state::player::{CardId, PlayerId};
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::types::{CounterType, SubType, SuperType};
 use mtg_engine::state::zone::ZoneId;
+use mtg_engine::{start_game, GameEvent, LossReason};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -76,9 +76,9 @@ fn test_sba_704_5a_player_at_one_life_survives() {
 
     let events = sba_events_from_start(state);
 
-    let lost = events.iter().any(|e| {
-        matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1))
-    });
+    let lost = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1)));
     assert!(!lost, "player at 1 life should NOT lose");
 }
 
@@ -106,9 +106,9 @@ fn test_sba_704_5a_multiple_players_lose_simultaneously() {
         matches!(e, GameEvent::PlayerLost { player, reason }
             if *player == p(2) && *reason == LossReason::LifeTotal)
     });
-    let p3_lost = events.iter().any(|e| {
-        matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(3))
-    });
+    let p3_lost = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(3)));
 
     assert!(p1_lost, "player 1 at 0 life should lose");
     assert!(p2_lost, "player 2 at -1 life should lose");
@@ -150,9 +150,9 @@ fn test_sba_704_5c_nine_poison_survives() {
 
     let events = sba_events_from_start(state);
 
-    let lost = events.iter().any(|e| {
-        matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1))
-    });
+    let lost = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1)));
     assert!(!lost, "player with 9 poison should NOT lose");
 }
 
@@ -175,9 +175,9 @@ fn test_sba_704_5d_token_in_graveyard_ceases_to_exist() {
 
     let events = sba_events_from_start(state);
 
-    let ceased = events.iter().any(|e| {
-        matches!(e, GameEvent::TokenCeasedToExist { .. })
-    });
+    let ceased = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::TokenCeasedToExist { .. }));
     assert!(ceased, "token in graveyard should cease to exist");
 }
 
@@ -194,9 +194,9 @@ fn test_sba_704_5d_token_on_battlefield_stays() {
 
     let events = sba_events_from_start(state);
 
-    let ceased = events.iter().any(|e| {
-        matches!(e, GameEvent::TokenCeasedToExist { .. })
-    });
+    let ceased = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::TokenCeasedToExist { .. }));
     assert!(!ceased, "token on battlefield should NOT cease to exist");
 }
 
@@ -215,7 +215,9 @@ fn test_sba_704_5f_zero_toughness_creature_dies() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(died, "0 toughness creature should go to graveyard via SBA");
 }
 
@@ -232,7 +234,9 @@ fn test_sba_704_5f_negative_toughness_creature_dies() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(died, "-1 toughness creature should go to graveyard via SBA");
 }
 
@@ -249,7 +253,9 @@ fn test_sba_704_5f_positive_toughness_creature_survives() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(!died, "1/1 with no damage should NOT die via SBA");
 }
 
@@ -268,7 +274,9 @@ fn test_sba_704_5g_lethal_damage_destroys_creature() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(died, "creature with lethal damage should be destroyed");
 }
 
@@ -285,8 +293,13 @@ fn test_sba_704_5g_nonlethal_damage_survives() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
-    assert!(!died, "creature with 2 damage on 3 toughness should NOT die");
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        !died,
+        "creature with 2 damage on 3 toughness should NOT die"
+    );
 }
 
 // ── CR 704.5h: Creature with deathtouch damage ─────────────────────────────
@@ -308,7 +321,9 @@ fn test_sba_704_5h_deathtouch_damage_destroys_creature() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
     assert!(died, "creature with deathtouch damage should be destroyed");
 }
 
@@ -327,7 +342,9 @@ fn test_sba_704_5i_planeswalker_zero_loyalty_dies() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::PlaneswalkerDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlaneswalkerDied { .. }));
     assert!(died, "planeswalker at 0 loyalty should go to graveyard");
 }
 
@@ -344,7 +361,9 @@ fn test_sba_704_5i_planeswalker_nonzero_loyalty_survives() {
 
     let events = sba_events_from_start(state);
 
-    let died = events.iter().any(|e| matches!(e, GameEvent::PlaneswalkerDied { .. }));
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlaneswalkerDied { .. }));
     assert!(!died, "planeswalker at 3 loyalty should NOT die");
 }
 
@@ -357,12 +376,10 @@ fn test_sba_704_5j_legendary_rule_removes_duplicate() {
         .add_player(p(1))
         .add_player(p(2))
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
@@ -374,7 +391,10 @@ fn test_sba_704_5j_legendary_rule_removes_duplicate() {
         matches!(e, GameEvent::LegendaryRuleApplied { put_to_graveyard, .. }
             if put_to_graveyard.len() == 1)
     });
-    assert!(applied, "legendary rule should remove one of two duplicates");
+    assert!(
+        applied,
+        "legendary rule should remove one of two duplicates"
+    );
 }
 
 #[test]
@@ -384,8 +404,7 @@ fn test_sba_704_5j_different_name_legendaries_no_sba() {
         .add_player(p(1))
         .add_player(p(2))
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .object(
             ObjectSpec::creature(p(1), "Gaddock Teeg", 2, 2)
@@ -397,8 +416,13 @@ fn test_sba_704_5j_different_name_legendaries_no_sba() {
 
     let events = sba_events_from_start(state);
 
-    let applied = events.iter().any(|e| matches!(e, GameEvent::LegendaryRuleApplied { .. }));
-    assert!(!applied, "different-named legendaries should NOT trigger legendary rule");
+    let applied = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LegendaryRuleApplied { .. }));
+    assert!(
+        !applied,
+        "different-named legendaries should NOT trigger legendary rule"
+    );
 }
 
 #[test]
@@ -408,12 +432,10 @@ fn test_sba_704_5j_same_name_different_controllers_no_sba() {
         .add_player(p(1))
         .add_player(p(2))
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .object(
-            ObjectSpec::creature(p(2), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(2), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
@@ -421,8 +443,13 @@ fn test_sba_704_5j_same_name_different_controllers_no_sba() {
 
     let events = sba_events_from_start(state);
 
-    let applied = events.iter().any(|e| matches!(e, GameEvent::LegendaryRuleApplied { .. }));
-    assert!(!applied, "same-named legendaries under different controllers should NOT trigger rule");
+    let applied = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LegendaryRuleApplied { .. }));
+    assert!(
+        !applied,
+        "same-named legendaries under different controllers should NOT trigger rule"
+    );
 }
 
 // ── CR 704.5m: Aura attached to illegal object ─────────────────────────────
@@ -443,8 +470,13 @@ fn test_sba_704_5m_unattached_aura_goes_to_graveyard() {
 
     let events = sba_events_from_start(state);
 
-    let fell_off = events.iter().any(|e| matches!(e, GameEvent::AuraFellOff { .. }));
-    assert!(fell_off, "unattached aura on battlefield should go to graveyard");
+    let fell_off = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { .. }));
+    assert!(
+        fell_off,
+        "unattached aura on battlefield should go to graveyard"
+    );
 }
 
 // ── CR 704.5n: Equipment attached illegally ────────────────────────────────
@@ -488,10 +520,13 @@ fn test_sba_704_5n_equipment_on_non_creature_unattaches() {
 
     let (_, events) = start_game(state).unwrap();
 
-    let unattached: bool = events
-        .iter()
-        .any(|e| matches!(e, GameEvent::EquipmentUnattached { object_id } if object_id == &sword_id));
-    assert!(unattached, "equipment on non-creature should become unattached");
+    let unattached: bool = events.iter().any(
+        |e| matches!(e, GameEvent::EquipmentUnattached { object_id } if object_id == &sword_id),
+    );
+    assert!(
+        unattached,
+        "equipment on non-creature should become unattached"
+    );
 }
 
 // ── CR 704.5q: Counter annihilation ────────────────────────────────────────
@@ -513,9 +548,9 @@ fn test_sba_704_5q_equal_counters_annihilate() {
 
     let (new_state, events) = start_game(state).unwrap();
 
-    let annihilated: bool = events.iter().any(|e| {
-        matches!(e, GameEvent::CountersAnnihilated { amount, .. } if *amount == 2)
-    });
+    let annihilated: bool = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CountersAnnihilated { amount, .. } if *amount == 2));
     assert!(annihilated, "equal counter pairs should annihilate");
 
     // Verify counters are gone from state.
@@ -545,9 +580,9 @@ fn test_sba_704_5q_unequal_counters_partial_annihilation() {
 
     let (new_state, events) = start_game(state).unwrap();
 
-    let annihilated: bool = events.iter().any(|e| {
-        matches!(e, GameEvent::CountersAnnihilated { amount, .. } if *amount == 2)
-    });
+    let annihilated: bool = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CountersAnnihilated { amount, .. } if *amount == 2));
     assert!(annihilated, "2 pairs should be annihilated");
 
     let bear = new_state
@@ -624,9 +659,9 @@ fn test_sba_704_5u_commander_damage_20_survives() {
 
     let events = sba_events_from_start(state);
 
-    let lost = events.iter().any(|e| {
-        matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1))
-    });
+    let lost = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PlayerLost { player, .. } if *player == p(1)));
     assert!(!lost, "player with 20 commander damage should NOT lose");
 }
 
@@ -659,7 +694,10 @@ fn test_sba_convergence_only_applicable_sbas_fire() {
         .objects
         .values()
         .any(|o| o.characteristics.name == "Healthy" && o.zone == ZoneId::Battlefield);
-    assert!(healthy_on_battlefield, "healthy creature should still be on battlefield");
+    assert!(
+        healthy_on_battlefield,
+        "healthy creature should still be on battlefield"
+    );
 }
 
 #[test]

@@ -38,10 +38,6 @@ pub struct PendingTrigger {
 
 // StackObject has moved to `state/stack.rs` (M3-A).
 
-/// Combat state tracking (CR 506-511). Implemented in M6.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CombatState {
-    pub attacking_player: PlayerId,
-}
+// CombatState has moved to `state/combat.rs` (M6).
 
 // GameEvent has moved to crate::rules::events (M2).

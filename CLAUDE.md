@@ -11,9 +11,29 @@
 
 ## Current State
 
-- **Active Milestone**: M6 — Combat
-- **Status**: M5 complete — layer system (CR 613) implemented and tested; 261 tests passing
+- **Active Milestone**: M7 — Card Definition Framework & First Cards
+- **Status**: M6 complete — combat phase (CR 506-511) fully implemented and tested; 272 tests passing
 - **Last Updated**: 2026-02-21
+
+### What Exists (M6 complete)
+- Everything from M5, plus:
+- `state/combat.rs`: `AttackTarget` enum (Player/Planeswalker), `CombatState` struct (attackers, blockers, damage_assignment_order, first_strike_damage_resolved, defenders_declared, attacking_player)
+- `rules/combat.rs`: Full combat handler module
+  - `handle_declare_attackers`: taps non-Vigilance attackers, records in CombatState, fires SelfAttacks triggers, grants priority
+  - `handle_declare_blockers`: records blockers per attacker, fires SelfBlocks triggers (no priority change)
+  - `handle_order_blockers`: sets damage_assignment_order for multi-blocker attackers
+  - `apply_combat_damage(state, first_strike_step)`: simultaneous damage (CR 510.2); trample, deathtouch, commander damage tracking; two-phase (collect then apply) to avoid borrow conflicts
+  - `should_have_first_strike_step`: checks if any combatant has FirstStrike or DoubleStrike
+- `rules/turn_actions.rs`: `begin_combat`, `first_strike_damage_step`, `combat_damage_step`, `end_combat` step actions
+- `rules/turn_structure.rs`: conditionally inserts `FirstStrikeDamage` step between DeclareBlockers and CombatDamage
+- `state/game_object.rs`: `TriggerEvent::SelfAttacks` and `SelfBlocks` variants added
+- `rules/abilities.rs`: `AttackersDeclared` and `BlockersDeclared` trigger handlers added
+- New commands: `DeclareAttackers`, `DeclareBlockers`, `OrderBlockers`
+- New events: `AttackersDeclared`, `BlockersDeclared`, `CombatDamageDealt` (with `CombatDamageAssignment`/`CombatDamageTarget`), `CombatEnded`
+- Commander damage: tracked in `PlayerState.commander_damage_received` during `apply_combat_damage` (CR 903.10a)
+- 11 tests in `tests/combat.rs`; 272 total, zero clippy warnings
+  - Unblocked damage, blocked (no trample), mutual death, first strike, double strike, trample, deathtouch+trample, multiple blockers, SelfAttacks trigger, commander damage, multiplayer attacks
+- Deferred to M7+: "deals combat damage to a player" triggers; damage prevention
 
 ### What Exists (M5 complete)
 - Everything from M4, plus:
@@ -153,9 +173,9 @@
 ### M3 Complete — What's Next (M4)
 - See `docs/mtg-engine-roadmap.md` for M4 deliverables
 
-### M5 Complete — What's Next (M6)
-- See `docs/mtg-engine-roadmap.md` for M6 (Combat) deliverables
-- Key M6 deliverables: `CombatState`, attacker/blocker declaration, damage assignment, first strike, trample, deathtouch+trample, commander damage tracking
+### M6 Complete — What's Next (M7)
+- See `docs/mtg-engine-roadmap.md` for M7 (Card Definition Framework & First Cards) deliverables
+- Key M7 deliverables: `CardDefinition`/`Effect` types, keyword implementations, first 50 real cards, game script replay harness, script auto-discovery
 
 ---
 
@@ -365,6 +385,8 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-21 | Game script generation deferred to M7; schema defined in M5 | Generating scripts before the replay harness (M7) risks format drift and wasted effort since scripts can't run. Schema defined now so it compiles and evolves. All generation happens in M7 when scripts run immediately against the harness. |
 | 2026-02-21 | Rewind, pause, and manual mode are network/UI features, not engine features | im-rs structural sharing makes state history free. Engine only needs a `reveals_hidden_info()` classification method on GameEvent (M9, ~10 lines). Coordinated rewind (unanimous consent) and Pause/Resume commands live in M10 network layer. Manual state adjustment UI lives in M11. Secret information protection across rewinds is honour-system only — app surfaces a warning but does not block; this is acceptable for the trusted-friends use case. |
 | 2026-02-21 | SBA check added to all priority-grant sites (enter_step, resolve_top_of_stack, fizzle, counter) | CR 704.3 says SBAs fire "whenever any player would receive priority" — all four sites must be covered |
+| 2026-02-21 | Layer 1 (Copy) and Layer 2 (Control) stubbed in M5 | Copy effects require CR 707 copiable-values logic that needs the full card definition framework (M7); control changes live on `GameObject.controller`, not `Characteristics`, so the layer calculation doesn't apply them |
+| 2026-02-21 | `SetTypeLine` depends on `AddSubtypes`/`AddCardTypes` in dependency detection | This is the Blood Moon + Urborg fix: the set always follows the add regardless of timestamp. CR 613.8 says A depends on B if B changes what A applies to or does. |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
 
@@ -430,6 +452,11 @@ Things to watch out for, accumulated over development:
   in tests for deterministic library order.
 - **Golden tests are fragile**: If you change the Event format, all golden test files break.
   Version the golden test schema.
+- **1-player `start_game` doesn't reach Cleanup.** `active_players().len() == 1` makes
+  `is_game_over()` return `true` (one winner), so `enter_step` emits a `GameOver` event
+  and returns immediately — it never advances through cleanup. Tests that need cleanup to
+  fire (e.g., verifying `UntilEndOfTurn` expiry via the full turn cycle) must use 2+ players.
+  Layer system tests that only call `calculate_characteristics` can safely use 1 player.
 
 ---
 

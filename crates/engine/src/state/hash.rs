@@ -12,22 +12,23 @@
 use blake3::Hasher;
 use im::{OrdMap, OrdSet, Vector};
 
-use super::game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
-    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggeredAbilityDef, TriggerEvent,
-};
-use super::player::{CardId, ManaPool, PlayerId, PlayerState};
-use super::stack::{StackObject, StackObjectKind};
+use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
-use super::stubs::{CombatState, DelayedTrigger, PendingTrigger, ReplacementEffect};
+use super::game_object::{
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
+    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+};
+use super::player::{CardId, ManaPool, PlayerId, PlayerState};
+use super::stack::{StackObject, StackObjectKind};
+use super::stubs::{DelayedTrigger, PendingTrigger, ReplacementEffect};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
-use crate::rules::events::{GameEvent, LossReason};
+use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 
 /// Feeds data into a `blake3::Hasher` in a deterministic, canonical order.
 ///
@@ -470,7 +471,11 @@ impl HashInto for LayerModification {
                 1u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
-            LayerModification::SetTypeLine { supertypes, card_types, subtypes } => {
+            LayerModification::SetTypeLine {
+                supertypes,
+                card_types,
+                subtypes,
+            } => {
                 2u8.hash_into(hasher);
                 supertypes.hash_into(hasher);
                 card_types.hash_into(hasher);
@@ -591,7 +596,51 @@ impl HashInto for TriggerEvent {
             TriggerEvent::AnyPermanentEntersBattlefield => 1u8.hash_into(hasher),
             TriggerEvent::AnySpellCast => 2u8.hash_into(hasher),
             TriggerEvent::SelfBecomesTapped => 3u8.hash_into(hasher),
+            TriggerEvent::SelfAttacks => 4u8.hash_into(hasher),
+            TriggerEvent::SelfBlocks => 5u8.hash_into(hasher),
         }
+    }
+}
+
+impl HashInto for AttackTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            AttackTarget::Player(p) => {
+                0u8.hash_into(hasher);
+                p.hash_into(hasher);
+            }
+            AttackTarget::Planeswalker(id) => {
+                1u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for CombatDamageTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            CombatDamageTarget::Creature(id) => {
+                0u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            CombatDamageTarget::Player(p) => {
+                1u8.hash_into(hasher);
+                p.hash_into(hasher);
+            }
+            CombatDamageTarget::Planeswalker(id) => {
+                2u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for CombatDamageAssignment {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.target.hash_into(hasher);
+        self.amount.hash_into(hasher);
     }
 }
 
@@ -675,6 +724,11 @@ impl HashInto for StackObject {
 impl HashInto for CombatState {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.attacking_player.hash_into(hasher);
+        self.attackers.hash_into(hasher);
+        self.blockers.hash_into(hasher);
+        self.damage_assignment_order.hash_into(hasher);
+        self.first_strike_damage_resolved.hash_into(hasher);
+        self.defenders_declared.hash_into(hasher);
     }
 }
 
@@ -908,6 +962,39 @@ impl HashInto for GameEvent {
                     old_id.hash_into(hasher);
                     new_id.hash_into(hasher);
                 }
+            }
+
+            // M6 Combat events
+            GameEvent::AttackersDeclared {
+                attacking_player,
+                attackers,
+            } => {
+                34u8.hash_into(hasher);
+                attacking_player.hash_into(hasher);
+                (attackers.len() as u64).hash_into(hasher);
+                for (obj_id, target) in attackers {
+                    obj_id.hash_into(hasher);
+                    target.hash_into(hasher);
+                }
+            }
+            GameEvent::BlockersDeclared {
+                defending_player,
+                blockers,
+            } => {
+                35u8.hash_into(hasher);
+                defending_player.hash_into(hasher);
+                (blockers.len() as u64).hash_into(hasher);
+                for (blocker_id, attacker_id) in blockers {
+                    blocker_id.hash_into(hasher);
+                    attacker_id.hash_into(hasher);
+                }
+            }
+            GameEvent::CombatDamageDealt { assignments } => {
+                36u8.hash_into(hasher);
+                assignments.hash_into(hasher);
+            }
+            GameEvent::CombatEnded => {
+                37u8.hash_into(hasher);
             }
         }
     }

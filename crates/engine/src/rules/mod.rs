@@ -4,6 +4,7 @@
 
 pub mod abilities;
 pub mod casting;
+pub mod combat;
 pub mod command;
 pub mod engine;
 pub mod events;
