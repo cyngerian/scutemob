@@ -18,7 +18,10 @@ use super::game_object::{
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::stack::{StackObject, StackObjectKind};
-use super::stubs::{CombatState, ContinuousEffect, DelayedTrigger, PendingTrigger, ReplacementEffect};
+use super::continuous_effect::{
+    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
+};
+use super::stubs::{CombatState, DelayedTrigger, PendingTrigger, ReplacementEffect};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
@@ -410,14 +413,142 @@ impl HashInto for Zone {
     }
 }
 
-// --- Stub type implementations ---
+// --- ContinuousEffect type implementations (M5) ---
+
+impl HashInto for EffectId {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.0.hash_into(hasher);
+    }
+}
+
+impl HashInto for EffectLayer {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        (*self as u8).hash_into(hasher);
+    }
+}
+
+impl HashInto for EffectDuration {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        (*self as u8).hash_into(hasher);
+    }
+}
+
+impl HashInto for EffectFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EffectFilter::SingleObject(id) => {
+                0u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            EffectFilter::AllCreatures => 1u8.hash_into(hasher),
+            EffectFilter::AllLands => 2u8.hash_into(hasher),
+            EffectFilter::AllNonbasicLands => 3u8.hash_into(hasher),
+            EffectFilter::AllEnchantments => 4u8.hash_into(hasher),
+            EffectFilter::AllNonAuraEnchantments => 5u8.hash_into(hasher),
+            EffectFilter::AllPermanents => 6u8.hash_into(hasher),
+            EffectFilter::AllCardsInGraveyards => 7u8.hash_into(hasher),
+            EffectFilter::ControlledBy(player) => {
+                8u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            EffectFilter::CreaturesControlledBy(player) => {
+                9u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for LayerModification {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            LayerModification::CopyOf(id) => {
+                0u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            LayerModification::SetController(player) => {
+                1u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            LayerModification::SetTypeLine { supertypes, card_types, subtypes } => {
+                2u8.hash_into(hasher);
+                supertypes.hash_into(hasher);
+                card_types.hash_into(hasher);
+                subtypes.hash_into(hasher);
+            }
+            LayerModification::AddCardTypes(types) => {
+                3u8.hash_into(hasher);
+                types.hash_into(hasher);
+            }
+            LayerModification::AddSubtypes(subtypes) => {
+                4u8.hash_into(hasher);
+                subtypes.hash_into(hasher);
+            }
+            LayerModification::LoseAllSubtypes => 5u8.hash_into(hasher),
+            LayerModification::SetColors(colors) => {
+                6u8.hash_into(hasher);
+                colors.hash_into(hasher);
+            }
+            LayerModification::AddColors(colors) => {
+                7u8.hash_into(hasher);
+                colors.hash_into(hasher);
+            }
+            LayerModification::BecomeColorless => 8u8.hash_into(hasher),
+            LayerModification::AddKeyword(kw) => {
+                9u8.hash_into(hasher);
+                kw.hash_into(hasher);
+            }
+            LayerModification::AddKeywords(kws) => {
+                10u8.hash_into(hasher);
+                kws.hash_into(hasher);
+            }
+            LayerModification::RemoveAllAbilities => 11u8.hash_into(hasher),
+            LayerModification::RemoveKeyword(kw) => {
+                12u8.hash_into(hasher);
+                kw.hash_into(hasher);
+            }
+            LayerModification::SetPtViaCda { power, toughness } => {
+                13u8.hash_into(hasher);
+                power.hash_into(hasher);
+                toughness.hash_into(hasher);
+            }
+            LayerModification::SetPtToManaValue => 14u8.hash_into(hasher),
+            LayerModification::SetPowerToughness { power, toughness } => {
+                15u8.hash_into(hasher);
+                power.hash_into(hasher);
+                toughness.hash_into(hasher);
+            }
+            LayerModification::ModifyPower(d) => {
+                16u8.hash_into(hasher);
+                d.hash_into(hasher);
+            }
+            LayerModification::ModifyToughness(d) => {
+                17u8.hash_into(hasher);
+                d.hash_into(hasher);
+            }
+            LayerModification::ModifyBoth(d) => {
+                18u8.hash_into(hasher);
+                d.hash_into(hasher);
+            }
+            LayerModification::SwitchPowerToughness => 19u8.hash_into(hasher),
+        }
+    }
+}
 
 impl HashInto for ContinuousEffect {
     fn hash_into(&self, hasher: &mut Hasher) {
+        self.id.hash_into(hasher);
         self.source.hash_into(hasher);
         self.timestamp.hash_into(hasher);
+        self.layer.hash_into(hasher);
+        self.duration.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        self.modification.hash_into(hasher);
+        self.is_cda.hash_into(hasher);
     }
 }
+
+// --- Stub type implementations ---
 
 impl HashInto for DelayedTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {

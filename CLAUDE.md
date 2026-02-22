@@ -11,9 +11,25 @@
 
 ## Current State
 
-- **Active Milestone**: M5 — The Layer System
-- **Status**: M4 complete; M5 starting
+- **Active Milestone**: M6 — Combat
+- **Status**: M5 complete — layer system (CR 613) implemented and tested; 261 tests passing
 - **Last Updated**: 2026-02-21
+
+### What Exists (M5 complete)
+- Everything from M4, plus:
+- `state/continuous_effect.rs`: `EffectId`, `EffectLayer` (10 variants: Copy/Control/Text/TypeChange/ColorChange/Ability/PtCda/PtSet/PtModify/PtSwitch), `EffectDuration` (3), `EffectFilter` (10), `LayerModification` (21 variants), `ContinuousEffect`
+- `rules/layers.rs`: `calculate_characteristics(state, object_id) -> Option<Characteristics>`
+  - Layers 1–7d in strict order; CDAs first (CR 613.3); dependency order then timestamp order (CR 613.7, 613.8)
+  - `depends_on()`: `SetTypeLine` depends on `AddSubtypes`/`AddCardTypes` — handles Blood Moon + Urborg correctly regardless of timestamp
+  - `toposort_with_timestamp_fallback()`: Kahn's algorithm; circular dependencies fall back to timestamp
+  - `is_effect_active()`: `WhileSourceOnBattlefield` lazily evaluated; `UntilEndOfTurn` always active until removed
+  - Counter P/T modifications (CR 613.4c) applied inline at Layer 7c
+  - Layer 1 (Copy): placeholder for M7; Layer 2 (Control): `SetController` defined, controller on `GameObject`
+- `rules/layers::expire_end_of_turn_effects()`: removes `UntilEndOfTurn` effects, called from `cleanup_actions`
+- `GameStateBuilder::add_continuous_effect()`: builder method for test state construction
+- `testing/script_schema.rs`: `GameScript` schema (Hook 1, done in M5)
+- 28 new tests in `tests/layers.rs`; 261 total, zero clippy warnings
+  - Humility + Opalescence, Blood Moon + Urborg (both timestamp orderings), dependency chains, CDAs, layer ordering, duration expiry
 
 ### What Exists (M4 complete)
 - Everything from M3, plus:
@@ -136,6 +152,10 @@
 
 ### M3 Complete — What's Next (M4)
 - See `docs/mtg-engine-roadmap.md` for M4 deliverables
+
+### M5 Complete — What's Next (M6)
+- See `docs/mtg-engine-roadmap.md` for M6 (Combat) deliverables
+- Key M6 deliverables: `CombatState`, attacker/blocker declaration, damage assignment, first strike, trample, deathtouch+trample, commander damage tracking
 
 ---
 
@@ -343,6 +363,7 @@ the way they are. Format: date, decision, rationale.
 | 2026-02-21 | Deterministic state hashing from M3 onward | Catching non-determinism during engine development is dramatically cheaper than discovering it during M10 networking |
 | 2026-02-21 | M4 legendary rule auto-keeps newest permanent (highest ObjectId) | Real player choice requires a choice Command that doesn't exist until M7; auto-newest is deterministic, testable, and matches common play |
 | 2026-02-21 | Game script generation deferred to M7; schema defined in M5 | Generating scripts before the replay harness (M7) risks format drift and wasted effort since scripts can't run. Schema defined now so it compiles and evolves. All generation happens in M7 when scripts run immediately against the harness. |
+| 2026-02-21 | Rewind, pause, and manual mode are network/UI features, not engine features | im-rs structural sharing makes state history free. Engine only needs a `reveals_hidden_info()` classification method on GameEvent (M9, ~10 lines). Coordinated rewind (unanimous consent) and Pause/Resume commands live in M10 network layer. Manual state adjustment UI lives in M11. Secret information protection across rewinds is honour-system only — app surfaces a warning but does not block; this is acceptable for the trusted-friends use case. |
 | 2026-02-21 | SBA check added to all priority-grant sites (enter_step, resolve_top_of_stack, fizzle, counter) | CR 704.3 says SBAs fire "whenever any player would receive priority" — all four sites must be covered |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with the app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |

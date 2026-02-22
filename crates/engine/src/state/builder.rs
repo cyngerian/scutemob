@@ -6,6 +6,7 @@
 
 use im::{OrdMap, OrdSet, Vector};
 
+use super::continuous_effect::ContinuousEffect;
 use super::game_object::{
     ActivatedAbility, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
     TriggeredAbilityDef,
@@ -20,6 +21,7 @@ use super::GameState;
 pub struct GameStateBuilder {
     players: Vec<PlayerConfig>,
     objects: Vec<ObjectSpec>,
+    continuous_effects: Vec<ContinuousEffect>,
     turn_number: u32,
     step: Option<Step>,
     active_player: Option<PlayerId>,
@@ -41,6 +43,7 @@ impl GameStateBuilder {
         Self {
             players: Vec::new(),
             objects: Vec::new(),
+            continuous_effects: Vec::new(),
             turn_number: 1,
             step: None,
             active_player: None,
@@ -152,6 +155,15 @@ impl GameStateBuilder {
         self
     }
 
+    /// Add a continuous effect to the game state (for layer system tests in M5+).
+    ///
+    /// Effects added via this method are placed directly into `state.continuous_effects`
+    /// with their `id`, `source`, and `timestamp` taken as-is from the provided effect.
+    pub fn add_continuous_effect(mut self, effect: ContinuousEffect) -> Self {
+        self.continuous_effects.push(effect);
+        self
+    }
+
     /// Build the `GameState`. Panics if configuration is invalid (no players).
     pub fn build(self) -> GameState {
         assert!(!self.players.is_empty(), "must have at least one player");
@@ -225,6 +237,11 @@ impl GameStateBuilder {
             timestamp_counter: 0,
             history: Vector::new(),
         };
+
+        // Add continuous effects
+        for effect in self.continuous_effects {
+            state.continuous_effects.push_back(effect);
+        }
 
         // Add objects
         for spec in self.objects {

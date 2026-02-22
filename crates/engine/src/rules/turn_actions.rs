@@ -155,9 +155,12 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
         }
     }
 
-    // Clear damage from all permanents
+    // Clear damage from all permanents (CR 514.1)
     clear_damage(state);
     events.push(GameEvent::DamageCleared);
+
+    // Remove "until end of turn" continuous effects (CR 514.2).
+    super::layers::expire_end_of_turn_effects(state);
 
     // Empty mana pools
     empty_all_mana_pools(state);

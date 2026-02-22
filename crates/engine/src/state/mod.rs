@@ -4,6 +4,7 @@
 //! enabling cheap snapshots and deterministic replay.
 
 pub mod builder;
+pub mod continuous_effect;
 pub mod error;
 pub mod game_object;
 pub mod hash;
@@ -25,7 +26,10 @@ pub use game_object::{
 pub use stack::{StackObject, StackObjectKind};
 pub use targeting::{SpellTarget, Target};
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
-pub use stubs::{CombatState, ContinuousEffect, DelayedTrigger, PendingTrigger, ReplacementEffect};
+pub use continuous_effect::{
+    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
+};
+pub use stubs::{CombatState, DelayedTrigger, PendingTrigger, ReplacementEffect};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 pub use zone::{Zone, ZoneId, ZoneType};

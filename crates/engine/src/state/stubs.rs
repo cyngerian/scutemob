@@ -8,12 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 
-/// A continuous effect modifying game objects (CR 611). Implemented in M5.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ContinuousEffect {
-    pub source: ObjectId,
-    pub timestamp: u64,
-}
+// ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
 
 /// A delayed trigger waiting for a condition (CR 603.7). Implemented in M3.
 #[derive(Clone, Debug, Serialize, Deserialize)]
