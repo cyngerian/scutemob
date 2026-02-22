@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-22 (M0 re-reviewed)
+> **Last Updated**: 2026-02-22 (M0 and M1 re-reviewed)
 
 ---
 
@@ -154,23 +154,23 @@ but enforce no rules — that's M1+.
 
 ## M1: Game State & Object Model
 
-**Review Status**: REVIEWED (2026-02-22)
+**Review Status**: RE-REVIEWED (2026-02-22) — original review covered all M1 files; re-review adds 12 new findings (1 MEDIUM, 8 LOW, 3 INFO) and confirms all original findings still open
 
 ### Files Introduced
 
-**Source files:**
+**Source files (line counts reflect current state after M1-M7 evolution):**
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `crates/engine/src/state/types.rs` | 105 | Color, ManaColor, SuperType, CardType, CounterType, KeywordAbility enums |
+| `crates/engine/src/state/types.rs` | 105 | Color, ManaColor, SuperType, CardType, SubType, CounterType, KeywordAbility enums |
 | `crates/engine/src/state/player.rs` | 83 | PlayerId, CardId, ManaPool, PlayerState (Commander fields) |
-| `crates/engine/src/state/game_object.rs` | 221 | ObjectId, Characteristics, ManaAbility, GameObject |
-| `crates/engine/src/state/zone.rs` | 185 | ZoneId, ZoneType, Zone (Ordered/Unordered), operations |
-| `crates/engine/src/state/turn.rs` | 121 | Phase, Step, TurnState |
-| `crates/engine/src/state/error.rs` | 75 | GameStateError enum (thiserror) |
-| `crates/engine/src/state/builder.rs` | 676 | GameStateBuilder + ObjectSpec + PlayerBuilder |
-| `crates/engine/src/state/stubs.rs` | 43 | Placeholder types (PendingTrigger, etc.) |
-| `crates/engine/src/state/mod.rs` | 268 | GameState struct, add_object, move_object_to_zone |
+| `crates/engine/src/state/game_object.rs` | 221 | ObjectId, ManaCost, ManaAbility, ActivatedAbility, TriggeredAbilityDef, Characteristics, ObjectStatus, AbilityInstance, GameObject |
+| `crates/engine/src/state/zone.rs` | 185 | ZoneId, ZoneType, Zone (Ordered/Unordered), operations (insert, remove, shuffle, insert_at, top) |
+| `crates/engine/src/state/turn.rs` | 121 | Phase, Step (with phase mapping, priority, next), TurnState |
+| `crates/engine/src/state/error.rs` | 75 | GameStateError enum (15 variants, thiserror) |
+| `crates/engine/src/state/builder.rs` | 676 | GameStateBuilder (6 player/config methods), ObjectSpec (6 constructors + 17 fluent setters), PlayerBuilder |
+| `crates/engine/src/state/stubs.rs` | 43 | DelayedTrigger, ReplacementEffect, PendingTrigger (placeholders) |
+| `crates/engine/src/state/mod.rs` | 268 | GameState struct (13 fields), next_object_id, accessors, add_object, move_object_to_zone, active_players, objects_in_zone |
 | `crates/engine/src/lib.rs` | 30 | Module declarations, re-exports |
 
 **Source total**: 1,807 lines
@@ -196,8 +196,15 @@ but enforce no rules — that's M1+.
 | CR 400.7 | Zone-change identity: new ObjectId, reset status/counters/attachments (`state/mod.rs:move_object_to_zone`) |
 | CR 109 (colors) | Color, ManaColor enums (`state/types.rs`) |
 | CR 205 (types) | CardType, SuperType enums (`state/types.rs`) |
+| CR 106.4 | ManaPool with per-color tracking (`state/player.rs`) |
+| CR 110.5 | ObjectStatus: tapped, flipped, face_down, phased_out (`state/game_object.rs`) |
+| CR 302.6 | Summoning sickness set on battlefield entry (`state/mod.rs:224`) |
+| CR 500-514 | Phase/Step enums with correct ordering (`state/turn.rs`) |
+| CR 903.7/903.10a | Commander starting life (40), commander_tax, commander_damage_received (`state/player.rs`) |
 
 ### Findings
+
+**Original findings status (all confirmed still open)**:
 
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
@@ -206,12 +213,29 @@ but enforce no rules — that's M1+.
 | MR-M1-03 | **MEDIUM** | state/builder.rs:318 | **`.expect()` in `build()`.** `state.add_object(object, zone).expect("failed to add object in builder")`. Builder is documented as a test utility that panics on invalid configuration, so the convention is arguably acceptable. However, `build()` is public API and could be used outside tests. Consider returning `Result` or documenting the panic contract. | OPEN |
 | MR-M1-04 | **MEDIUM** | state/mod.rs | **Check-then-access pattern.** Both `add_object` and `move_object_to_zone` use `contains_key()` + `get_mut().unwrap()` instead of the idiomatic `get_mut().ok_or()?` pattern. Creates maintenance risk — the guard and the access can drift apart during refactoring. | OPEN |
 | MR-M1-05 | **MEDIUM** | state/builder.rs:181 | **Panics on 0 players.** `build()` panics if `self.players.is_empty()`. Could return `Result` for consistency with engine error handling philosophy. Currently has `#[should_panic]` test in builder_tests.rs so it's tested, but violates typed-error convention. | OPEN |
-| MR-M1-06 | **LOW** | structural_sharing.rs | **Uses mock types, not real GameState.** Tests im-rs principle with stand-in structs. Real structural sharing validated in `snapshot_perf.rs`, so this is redundant — not wrong, just low-value. | OPEN |
+| MR-M1-06 | **LOW** | structural_sharing.rs | **Uses mock types, not real GameState.** Tests im-rs principle with stand-in structs using `im::HashMap` (not `im::OrdMap` which the real code uses). Real structural sharing validated in `snapshot_perf.rs`, so this is redundant — not wrong, just low-value. | OPEN |
 | MR-M1-07 | **LOW** | state_foundation.rs | **ManaPool tests thin.** Only 1 test (`test_mana_pool_operations`) covering basic add/total/empty. No colored mana allocation, insufficient mana, or complex scenarios. Adequate for M1 (pool used properly starting M3). | OPEN |
 | MR-M1-08 | **INFO** | object_identity.rs | **Exemplary CR citation.** All 10 tests directly reference CR 400.7 with specific sub-behaviors. Model for other test files. | — |
 | MR-M1-09 | **INFO** | state_invariants.rs | **Good property-based foundation.** 5 proptest tests covering zone integrity, unique IDs, move semantics. Could expand with state determinism properties in M3+. | — |
 | MR-M1-10 | **INFO** | — | **Commander format compliance verified.** `PlayerState` defaults: life=40, commander_tax tracking, commander_damage_received matrix, poison_counters. All correct for Commander. | — |
 | MR-M1-11 | **INFO** | — | **Type safety is strong.** PlayerId, ObjectId, CardId are distinct types. ZoneId enum prevents invalid zone references. No accidental ID confusion possible. | — |
+
+**New findings from re-review**:
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-M1-12 | **MEDIUM** | game_object.rs, player.rs, mod.rs | **Core types lack `PartialEq`/`Eq` — blocked by `Effect` not deriving it.** `GameObject`, `Characteristics`, `PlayerState`, `TurnState`, `GameState` cannot be compared for equality. Root cause: `ActivatedAbility` and `TriggeredAbilityDef` contain `Option<crate::cards::card_definition::Effect>`, and `Effect` only derives `Clone, Debug, Serialize, Deserialize` — no `PartialEq`. This blocks the entire derive chain through `Characteristics` (via `activated_abilities`/`triggered_abilities`) up to `GameObject` and `GameState`. Tests must check fields individually or use blake3 hashes for equality. Adding `PartialEq` to `Effect` (a 30+ variant recursive enum) and its transitive dependencies (`EffectTarget`, `EffectAmount`, `PlayerTarget`, `TargetFilter`, `TokenSpec`, `TriggerCondition`, `Condition`, etc.) would unblock derives on all core types. | OPEN |
+| MR-M1-13 | **LOW** | player.rs:32-33,36-44 | **`ManaPool::total()` and `ManaPool::add()` can overflow u32.** `total()` chains 6 additions: `self.white + self.blue + self.black + self.red + self.green + self.colorless` without checked arithmetic. `add()` uses `+=`. Panics in debug builds, wraps silently in release. Practically unreachable (requires >4 billion mana), but `saturating_add` would be more defensive. | OPEN |
+| MR-M1-14 | **LOW** | error.rs:22-23 | **`InvalidZoneTransition` error variant is dead code.** Defined but never constructed anywhere in the codebase. `move_object_to_zone` does not validate whether a zone transition is legal (e.g., hand→battlefield vs. hand→stack). Zone transition legality is enforced at the Command level, not in the state module. The variant suggests planned validation that was never added. | OPEN |
+| MR-M1-15 | **LOW** | player.rs | **`ManaPool` has no `spend`/`pay` method.** Only `add()` and `empty()` exist. Mana spending logic lives in `rules/mana.rs` via direct field manipulation (`pool.white -= amount` etc.). Not encapsulated in the type, increasing risk of inconsistent mana handling across call sites. | OPEN |
+| MR-M1-16 | **LOW** | builder.rs:101-128 | **Builder player setters silently no-op for unknown PlayerId.** `player_life(id, life)`, `player_poison(id, counters)`, `player_mana(id, pool)` iterate `self.players` looking for a matching ID. If no player has that ID, the method silently returns `self` unchanged. Could cause confusing test failures where a test thinks it configured a player but the ID was wrong. A `debug_assert!` on match would catch configuration errors. | OPEN |
+| MR-M1-17 | **LOW** | builder.rs:76-87 | **Builder `add_player` allows duplicate PlayerIds.** Pushes a new `PlayerConfig` without checking for existing IDs. In `build()`, `OrdMap::insert` silently overwrites on key collision — the first player's configuration is discarded. Zones are also created twice (second overwrites first). Produces a valid state but with silently lost configuration. | OPEN |
+| MR-M1-18 | **LOW** | zone.rs:103-143 | **`Zone::Ordered` has O(n) `contains` and `remove`.** `contains` on `im::Vector` is a linear scan (line 105). `remove` calls `position()` (O(n)) + `remove(pos)` (O(log n)) (line 135). For libraries with 90+ cards, potentially slow if called in hot paths. `Zone::Unordered` uses `OrdSet` which is O(log n) for both. Currently not a bottleneck — `contains` on ordered zones is rare, and `remove` happens once per zone change. | OPEN |
+| MR-M1-19 | **LOW** | tests/ | **No test for same-zone move (CR 400.7 edge case).** Moving an object to the same zone type (e.g., battlefield → battlefield, as with certain flickering effects) should still create a new object per CR 400.7. The current implementation handles this correctly (remove + re-add with new ObjectId), but no test explicitly confirms this behavior. | OPEN |
+| MR-M1-20 | **LOW** | tests/ | **No test for valid object moved to invalid destination zone.** Only `move_nonexistent_object_errors` is tested (invalid object, valid zone). The reverse case — valid object, non-existent destination zone (e.g., `Library(PlayerId(99))`) — is untested. This path triggers the non-atomic corruption documented in MR-M0-13: the object is removed from the source zone before the destination is validated, so the error path leaves a corrupted state. | OPEN |
+| MR-M1-21 | **INFO** | game_object.rs, builder.rs | **Files evolved significantly since M1.** `game_object.rs` (221 lines) now includes M3-M7 additions: `ActivationCost`, `ActivatedAbility` (with `effect: Option<Effect>`), `TriggerEvent`, `InterveningIf`, `TriggeredAbilityDef` (with `effect: Option<Effect>`), `deathtouch_damage`, `has_summoning_sickness`. `builder.rs` (676 lines) gained `with_activated_ability`, `with_triggered_ability`, `with_damage`, `with_deathtouch_damage`, `with_registry`, `add_continuous_effect`. Line counts in original review reflect current state — re-review covers this appropriately. | — |
+| MR-M1-22 | **INFO** | zone.rs:156-165 | **`Zone::shuffle` correctly implements Fisher-Yates.** Deterministic with seeded RNG. Well-tested in `zone_integrity.rs`. Good implementation. | — |
+| MR-M1-23 | **INFO** | types.rs:58, types.rs:77, player.rs:18 | **String-wrapped newtypes allow empty/invalid content.** `SubType(pub String)`, `CounterType::Custom(String)`, `CardId(pub String)` accept arbitrary strings including empty. Conscious design tradeoff — enum-based SubType is impractical with 280+ creature types. Defense-in-depth concern only. | — |
 
 ### Test Coverage Assessment
 
@@ -227,6 +251,10 @@ but enforce no rules — that's M1+.
 | State invariants | Good (5 proptests) | Zone integrity, unique IDs, move preservation |
 | Error handling | Thin (2 tests) | Only panic and move-nonexistent |
 | Zone queries | Limited (1 test) | Only `objects_in_zone()` |
+| Same-zone move | **Missing** | MR-M1-19: battlefield→battlefield not tested |
+| Invalid destination zone | **Missing** | MR-M1-20: valid object + non-existent zone not tested |
+| Builder duplicate players | **Missing** | MR-M1-17: add_player with same ID twice not tested |
+| Builder wrong PlayerId | **Missing** | MR-M1-16: player_life/poison/mana with unknown ID not tested |
 
 ### Notes
 
@@ -235,6 +263,15 @@ but enforce no rules — that's M1+.
 - `builder.rs` at 676 lines is the largest M1 file. The fluent API is well-designed
   but the `expect()` in `build()` should be addressed.
 - `im::OrdMap` used consistently for deterministic iteration — correct per CLAUDE.md.
+- **Re-review coverage note**: The original M1 review was solid but was conducted against
+  the evolved file contents (M1-M7 growth) without explicitly noting file evolution. The
+  re-review adds 8 additional CR sections to the "CR Sections Implemented" table, 4 new
+  test gap rows, and 12 new findings. The strongest new finding is MR-M1-12 (`PartialEq`
+  blocked by `Effect`), which is a cross-cutting concern originating in M7's addition of
+  `Option<Effect>` to M1/M3-era structs.
+- **MR-M0-13 overlap**: The non-atomic `move_object_to_zone` was captured in MR-M0-13
+  during the M0 re-review. MR-M1-20 identifies the corresponding test gap (no test
+  exercises the invalid-destination-zone error path that exposes MR-M0-13).
 
 ---
 
@@ -1108,6 +1145,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-03 | M1 | `.expect()` in builder.rs:318 | OPEN |
 | MR-M1-04 | M1 | Check-then-access pattern in state/mod.rs | OPEN |
 | MR-M1-05 | M1 | Panics on 0 players instead of Result | OPEN |
+| MR-M1-12 | M1 | Core types lack `PartialEq`/`Eq` — blocked by `Effect` not deriving it | OPEN |
 | MR-M2-04 | M2 | `draw_card` has no concession/elimination guard | OPEN |
 | MR-M2-06 | M2 | `DiscardedToHandSize` event uses wrong ObjectId (new graveyard ID instead of old hand ID) | OPEN |
 | MR-M3-02 | M3 | ManaCostPaid not emitted for {0} cost spells | OPEN |
@@ -1140,8 +1178,16 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-10 | M0 | Partial card name matching too broad | OPEN |
 | MR-M0-15 | M0 | `rulings_fts` missing UPDATE/DELETE triggers | OPEN |
 | MR-M0-16 | M0 | Cards without `oracle_id` stored as empty string | OPEN |
-| MR-M1-06 | M1 | structural_sharing.rs uses mock types | OPEN |
+| MR-M1-06 | M1 | structural_sharing.rs uses mock types (im::HashMap, not OrdMap) | OPEN |
 | MR-M1-07 | M1 | ManaPool tests thin (1 test) | OPEN |
+| MR-M1-13 | M1 | `ManaPool::total()` and `add()` can overflow u32 | OPEN |
+| MR-M1-14 | M1 | `InvalidZoneTransition` error variant is dead code — never constructed | OPEN |
+| MR-M1-15 | M1 | `ManaPool` has no `spend`/`pay` method — spending logic not encapsulated | OPEN |
+| MR-M1-16 | M1 | Builder player setters silently no-op for unknown PlayerId | OPEN |
+| MR-M1-17 | M1 | Builder `add_player` allows duplicate PlayerIds — first config silently lost | OPEN |
+| MR-M1-18 | M1 | `Zone::Ordered` has O(n) `contains` and `remove` | OPEN |
+| MR-M1-19 | M1 | No test for same-zone move (CR 400.7 edge case) | OPEN |
+| MR-M1-20 | M1 | No test for valid object + invalid destination zone (exercises MR-M0-13) | OPEN |
 | MR-M2-07 | M2 | Proptest lacks library cards — limited turn coverage | OPEN |
 | MR-M2-08 | M2 | Test gap: concede while active + all others passed | OPEN |
 | MR-M2-09 | M2 | `unwrap_or(7)` for max_hand_size in cleanup | OPEN |
@@ -1183,6 +1229,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-09 | M1 | state_invariants.rs good property-based foundation | — |
 | MR-M1-10 | M1 | Commander format compliance verified | — |
 | MR-M1-11 | M1 | Type safety is strong | — |
+| MR-M1-21 | M1 | Files evolved significantly since M1 (M3-M7 additions to game_object.rs, builder.rs) | — |
+| MR-M1-22 | M1 | `Zone::shuffle` correctly implements Fisher-Yates with deterministic RNG | — |
+| MR-M1-23 | M1 | String-wrapped newtypes (SubType, CounterType::Custom, CardId) allow empty content — conscious design tradeoff | — |
 | MR-M2-10 | M2 | Loop-based step advancement (good design) | — |
 | MR-M2-11 | M2 | `pass_priority` query/mutation separation (good design) | — |
 | MR-M2-12 | M2 | Extra turns LIFO with correct normal-order resumption | — |
@@ -1216,17 +1265,17 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 129 (MR-M0-01 closed as false positive; 6 new M0 findings; cross-refs unchanged) |
+| Total unique issue IDs | 141 (129 original + 12 new M1 re-review findings) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 21 (MR-M0-01 closed) |
+| HIGH (OPEN) | 21 |
 | HIGH (CLOSED) | 1 (MR-M0-01 — false positive) |
 | HIGH (DEFERRED) | 2 |
-| MEDIUM (OPEN) | 27 |
+| MEDIUM (OPEN) | 28 (+1 from M1 re-review: MR-M1-12) |
 | MEDIUM (DEFERRED) | 4 |
-| LOW (OPEN) | 29 |
+| LOW (OPEN) | 37 (+8 from M1 re-review: MR-M1-13 through MR-M1-20) |
 | LOW (DEFERRED) | 5 |
-| INFO | 39 |
-| Milestones fully reviewed | 8 (M0, M1, M2, M3, M4, M5, M6, M7) |
+| INFO | 42 (+3 from M1 re-review: MR-M1-21 through MR-M1-23) |
+| Milestones reviewed | 8 (M0 re-reviewed, M1 re-reviewed, M2, M3, M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
