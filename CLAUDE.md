@@ -457,6 +457,17 @@ Things to watch out for, accumulated over development:
   and returns immediately — it never advances through cleanup. Tests that need cleanup to
   fire (e.g., verifying `UntilEndOfTurn` expiry via the full turn cycle) must use 2+ players.
   Layer system tests that only call `calculate_characteristics` can safely use 1 player.
+- **Combat step turn-based actions fire when ENTERING the step, not exiting it.** When all
+  players pass priority and `advance_step` transitions to e.g. `FirstStrikeDamage`, the
+  `enter_step` call immediately runs `first_strike_damage_step()` and emits `CombatDamageDealt`
+  + any SBA events (e.g. `CreatureDied`). These events appear in the `pass_all` that transitions
+  INTO the step. The `pass_all` that exits the step (players passing priority within the step
+  to move to the next step) produces events from entering the NEXT step, not the current one.
+  Tests that look for first-strike damage must capture events from the first `pass_all`, not the second.
+- **CR 510.1c damage assignment: last blocker gets ALL remaining power (no trample).** The
+  "minimum lethal before moving to next blocker" rule only applies when there are subsequent
+  blockers in the damage order. The final (or only) blocker without trample absorbs all remaining
+  attacker power — it is not capped at lethal. Trample + last blocker: assign lethal, rest to player.
 
 ---
 
