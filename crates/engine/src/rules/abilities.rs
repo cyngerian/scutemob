@@ -142,31 +142,20 @@ pub fn handle_activate_ability(
         }
     }
 
-    // CR 602.2c: Validate targets for hexproof and shroud.
+    // CR 602.2c: Validate targets for existence, hexproof, and shroud.
     for t in &targets {
         if let Target::Object(id) = t {
-            if let Some(obj) = state.objects.get(id) {
-                let has_shroud = obj
-                    .characteristics
-                    .keywords
-                    .contains(&crate::state::types::KeywordAbility::Shroud);
-                let has_hexproof = obj
-                    .characteristics
-                    .keywords
-                    .contains(&crate::state::types::KeywordAbility::Hexproof);
-                if has_shroud {
-                    return Err(GameStateError::InvalidTarget(format!(
-                        "object {:?} has shroud and cannot be targeted",
-                        id
-                    )));
-                }
-                if has_hexproof && obj.controller != player {
-                    return Err(GameStateError::InvalidTarget(format!(
-                        "object {:?} has hexproof and cannot be targeted by opponents",
-                        id
-                    )));
-                }
-            }
+            // MR-M3-04: Non-existent object must be rejected, not silently skipped.
+            let obj = state
+                .objects
+                .get(id)
+                .ok_or(GameStateError::ObjectNotFound(*id))?;
+            // CR 702.11a / CR 702.18a: Hexproof and shroud.
+            super::validate_target_protection(
+                &obj.characteristics.keywords,
+                obj.controller,
+                player,
+            )?;
         }
     }
 

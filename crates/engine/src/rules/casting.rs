@@ -21,8 +21,10 @@
 
 use im::OrdSet;
 
+use crate::cards::card_definition::{AbilityDefinition, TargetController, TargetRequirement};
+use crate::rules::layers::calculate_characteristics;
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::targeting::{SpellTarget, Target};
@@ -81,6 +83,10 @@ pub fn handle_cast_spell(
             .keywords
             .contains(&KeywordAbility::Flash);
 
+    // Extract the card's target requirements and mana cost while card_obj borrow is alive.
+    let card_id = card_obj.card_id.clone();
+    let mana_cost = card_obj.characteristics.mana_cost.clone();
+
     // Validate casting window.
     if !is_instant_speed {
         // Sorcery speed: active player only, main phase, empty stack (CR 307.1).
@@ -97,11 +103,27 @@ pub fn handle_cast_spell(
         }
     }
 
+    // Look up target requirements from the card definition (CR 601.2c).
+    let requirements: Vec<TargetRequirement> = {
+        let registry = state.card_registry.clone();
+        card_id
+            .and_then(|cid| registry.get(cid))
+            .and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell { targets, .. } = a {
+                        Some(targets.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+            .unwrap_or_default()
+    };
+
     // CR 601.2c: Validate and record targets at cast time.
-    let spell_targets = validate_targets(state, &targets, player)?;
+    let spell_targets = validate_targets(state, &targets, &requirements, player)?;
 
     // CR 601.2f-h: Pay the mana cost if the card has one.
-    let mana_cost = card_obj.characteristics.mana_cost.clone();
     let mut events = Vec::new();
 
     if let Some(ref cost) = mana_cost {
@@ -112,11 +134,12 @@ pub fn handle_cast_spell(
                 return Err(GameStateError::InsufficientMana);
             }
             pay_cost(&mut player_state.mana_pool, cost);
-            events.push(GameEvent::ManaCostPaid {
-                player,
-                cost: cost.clone(),
-            });
         }
+        // CR 601.2f: ManaCostPaid is emitted for all costs, including {0}.
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: cost.clone(),
+        });
     }
 
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
@@ -154,19 +177,24 @@ pub fn handle_cast_spell(
 /// CR 601.2c: Validate targets at cast time and snapshot their current zones.
 ///
 /// For each target:
-/// - Player: must be an active (non-eliminated) player
-/// - Object: must exist in the game; records current zone for fizzle detection
+/// - Player: must be an active (non-eliminated) player matching the requirement
+/// - Object: must exist, pass hexproof/shroud checks, and satisfy the TargetRequirement
 ///
-/// Full type-restriction validation (e.g., "target creature") is deferred to M7
-/// when card definitions supply targeting criteria.
+/// `requirements` is indexed in parallel with `targets` (requirements[i] applies to
+/// targets[i]). If there are fewer requirements than targets, extra targets are
+/// existence-only validated (no type restriction). This handles cards without
+/// definitions registered at cast time.
 fn validate_targets(
     state: &GameState,
     targets: &[Target],
+    requirements: &[TargetRequirement],
     caster: PlayerId,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
     let mut spell_targets = Vec::with_capacity(targets.len());
 
-    for target in targets {
+    for (i, target) in targets.iter().enumerate() {
+        let req = requirements.get(i);
+
         let spell_target = match target {
             Target::Player(id) => {
                 let player = state
@@ -179,40 +207,35 @@ fn validate_targets(
                         id
                     )));
                 }
+                // CR 601.2c: Validate the target satisfies the declared requirement.
+                if let Some(req) = req {
+                    validate_player_satisfies_requirement(*id, req)?;
+                }
                 SpellTarget {
                     target: Target::Player(*id),
                     zone_at_cast: None, // Players are not in a zone
                 }
             }
             Target::Object(id) => {
+                // Object targets are always looked up in state.objects.
+                // Spells on the stack are also in state.objects (zone == ZoneId::Stack);
+                // StackObject entries in state.stack_objects have separate IDs used
+                // internally by the engine, not as targets.
                 let obj = state
                     .objects
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
 
-                // CR 702.11a: Hexproof — can't be targeted by spells or abilities
-                // controlled by opponents.
-                // CR 702.18a: Shroud — can't be targeted by any spell or ability.
-                let has_hexproof = obj
-                    .characteristics
-                    .keywords
-                    .contains(&KeywordAbility::Hexproof);
-                let has_shroud = obj
-                    .characteristics
-                    .keywords
-                    .contains(&KeywordAbility::Shroud);
+                // CR 702.11a / CR 702.18a: Hexproof and shroud.
+                super::validate_target_protection(
+                    &obj.characteristics.keywords,
+                    obj.controller,
+                    caster,
+                )?;
 
-                if has_shroud {
-                    return Err(GameStateError::InvalidTarget(format!(
-                        "object {:?} has shroud and cannot be targeted",
-                        id
-                    )));
-                }
-                if has_hexproof && obj.controller != caster {
-                    return Err(GameStateError::InvalidTarget(format!(
-                        "object {:?} has hexproof and cannot be targeted by opponents",
-                        id
-                    )));
+                // CR 601.2c: Validate the target satisfies the declared requirement.
+                if let Some(req) = req {
+                    validate_object_satisfies_requirement(state, *id, req, caster)?;
                 }
 
                 SpellTarget {
@@ -225,6 +248,122 @@ fn validate_targets(
     }
 
     Ok(spell_targets)
+}
+
+/// CR 601.2c: Check that a player target satisfies a requirement.
+///
+/// Player targets are valid for `TargetPlayer`, `TargetCreatureOrPlayer`,
+/// `TargetAny`, and `TargetPlayerOrPlaneswalker`. All other requirements
+/// expect an object, so a player target is illegal.
+fn validate_player_satisfies_requirement(
+    id: PlayerId,
+    req: &TargetRequirement,
+) -> Result<(), GameStateError> {
+    match req {
+        TargetRequirement::TargetPlayer
+        | TargetRequirement::TargetCreatureOrPlayer
+        | TargetRequirement::TargetAny
+        | TargetRequirement::TargetPlayerOrPlaneswalker => Ok(()),
+        _ => Err(GameStateError::InvalidTarget(format!(
+            "player {:?} does not satisfy requirement (expected an object)",
+            id
+        ))),
+    }
+}
+
+/// CR 601.2c: Check that an object target satisfies a `TargetRequirement`.
+///
+/// Uses `calculate_characteristics` for type/keyword checks to respect
+/// continuous effects (e.g., type-changing effects from the layer system).
+fn validate_object_satisfies_requirement(
+    state: &GameState,
+    id: ObjectId,
+    req: &TargetRequirement,
+    caster: PlayerId,
+) -> Result<(), GameStateError> {
+    // All requirements look up the object in state.objects.
+    // Spells on the stack exist in state.objects with zone == ZoneId::Stack.
+    let obj = state
+        .objects
+        .get(&id)
+        .ok_or(GameStateError::ObjectNotFound(id))?;
+
+    // TargetSpell: object must be in the stack zone (CR 601.2c).
+    if matches!(req, TargetRequirement::TargetSpell) {
+        if obj.zone == ZoneId::Stack {
+            return Ok(());
+        } else {
+            return Err(GameStateError::InvalidTarget(format!(
+                "object {:?} is not on the stack",
+                id
+            )));
+        }
+    }
+
+    // Use calculate_characteristics to respect continuous effects (CR 613).
+    let chars: Characteristics = calculate_characteristics(state, id)
+        .unwrap_or_else(|| obj.characteristics.clone());
+
+    let on_battlefield = obj.zone == ZoneId::Battlefield;
+    let is_creature = chars.card_types.contains(&CardType::Creature);
+    let is_artifact = chars.card_types.contains(&CardType::Artifact);
+    let is_enchantment = chars.card_types.contains(&CardType::Enchantment);
+    let is_land = chars.card_types.contains(&CardType::Land);
+    let is_planeswalker = chars.card_types.contains(&CardType::Planeswalker);
+
+    let valid = match req {
+        TargetRequirement::TargetCreature => on_battlefield && is_creature,
+        TargetRequirement::TargetPermanent => on_battlefield,
+        TargetRequirement::TargetArtifact => on_battlefield && is_artifact,
+        TargetRequirement::TargetEnchantment => on_battlefield && is_enchantment,
+        TargetRequirement::TargetLand => on_battlefield && is_land,
+        TargetRequirement::TargetPlaneswalker => on_battlefield && is_planeswalker,
+        // "target creature or player" — object side requires creature on battlefield
+        TargetRequirement::TargetCreatureOrPlayer => on_battlefield && is_creature,
+        // "any target" = creature, planeswalker, or player (CR 115.4) — object side
+        TargetRequirement::TargetAny => on_battlefield && (is_creature || is_planeswalker),
+        // "target player or planeswalker" — object side requires planeswalker
+        TargetRequirement::TargetPlayerOrPlaneswalker => on_battlefield && is_planeswalker,
+        TargetRequirement::TargetCreatureWithFilter(filter) => {
+            if !on_battlefield || !is_creature {
+                false
+            } else {
+                let passes_filter = crate::effects::matches_filter(&chars, filter);
+                let passes_controller = match filter.controller {
+                    TargetController::Any => true,
+                    TargetController::You => obj.controller == caster,
+                    TargetController::Opponent => obj.controller != caster,
+                };
+                passes_filter && passes_controller
+            }
+        }
+        TargetRequirement::TargetPermanentWithFilter(filter) => {
+            if !on_battlefield {
+                false
+            } else {
+                let passes_filter = crate::effects::matches_filter(&chars, filter);
+                let passes_controller = match filter.controller {
+                    TargetController::Any => true,
+                    TargetController::You => obj.controller == caster,
+                    TargetController::Opponent => obj.controller != caster,
+                };
+                passes_filter && passes_controller
+            }
+        }
+        // Player requirement — object target is illegal
+        TargetRequirement::TargetPlayer => false,
+        // TargetSpell handled above (zone check)
+        TargetRequirement::TargetSpell => false,
+    };
+
+    if valid {
+        Ok(())
+    } else {
+        Err(GameStateError::InvalidTarget(format!(
+            "object {:?} does not satisfy requirement {:?}",
+            id, req
+        )))
+    }
 }
 
 /// Returns true if the mana pool can cover the mana cost.

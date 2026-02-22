@@ -1172,6 +1172,11 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
             return false;
         }
     }
+    if let Some(excluded) = &filter.exclude_colors {
+        if chars.colors.iter().any(|c| excluded.contains(c)) {
+            return false;
+        }
+    }
     if filter.non_land && chars.card_types.contains(&CardType::Land) {
         return false;
     }

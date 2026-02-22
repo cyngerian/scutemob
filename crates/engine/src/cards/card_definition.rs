@@ -364,8 +364,11 @@ pub struct TargetFilter {
     pub has_card_type: Option<CardType>,
     /// Must have all these keywords.
     pub has_keywords: OrdSet<KeywordAbility>,
-    /// Must be one of these colors. None = no restriction.
+    /// Must be one of these colors (inclusion — object must have at least one). None = no restriction.
     pub colors: Option<OrdSet<Color>>,
+    /// Must NOT be any of these colors (exclusion — object must share none). None = no restriction.
+    /// Used for cards like Doom Blade ("target non-black creature").
+    pub exclude_colors: Option<OrdSet<Color>>,
     /// Must be non-land.
     pub non_land: bool,
     /// Must be basic.

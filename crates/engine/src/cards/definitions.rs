@@ -637,7 +637,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
-                    colors: Some([Color::Black].into_iter().collect()),
+                    exclude_colors: Some([Color::Black].into_iter().collect()),
                     ..Default::default()
                 })],
                 modes: None,

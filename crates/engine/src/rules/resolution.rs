@@ -120,10 +120,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             }
                         });
                         if let Some(effect) = spell_effect {
+                            // CR 608.2b: Partial fizzle — filter out illegal targets before
+                            // executing effects. Illegal targets are simply skipped; they are
+                            // not affected by the spell's effect. Full fizzle (all illegal)
+                            // is handled above before we reach this point.
+                            let legal_targets: Vec<SpellTarget> = stack_obj
+                                .targets
+                                .iter()
+                                .filter(|t| is_target_legal(state, t))
+                                .cloned()
+                                .collect();
                             let mut ctx = EffectContext::new(
                                 controller,
                                 source_object,
-                                stack_obj.targets.clone(),
+                                legal_targets,
                             );
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);

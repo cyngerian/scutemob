@@ -8,8 +8,9 @@ use mtg_engine::rules::{process_command, Command, GameEvent};
 use mtg_engine::state::game_object::ManaCost;
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::{
-    CardType, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, Target, ZoneId,
+    CardType, Color, GameStateBuilder, ManaPool, ObjectSpec, PlayerId, Target, ZoneId,
 };
+use mtg_engine::{all_cards, CardRegistry, ObjectId};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -588,10 +589,10 @@ fn test_601_insufficient_mana_fails() {
         },
     );
     assert!(result.is_err(), "casting without enough mana should fail");
-    matches!(
+    assert!(matches!(
         result.unwrap_err(),
         mtg_engine::GameStateError::InsufficientMana
-    );
+    ));
 }
 
 #[test]
@@ -739,4 +740,228 @@ fn test_601_no_mana_cost_casts_free() {
     assert!(!events
         .iter()
         .any(|e| matches!(e, GameEvent::ManaCostPaid { .. })));
+}
+
+// ---------------------------------------------------------------------------
+// CR 601.2c: TargetRequirement validation (MR-M7-02, MR-M7-03)
+// ---------------------------------------------------------------------------
+
+/// Helper: build a two-player state with the Doom Blade registry wired in,
+/// p1 holding a Doom Blade, and the two provided creature specs on the battlefield.
+fn doom_blade_state(
+    black_creature: ObjectSpec,
+    other_creature: ObjectSpec,
+) -> (mtg_engine::GameState, ObjectId) {
+
+    let p1 = p(1);
+    let doom_blade_def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Doom Blade")
+        .expect("Doom Blade must be in all_cards()");
+    let doom_blade_id = doom_blade_def.card_id.clone();
+    let registry = CardRegistry::new(vec![doom_blade_def]);
+
+    let doom_blade = ObjectSpec::card(p1, "Doom Blade")
+        .with_card_id(doom_blade_id)
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            black: 1,
+            generic: 1,
+            ..ManaCost::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                black: 1,
+                colorless: 1,
+                ..ManaPool::default()
+            })
+        })
+        .add_player(p(2))
+        .active_player(p1)
+        .at_step(Step::Upkeep)
+        .object(doom_blade)
+        .object(black_creature)
+        .object(other_creature)
+        .with_registry(registry)
+        .build();
+
+    let doom_card_id = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    (state, doom_card_id)
+}
+
+#[test]
+/// CR 601.2c, MR-M7-02, MR-M7-03 — Doom Blade cannot target a black creature.
+/// The exclude_colors filter must cause the cast to fail with InvalidTarget.
+fn test_601_2c_doom_blade_cannot_target_black_creature() {
+    let p2 = p(2);
+
+    let black_creature = ObjectSpec::creature(p2, "Black Knight", 2, 2)
+        .with_colors(vec![Color::Black])
+        .in_zone(ZoneId::Battlefield);
+    let red_creature = ObjectSpec::creature(p2, "Goblin Guide", 2, 2)
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Battlefield);
+
+    let (state, doom_card_id) = doom_blade_state(black_creature, red_creature);
+
+    // Find the black creature ID on the battlefield.
+    let black_id = state
+        .objects
+        .values()
+        .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Black Knight")
+        .unwrap()
+        .id;
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p(1),
+            card: doom_card_id,
+            targets: vec![Target::Object(black_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Doom Blade should be rejected when targeting a black creature"
+    );
+    assert!(matches!(
+        result.unwrap_err(),
+        mtg_engine::GameStateError::InvalidTarget(_)
+    ));
+}
+
+#[test]
+/// CR 601.2c, MR-M7-02, MR-M7-03 — Doom Blade can target a non-black creature.
+/// The exclude_colors filter passes for creatures with no black color.
+fn test_601_2c_doom_blade_can_target_non_black_creature() {
+    let p2 = p(2);
+
+    let black_creature = ObjectSpec::creature(p2, "Black Knight", 2, 2)
+        .with_colors(vec![Color::Black])
+        .in_zone(ZoneId::Battlefield);
+    let red_creature = ObjectSpec::creature(p2, "Goblin Guide", 2, 2)
+        .with_colors(vec![Color::Red])
+        .in_zone(ZoneId::Battlefield);
+
+    let (state, doom_card_id) = doom_blade_state(black_creature, red_creature);
+
+    // Find the red (non-black) creature ID.
+    let red_id = state
+        .objects
+        .values()
+        .find(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == "Goblin Guide")
+        .unwrap()
+        .id;
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p(1),
+            card: doom_card_id,
+            targets: vec![Target::Object(red_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Doom Blade should be accepted when targeting a non-black creature"
+    );
+    let (_, events) = result.unwrap();
+    assert!(
+        events.iter().any(|e| matches!(e, GameEvent::SpellCast { .. })),
+        "SpellCast event should be emitted"
+    );
+}
+
+#[test]
+/// CR 601.2c, MR-M7-02 — TargetCreature requirement rejects non-creature objects.
+/// Casting a spell with TargetCreature against a non-creature permanent fails.
+fn test_601_2c_target_creature_rejects_non_creature() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Use a hand-built Doom Blade-like spell but with TargetCreature only.
+    // The easiest way is to use Doom Blade against an enchantment.
+    // Doom Blade uses TargetCreatureWithFilter — so it checks is_creature too.
+    let doom_blade_def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Doom Blade")
+        .expect("Doom Blade must be in all_cards()");
+    let doom_blade_card_id = doom_blade_def.card_id.clone();
+    let registry = CardRegistry::new(vec![doom_blade_def]);
+
+    let doom_blade = ObjectSpec::card(p1, "Doom Blade")
+        .with_card_id(doom_blade_card_id)
+        .with_types(vec![CardType::Instant])
+        .with_mana_cost(ManaCost {
+            black: 1,
+            generic: 1,
+            ..ManaCost::default()
+        })
+        .in_zone(ZoneId::Hand(p1));
+
+    // A non-creature permanent (enchantment, no colors).
+    let enchantment = ObjectSpec::card(p2, "Some Enchantment")
+        .with_types(vec![CardType::Enchantment])
+        .in_zone(ZoneId::Battlefield);
+
+    let state = GameStateBuilder::new()
+        .add_player_with(p1, |b| {
+            b.mana(ManaPool {
+                black: 1,
+                colorless: 1,
+                ..ManaPool::default()
+            })
+        })
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::Upkeep)
+        .object(doom_blade)
+        .object(enchantment)
+        .with_registry(registry)
+        .build();
+
+    let doom_card = *state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    let enchantment_id = state
+        .objects
+        .values()
+        .find(|o| o.zone == ZoneId::Battlefield)
+        .unwrap()
+        .id;
+
+    let result = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: doom_card,
+            targets: vec![Target::Object(enchantment_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Doom Blade (TargetCreatureWithFilter) should be rejected against an enchantment"
+    );
+    assert!(matches!(
+        result.unwrap_err(),
+        mtg_engine::GameStateError::InvalidTarget(_)
+    ));
 }
