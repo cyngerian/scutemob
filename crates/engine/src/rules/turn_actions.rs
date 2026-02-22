@@ -91,6 +91,13 @@ pub fn draw_card(
     state: &mut GameState,
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
+    // MR-M2-04: Eliminated or conceded players cannot draw cards.
+    if let Some(p) = state.players.get(&player) {
+        if p.has_lost || p.has_conceded {
+            return Ok(vec![]);
+        }
+    }
+
     let library_zone = ZoneId::Library(player);
     let library = state.zone(&library_zone)?;
 
@@ -154,10 +161,13 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             .map(|z| z.object_ids())
             .unwrap_or_default();
         if let Some(&discard_id) = obj_ids.last() {
-            if let Ok((new_id, _)) = state.move_object_to_zone(discard_id, graveyard_zone) {
+            // MR-M2-06: Use the old hand ObjectId, not the new graveyard ID.
+            // `discard_id` identifies the card while it was in hand; callers
+            // (triggers, UI) correlate by the hand identity, not the new zone ID.
+            if let Ok((_new_id, _)) = state.move_object_to_zone(discard_id, graveyard_zone) {
                 events.push(GameEvent::DiscardedToHandSize {
                     player: active,
-                    object_id: new_id,
+                    object_id: discard_id,
                     zone_from: hand_zone,
                     zone_to: graveyard_zone,
                 });

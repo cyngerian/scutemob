@@ -175,6 +175,13 @@ impl GameState {
         object_id: ObjectId,
         to: ZoneId,
     ) -> Result<(ObjectId, GameObject), GameStateError> {
+        // MR-M0-13: Validate destination zone exists BEFORE any mutation.
+        // Previously the source was removed before checking the destination,
+        // leaving the state corrupt if the destination zone was missing.
+        if !self.zones.contains_key(&to) {
+            return Err(GameStateError::ZoneNotFound(to));
+        }
+
         // Look up the current object
         let old_object = self
             .objects

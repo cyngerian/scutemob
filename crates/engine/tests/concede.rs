@@ -132,3 +132,77 @@ fn test_eliminated_player_cannot_act() {
     );
     assert!(result.is_err());
 }
+
+#[test]
+/// MR-M2-03: Concede while active, with all non-active players already having
+/// passed priority, must NOT double-advance (no step advance before turn advance).
+///
+/// Without the fix, handle_all_passed fires (advancing the step into combat)
+/// AND THEN advance_turn fires — leaving the game in the middle of a wrong step.
+fn test_concede_active_player_with_all_others_passed_no_double_advance() {
+    let state = four_player_at(Step::PreCombatMain);
+
+    // Manually set players_passed so P2/P3/P4 have already passed but P1 hasn't.
+    // (Simulates: P1 took an action, then P2/P3/P4 passed back to P1.)
+    let mut state = state;
+    state.turn.players_passed.insert(PlayerId(2));
+    state.turn.players_passed.insert(PlayerId(3));
+    state.turn.players_passed.insert(PlayerId(4));
+    state.turn.priority_holder = Some(PlayerId(1));
+
+    // P1 (active) concedes — next_priority_player(P1) returns None (all others passed).
+    let (state, events) = concede(state, PlayerId(1));
+
+    // P2 should now be the active player (next in turn order after P1).
+    assert_eq!(
+        state.turn.active_player,
+        PlayerId(2),
+        "P2 should be active after P1 concedes"
+    );
+
+    // There must NOT be a StepChanged event to BeginningOfCombat (or later combat
+    // steps) — that would indicate handle_all_passed fired before advance_turn.
+    let bad_step_change = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::StepChanged {
+                step: Step::BeginningOfCombat
+                    | Step::DeclareAttackers
+                    | Step::DeclareBlockers
+                    | Step::CombatDamage,
+                ..
+            }
+        )
+    });
+    assert!(
+        !bad_step_change,
+        "should not see combat steps from P1's interrupted turn"
+    );
+
+    // P2's new turn should be announced.
+    let turn_started = events.iter().any(|e| {
+        matches!(e, GameEvent::TurnStarted { player, .. } if *player == PlayerId(2))
+    });
+    assert!(turn_started, "P2's turn should have started");
+}
+
+#[test]
+/// MR-M2-15: Conceding while active with in-progress combat must clear
+/// state.combat so the next player doesn't inherit a stale combat state.
+fn test_concede_active_player_during_combat_clears_combat_state() {
+    // Set up P1 in BeginningOfCombat (combat state is initialised).
+    let state = four_player_at(Step::BeginningOfCombat);
+
+    // Initialize a combat state (simulating that begin_combat fired).
+    let mut state = state;
+    state.combat = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
+
+    // P1 concedes while active.
+    let (state, _events) = concede(state, PlayerId(1));
+
+    // Combat state must be cleared.
+    assert!(
+        state.combat.is_none(),
+        "combat state should be cleared when active player concedes"
+    );
+}

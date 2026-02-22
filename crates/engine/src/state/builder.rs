@@ -233,6 +233,7 @@ impl GameStateBuilder {
             in_extra_combat: false,
             is_first_turn_of_game: self.is_first_turn_of_game,
             last_regular_active: active_player,
+            cleanup_sba_rounds: 0,
         };
 
         let mut state = GameState {

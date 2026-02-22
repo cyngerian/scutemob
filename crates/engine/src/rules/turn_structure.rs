@@ -94,6 +94,7 @@ pub fn advance_turn(
     turn.players_passed = OrdSet::new();
     turn.extra_combats = 0;
     turn.in_extra_combat = false;
+    turn.cleanup_sba_rounds = 0;
     // After the first turn of the game, this flag stays false.
     if turn.is_first_turn_of_game {
         turn.is_first_turn_of_game = false;

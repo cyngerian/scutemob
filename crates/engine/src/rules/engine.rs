@@ -158,17 +158,23 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         let mana_events = turn_actions::empty_all_mana_pools(state);
         events.extend(mana_events);
 
-        // Advance to next step or next turn
-        if let Some((new_turn, step_events)) = turn_structure::advance_step(state) {
-            state.turn = new_turn;
-            events.extend(step_events);
-        } else {
-            // Past cleanup — advance to next turn
-            let (new_turn, turn_events) = turn_structure::advance_turn(state)?;
-            state.turn = new_turn;
-            events.extend(turn_events);
-            // Reset per-turn state for new active player
-            turn_actions::reset_turn_state(state, state.turn.active_player);
+        // CR 514.3a: When all pass with empty stack in Cleanup, do NOT advance
+        // to the next step — run another cleanup round instead.  `enter_step`
+        // will execute cleanup actions, check SBAs, and either grant priority
+        // again (if SBAs fired) or auto-advance to the next turn (if none).
+        if state.turn.step != crate::state::turn::Step::Cleanup {
+            // Advance to next step or next turn
+            if let Some((new_turn, step_events)) = turn_structure::advance_step(state) {
+                state.turn = new_turn;
+                events.extend(step_events);
+            } else {
+                // Past cleanup — advance to next turn
+                let (new_turn, turn_events) = turn_structure::advance_turn(state)?;
+                state.turn = new_turn;
+                events.extend(turn_events);
+                // Reset per-turn state for new active player
+                turn_actions::reset_turn_state(state, state.turn.active_player);
+            }
         }
 
         // Enter the new step (execute turn-based actions, grant priority or auto-advance)
@@ -196,6 +202,37 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             let game_over_events = check_game_over(state);
             events.extend(game_over_events);
             return Ok(events);
+        }
+
+        // CR 514.3a: After cleanup turn-based actions, check SBAs and triggers.
+        // If any events are produced, grant priority to the active player.
+        // The active player (and others) then pass; `handle_all_passed` will
+        // call `enter_step` again for another cleanup round instead of advancing.
+        // A safety counter (max 100) guards against pathological infinite loops.
+        if state.turn.step == crate::state::turn::Step::Cleanup {
+            const MAX_CLEANUP_SBA_ROUNDS: u32 = 100;
+            let sba_events = sba::check_and_apply_sbas(state);
+            let sba_triggers = abilities::check_triggers(state, &sba_events);
+            for t in sba_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            events.extend(sba_events.clone());
+
+            let trigger_events = abilities::flush_pending_triggers(state);
+            events.extend(trigger_events.clone());
+
+            let had_events = !sba_events.is_empty() || !trigger_events.is_empty();
+            if had_events && state.turn.cleanup_sba_rounds < MAX_CLEANUP_SBA_ROUNDS {
+                state.turn.cleanup_sba_rounds += 1;
+                // Grant priority — when all pass, handle_all_passed will re-enter cleanup.
+                let active = state.turn.active_player;
+                let (passed, priority_events) = priority::grant_initial_priority(state);
+                state.turn.players_passed = passed;
+                state.turn.priority_holder = Some(active);
+                events.extend(priority_events);
+                return Ok(events);
+            }
+            // No SBAs (or safety limit reached) — fall through to auto-advance.
         }
 
         if state.turn.step.has_priority() {
@@ -300,16 +337,25 @@ fn handle_concede(
                     });
                 }
                 None => {
-                    // All remaining have passed — handle like all passed
+                    // All remaining have passed. MR-M2-03: if the conceding
+                    // player is also the active player, do NOT call
+                    // handle_all_passed (which would advance the step); the
+                    // turn-advance block below handles that path.
                     state.turn.priority_holder = None;
-                    let advance_events = handle_all_passed(state)?;
-                    events.extend(advance_events);
+                    if state.turn.active_player != player {
+                        let advance_events = handle_all_passed(state)?;
+                        events.extend(advance_events);
+                    }
                 }
             }
         }
 
         // If it was the conceding player's turn, advance to next turn
         if state.turn.active_player == player {
+            // MR-M2-15: Clear stale combat state so the next player doesn't
+            // inherit an in-progress combat from the conceded turn.
+            state.combat = None;
+
             let mana_events = turn_actions::empty_all_mana_pools(state);
             events.extend(mana_events);
 

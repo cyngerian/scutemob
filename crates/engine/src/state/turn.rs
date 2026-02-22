@@ -118,4 +118,9 @@ pub struct TurnState {
     /// The active player of the last regular (non-extra) turn.
     /// Used to resume normal turn order after extra turns.
     pub last_regular_active: PlayerId,
+    /// CR 514.3a: counts how many SBA-check rounds have occurred during the
+    /// current cleanup step.  Resets to 0 at the start of each new turn.
+    /// Acts as a safety guard against infinite cleanup loops (max 100).
+    #[serde(default)]
+    pub cleanup_sba_rounds: u32,
 }
