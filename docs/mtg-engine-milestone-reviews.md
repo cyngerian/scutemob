@@ -8,6 +8,11 @@
 > findings added to this document before the milestone is considered done. This is a
 > required step in the Milestone Completion Checklist (see CLAUDE.md).
 >
+> **IMPORTANT: Review only ONE milestone per session.** Do not batch reviews. Each
+> milestone review requires careful reading of every source file — rushing through
+> multiple milestones in one session leads to shallow reviews and missed issues.
+> Finish one, commit, then start a new session for the next.
+>
 > **Last Updated**: 2026-02-22
 
 ---
@@ -184,56 +189,99 @@ None directly — M0 is infrastructure. CR text is parsed and indexed for lookup
 
 ## M2: Turn Structure & Priority
 
-**Review Status**: STUB — to be reviewed
+**Review Status**: REVIEWED (2026-02-22)
 
 ### Files Introduced
 
-**Source files:**
+**Source files (M2 contributions — these files grow in later milestones):**
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `rules/command.rs` | 113 | Command enum (PassPriority, Concede, + later variants) |
-| `rules/engine.rs` | 394 | `process_command()` entry point, `start_game()`, step entry |
-| `rules/events.rs` | 398 | GameEvent enum (14+ variants), LossReason |
-| `rules/priority.rs` | 104 | APNAP ordering, pass_priority, grant_initial_priority |
-| `rules/turn_structure.rs` | 132 | STEP_ORDER, advance_step, advance_turn, next_player |
-| `rules/turn_actions.rs` | 273 | Untap, draw, cleanup discard/damage, mana pool empty |
-| `rules/mod.rs` | 23 | Module exports |
+| File | Lines (M7) | M2 Contribution | Purpose |
+|------|------------|------------------|---------|
+| `rules/command.rs` | 113 | `PassPriority`, `Concede` variants (M3+ adds CastSpell, etc.) | Command enum |
+| `rules/engine.rs` | 395 | `process_command`, `handle_pass_priority`, `handle_all_passed`, `enter_step`, `handle_concede`, `check_game_over`, `is_game_over`, `start_game`, validation helpers | Engine entry point and game loop |
+| `rules/events.rs` | 398 | First 15 variants (TurnStarted through GameOver), `LossReason` | GameEvent enum |
+| `rules/priority.rs` | 105 | All code (unchanged since M2) | APNAP ordering, pass/grant priority |
+| `rules/turn_structure.rs` | 133 | Core logic; M6 added FirstStrikeDamage insertion | Step ordering, turn advancement |
+| `rules/turn_actions.rs` | 274 | `untap`, `draw`, `cleanup`, `empty_mana_pools`, `reset_turn_state` (M4+ adds clear_damage, M6 adds combat) | Turn-based actions |
+| `rules/mod.rs` | 24 | Module declarations (grows as modules added) | Module exports |
 
-**Source total**: 1,437 lines
+**M2 source contribution**: ~1,200 lines (of 1,442 total in these files at M7)
 
 **Test files:**
 
 | File | Lines | Tests | Focus |
 |------|-------|-------|-------|
-| `tests/turn_structure.rs` | 237 | ~6 | Step advancement, phase transitions |
-| `tests/priority.rs` | 151 | ~7 | APNAP ordering, priority pass/grant |
-| `tests/turn_actions.rs` | 248 | ~7 | Untap, draw, cleanup, mana empty |
-| `tests/extra_turns.rs` | 116 | ~4 | Extra turn LIFO, normal resumption |
-| `tests/concede.rs` | 134 | ~5 | Concede, elimination, skipping |
-| `tests/turn_invariants.rs` | 104 | ~4 | Proptest invariants |
+| `tests/turn_structure.rs` | 237 | 6 | Full step order, phase transitions, 4-player rotation, 10-cycle stress, turn number, wraparound |
+| `tests/priority.rs` | 151 | 7 | Active player first, APNAP order, all pass → advance, wrong player error, eliminated skip, no priority in Untap/Cleanup |
+| `tests/turn_actions.rs` | 248 | 7 | Untap (active only), draw, first-draw skip, cleanup discard, cleanup clear damage, mana pool empty |
+| `tests/extra_turns.rs` | 116 | 4 | LIFO, designated player, normal resumption, multiple stack |
+| `tests/concede.rs` | 134 | 5 | Priority skip, turn skip, game continues, last player wins, eliminated can't act |
+| `tests/turn_invariants.rs` | 104 | 4 | Proptest: state validity, holder validity, turn monotonicity, eliminated never gets priority |
 
-**Test total**: 990 lines, ~33 tests
+**Test total**: 990 lines, 33 tests
 
 ### CR Sections Implemented
 
 | CR Section | Implementation |
 |------------|----------------|
-| CR 500.1-4 | Turn structure, mana pool emptying |
-| CR 501-514 | All steps/phases |
-| CR 502.2 | Untap step |
-| CR 504.1 | Draw step |
-| CR 514 | Cleanup (discard, damage clear) |
-| CR 103.8 | First player skips first draw |
-| CR 104.3b | Empty library → player loses |
-| CR 116 | Priority system (APNAP) |
+| CR 103.8 | First player skips first draw (`turn_actions.rs:81`) |
+| CR 104.3a | Concession (`engine.rs:269-327`) |
+| CR 104.3b | Empty library → player loses (`turn_actions.rs:99-108`) |
+| CR 116.3a | Active player gets priority first (`priority.rs:100-103`) |
+| CR 116.3d | All pass → resolve stack or advance step (`engine.rs:143-180`) |
+| CR 302.6 | Summoning sickness cleared at untap (`turn_actions.rs:52`) |
+| CR 500.4 | Mana pools empty at step transitions (`turn_actions.rs:186-204`) |
+| CR 502.2 | Untap active player's permanents (`turn_actions.rs:37-69`) |
+| CR 504.1 | Draw step draws a card (`turn_actions.rs:77-86`) |
+| CR 514.1 | Cleanup: discard to hand size (`turn_actions.rs:133-168`) |
+| CR 514.2 | Cleanup: clear damage, end "until end of turn" effects (`turn_actions.rs:170-175`) |
 
-### Known Issues (to be validated during review)
+### Findings
 
-| ID | Severity | File | Description | Status |
-|----|----------|------|-------------|--------|
-| MR-M2-01 | **HIGH** | priority.rs | **`.expect()` in engine library code.** Exact location and context to be verified during review. | STUB |
-| MR-M2-02 | **HIGH** | turn_structure.rs | **`.expect()` in engine library code.** Exact location and context to be verified during review. | STUB |
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M2-01 | **HIGH** | priority.rs:54 | **`.expect()` in engine library code.** `next_priority_player(state, player).expect(...)` in `pass_priority`. Logically unreachable (the `all_passed` check on line 46 guarantees at least one player hasn't passed), but violates the "no unwrap/expect in engine" convention. If state becomes inconsistent (e.g., a bug in `active_players()` vs `players_passed`), this panics the engine instead of returning an error. **Fix:** `.ok_or(GameStateError::NoActivePlayers)?` | OPEN |
+| MR-M2-02 | **HIGH** | turn_structure.rs:78 | **`.expect()` in engine library code.** `next_player_in_turn_order(state, turn.last_regular_active).expect("no active players remaining")` in `advance_turn`. Called when there are no extra turns. If all players are eliminated, this panics. Currently unreachable because `is_game_over` checks in `enter_step` prevent reaching `advance_turn` when ≤1 players remain, but the panic is a landmine for future refactors. **Fix:** change `advance_turn` to return `Result<...>` and propagate error. | OPEN |
+| MR-M2-03 | **HIGH** | engine.rs:292-323 | **Concede while active player: step-advance then turn-advance.** When the conceding player is both the active player AND the priority holder, and all other players have already passed, the code calls `handle_all_passed` (line 305) which advances the step and executes turn-based actions, then ALSO calls `advance_turn` (line 316) because `active_player == conceding player`. This executes one step's turn-based actions for a player who has already conceded (e.g., `draw_for_turn` draws a card for the conceded player if we advance through Draw — see MR-M2-04). Should skip `handle_all_passed` when the conceding player is the active player and go straight to `advance_turn`. | OPEN |
+| MR-M2-04 | **MEDIUM** | turn_actions.rs:90 | **`draw_card` has no concession/elimination guard.** `draw_card(state, player)` draws for any player regardless of `has_conceded` or `has_lost` status. Reachable via MR-M2-03: conceded active player's turn advances through the Draw step. The drawn card is pointless (player is eliminated) but modifies dead state. **Fix:** add `if p.has_lost \|\| p.has_conceded { return Ok(vec![]); }` guard. | OPEN |
+| MR-M2-05 | **HIGH** | engine.rs:269-327 | **Concede doesn't clean up owned objects (CR 800.4a).** When a player leaves a multiplayer game, "all objects owned by that player leave the game and any effects which give that player control of any objects or players end." The concede handler marks `has_conceded = true` but doesn't: (1) exile/remove the player's permanents from the battlefield, (2) remove the player's spells from the stack, (3) end control-change effects. **Note:** may be intentionally deferred — this is a complex interaction that needs the full effect/replacement system. Mark as deferred to M9 (Commander rules integration). | DEFERRED → M9 |
+| MR-M2-06 | **MEDIUM** | turn_actions.rs:158 | **`DiscardedToHandSize` event uses wrong ObjectId.** `object_id: new_id` where `new_id` is the NEW graveyard ObjectId (from `move_object_to_zone`). The event also has `zone_from: hand_zone`, but the object at `new_id` was never in the hand zone — it's the post-zone-change identity (CR 400.7). Should include both old hand ID and new graveyard ID, or at minimum use the old ID for `object_id`. | OPEN |
+| MR-M2-07 | **LOW** | turn_invariants.rs | **Proptest lacks library cards.** `run_pass_sequence` builds a 4-player state with no library cards. Players hit empty-library loss within 1-2 turns, limiting the turn-cycle coverage of the proptest. Adding 10+ library cards per player would exercise more turn cycles. | OPEN |
+| MR-M2-08 | **LOW** | concede.rs | **No test for concede when active player + all others passed.** The complex code path at `engine.rs:302-307` (active player concedes, no next priority player → `handle_all_passed` + `advance_turn`) has zero test coverage. This is the path where MR-M2-03 manifests. | OPEN |
+| MR-M2-09 | **LOW** | turn_actions.rs:142 | **`unwrap_or(7)` for max_hand_size lookup.** If `state.players.get(&active)` returns None (active player missing from map), silently defaults to 7. Should be unreachable but a `.ok_or()` would be more defensive. Minor since the scenario requires a corrupted state. | OPEN |
+| MR-M2-10 | **INFO** | engine.rs | **Loop-based step advancement (not recursion).** `enter_step` correctly uses a loop for no-priority steps (Untap, Cleanup), avoiding stack overflow on long chains of auto-advancing steps. Good design. | — |
+| MR-M2-11 | **INFO** | priority.rs | **`pass_priority` doesn't mutate state.** The function builds a local `passed` set and returns `PriorityResult`; the caller (`handle_pass_priority`) applies the state change. Clean separation of query vs mutation. | — |
+| MR-M2-12 | **INFO** | turn_structure.rs | **Extra turns correctly use LIFO with `pop_back`.** `advance_turn` pops from the back of `extra_turns` (most recently added goes first per CR 614.10), and `last_regular_active` correctly tracks normal order resumption. 4 tests verify this behavior. | — |
+| MR-M2-13 | **INFO** | turn_actions.rs:52 | **Summoning sickness cleared at untap.** CR 302.6 implementation: `has_summoning_sickness = false` for all active player's permanents during untap. Correct. | — |
+
+### Test Coverage Assessment
+
+| M2 Behavior | Coverage | Notes |
+|-------------|----------|-------|
+| Step ordering (full turn) | Good (6 tests) | Full step order, phase mapping, wraparound, 10-cycle stress |
+| Priority APNAP | Good (7 tests) | Active first, order rotation, wrong player error, eliminated skip |
+| Untap step | Good (2 tests) | Active player only, doesn't affect other players |
+| Draw step | Good (2 tests) | Normal draw, first-draw skip (CR 103.8) |
+| Cleanup | Good (2 tests) | Discard to hand size, clear damage |
+| Mana pool empty | Good (1 test) | Verifies emptying between steps |
+| Extra turns | Good (4 tests) | LIFO, designated player, resumption, multi-stack |
+| Concession | Adequate (5 tests) | Priority skip, turn skip, game continues, last wins, can't re-act |
+| Concede while active + all passed | **Missing** | MR-M2-08: the complex code path has no coverage |
+| Empty library loss | Thin (indirect) | Proptest may trigger it but no dedicated test |
+| Proptest invariants | Good (4 tests) | State validity, holder validity, monotonicity, eliminated check |
+
+### Notes
+
+- M2 files are the backbone of the engine — `process_command`, `enter_step`, and the turn FSM
+  are called by every subsequent milestone. The two `.expect()` calls (MR-M2-01, MR-M2-02) are
+  the most important fixes since any future state inconsistency would crash the engine.
+- MR-M2-05 (CR 800.4a cleanup on concede) is a significant gap for multiplayer correctness
+  but requires M8/M9 infrastructure (replacement effects, zone-change cleanup). Tracked as
+  deferred to M9.
+- The concede handler (MR-M2-03) is the most complex code path in M2 and the least tested
+  (MR-M2-08). The overlapping step-advance + turn-advance logic should be simplified.
+- `draw_card` (MR-M2-04) should guard against eliminated players, not just for correctness
+  but to prevent confusing events in the history log.
 
 ---
 
@@ -614,8 +662,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-02 | M0 | FTS5 MATCH operator injection in MCP server | OPEN |
 | MR-M1-01 | M1 | `.unwrap()` in `add_object()` (state/mod.rs:159) | OPEN |
 | MR-M1-02 | M1 | `.unwrap()` in `move_object_to_zone()` (state/mod.rs:228) | OPEN |
-| MR-M2-01 | M2 | `.expect()` in priority.rs | STUB |
-| MR-M2-02 | M2 | `.expect()` in turn_structure.rs | STUB |
+| MR-M2-01 | M2 | `.expect()` in priority.rs:54 — `next_priority_player` | OPEN |
+| MR-M2-02 | M2 | `.expect()` in turn_structure.rs:78 — `next_player_in_turn_order` | OPEN |
+| MR-M2-03 | M2 | Concede while active: step-advance then turn-advance overlap | OPEN |
+| MR-M2-05 | M2→M9 | Concede doesn't clean up owned objects (CR 800.4a) | DEFERRED → M9 |
 | MR-M4-01 | M4 | `.unwrap()` in sba.rs (first instance) | STUB |
 | MR-M4-02 | M4→M5 | SBAs don't use `calculate_characteristics` for P/T | STUB |
 | MR-M4-03 | M4 | `.unwrap()` in sba.rs (second instance) | STUB |
@@ -640,6 +690,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-03 | M1 | `.expect()` in builder.rs:318 | OPEN |
 | MR-M1-04 | M1 | Check-then-access pattern in state/mod.rs | OPEN |
 | MR-M1-05 | M1 | Panics on 0 players instead of Result | OPEN |
+| MR-M2-04 | M2 | `draw_card` has no concession/elimination guard | OPEN |
+| MR-M2-06 | M2 | `DiscardedToHandSize` event uses wrong ObjectId (new graveyard ID instead of old hand ID) | OPEN |
 | MR-M3-01 | M3 | Partial fizzle targets not filtered | STUB |
 | MR-M3-02 | M3 | ManaCostPaid not emitted for {0} cost | STUB |
 | MR-M5-02 | M5 | `ptr::eq` in layers.rs | STUB |
@@ -662,6 +714,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M0-10 | M0 | Partial card name matching too broad | OPEN |
 | MR-M1-06 | M1 | structural_sharing.rs uses mock types | OPEN |
 | MR-M1-07 | M1 | ManaPool tests thin (1 test) | OPEN |
+| MR-M2-07 | M2 | Proptest lacks library cards — limited turn coverage | OPEN |
+| MR-M2-08 | M2 | Test gap: concede while active + all others passed | OPEN |
+| MR-M2-09 | M2 | `unwrap_or(7)` for max_hand_size in cleanup | OPEN |
 | MR-M6-06 | M6 | Combat damage function large, needs helpers | STUB |
 | MR-M6-07 | M6 | Test gap: Defender keyword in combat | STUB |
 | MR-M6-08 | M6 | Test gap: no combat game script | STUB |
@@ -681,6 +736,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M1-09 | M1 | state_invariants.rs good property-based foundation | — |
 | MR-M1-10 | M1 | Commander format compliance verified | — |
 | MR-M1-11 | M1 | Type safety is strong | — |
+| MR-M2-10 | M2 | Loop-based step advancement (good design) | — |
+| MR-M2-11 | M2 | `pass_priority` query/mutation separation (good design) | — |
+| MR-M2-12 | M2 | Extra turns LIFO with correct normal-order resumption | — |
+| MR-M2-13 | M2 | Summoning sickness cleared at untap (CR 302.6) | — |
 
 ---
 
@@ -688,17 +747,18 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 56 (MR-M5-03 cross-refs MR-M4-02) |
+| Total unique issue IDs | 67 (MR-M5-03 cross-refs MR-M4-02) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 4 |
-| HIGH (STUB) | 13 |
-| MEDIUM (OPEN) | 8 |
+| HIGH (OPEN) | 7 |
+| HIGH (DEFERRED) | 1 |
+| HIGH (STUB) | 11 |
+| MEDIUM (OPEN) | 10 |
 | MEDIUM (STUB) | 12 |
-| LOW (OPEN) | 5 |
+| LOW (OPEN) | 8 |
 | LOW (STUB) | 8 |
-| INFO | 6 |
-| Milestones fully reviewed | 2 (M0, M1) |
-| Milestones with stubs | 5 (M2, M3, M4, M5, M6, M7) |
+| INFO | 10 |
+| Milestones fully reviewed | 3 (M0, M1, M2) |
+| Milestones with stubs | 5 (M3, M4, M5, M6, M7) |
 | Milestones not started | 2 (M8, M9) |
 
 **Engine source LOC (M0-M7)**: ~12,500 lines
