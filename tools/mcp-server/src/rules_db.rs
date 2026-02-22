@@ -71,12 +71,34 @@ pub fn create_fts_tables(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Attempts to extract the CR effective date from the file header.
+///
+/// The CR file typically has a line near the top like:
+/// "These rules are effective as of April 19, 2024."
+///
+/// Returns the matching line if found. Used to log the CR version during import.
+pub fn extract_cr_version(cr_text: &str) -> Option<String> {
+    let normalized = cr_text.replace("\r\n", "\n").replace('\r', "\n");
+    for line in normalized.lines().take(30) {
+        let trimmed = line.trim();
+        let lower = trimmed.to_ascii_lowercase();
+        if lower.contains("effective as of") || lower.contains("these rules are effective") {
+            return Some(trimmed.to_string());
+        }
+    }
+    None
+}
+
 /// Parses the CR text file into individual rule entries.
 ///
 /// The CR format (after normalizing line endings):
 /// - Section headers: lines like "704. State-Based Actions"
 /// - Rules: lines starting with a rule number like "704.5f"
+/// - Continuation lines: non-empty lines that follow a rule and don't start a
+///   new rule or section — appended to the preceding rule's text (MR-M0-03)
 /// - Glossary entries and other non-rule content are skipped
+///
+/// Stop markers ("Glossary", "Credits") are matched case-insensitively (MR-M0-04).
 pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
     let mut entries = Vec::new();
     let mut current_section_title = String::new();
@@ -91,6 +113,8 @@ pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
     // "Glossary" also appears in the table of contents near the top.
     let mut in_glossary = false;
     let mut seen_rules = false;
+    // MR-M0-03: accumulate multi-line rules before pushing to entries.
+    let mut current_rule: Option<RuleEntry> = None;
 
     for line in normalized.lines() {
         let line = line.trim();
@@ -98,17 +122,18 @@ pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
             continue;
         }
 
-        // Only detect glossary after we've parsed some rules
-        // (it also appears in the table of contents)
-        if line == "Glossary" && seen_rules {
+        // MR-M0-04: case-insensitive stop markers — the CR file capitalises
+        // "Glossary" and "Credits" but future versions might differ.
+        if line.eq_ignore_ascii_case("glossary") && seen_rules {
+            // Flush any in-progress rule before switching to glossary mode.
+            if let Some(rule) = current_rule.take() {
+                entries.push(rule);
+            }
             in_glossary = true;
             continue;
         }
 
-        // Detect end of glossary (Credits section)
-        // Only break after rules have been seen — "Credits" also appears
-        // in the table of contents near the top of the file.
-        if line == "Credits" && seen_rules {
+        if line.eq_ignore_ascii_case("credits") && seen_rules {
             break;
         }
 
@@ -119,6 +144,10 @@ pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
         // Detect section headers: "704. State-Based Actions"
         // Pattern: number followed by period, space, then title
         if let Some(captures) = parse_section_header(line) {
+            // Flush any in-progress rule before starting a new section.
+            if let Some(rule) = current_rule.take() {
+                entries.push(rule);
+            }
             current_section_title = captures.1.clone();
             section_titles.insert(captures.0.clone(), captures.1);
             continue;
@@ -126,6 +155,10 @@ pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
 
         // Detect rule entries: lines starting with a rule number
         if let Some((rule_number, rule_text)) = parse_rule_line(line) {
+            // Flush the previous rule (if any) before starting the next one.
+            if let Some(prev) = current_rule.take() {
+                entries.push(prev);
+            }
             seen_rules = true;
             // Determine parent: "704.5f" -> "704.5", "704.5" -> "704"
             let parent = compute_parent(&rule_number);
@@ -137,13 +170,22 @@ pub fn parse_rules(cr_text: &str) -> Vec<RuleEntry> {
                 .cloned()
                 .unwrap_or_else(|| current_section_title.clone());
 
-            entries.push(RuleEntry {
+            current_rule = Some(RuleEntry {
                 number: rule_number,
                 text: rule_text,
                 section_title: section,
                 parent_number: parent,
             });
+        } else if let Some(ref mut rule) = current_rule {
+            // MR-M0-03: continuation line — append to the current rule's text.
+            rule.text.push(' ');
+            rule.text.push_str(line);
         }
+    }
+
+    // Flush the last rule if we reached end-of-file without hitting "Credits".
+    if let Some(rule) = current_rule {
+        entries.push(rule);
     }
 
     entries
@@ -357,6 +399,62 @@ mod tests {
         assert_eq!(entries[0].section_title, "State-Based Actions");
         assert_eq!(entries[3].number, "704.5f");
         assert_eq!(entries[3].parent_number, Some("704.5".to_string()));
+    }
+
+    #[test]
+    fn test_parse_rules_multiline_rule() {
+        // MR-M0-03: continuation lines (not starting with a rule number) should
+        // be appended to the preceding rule's text separated by a space.
+        let sample = "100. General\r\
+            100.1. These Magic rules apply to any Magic game\r\
+            with two or more players.\r\
+            100.1a A two-player game is a game that begins\r\
+            with only two players.\r";
+
+        let entries = parse_rules(sample);
+        assert_eq!(entries.len(), 2);
+        assert!(
+            entries[0].text.contains("with two or more players."),
+            "continuation should be appended: {:?}",
+            entries[0].text
+        );
+        assert!(
+            entries[1].text.contains("with only two players."),
+            "continuation should be appended: {:?}",
+            entries[1].text
+        );
+    }
+
+    #[test]
+    fn test_parse_rules_case_insensitive_glossary() {
+        // MR-M0-04: "GLOSSARY" and "CREDITS" in any case should stop rule parsing.
+        let sample = "\
+            100. General\r\
+            100.1. Some rule.\r\
+            GLOSSARY\r\
+            Some ignored glossary entry\r\
+            CREDITS\r";
+
+        let entries = parse_rules(sample);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].number, "100.1");
+    }
+
+    #[test]
+    fn test_extract_cr_version() {
+        // MR-M0-04: version extraction from CR header.
+        let sample = "Magic: The Gathering Comprehensive Rules\r\n\
+            These rules are effective as of April 19, 2024.\r\n\
+            Introduction\r\n";
+        let version = extract_cr_version(sample);
+        assert!(version.is_some());
+        assert!(version.unwrap().contains("April 19, 2024"));
+    }
+
+    #[test]
+    fn test_extract_cr_version_not_found() {
+        let sample = "Some random text\r\nwithout a version line.\r\n";
+        assert!(extract_cr_version(sample).is_none());
     }
 
     #[test]

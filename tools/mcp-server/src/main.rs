@@ -16,6 +16,18 @@ mod rules_db;
 use std::future::Future;
 use std::sync::Arc;
 
+/// Escapes a user-supplied query string for safe use in an FTS5 MATCH expression.
+///
+/// Wraps the query in double-quotes so FTS5 treats it as a literal phrase,
+/// preventing injection of FTS5 boolean operators (AND, OR, NOT, NEAR, parentheses,
+/// asterisk prefix queries, etc.). Any embedded double-quotes in the query are
+/// doubled to escape them within the quoted phrase.
+///
+/// Fixes MR-M0-02: FTS5 MATCH operator injection.
+fn escape_fts_query(query: &str) -> String {
+    format!("\"{}\"", query.replace('"', "\"\""))
+}
+
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::*,
@@ -88,6 +100,7 @@ impl MtgServer {
         let db = self.db.lock().await;
         let limit = req.limit.unwrap_or(10).min(50);
 
+        let fts_query = escape_fts_query(&req.query);
         let mut stmt = db
             .prepare(
                 "SELECT r.rule_number, r.rule_text, r.section_title
@@ -100,7 +113,7 @@ impl MtgServer {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let results: Vec<String> = stmt
-            .query_map(rusqlite::params![req.query, limit], |row| {
+            .query_map(rusqlite::params![fts_query, limit], |row| {
                 let number: String = row.get(0)?;
                 let text: String = row.get(1)?;
                 let section: String = row.get(2)?;
@@ -317,6 +330,7 @@ impl MtgServer {
         let db = self.db.lock().await;
         let limit = req.limit.unwrap_or(10).min(50);
 
+        let fts_query = escape_fts_query(&req.query);
         let mut stmt = db
             .prepare(
                 "SELECT r.oracle_id, r.comment, r.published_at, c.name
@@ -330,7 +344,7 @@ impl MtgServer {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let results: Vec<String> = stmt
-            .query_map(rusqlite::params![req.query, limit], |row| {
+            .query_map(rusqlite::params![fts_query, limit], |row| {
                 let comment: String = row.get(1)?;
                 let date: String = row.get(2)?;
                 let card_name: Option<String> = row.get(3)?;
@@ -411,7 +425,21 @@ async fn main() -> anyhow::Result<()> {
         if let Some(path) = rules_path {
             eprintln!("Importing Comprehensive Rules from {}...", path);
             let cr_text = std::fs::read_to_string(path)?;
+            // MR-M0-04: log the CR version/date if present in the header.
+            if let Some(version) = rules_db::extract_cr_version(&cr_text) {
+                eprintln!("CR version: {}", version);
+            }
             let entries = rules_db::parse_rules(&cr_text);
+            // MR-M0-04: sanity check — the full CR has 2000+ rules; warn if far fewer.
+            const MIN_EXPECTED_RULES: usize = 500;
+            if entries.len() < MIN_EXPECTED_RULES {
+                eprintln!(
+                    "Warning: only {} rules parsed (expected {}+). \
+                     The CR file format may have changed.",
+                    entries.len(),
+                    MIN_EXPECTED_RULES
+                );
+            }
             rules_db::import_rules(&conn, &entries)?;
             eprintln!("Imported {} rules.", entries.len());
         } else if rule_count == 0 {
@@ -439,11 +467,12 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(0);
 
     let fts_needs_rebuild = if rulings_count > 0 {
-        // Probe the FTS index with a common word — if the index is populated,
-        // this should find something. If it returns 0, the index is empty.
+        // Probe the FTS index with several very common MTG ruling words — if the
+        // index is populated this will match something. Using multiple OR terms
+        // avoids the fragility of relying on any single word (MR-M0-05).
         let probe_count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM rulings_fts WHERE rulings_fts MATCH 'the'",
+                "SELECT COUNT(*) FROM rulings_fts WHERE rulings_fts MATCH 'card OR the OR ability OR effect OR player'",
                 [],
                 |row: &rusqlite::Row| row.get(0),
             )

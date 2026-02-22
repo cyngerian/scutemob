@@ -11,6 +11,6 @@ path = "src/main.rs"
 mtg-card-db = { path = "../../crates/card-db" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["raw_value"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 ureq = "3"

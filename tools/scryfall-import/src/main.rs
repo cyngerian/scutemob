@@ -20,6 +20,10 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 struct BulkDataInfo {
     download_uri: String,
+    /// Expected file size in bytes as reported by Scryfall's bulk-data API.
+    /// Used for download integrity validation (MR-M0-07).
+    #[serde(default)]
+    size: u64,
 }
 
 /// A card object from Scryfall's oracle cards bulk data.
@@ -123,6 +127,29 @@ fn download_bulk_file(data_type: &str, dest: &Path) -> Result<()> {
     let mut reader = response.body_mut().as_reader();
     let mut file = fs::File::create(dest)?;
     std::io::copy(&mut reader, &mut file)?;
+    drop(file); // flush and close before stat
+
+    // MR-M0-07: Verify the download produced a non-empty file and matches the
+    // expected size from the Scryfall bulk-data API. Mismatch is a warning (not
+    // an error) because transparent decompression can shift the byte count.
+    let file_size = fs::metadata(dest)
+        .context("failed to stat downloaded file")?
+        .len();
+    if file_size == 0 {
+        anyhow::bail!(
+            "Downloaded file for '{}' is empty — download may have failed or the URL has changed",
+            data_type
+        );
+    }
+    if info.size > 0 && file_size != info.size {
+        println!(
+            "Warning: {} size mismatch: Scryfall expected {} bytes, file is {} bytes \
+             (may differ if response was compressed or Scryfall updated the file).",
+            data_type, info.size, file_size
+        );
+    } else if info.size > 0 {
+        println!("Size verified: {} bytes.", file_size);
+    }
 
     println!("Downloaded {}.", data_type);
     Ok(())
@@ -133,11 +160,16 @@ fn import_cards(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
 
     let file = fs::File::open(path).context("failed to open oracle cards file")?;
     let reader = BufReader::new(file);
-    let cards: Vec<ScryfallCard> =
-        serde_json::from_reader(reader).context("failed to parse oracle cards JSON")?;
 
-    let total = cards.len();
-    println!("Parsed {} cards, inserting into database...", total);
+    // MR-M0-06/14: Parse the JSON array as RawValue elements to avoid holding all
+    // ScryfallCard structs in memory simultaneously, and to report the card index
+    // on any parse error. Each RawValue holds only the raw JSON bytes for one card;
+    // we deserialize and insert them one at a time.
+    let raw_cards: Vec<Box<serde_json::value::RawValue>> = serde_json::from_reader(reader)
+        .context("failed to parse oracle cards JSON (expected a JSON array)")?;
+
+    let total = raw_cards.len();
+    println!("Found {} cards, inserting into database...", total);
 
     let tx = conn.transaction()?;
 
@@ -160,8 +192,10 @@ fn import_cards(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
 
-        let mut inserted = 0;
-        for card in &cards {
+        for (idx, raw) in raw_cards.iter().enumerate() {
+            let card: ScryfallCard = serde_json::from_str(raw.get())
+                .with_context(|| format!("failed to parse card at index {}", idx))?;
+
             let oracle_id = card.oracle_id.as_deref().unwrap_or("");
             let type_line = card.type_line.as_deref().unwrap_or("");
 
@@ -204,9 +238,8 @@ fn import_cards(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
                 }
             }
 
-            inserted += 1;
-            if inserted % 5000 == 0 {
-                println!("  {}/{} cards...", inserted, total);
+            if (idx + 1) % 5000 == 0 {
+                println!("  {}/{} cards...", idx + 1, total);
             }
         }
     }
@@ -221,11 +254,15 @@ fn import_rulings(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
 
     let file = fs::File::open(path).context("failed to open rulings file")?;
     let reader = BufReader::new(file);
-    let rulings: Vec<ScryfallRuling> =
-        serde_json::from_reader(reader).context("failed to parse rulings JSON")?;
 
-    let total = rulings.len();
-    println!("Parsed {} rulings, inserting into database...", total);
+    // MR-M0-06/14: Same streaming approach as import_cards — parse one ruling at
+    // a time from raw JSON to report the index on parse error and avoid holding all
+    // rulings as Rust structs simultaneously.
+    let raw_rulings: Vec<Box<serde_json::value::RawValue>> = serde_json::from_reader(reader)
+        .context("failed to parse rulings JSON (expected a JSON array)")?;
+
+    let total = raw_rulings.len();
+    println!("Found {} rulings, inserting into database...", total);
 
     let tx = conn.transaction()?;
 
@@ -236,7 +273,9 @@ fn import_rulings(conn: &mut rusqlite::Connection, path: &Path) -> Result<()> {
             "INSERT INTO rulings (oracle_id, published_at, comment) VALUES (?1, ?2, ?3)",
         )?;
 
-        for ruling in &rulings {
+        for (idx, raw) in raw_rulings.iter().enumerate() {
+            let ruling: ScryfallRuling = serde_json::from_str(raw.get())
+                .with_context(|| format!("failed to parse ruling at index {}", idx))?;
             stmt.execute(params![
                 ruling.oracle_id,
                 ruling.published_at,

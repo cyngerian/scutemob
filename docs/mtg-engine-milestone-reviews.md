@@ -107,12 +107,12 @@ but enforce no rules — that's M1+.
 
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
-| MR-M0-02 | **HIGH** | mcp-server/main.rs | **FTS5 MATCH operator injection.** User queries passed directly to `WHERE rules_fts MATCH ?1`. FTS5 interprets operators (`AND`, `OR`, `NOT`, quotes, parentheses). Malformed queries can cause FTS5 parse errors. Parameterized queries protect against SQL injection but not FTS syntax injection. Fix: wrap input in double-quotes to force literal matching. | OPEN |
-| MR-M0-03 | **MEDIUM** | mcp-server/rules_db.rs | **Multi-line CR rules not fully captured.** Parser treats each line independently. CR rules spanning 2+ lines in the text file have only the first line captured as `rule_text`. Affects completeness of FTS index. | OPEN |
-| MR-M0-04 | **MEDIUM** | mcp-server/rules_db.rs | **CR format assumptions fragile.** Parsing relies on "Glossary" and "Credits" as exact case-sensitive stop markers, position-based detection (after `seen_rules`). No CR version metadata captured. If Wizards changes the format or casing, import silently produces fewer rules with no validation. | OPEN |
-| MR-M0-05 | **MEDIUM** | mcp-server/main.rs | **FTS index probe is fragile.** Lines ~441-454: probes for the word "the" to detect if FTS index is populated. Not guaranteed to exist in all future CR revisions. Should query table count or metadata directly. | OPEN |
-| MR-M0-06 | **MEDIUM** | scryfall-import/main.rs | **JSON parse errors lose context.** `serde_json::from_reader()` on a ~200MB file gives no indication of which card or line caused the failure. Debugging reimport failures is painful. | OPEN |
-| MR-M0-07 | **MEDIUM** | scryfall-import/main.rs | **No download integrity check.** Bulk downloads have no timeout, resumption, or checksum validation. Corrupted download produces silent parse failures. | OPEN |
+| MR-M0-02 | **HIGH** | mcp-server/main.rs | **FTS5 MATCH operator injection.** User queries passed directly to `WHERE rules_fts MATCH ?1`. FTS5 interprets operators (`AND`, `OR`, `NOT`, quotes, parentheses). Malformed queries can cause FTS5 parse errors. Parameterized queries protect against SQL injection but not FTS syntax injection. Fix: wrap input in double-quotes to force literal matching. | CLOSED — fix session 9 |
+| MR-M0-03 | **MEDIUM** | mcp-server/rules_db.rs | **Multi-line CR rules not fully captured.** Parser treats each line independently. CR rules spanning 2+ lines in the text file have only the first line captured as `rule_text`. Affects completeness of FTS index. | CLOSED — fix session 9 |
+| MR-M0-04 | **MEDIUM** | mcp-server/rules_db.rs | **CR format assumptions fragile.** Parsing relies on "Glossary" and "Credits" as exact case-sensitive stop markers, position-based detection (after `seen_rules`). No CR version metadata captured. If Wizards changes the format or casing, import silently produces fewer rules with no validation. | CLOSED — fix session 9 |
+| MR-M0-05 | **MEDIUM** | mcp-server/main.rs | **FTS index probe is fragile.** Lines ~441-454: probes for the word "the" to detect if FTS index is populated. Not guaranteed to exist in all future CR revisions. Should query table count or metadata directly. | CLOSED — fix session 9 |
+| MR-M0-06 | **MEDIUM** | scryfall-import/main.rs | **JSON parse errors lose context.** `serde_json::from_reader()` on a ~200MB file gives no indication of which card or line caused the failure. Debugging reimport failures is painful. | CLOSED — fix session 9 |
+| MR-M0-07 | **MEDIUM** | scryfall-import/main.rs | **No download integrity check.** Bulk downloads have no timeout, resumption, or checksum validation. Corrupted download produces silent parse failures. | CLOSED — fix session 9 |
 | MR-M0-08 | **LOW** | card-db/schema.rs | **No ON DELETE CASCADE** for `card_faces.card_id` FK. Orphaned card_faces possible if cards are deleted without cascading. Not a practical issue with current delete-all pattern, but schema doesn't enforce it. | OPEN |
 | MR-M0-09 | **LOW** | card-db/schema.rs | **JSON columns stored as TEXT.** `colors`, `color_identity`, `keywords`, `legalities` are TEXT not JSON type. Requires callers to always serialize correctly. Risk of accidental string matching instead of JSON queries. | OPEN |
 | MR-M0-10 | **LOW** | mcp-server/main.rs | **Partial card name matching too broad.** `name LIKE '%' || ?1 || '%'` matches substrings ("Sol" matches "Sollen's Zendikon"). Single-letter queries return hundreds of results before LIMIT. | OPEN |
@@ -124,7 +124,7 @@ but enforce no rules — that's M1+.
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
 | MR-M0-13 | **MEDIUM** | state/mod.rs | **`move_object_to_zone` non-atomic — removes source before validating destination.** Lines 188-201: removes object from source zone (line 193) and objects map (line 198), then checks destination zone exists (line 201). If destination is invalid, the object is gone and the state is corrupted. In practice, `process_command` clones state before mutation so the caller's state is safe, but `move_object_to_zone` is a public method — any direct caller without pre-cloning gets silent corruption. Fix: validate destination zone existence before removing from source. | CLOSED — fix session 5 |
-| MR-M0-14 | **MEDIUM** | scryfall-import/main.rs | **Entire ~200MB JSON deserialized into memory.** Line 136: `serde_json::from_reader(reader)` materializes the full `Vec<ScryfallCard>` (~37K cards). With Serde overhead this can consume 1-2GB RAM. A streaming/iterative parser (serde_json `StreamDeserializer` or `simd-json`) would be more robust for CI/automated use. | OPEN |
+| MR-M0-14 | **MEDIUM** | scryfall-import/main.rs | **Entire ~200MB JSON deserialized into memory.** Line 136: `serde_json::from_reader(reader)` materializes the full `Vec<ScryfallCard>` (~37K cards). With Serde overhead this can consume 1-2GB RAM. A streaming/iterative parser (serde_json `StreamDeserializer` or `simd-json`) would be more robust for CI/automated use. | CLOSED — fix session 9 |
 | MR-M0-15 | **LOW** | rules_db.rs | **`rulings_fts` missing UPDATE/DELETE triggers.** Lines 65-68: only an INSERT trigger is defined for `rulings_fts`, unlike `rules_fts` which has INSERT, DELETE, and UPDATE triggers. Individual ruling updates/deletes would leave the FTS index stale. Currently mitigated by bulk `rebuild_rulings_fts()`, but inconsistent and fragile if usage patterns change. | OPEN |
 | MR-M0-16 | **LOW** | scryfall-import/main.rs | **Cards without `oracle_id` stored as empty string.** Line 165: `oracle_id.as_deref().unwrap_or("")`. Non-game cards (tokens, art series, emblems) without an oracle_id all share `oracle_id = ""`, so ruling lookups could cross-contaminate. Low impact because these cards are filtered out by the MCP server's layout exclusion. | OPEN |
 | MR-M0-17 | **INFO** | state/ (all) | **Engine state module type design is strong.** `ZoneId` makes invalid per-player/shared zone combinations unrepresentable. `Zone` enum separates ordered vs unordered storage. `OrdMap`/`OrdSet` ensure deterministic iteration. `ObjectId` newtype prevents ID confusion. Commander-specific fields (tax, damage tracking, partner support) are first-class. | — |
@@ -1137,7 +1137,7 @@ All findings across all milestones, sorted by severity then milestone.
 | ID | Milestone | Summary | Status |
 |----|-----------|---------|--------|
 | MR-M0-01 | M0 | ~~Delete-then-import data loss risk in scryfall-import~~ | CLOSED — FALSE POSITIVE (already in transaction) |
-| MR-M0-02 | M0 | FTS5 MATCH operator injection in MCP server | OPEN |
+| MR-M0-02 | M0 | FTS5 MATCH operator injection in MCP server | CLOSED — fix session 9 |
 | MR-M1-01 | M1 | `.unwrap()` in `add_object()` (state/mod.rs:159) | CLOSED — fix session 1 |
 | MR-M1-02 | M1 | `.unwrap()` in `move_object_to_zone()` (state/mod.rs:228) | CLOSED — fix session 1 |
 | MR-M2-01 | M2 | `.expect()` in priority.rs:54 — `next_priority_player` | CLOSED — fix session 1 |
@@ -1167,13 +1167,13 @@ All findings across all milestones, sorted by severity then milestone.
 
 | ID | Milestone | Summary | Status |
 |----|-----------|---------|--------|
-| MR-M0-03 | M0 | Multi-line CR rules not captured | OPEN |
-| MR-M0-04 | M0 | CR format assumptions fragile | OPEN |
-| MR-M0-05 | M0 | FTS index probe fragile | OPEN |
-| MR-M0-06 | M0 | JSON parse errors lose context | OPEN |
-| MR-M0-07 | M0 | No download integrity check | OPEN |
+| MR-M0-03 | M0 | Multi-line CR rules not captured | CLOSED — fix session 9 |
+| MR-M0-04 | M0 | CR format assumptions fragile | CLOSED — fix session 9 |
+| MR-M0-05 | M0 | FTS index probe fragile | CLOSED — fix session 9 |
+| MR-M0-06 | M0 | JSON parse errors lose context | CLOSED — fix session 9 |
+| MR-M0-07 | M0 | No download integrity check | CLOSED — fix session 9 |
 | MR-M0-13 | M0 | `move_object_to_zone` non-atomic — removes source before validating dest | CLOSED — fix session 5 |
-| MR-M0-14 | M0 | Entire ~200MB JSON deserialized into memory | OPEN |
+| MR-M0-14 | M0 | Entire ~200MB JSON deserialized into memory | CLOSED — fix session 9 |
 | MR-M1-03 | M1 | `.expect()` in builder.rs:318 | CLOSED — fix session 8 |
 | MR-M1-04 | M1 | Check-then-access pattern in state/mod.rs | CLOSED — fix session 1 (subsumed by MR-M1-01/02) |
 | MR-M1-05 | M1 | Panics on 0 players instead of Result | CLOSED — fix session 8 |
@@ -1304,11 +1304,11 @@ All findings across all milestones, sorted by severity then milestone.
 |--------|-------|
 | Total unique issue IDs | 146 (129 original + 12 M1 re-review + 5 M2 re-review) |
 | CRITICAL | 0 |
-| HIGH (OPEN) | 1 (MR-M0-02 — fix session 9) |
-| HIGH (CLOSED) | 24 (1 false positive + 23 closed by fix sessions 1–7) |
+| HIGH (OPEN) | 0 |
+| HIGH (CLOSED) | 25 (1 false positive + 23 closed by fix sessions 1–7 + 1 closed by fix session 9 MR-M0-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 → M9) |
-| MEDIUM (OPEN) | 10 |
-| MEDIUM (CLOSED) | 21 (closed by fix sessions 1–7) |
+| MEDIUM (OPEN) | 4 (MR-M0-08 schema LOW-medium, MR-M0-15/16, etc.; see LOWs) |
+| MEDIUM (CLOSED) | 27 (closed by fix sessions 1–9) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 → M8, MR-M5-04 → M8+, MR-M7-09 → M9, MR-M7-12 → M9) |
 | LOW (OPEN) | 36 |
 | LOW (CLOSED) | 3 (MR-M3-09, MR-M3-10 — fix session 7; MR-M7-17 — fix session 3) |
