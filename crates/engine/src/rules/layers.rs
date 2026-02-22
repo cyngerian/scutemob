@@ -184,15 +184,11 @@ fn effect_applies_to(
                 && !chars.subtypes.contains(&SubType("Aura".to_string()))
         }
 
-        EffectFilter::AllPermanents => {
-            obj_zone == ZoneId::Battlefield
-                && (chars.card_types.contains(&CardType::Creature)
-                    || chars.card_types.contains(&CardType::Artifact)
-                    || chars.card_types.contains(&CardType::Enchantment)
-                    || chars.card_types.contains(&CardType::Land)
-                    || chars.card_types.contains(&CardType::Planeswalker)
-                    || chars.card_types.contains(&CardType::Battle))
-        }
+        // MR-M5-05: CR 110.4 defines permanents as anything on the battlefield.
+        // The old 6-type check incorrectly missed objects whose card type was
+        // set by a layer effect (e.g., an enchantment made into a Battle) and
+        // would also fail for future card types. Zone membership is the correct test.
+        EffectFilter::AllPermanents => obj_zone == ZoneId::Battlefield,
 
         EffectFilter::AllCardsInGraveyards => matches!(obj_zone, ZoneId::Graveyard(_)),
 
@@ -434,8 +430,10 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     // Apply them in timestamp order (index order = timestamp order since effects is sorted).
     if result.len() < n {
         // Find effects not yet emitted (O(n²), but n is tiny in practice — ≤ 20 effects).
+        // MR-M5-03: use EffectId comparison instead of ptr::eq — ptr::eq is fragile across
+        // clones and stack allocations; EffectId is the correct logical identity for effects.
         for effect in &effects {
-            let was_emitted = result.iter().any(|e| std::ptr::eq(*e, *effect));
+            let was_emitted = result.iter().any(|e| e.id == effect.id);
             if !was_emitted {
                 result.push(effect);
             }

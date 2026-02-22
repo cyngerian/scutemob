@@ -24,15 +24,18 @@
 //! - 704.5q: +1/+1 and -1/-1 counter pairs annihilate each other.
 //! - 704.5u: Commander — player received 21+ combat damage from one commander → loses.
 
+use std::collections::HashMap;
+
 use im::OrdMap;
 
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::types::{CardType, CounterType, KeywordAbility, SubType, SuperType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
 use super::events::{GameEvent, LossReason};
+use super::layers::calculate_characteristics;
 
 // ── Public interface ────────────────────────────────────────────────────────
 
@@ -58,17 +61,40 @@ pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
 /// Apply all applicable SBAs simultaneously in one pass.
 /// Returns events produced; empty means nothing fired.
 fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
+    // MR-M5-02: Build a characteristics snapshot for all battlefield objects at the
+    // start of each SBA pass using the layer system. This ensures SBAs see effective
+    // characteristics (after continuous effects) rather than raw printed values.
+    // For example: a creature reduced to 0 toughness by a -3/-3 aura dies to 704.5f,
+    // and an indestructible creature whose keyword was removed by Humility dies to 704.5g.
+    //
+    // The snapshot is built once per pass (not per check) because all SBAs within a
+    // single pass are evaluated simultaneously (CR 704.3). After any SBAs fire, the
+    // loop in `check_and_apply_sbas` calls us again with a fresh snapshot.
+    let battlefield_ids: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield)
+        .map(|(id, _)| *id)
+        .collect();
+    let chars_map: HashMap<ObjectId, Characteristics> = battlefield_ids
+        .iter()
+        .filter_map(|&id| {
+            let chars = calculate_characteristics(state, id)?;
+            Some((id, chars))
+        })
+        .collect();
+
     let mut events = Vec::new();
 
     // Collect events from each SBA category. Order matches CR 704.5 numbering
     // but all are treated as simultaneous within a pass.
     events.extend(check_player_sbas(state));
     events.extend(check_token_sbas(state));
-    events.extend(check_creature_sbas(state));
-    events.extend(check_planeswalker_sbas(state));
+    events.extend(check_creature_sbas(state, &chars_map));
+    events.extend(check_planeswalker_sbas(state, &chars_map));
     events.extend(check_legendary_rule(state));
     events.extend(check_aura_sbas(state));
-    events.extend(check_equipment_sbas(state));
+    events.extend(check_equipment_sbas(state, &chars_map));
     events.extend(check_counter_annihilation(state));
 
     events
@@ -179,34 +205,44 @@ fn check_token_sbas(state: &mut GameState) -> Vec<GameEvent> {
 /// CR 704.5h: Creature that was dealt damage by a deathtouch source → destroyed.
 ///
 /// "Destroyed" in 704.5g/h means moved to the owner's graveyard. Indestructible
-/// creatures are not destroyed by 704.5g/h (M5+ will implement indestructible check
-/// via the layer system; for now we treat all creatures as destructible).
-fn check_creature_sbas(state: &mut GameState) -> Vec<GameEvent> {
+/// creatures are not destroyed by 704.5g/h (CR 702.12a). Indestructibility (and other
+/// characteristics) is evaluated via `chars_map` — the layer-computed snapshot — so
+/// continuous effects that remove indestructible or lower toughness are correctly seen.
+fn check_creature_sbas(
+    state: &mut GameState,
+    chars_map: &HashMap<ObjectId, Characteristics>,
+) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
     // Collect creatures on the battlefield that need to die.
+    // MR-M5-02: use `chars_map` (layer-computed) instead of raw `obj.characteristics`.
+    // damage_marked and deathtouch_damage remain on the GameObject (not in chars).
     let dying: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(id, obj)| {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
-            if !obj.characteristics.card_types.contains(&CardType::Creature) {
+
+            // Use layer-computed characteristics so continuous effects are visible.
+            let Some(chars) = chars_map.get(id) else {
+                return false;
+            };
+
+            if !chars.card_types.contains(&CardType::Creature) {
                 return false;
             }
 
             // CR 704.5f/g/h only apply to creatures with a defined toughness.
-            // A creature without a printed toughness (e.g., a test card with None)
-            // is treated as an unknown state — SBAs do not apply until M5 (layers).
-            let Some(toughness) = obj.characteristics.toughness else {
+            // A creature without toughness (e.g., a test card) is skipped.
+            let Some(toughness) = chars.toughness else {
                 return false;
             };
 
-            let is_indestructible = obj
-                .characteristics
-                .keywords
-                .contains(&KeywordAbility::Indestructible);
+            // MR-M5-02: indestructible is now read from layer-computed keywords —
+            // an effect that removes Indestructible (e.g., Humility) is correctly seen.
+            let is_indestructible = chars.keywords.contains(&KeywordAbility::Indestructible);
 
             // CR 704.5f: toughness ≤ 0. Indestructible does NOT prevent this
             // (CR 702.12a only prevents "destroy"; zero-toughness is a state replacement).
@@ -216,7 +252,11 @@ fn check_creature_sbas(state: &mut GameState) -> Vec<GameEvent> {
 
             // CR 704.5g: lethal damage (damage ≥ toughness > 0).
             // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
-            if !is_indestructible && obj.damage_marked > 0 && obj.damage_marked as i32 >= toughness
+            // MR-M4-04: compare in u32 space to avoid u32→i32 wrapping on large damage values.
+            // toughness > 0 is guaranteed by the check above, so the cast is safe.
+            if !is_indestructible
+                && obj.damage_marked > 0
+                && obj.damage_marked >= toughness as u32
             {
                 return true;
             }
@@ -259,29 +299,35 @@ fn check_creature_sbas(state: &mut GameState) -> Vec<GameEvent> {
 ///
 /// A planeswalker dies if its effective loyalty is ≤ 0. Effective loyalty =
 /// Loyalty counter total if present, otherwise `Characteristics.loyalty`.
-fn check_planeswalker_sbas(state: &mut GameState) -> Vec<GameEvent> {
+fn check_planeswalker_sbas(
+    state: &mut GameState,
+    chars_map: &HashMap<ObjectId, Characteristics>,
+) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
+    // MR-M5-02: use layer-computed characteristics so continuous effects are visible.
     let dying: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(id, obj)| {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
-            if !obj
-                .characteristics
-                .card_types
-                .contains(&CardType::Planeswalker)
-            {
+            let Some(chars) = chars_map.get(id) else {
+                return false;
+            };
+            if !chars.card_types.contains(&CardType::Planeswalker) {
                 return false;
             }
             // Effective loyalty: use Loyalty counter if present, else Characteristics.loyalty.
+            // MR-M4-05: compare in the natural type of each branch to avoid u32→i32 wrapping.
+            // Loyalty counters are u32 — dead when the counter reaches 0.
+            // Base loyalty (i32) can start at 0 or be set negative by effects.
             let loyalty_counter = obj.counters.get(&CounterType::Loyalty).copied();
-            let effective_loyalty = loyalty_counter
-                .map(|c| c as i32)
-                .unwrap_or_else(|| obj.characteristics.loyalty.unwrap_or(1));
-            effective_loyalty <= 0
+            match loyalty_counter {
+                Some(counter_value) => counter_value == 0,
+                None => chars.loyalty.unwrap_or(1) <= 0,
+            }
         })
         .map(|(id, _)| *id)
         .collect();
@@ -438,22 +484,29 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
 /// Equipment must be attached to a creature. Fortification must be attached
 /// to a land. For M4: an equipment is illegal if its `attached_to` references
 /// an object that is not on the battlefield or not a creature.
-fn check_equipment_sbas(state: &mut GameState) -> Vec<GameEvent> {
+fn check_equipment_sbas(
+    state: &mut GameState,
+    chars_map: &HashMap<ObjectId, Characteristics>,
+) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
+    // MR-M5-02: use layer-computed characteristics for both the equipment's own
+    // subtypes (could be added by effects) and the target's card types (e.g., a
+    // creature that lost Creature type due to a continuous effect).
     let illegal_equip: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(id, obj)| {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
-            let is_equipment = obj
-                .characteristics
+            let Some(chars) = chars_map.get(id) else {
+                return false;
+            };
+            let is_equipment = chars
                 .subtypes
                 .contains(&SubType("Equipment".to_string()));
-            let is_fortification = obj
-                .characteristics
+            let is_fortification = chars
                 .subtypes
                 .contains(&SubType("Fortification".to_string()));
             if !is_equipment && !is_fortification {
@@ -469,12 +522,19 @@ fn check_equipment_sbas(state: &mut GameState) -> Vec<GameEvent> {
                             if t.zone != ZoneId::Battlefield {
                                 return true; // Target left battlefield.
                             }
-                            if is_equipment {
-                                // Equipment must be on a creature.
-                                !t.characteristics.card_types.contains(&CardType::Creature)
-                            } else {
-                                // Fortification must be on a land.
-                                !t.characteristics.card_types.contains(&CardType::Land)
+                            // Use layer-computed characteristics for the target's type.
+                            let target_chars = chars_map.get(&target_id);
+                            match target_chars {
+                                None => true, // No characteristics — treat as illegal.
+                                Some(tc) => {
+                                    if is_equipment {
+                                        // Equipment must be on a creature.
+                                        !tc.card_types.contains(&CardType::Creature)
+                                    } else {
+                                        // Fortification must be on a land.
+                                        !tc.card_types.contains(&CardType::Land)
+                                    }
+                                }
                             }
                         }
                     }
@@ -580,13 +640,14 @@ fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Check if a `KeywordAbility` is present on an object's characteristics.
+/// Check if a `KeywordAbility` is present on an object's effective characteristics.
+///
+/// Uses `calculate_characteristics` (layer system) rather than raw `obj.characteristics`
+/// so that continuous effects granting or removing the keyword are correctly reflected.
 /// Used by 704.5h deathtouch check and similar keyword-gated SBAs.
 #[allow(dead_code)]
 pub fn has_keyword(state: &GameState, id: ObjectId, keyword: KeywordAbility) -> bool {
-    state
-        .objects
-        .get(&id)
-        .map(|obj| obj.characteristics.keywords.contains(&keyword))
+    calculate_characteristics(state, id)
+        .map(|chars| chars.keywords.contains(&keyword))
         .unwrap_or(false)
 }

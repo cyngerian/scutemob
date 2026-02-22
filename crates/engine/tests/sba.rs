@@ -8,7 +8,10 @@ use mtg_engine::state::player::{CardId, PlayerId};
 use mtg_engine::state::turn::Step;
 use mtg_engine::state::types::{CounterType, SubType, SuperType};
 use mtg_engine::state::zone::ZoneId;
-use mtg_engine::{start_game, GameEvent, LossReason};
+use mtg_engine::{
+    start_game, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
+    KeywordAbility, LayerModification, LossReason,
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -752,5 +755,90 @@ fn test_sba_fire_before_first_priority_grant() {
     assert!(
         died_pos.unwrap() < priority_pos.unwrap(),
         "CreatureDied should come before first PriorityGiven"
+    );
+}
+
+// ── MR-M5-02: SBAs must use layer-computed characteristics ─────────────────
+
+#[test]
+/// CR 704.5f + CR 613 — creature reduced to 0 toughness by a continuous effect dies via SBA.
+///
+/// A 3/3 creature with a -3/-3 continuous effect active has effective toughness 0.
+/// SBAs must see the layer-computed toughness, not the raw printed value.
+/// Without MR-M5-02, the SBA would skip this creature (printed toughness == 3 > 0).
+fn test_sba_704_5f_continuous_effect_reduces_toughness_to_zero_dies() {
+    let minus3_effect = ContinuousEffect {
+        id: EffectId(1),
+        source: None,
+        timestamp: 10,
+        layer: EffectLayer::PtModify,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::AllCreatures,
+        modification: LayerModification::ModifyBoth(-3),
+        is_cda: false,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(ObjectSpec::creature(p(1), "Weakened Bear", 3, 3))
+        .add_continuous_effect(minus3_effect)
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build();
+
+    let (_, events) = start_game(state).unwrap();
+
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        died,
+        "3/3 creature reduced to 0 toughness by continuous -3/-3 should die via SBA 704.5f"
+    );
+}
+
+#[test]
+/// CR 704.5g + CR 613 — creature with lethal damage that had Indestructible removed by a
+/// continuous effect is destroyed by SBA.
+///
+/// A 2/2 with 2 damage (normally survived via Indestructible) and a RemoveKeyword effect
+/// removing Indestructible has effective characteristics with no Indestructible.
+/// SBAs must see the layer-computed keywords, not the raw printed keywords.
+/// Without MR-M5-02, the SBA would skip this creature (raw keywords include Indestructible).
+fn test_sba_704_5g_indestructible_removed_by_effect_lethal_damage_dies() {
+    let remove_indestructible = ContinuousEffect {
+        id: EffectId(1),
+        source: None,
+        timestamp: 10,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::AllCreatures,
+        modification: LayerModification::RemoveKeyword(KeywordAbility::Indestructible),
+        is_cda: false,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::creature(p(1), "Fallen Guardian", 2, 2)
+                .with_keyword(KeywordAbility::Indestructible)
+                .with_damage(2),
+        )
+        .add_continuous_effect(remove_indestructible)
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build();
+
+    let (_, events) = start_game(state).unwrap();
+
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        died,
+        "indestructible creature whose keyword was removed by a continuous effect \
+         should die from lethal damage via SBA 704.5g"
     );
 }
