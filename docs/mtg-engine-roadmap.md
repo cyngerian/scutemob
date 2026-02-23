@@ -416,35 +416,35 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Implement replacement effects and prevention effects, which modify events as they happen rather than triggering afterward.
 
 **Deliverables**:
-- [ ] Replacement effect framework: intercept an event, apply modification, continue with modified event
-- [ ] Self-replacement effects: apply before other replacement effects (CR 614.15)
-- [ ] Player choice when multiple replacement effects apply to the same event
-- [ ] Loop prevention: a replacement effect can modify a given event at most once (CR 614.5)
-- [ ] Prevention effects: prevent N damage, prevent all damage, etc.
-- [ ] Prevention/replacement interaction per CR 616
-- [ ] "If ~ would die" replacement effects (critical for Commander zone-change choice)
-- [ ] "If a player would draw" replacement effects (e.g., Notion Thief)
-- [ ] "Enters the battlefield" replacement effects (e.g., "enters tapped")
+- [x] Replacement effect framework: intercept an event, apply modification, continue with modified event
+- [x] Self-replacement effects: apply before other replacement effects (CR 614.15)
+- [x] Player choice when multiple replacement effects apply to the same event
+- [x] Loop prevention: a replacement effect can modify a given event at most once (CR 614.5)
+- [x] Prevention effects: prevent N damage, prevent all damage, etc.
+- [x] Prevention/replacement interaction per CR 616
+- [x] "If ~ would die" replacement effects (critical for Commander zone-change choice)
+- [x] "If a player would draw" replacement effects (e.g., Notion Thief)
+- [x] "Enters the battlefield" replacement effects (e.g., "enters tapped")
 
 **Tests** (minimum):
-- [ ] Simple replacement: "If you would gain life, draw that many cards instead"
-- [ ] Multiple replacement effects: player chooses order of application
-- [ ] Self-replacement: applies first regardless of player choice
-- [ ] Loop prevention: same effect can't apply twice to same event
-- [ ] Prevention shield: "prevent the next 3 damage" then take 5 damage → 2 gets through
-- [ ] Replacement + prevention interaction: which applies first (player's choice per CR 616)
-- [ ] Commander zone-change replacement: commander would die → choose command zone or graveyard
+- [x] Simple replacement: "If you would gain life, draw that many cards instead"
+- [x] Multiple replacement effects: player chooses order of application
+- [x] Self-replacement: applies first regardless of player choice
+- [x] Loop prevention: same effect can't apply twice to same event
+- [x] Prevention shield: "prevent the next 3 damage" then take 5 damage → 2 gets through
+- [x] Replacement + prevention interaction: which applies first (player's choice per CR 616)
+- [x] Commander zone-change replacement: commander would die → choose command zone or graveyard
 
 **Game Script Tasks**:
-- [ ] Generate scripts for replacement effect corner cases from `mtg-engine-corner-cases.md` (cases 16-19, 28, 33) and add to `test-data/generated-scripts/replacement/`
-- [ ] Generate scripts for prevention effects and replacement + prevention interaction ordering
-- [ ] Cross-validate and human-review; run through replay harness
+- [x] Generate scripts for replacement effect corner cases from `mtg-engine-corner-cases.md` (cases 16-19, 28, 33) and add to `test-data/generated-scripts/replacement/`
+- [x] Generate scripts for prevention effects and replacement + prevention interaction ordering
+- [x] Cross-validate and human-review; run through replay harness
 
-**Acceptance Criteria**:
-- Replacement effects integrate cleanly with existing event system
-- Commander zone-change choice works correctly
-- No infinite loops possible in replacement effect chains
-- Replacement effect game scripts pass through replay harness
+**Acceptance Criteria** (all met — M8 COMPLETE, 395 tests passing):
+- [x] Replacement effects integrate cleanly with existing event system
+- [x] Commander zone-change choice works correctly
+- [x] No infinite loops possible in replacement effect chains
+- [x] Replacement effect game scripts pass through replay harness
 
 **Dependencies**: M4 (SBAs generate events that can be replaced), M5 (continuous effects can create replacement effects)
 
