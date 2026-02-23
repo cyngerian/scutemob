@@ -11,20 +11,20 @@
 
 ## Current State
 
-- **Active Milestone**: M9 — implementation complete; run `review milestone M9` next
-- **Status**: M9 implementation done — 448 tests passing; code review pending
+- **Active Milestone**: M9.4 — Engine Correctness & Core Mechanics
+- **Status**: Corner case audit complete; M9.4 roadmap section drafted; session plan pending
 - **Last Updated**: 2026-02-23
 
 ### What Exists (M9 complete, includes M0-M8)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (incl. Rest in Peace, Leyline of the Void, Darksteel Colossus), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA, mulligan, companion)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion)
 - `testing/`: Script replay harness (with commander registration), 11 approved game scripts, 448 tests; 6-player test suite
 
 ### Known Issue Summary (from code reviews)
-- **HIGH open**: 0 — all resolved through M8
-- **MEDIUM open**: 0 — all resolved through M8
-- **~34 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup — deferred, address opportunistically
+- **HIGH open**: 0 — all resolved through M9
+- **MEDIUM open**: 0 — all resolved through M9
+- **~43 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage — deferred, address opportunistically
 - **Full details**: `docs/mtg-engine-milestone-reviews.md`
 
 ---
@@ -46,6 +46,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Development Roadmap | `docs/mtg-engine-roadmap.md` | What to build and in what order; milestone definitions |
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
+| Corner Case Audit | `docs/mtg-engine-corner-case-audit.md` | Living correctness ledger: coverage status, card def gaps, deferred items |
 | Network Security Strategy | `docs/mtg-engine-network-security.md` | Three-tier security: state hashing, distributed verification, Mental Poker |
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
 | Replay Viewer Design | `docs/mtg-engine-replay-viewer.md` | M9.5 game state stepper: architecture, API, Svelte components, shared-component strategy |
@@ -67,6 +68,7 @@ Before starting work, check which files apply to your task:
 | Writing new code or tests | `memory/conventions.md` |
 | Questioning a design decision | `memory/decisions.md` |
 | Implementing a new subsystem | `docs/mtg-engine-corner-cases.md` (full) |
+| Checking correctness gaps | `docs/mtg-engine-corner-case-audit.md` |
 | Starting a new milestone | Use `/start-milestone <N>` — reads only the relevant roadmap section via Grep+offset, never the full file. |
 | Writing golden tests | `docs/mtg-engine-game-scripts.md` |
 | Implementing network features (M10+) | `docs/mtg-engine-network-security.md` |

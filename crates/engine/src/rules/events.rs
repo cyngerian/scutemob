@@ -556,6 +556,27 @@ pub enum GameEvent {
     /// Emitted when `handle_bring_companion` successfully completes the special
     /// action. The companion card is now in the player's hand.
     CompanionBroughtToHand { player: PlayerId, card_id: CardId },
+
+    // ── M9.4: Scry event ──────────────────────────────────────────────────
+    /// A player performed a scry action (CR 701.18).
+    ///
+    /// Emitted by `Effect::Scry` when the player looks at the top N cards
+    /// of their library and rearranges them (deterministic fallback: top cards
+    /// moved to bottom in ObjectId order).
+    Scried { player: PlayerId, count: u32 },
+
+    // ── M9.4: Goaded event ────────────────────────────────────────────────
+    /// A permanent was goaded (CR 701.38).
+    ///
+    /// Emitted by `Effect::Goad` when a creature is marked as goaded.
+    /// The goaded creature must attack each combat if able, and must attack
+    /// a player other than the goading player if able.
+    Goaded {
+        /// The creature that was goaded.
+        object_id: ObjectId,
+        /// The player who goaded the creature.
+        goading_player: PlayerId,
+    },
 }
 
 impl GameEvent {

@@ -248,6 +248,7 @@ impl GameStateBuilder {
                 companion: None,
                 companion_used: false,
                 mulligan_count: 0,
+                no_max_hand_size: false,
             };
             players.insert(config.id, player_state);
         }

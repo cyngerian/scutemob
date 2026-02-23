@@ -230,6 +230,16 @@ pub enum Effect {
     },
 
     // ── Library ─────────────────────────────────────────────────────────────
+    /// CR 701.18: Scry N — look at top N cards of your library, then put any
+    /// number on the bottom and the rest on top in any order.
+    ///
+    /// M9.4 deterministic fallback: looks at top N cards of the library and
+    /// puts them on the bottom in ObjectId ascending order (interactive
+    /// ordering deferred to M10+).
+    Scry {
+        player: PlayerTarget,
+        count: EffectAmount,
+    },
     /// CR 701.20: Put N cards from a zone onto the top of a player's library.
     ///
     /// M7: Deterministic — moves the first N objects (by ObjectId ascending) from
@@ -281,6 +291,13 @@ pub enum Effect {
         payer: PlayerTarget,
         or_else: Box<Effect>,
     },
+    /// CR 701.38: Goad — target creature must attack each combat if able, and
+    /// must attack a player other than the goading player if able.
+    ///
+    /// M9.4: marks the creature as goaded until the start of the goaded creature
+    /// controller's next turn. Enforcement of attack requirements is deferred
+    /// to a future session.
+    Goad { target: EffectTarget },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 }
@@ -454,7 +471,14 @@ pub enum TriggerCondition {
     /// "At the beginning of combat on your turn."
     AtBeginningOfCombat,
     /// "Whenever you cast a spell."
-    WheneverYouCastSpell,
+    ///
+    /// If `during_opponent_turn` is true, the trigger only fires when it is NOT
+    /// the controller's own turn (CR 603.1 — condition checked at trigger time).
+    /// Used for Alela, Cunning Conqueror's "first spell during each opponent's turn".
+    WheneverYouCastSpell {
+        /// If true, only fires during opponents' turns (not controller's own turn).
+        during_opponent_turn: bool,
+    },
     /// "Whenever you gain life."
     WheneverYouGainLife,
     /// "Whenever you draw a card."

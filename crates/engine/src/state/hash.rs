@@ -398,6 +398,7 @@ impl HashInto for PlayerState {
         self.companion.hash_into(hasher);
         self.companion_used.hash_into(hasher);
         self.mulligan_count.hash_into(hasher);
+        self.no_max_hand_size.hash_into(hasher);
     }
 }
 
@@ -1404,6 +1405,21 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 from_zone.hash_into(hasher);
             }
+            // M9.4: Scried (discriminant 63)
+            GameEvent::Scried { player, count } => {
+                63u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // M9.4: Goaded (discriminant 64)
+            GameEvent::Goaded {
+                object_id,
+                goading_player,
+            } => {
+                64u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                goading_player.hash_into(hasher);
+            }
         }
     }
 }
@@ -1646,7 +1662,12 @@ impl HashInto for TriggerCondition {
             TriggerCondition::AtBeginningOfEachUpkeep => 11u8.hash_into(hasher),
             TriggerCondition::AtBeginningOfYourEndStep => 12u8.hash_into(hasher),
             TriggerCondition::AtBeginningOfCombat => 13u8.hash_into(hasher),
-            TriggerCondition::WheneverYouCastSpell => 14u8.hash_into(hasher),
+            TriggerCondition::WheneverYouCastSpell {
+                during_opponent_turn,
+            } => {
+                14u8.hash_into(hasher);
+                during_opponent_turn.hash_into(hasher);
+            }
             TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
         }
@@ -1885,6 +1906,17 @@ impl HashInto for Effect {
                 player.hash_into(hasher);
                 count.hash_into(hasher);
                 from.hash_into(hasher);
+            }
+            // M9.4: Scry (discriminant 28) — CR 701.18
+            Effect::Scry { player, count } => {
+                28u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // M9.4: Goad (discriminant 29) — CR 701.38
+            Effect::Goad { target } => {
+                29u8.hash_into(hasher);
+                target.hash_into(hasher);
             }
         }
     }

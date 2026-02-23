@@ -457,51 +457,51 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Goal**: Implement all Commander-specific rules as a cohesive layer on top of the core engine.
 
 **Deliverables**:
-- [ ] Commander format enforcement:
-  - [ ] 100-card singleton deck validation
-  - [ ] Color identity validation
-  - [ ] Banned list checking (loaded from card DB)
-- [ ] Command zone mechanics:
-  - [ ] Casting commander from command zone
-  - [ ] Commander tax: additional {2} for each previous cast from command zone
-  - [ ] Commander tax tracks separately per commander (for partners)
-- [ ] Commander replacement effects:
-  - [ ] "If your commander would go to graveyard/exile from anywhere, you may put it in the command zone instead"
-  - [ ] Tax increments on cast, not on zone change
-- [ ] Commander damage:
-  - [ ] SBA: player who has received 21+ combat damage from a single commander loses
-  - [ ] Tracking across zone changes (the commander is the same card even with new ObjectId)
-- [ ] Partner mechanics: two commanders, shared color identity, separate tax
-- [ ] Companion (if in scope): deck restriction validation, companion casting from sideboard-equivalent
-- [ ] Mulligan: Commander-specific free mulligan, then London mulligan
-- [ ] Starting life: 40
+- [x] Commander format enforcement:
+  - [x] 100-card singleton deck validation
+  - [x] Color identity validation (mana cost + oracle text symbols, CR 903.4)
+  - [x] Banned list checking (loaded from card DB)
+- [x] Command zone mechanics:
+  - [x] Casting commander from command zone
+  - [x] Commander tax: additional {2} for each previous cast from command zone
+  - [x] Commander tax tracks separately per commander (for partners)
+- [x] Commander replacement effects:
+  - [x] "If your commander would go to graveyard/exile from anywhere, you may put it in the command zone instead" (SBA for graveyard/exile per CR 903.9a; replacement for hand/library per CR 903.9b; player choice via `CommanderZoneReturnChoiceRequired` event)
+  - [x] Tax increments on cast, not on zone change
+- [x] Commander damage:
+  - [x] SBA: player who has received 21+ combat damage from a single commander loses
+  - [x] Tracking across zone changes (the commander is the same card even with new ObjectId)
+- [x] Partner mechanics: two commanders, shared color identity, separate tax
+- [x] Companion (if in scope): deck restriction validation, companion casting from sideboard-equivalent
+- [x] Mulligan: Commander-specific free mulligan, then London mulligan
+- [x] Starting life: 40
 
 **Additional deliverable — rewind prerequisites**:
-- [ ] `GameEvent::reveals_hidden_info() -> bool` method: returns `true` for any event that reveals or commits to hidden information (library draws, scry peeks, face-down reveals). Used by the network layer in M10 to identify safe rewind checkpoints. No engine logic changes — purely a classification method on the existing enum.
+- [x] `GameEvent::reveals_hidden_info() -> bool` method: returns `true` for any event that reveals or commits to hidden information (library draws, scry peeks, face-down reveals). Used by the network layer in M10 to identify safe rewind checkpoints. No engine logic changes — purely a classification method on the existing enum.
 
 **Tests** (minimum):
-- [ ] Deck validation: reject 99-card deck, reject off-color-identity cards, reject banned cards
-- [ ] Cast commander: first cast costs printed cost, second costs +2, third costs +4
-- [ ] Partner commanders: each tracked separately for tax
-- [ ] Commander dies: player chooses command zone or graveyard
-- [ ] Commander exiled: player chooses command zone or exile
-- [ ] Commander damage: 21 combat damage from one commander → SBA loss
-- [ ] Commander damage: 10 from commander A + 11 from commander B → no loss (tracked separately)
-- [ ] Commander damage from a copy of a commander: does NOT count
-- [ ] Free mulligan then London mulligan sequence
-- [ ] 4-player game start: all commander-specific setup correct
-- [ ] 6-player game tests:
-  - [ ] Priority rotation with 6 players (all 6 must pass for stack resolution)
-  - [ ] Combat with 5 defending players declaring blockers independently
-  - [ ] APNAP trigger ordering with 6 players
-  - [ ] Turn advancement skipping eliminated players in 6-player game
-  - [ ] Concession mid-game with 6 players (priority and turn order adjust correctly)
-  - [ ] `GameStateBuilder::six_player()` convenience method
+- [x] Deck validation: reject 99-card deck, reject off-color-identity cards, reject banned cards
+- [x] Cast commander: first cast costs printed cost, second costs +2, third costs +4
+- [x] Partner commanders: each tracked separately for tax
+- [x] Commander dies: player chooses command zone or graveyard
+- [x] Commander exiled: player chooses command zone or exile
+- [x] Commander damage: 21 combat damage from one commander → SBA loss
+- [x] Commander damage: 10 from commander A + 11 from commander B → no loss (tracked separately)
+- [x] Commander damage from a copy of a commander: does NOT count
+- [x] Free mulligan then London mulligan sequence
+- [x] 4-player game start: all commander-specific setup correct
+- [x] 6-player game tests:
+  - [x] Priority rotation with 6 players (all 6 must pass for stack resolution)
+  - [x] Combat with 5 defending players declaring blockers independently
+  - [x] APNAP trigger ordering with 6 players
+  - [x] Turn advancement skipping eliminated players in 6-player game
+  - [x] Concession mid-game with 6 players (priority and turn order adjust correctly)
+  - [x] `GameStateBuilder::six_player()` convenience method
 
 **Game Script Tasks**:
-- [ ] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28) and add to `test-data/generated-scripts/commander/`
-- [ ] Generate scripts for full Commander game setup: mulligan sequence, first few turns with commander casting and tax; partner commander interactions
-- [ ] Cross-validate and human-review; run through replay harness
+- [x] Generate scripts for Commander corner cases from `mtg-engine-corner-cases.md` (cases 26, 27, 28) and add to `test-data/generated-scripts/commander/`
+- [x] Generate scripts for full Commander game setup: mulligan sequence, first few turns with commander casting and tax; partner commander interactions
+- [x] Cross-validate and human-review; run through replay harness
 
 **Acceptance Criteria**:
 - A full 4-player Commander game can be played programmatically (via test commands) from game start through win/loss conditions
@@ -516,17 +516,78 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 
 ---
 
+### M9.4: Engine Correctness & Core Mechanics
+
+**Goal**: Close all correctness gaps discovered during the Engine Core Complete audit. Fix existing card definition simplifications, close partial test coverage, and implement core mechanics needed for Commander play. This milestone gates the Engine Core Complete checkpoint.
+
+**Audit reference**: `docs/mtg-engine-corner-case-audit.md` — living correctness ledger tracking all 35 corner cases and 12 card definition gaps.
+
+**Phase 1 — Card Definition Correctness** (fix what's broken in the existing 54 cards):
+- [ ] Equipment static ability granting: Lightning Greaves (shroud + haste), Swiftfoot Boots (hexproof + haste) via continuous effects
+- [ ] Goad mechanic: replace `DrawCards(0)` placeholder in Alela with real `Effect::Goad`
+- [ ] Scry: implement `Effect::Scry` (Read the Bones)
+- [ ] Modal color choice: Dimir Guildgate `{T}: Add {U} or {B}` (not colorless)
+- [ ] "Can't be blocked" evasion: Rogue's Passage activated ability
+- [ ] "No maximum hand size": Thought Vessel, Reliquary Tower continuous effect
+- [ ] Optional search: Path to Exile controller-may-search (not unconditional)
+- [ ] Rhystic Study: opponent payment choice interaction
+- [ ] Rest in Peace ETB: exile all cards from all graveyards on entry
+- [ ] Leyline of the Void: opening hand rule (begin game on battlefield)
+- [ ] Darksteel Colossus: shuffle into library (not just redirect to zone)
+- [ ] Alela trigger scoping: opponent-turn-only + creature-type filter
+
+**Phase 2 — Partial Test Coverage** (close the 9 PARTIAL corner cases):
+- [ ] CC#6: Humility + Magus of the Moon non-dependency (different layers confirmed)
+- [ ] CC#7: Opalescence + Parallax Wave zone-change interaction
+- [ ] CC#9: Indestructible + deathtouch combined (survives SBA 704.5h)
+- [ ] CC#10: Legendary rule simultaneous ETBs fire before removal
+- [ ] CC#20: First strike + double strike combined blocking scenario
+- [ ] CC#22: Hexproof does NOT block non-targeted global effects
+- [ ] CC#24: Token die-trigger fires before SBA removes from graveyard
+- [ ] CC#31: Aura falls off when animation effect ends (type-change-induced)
+- [ ] CC#33: Sylvan Library "cards drawn this turn" tracking
+
+**Phase 3 — Core Mechanics Expansion** (new engine features):
+- [ ] Protection keyword (DEBT: Damage, Enchanting, Blocking, Targeting) — CR 702.16
+- [ ] Layer 1 copy effects (copiable values, Clone chain) — CR 707.2, 707.3
+- [ ] Storm keyword + spell copying on stack — CR 702.40, 707.10
+- [ ] Cascade keyword + split card mana value — CR 702.84, 708.4
+- [ ] Trigger doubling (Panharmonicon-style modifier) — CR 603.2
+- [ ] Infinite loop detection (mandatory loop = draw) — CR 726, 104.4b
+
+**Phase 4 — Gap Tests** (test-only items for existing engine capabilities):
+- [ ] CC#4: Yixlid Jailer + Anger (layer 6 removal of graveyard static ability)
+- [ ] CC#23: Flicker + object identity (kill spell fizzles, no dies-trigger)
+
+**Tests** (minimum):
+- All 9 PARTIAL cases have dedicated named tests
+- All Phase 3 mechanics have unit tests citing CR sections
+- All 12 card definition fixes verified by updated card-specific tests
+- Corner case audit re-run shows 0 GAPs, 0 PARTIALs for implemented mechanics
+
+**Acceptance Criteria**:
+- All 54 existing card definitions behave correctly (no simplifications or no-op placeholders)
+- Protection, copy effects, storm, cascade, trigger-doubling, infinite loop detection implemented
+- All 35 corner cases are COVERED (except 3 deferred: phasing, morph, mutate)
+- Corner case audit doc updated with final status
+- All tests pass, clippy clean, fmt clean
+
+**Dependencies**: M9 (all core systems)
+
+---
+
 ### ═══════════ ENGINE CORE COMPLETE ═══════════
 
 At this point, the engine can run a complete Commander game programmatically. All rules are implemented and tested. No UI, no network — but any game scenario can be constructed and played via test code.
 
 **Checkpoint validation**:
+- [ ] M9.4 acceptance criteria met (card def correctness, core mechanics, corner case coverage)
 - [ ] Property tests pass: 50+ invariants validated via fuzzing
 - [ ] All golden tests pass (at least 5 hand-authored full game replays)
 - [ ] All approved game scripts pass through replay harness (~100+ scripts)
-- [ ] All corner case tests from `mtg-engine-corner-cases.md` pass
+- [ ] All corner case tests from `mtg-engine-corner-case-audit.md` pass (0 GAP, 0 PARTIAL for implemented mechanics)
 - [ ] Performance benchmarks meet targets
-- [ ] 6-player game tests pass (priority, combat, APNAP, turn order, concession)
+- [x] 6-player game tests pass (priority, combat, APNAP, turn order, concession)
 - [ ] Performance benchmark: 4-player vs 6-player Commander (priority cycle time, SBA check, full turn processing)
 
 ---

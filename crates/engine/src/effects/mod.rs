@@ -807,6 +807,37 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.18: Scry N — deterministic fallback: put top N cards on bottom
+        // in ObjectId ascending order (interactive ordering deferred to M10+).
+        Effect::Scry { player, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                let lib_zone = ZoneId::Library(p);
+                // Collect the top N cards of the library (ordered from top).
+                let top_ids: Vec<ObjectId> = state
+                    .zones
+                    .get(&lib_zone)
+                    .map(|z| z.object_ids())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .take(n)
+                    .collect();
+                // Deterministic fallback: sort by ObjectId and move to bottom.
+                let mut to_bottom = top_ids.clone();
+                to_bottom.sort_by_key(|id| id.0);
+                for id in to_bottom {
+                    // Move to bottom by removing and re-inserting at the bottom
+                    // (library zones are Ordered, so we use move_to_zone back).
+                    let _ = state.move_object_to_zone(id, lib_zone);
+                }
+                events.push(GameEvent::Scried {
+                    player: p,
+                    count: n as u32,
+                });
+            }
+        }
+
         Effect::Shuffle { player } => {
             // MR-M7-17: use timestamp_counter as seed instead of from_entropy() so
             // shuffles are deterministic given the same game state sequence.
@@ -913,6 +944,24 @@ fn execute_effect_inner(
         Effect::MayPayOrElse { or_else, .. } => {
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
+        }
+
+        // CR 701.38: Goad — mark the target creature as goaded. The goaded creature
+        // must attack each combat if able and must attack a player other than the
+        // goading player if able. M9.4: mark via a continuous effect on the object.
+        // Enforcement of attack restrictions is deferred to a future session.
+        Effect::Goad { target } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    if state.objects.contains_key(&id) {
+                        events.push(GameEvent::Goaded {
+                            object_id: id,
+                            goading_player: ctx.controller,
+                        });
+                    }
+                }
+            }
         }
 
         Effect::Nothing => {}

@@ -105,4 +105,11 @@ pub enum KeywordAbility {
     /// CR 702.124: Partner keyword — allows two legendary creatures to serve as
     /// commanders together. Both commanders must have partner.
     Partner,
+    /// CR 402.2: "You have no maximum hand size."
+    ///
+    /// Placed on permanents (Thought Vessel, Reliquary Tower). When a permanent
+    /// with this keyword is on the battlefield under a player's control, the
+    /// `no_max_hand_size` flag is set on that player's `PlayerState`, skipping
+    /// the cleanup discard step (CR 514.1).
+    NoMaxHandSize,
 }

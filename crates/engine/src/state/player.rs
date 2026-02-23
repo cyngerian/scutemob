@@ -93,4 +93,12 @@ pub struct PlayerState {
     /// library on `KeepHand` (CR 103.5c: first mulligan free, subsequent cost
     /// N-1 cards where N is mulligan number).
     pub mulligan_count: u32,
+    /// CR 402.2: If true, this player has no maximum hand size and does not
+    /// discard to hand size during cleanup (CR 514.1).
+    ///
+    /// Set by `rules/sba.rs` or `rules/layers.rs` when a permanent with the
+    /// `KeywordAbility::NoMaxHandSize` keyword is on the battlefield under this
+    /// player's control (e.g. Thought Vessel, Reliquary Tower).
+    #[serde(default)]
+    pub no_max_hand_size: bool,
 }

@@ -155,7 +155,28 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let mut events = Vec::new();
 
-    // Discard to hand size
+    // CR 402.2: Recompute no_max_hand_size from the battlefield. A player has
+    // no maximum hand size if they control a permanent with KeywordAbility::NoMaxHandSize
+    // (e.g. Thought Vessel, Reliquary Tower).
+    let has_no_max = state.objects.values().any(|obj| {
+        obj.zone == ZoneId::Battlefield
+            && obj.controller == active
+            && obj
+                .characteristics
+                .keywords
+                .contains(&crate::state::types::KeywordAbility::NoMaxHandSize)
+    });
+    if let Some(ps) = state.players.get_mut(&active) {
+        ps.no_max_hand_size = has_no_max;
+    }
+
+    // Discard to hand size (CR 514.1)
+    // Skip entirely if the player has no maximum hand size.
+    let no_max = state
+        .players
+        .get(&active)
+        .map(|p| p.no_max_hand_size)
+        .unwrap_or(false);
     let max_hand_size = state
         .players
         .get(&active)
@@ -165,6 +186,9 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     let graveyard_zone = ZoneId::Graveyard(active);
 
     loop {
+        if no_max {
+            break;
+        }
         let hand_size = state.zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
         if hand_size <= max_hand_size {
             break;

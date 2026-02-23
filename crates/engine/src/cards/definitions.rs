@@ -161,21 +161,26 @@ pub fn all_cards() -> Vec<CardDefinition> {
         },
 
         // 4. Thought Vessel — {2}, Artifact, tap: add {C}; you have no maximum hand size.
-        //    (The no-max-hand-size continuous effect is not yet implemented; tap ability is.)
+        //    CR 402.2: KeywordAbility::NoMaxHandSize signals the engine to skip the
+        //    cleanup discard for the controller.
         CardDefinition {
             card_id: cid("thought-vessel"),
             name: "Thought Vessel".to_string(),
             mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
             types: types(&[CardType::Artifact]),
             oracle_text: "You have no maximum hand size.\n{T}: Add {C}.".to_string(),
-            abilities: vec![AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana {
-                    player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 0, 0, 0, 0, 1),
+            abilities: vec![
+                // CR 402.2: no maximum hand size for controller.
+                AbilityDefinition::Keyword(KeywordAbility::NoMaxHandSize),
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 0, 0, 1),
+                    },
+                    timing_restriction: None,
                 },
-                timing_restriction: None,
-            }],
+            ],
             ..Default::default()
         },
 
@@ -362,20 +367,26 @@ pub fn all_cards() -> Vec<CardDefinition> {
         },
 
         // 12. Reliquary Tower — Land; tap: add {C}; you have no maximum hand size.
+        //    CR 402.2: KeywordAbility::NoMaxHandSize signals the engine to skip the
+        //    cleanup discard for the controller.
         CardDefinition {
             card_id: cid("reliquary-tower"),
             name: "Reliquary Tower".to_string(),
             mana_cost: None,
             types: types(&[CardType::Land]),
             oracle_text: "You have no maximum hand size.\n{T}: Add {C}.".to_string(),
-            abilities: vec![AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana {
-                    player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 0, 0, 0, 0, 1),
+            abilities: vec![
+                // CR 402.2: no maximum hand size for controller.
+                AbilityDefinition::Keyword(KeywordAbility::NoMaxHandSize),
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 0, 0, 1),
+                    },
+                    timing_restriction: None,
                 },
-                timing_restriction: None,
-            }],
+            ],
             ..Default::default()
         },
 
@@ -500,12 +511,23 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     modification: ReplacementModification::EntersTapped,
                     is_self: true,
                 },
-                // {T}: Add {U} or {B} (simplified as colorless for M8; full modal
-                // color choice is M9+ interactive).
+                // {T}: Add {U} or {B} (CR 106.6: player chooses color).
+                // M9.4: uses Effect::Choose between AddMana blue and AddMana black.
+                // Deterministic fallback executes the first option (blue).
                 AbilityDefinition::Activated {
                     cost: Cost::Tap,
-                    effect: Effect::AddManaAnyColor {
-                        player: PlayerTarget::Controller,
+                    effect: Effect::Choose {
+                        prompt: "Add {U} or {B}?".to_string(),
+                        choices: vec![
+                            Effect::AddMana {
+                                player: PlayerTarget::Controller,
+                                mana: mana_pool(0, 1, 0, 0, 0, 0),
+                            },
+                            Effect::AddMana {
+                                player: PlayerTarget::Controller,
+                                mana: mana_pool(0, 0, 1, 0, 0, 0),
+                            },
+                        ],
                     },
                     timing_restriction: None,
                 },
@@ -544,6 +566,9 @@ pub fn all_cards() -> Vec<CardDefinition> {
 
         // 21. Path to Exile — {W}, Instant; exile target creature, its controller may
         //     search for a basic land and put it into play tapped.
+        //     CR 701.19: "may search" is modelled via MayPayOrElse with zero cost.
+        //     M9.4 deterministic fallback: payer does not pay → or_else (search) fires.
+        //     The exiled creature's controller is the payer (ControllerOf target).
         CardDefinition {
             card_id: cid("path-to-exile"),
             name: "Path to Exile".to_string(),
@@ -555,19 +580,34 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     Effect::ExileObject {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                     },
-                    // Optional land fetch: modelled as an unconditional search (simplified).
-                    Effect::SearchLibrary {
-                        player: PlayerTarget::ControllerOf(Box::new(
+                    // "May search" — modelled as MayPayOrElse with zero cost.
+                    // or_else = search (fires when player declines to "pay" the
+                    // zero cost, i.e. chooses NOT to search in interactive play).
+                    // Deterministic fallback: always fires or_else (always searches).
+                    Effect::MayPayOrElse {
+                        cost: super::card_definition::Cost::Mana(
+                            ManaCost { ..Default::default() }
+                        ),
+                        payer: PlayerTarget::ControllerOf(Box::new(
                             EffectTarget::DeclaredTarget { index: 0 },
                         )),
-                        filter: basic_land_filter(),
-                        reveal: false,
-                        destination: super::card_definition::ZoneTarget::Battlefield { tapped: true },
-                    },
-                    Effect::Shuffle {
-                        player: PlayerTarget::ControllerOf(Box::new(
-                            EffectTarget::DeclaredTarget { index: 0 },
-                        )),
+                        or_else: Box::new(Effect::Sequence(vec![
+                            Effect::SearchLibrary {
+                                player: PlayerTarget::ControllerOf(Box::new(
+                                    EffectTarget::DeclaredTarget { index: 0 },
+                                )),
+                                filter: basic_land_filter(),
+                                reveal: false,
+                                destination: super::card_definition::ZoneTarget::Battlefield {
+                                    tapped: true,
+                                },
+                            },
+                            Effect::Shuffle {
+                                player: PlayerTarget::ControllerOf(Box::new(
+                                    EffectTarget::DeclaredTarget { index: 0 },
+                                )),
+                            },
+                        ])),
                     },
                 ]),
                 targets: vec![TargetRequirement::TargetCreature],
@@ -947,8 +987,8 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 37. Read the Bones — {2B}, Sorcery; draw 2 cards, lose 2 life.
-        //     (Scry 2 simplified as draw without scry for now.)
+        // 37. Read the Bones — {2B}, Sorcery; scry 2, draw 2 cards, lose 2 life.
+        //     CR 701.18: Scry 2 implemented via Effect::Scry { count: Fixed(2) }.
         CardDefinition {
             card_id: cid("read-the-bones"),
             name: "Read the Bones".to_string(),
@@ -957,7 +997,11 @@ pub fn all_cards() -> Vec<CardDefinition> {
             oracle_text: "Scry 2, then draw two cards. You lose 2 life.".to_string(),
             abilities: vec![AbilityDefinition::Spell {
                 effect: Effect::Sequence(vec![
-                    // Scry 2 simplified: not yet implemented, skip.
+                    // CR 701.18: Scry 2 before drawing.
+                    Effect::Scry {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(2),
+                    },
                     Effect::DrawCards {
                         player: PlayerTarget::Controller,
                         count: EffectAmount::Fixed(2),
@@ -1405,23 +1449,15 @@ pub fn all_cards() -> Vec<CardDefinition> {
         //     more Faeries you control deal combat damage to a player, goad target creature
         //     that player controls.
         //
-        //     Simplification 1: TriggerCondition has no "during each opponent's turn" scoping.
-        //     WheneverYouCastSpell is used as the closest approximation; it will also fire on
-        //     your own turn.
-        //     TODO: Add TriggerCondition::WheneverYouCastSpellDuringOpponentTurn (or a
-        //     general "during opponent's turn" scope modifier) to restrict the token creation
-        //     trigger to opponent turns only, and to track "first spell" per turn.
-        //
-        //     Simplification 2: WhenDealsCombatDamageToPlayer is self-referential (this
-        //     creature). The oracle text fires for "one or more Faeries you control" which
-        //     requires a controller-filtered creature-type watcher. Approximated as
-        //     WhenDealsCombatDamageToPlayer (fires when Alela itself deals combat damage).
-        //     TODO: Add TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer
-        //     with a creature-type filter.
-        //
-        //     Simplification 3: Effect::Goad does not exist. The second triggered ability
-        //     is recorded as a no-op Effect::DrawCards(0) placeholder.
-        //     TODO: Add Effect::Goad { target: EffectTarget } for the goad mechanic.
+        //     M9.4 improvements from M8 simplifications:
+        //     - Trigger 1: WheneverYouCastSpell { during_opponent_turn: true } restricts
+        //       the token trigger to opponent turns only (CR 603.1).
+        //       "First spell per turn" tracking deferred (requires per-turn state counter).
+        //     - Trigger 2: Effect::Goad now implemented; target is the nearest creature
+        //       the damaged player controls. Faerie-filtered trigger remains approximated
+        //       as WhenDealsCombatDamageToPlayer (fires when Alela deals combat damage).
+        //       TODO: Add TriggerCondition::WheneverCreatureTypeYouControlDealsCombatDamage
+        //       with a creature-type filter (Session 1 item 6 plan note).
         CardDefinition {
             card_id: cid("alela-cunning-conqueror"),
             name: "Alela, Cunning Conqueror".to_string(),
@@ -1436,10 +1472,12 @@ pub fn all_cards() -> Vec<CardDefinition> {
             toughness: Some(4),
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Flying),
-                // TODO: restrict to opponent's turns only and track "first spell per turn".
-                // Uses WheneverYouCastSpell as an approximation (fires on all turns).
+                // CR 603.1: fires only during opponent turns (during_opponent_turn: true).
+                // "First spell per turn" tracking deferred to later session.
                 AbilityDefinition::Triggered {
-                    trigger_condition: TriggerCondition::WheneverYouCastSpell,
+                    trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                        during_opponent_turn: true,
+                    },
                     effect: Effect::CreateToken {
                         spec: super::card_definition::TokenSpec {
                             name: "Faerie Rogue".to_string(),
@@ -1458,15 +1496,13 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     },
                     intervening_if: None,
                 },
-                // TODO: replace WhenDealsCombatDamageToPlayer with a Faerie-filtered
-                // controller-creature trigger; replace placeholder effect with Effect::Goad.
+                // CR 701.38: Effect::Goad — goad target creature that the damaged player controls.
+                // Trigger approximated as WhenDealsCombatDamageToPlayer (fires when Alela
+                // itself deals combat damage); Faerie-filtered variant deferred.
                 AbilityDefinition::Triggered {
                     trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
-                    // TODO: Effect::Goad { target: EffectTarget::DeclaredTarget { index: 0 } }
-                    // Placeholder: no-op draw of 0 cards until Goad effect is implemented.
-                    effect: Effect::DrawCards {
-                        player: PlayerTarget::Controller,
-                        count: EffectAmount::Fixed(0),
+                    effect: Effect::Goad {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
                     },
                     intervening_if: None,
                 },
