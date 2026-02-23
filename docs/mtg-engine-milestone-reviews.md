@@ -1567,8 +1567,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9-08 | M9 | Command zone casting uses raw characteristics for type checks | CLOSED — fix session 2 |
 | MR-M9.4-04 | M9.4 | Cascade uses raw characteristics for card type and mana value check | CLOSED — fix session 2 |
 | MR-M9.4-05 | M9.4 | Effect::Goad only emits event, no continuous effect or combat enforcement (CR 701.15) | CLOSED — fix session 2 |
-| MR-M9.4-06 | M9.4 | `spells_cast_this_turn += 1` can overflow u32 in cascade resolution | OPEN |
-| MR-M9.4-07 | M9.4 | TriggerDoubler simplified filter does not verify entering object type (Panharmonicon) | OPEN |
+| MR-M9.4-06 | M9.4 | `spells_cast_this_turn += 1` can overflow u32 in cascade resolution | CLOSED — fix session 3 |
+| MR-M9.4-07 | M9.4 | TriggerDoubler simplified filter does not verify entering object type (Panharmonicon) | CLOSED — fix session 3 |
 | MR-M9.4-08 | M9.4 | Cascade "bottom of library" placement actually puts cards on top | CLOSED — fix session 2 |
 
 ### LOW
@@ -1715,8 +1715,8 @@ All findings across all milestones, sorted by severity then milestone.
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
-| MEDIUM (OPEN) | 4 (pre-M8: MR-M7-09, MR-M7-12 + M9.4: MR-M9.4-06, MR-M9.4-07) |
-| MEDIUM (CLOSED) | 43 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08) |
+| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12) |
+| MEDIUM (CLOSED) | 45 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
 | LOW (OPEN) | 58 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15) |
 | LOW (CLOSED) | 6 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3; MR-M7-13, MR-M7-14, MR-M4-07 -- resolved by M9.4) |
@@ -1724,7 +1724,7 @@ All findings across all milestones, sorted by severity then milestone.
 | INFO | 61 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21) |
 | Milestones reviewed | 11 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); **M9.4 fix session 1**: 3 HIGH closed (MR-M9.4-01, MR-M9.4-02, MR-M9.4-03); **M9.4 fix session 2**: 3 MEDIUM closed (MR-M9.4-04, MR-M9.4-05, MR-M9.4-08); 2 MEDIUM open: MR-M9.4-06, MR-M9.4-07 |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); **M9.4 fix session 1**: 3 HIGH closed (MR-M9.4-01, MR-M9.4-02, MR-M9.4-03); **M9.4 fix session 2**: 3 MEDIUM closed (MR-M9.4-04, MR-M9.4-05, MR-M9.4-08); **M9.4 fix session 3**: 2 MEDIUM closed (MR-M9.4-06, MR-M9.4-07); M9.4 fix phase complete |
 
 **Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
 **Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)

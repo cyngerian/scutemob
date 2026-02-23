@@ -837,6 +837,8 @@ impl HashInto for PendingTrigger {
         self.controller.hash_into(hasher);
         // M9.4: triggering_event (CR 603.2d) — used for Panharmonicon doubling
         self.triggering_event.hash_into(hasher);
+        // M9.4 fix session 3: entering_object_id — used by ArtifactOrCreatureETB filter
+        self.entering_object_id.hash_into(hasher);
     }
 }
 

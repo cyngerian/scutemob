@@ -37,6 +37,15 @@ pub struct PendingTrigger {
     /// `None` for triggers queued without a specific event context (e.g., delayed triggers).
     #[serde(default)]
     pub triggering_event: Option<super::game_object::TriggerEvent>,
+    /// The object that entered the battlefield and caused this trigger to fire, if applicable.
+    ///
+    /// Populated for `AnyPermanentEntersBattlefield` triggers so that
+    /// `TriggerDoublerFilter::ArtifactOrCreatureETB` can verify the entering
+    /// object's card types (CR 603.2d — Panharmonicon doubles only when an
+    /// artifact or creature enters, not any permanent).
+    /// `None` for triggers that are not caused by a specific permanent entering.
+    #[serde(default)]
+    pub entering_object_id: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

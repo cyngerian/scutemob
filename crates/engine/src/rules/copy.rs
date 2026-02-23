@@ -339,8 +339,9 @@ pub fn resolve_cascade(
             state.stack_objects.push_back(stack_obj);
 
             // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
+            // Use saturating_add to match defensive overflow handling used elsewhere (CR 702.85).
             if let Some(ps) = state.players.get_mut(&caster) {
-                ps.spells_cast_this_turn += 1;
+                ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
             }
 
             events.push(GameEvent::SpellCast {

@@ -242,20 +242,30 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     &mut triggers,
                     TriggerEvent::SelfEntersBattlefield,
                     Some(*object_id), // Only check this specific object
+                    Some(*object_id), // entering_object_id: the permanent itself
                 );
 
                 // AnyPermanentEntersBattlefield: fires on ALL permanents (including the entering one).
+                // Pass the entering object so TriggerDoublerFilter::ArtifactOrCreatureETB can
+                // verify the entering object's card types (CR 603.2d).
                 collect_triggers_for_event(
                     state,
                     &mut triggers,
                     TriggerEvent::AnyPermanentEntersBattlefield,
-                    None, // Check all battlefield permanents
+                    None,             // Check all battlefield permanents
+                    Some(*object_id), // entering_object_id: the permanent that entered
                 );
             }
 
             GameEvent::SpellCast { .. } => {
                 // AnySpellCast: fires on all permanents that watch for spell casts.
-                collect_triggers_for_event(state, &mut triggers, TriggerEvent::AnySpellCast, None);
+                collect_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::AnySpellCast,
+                    None,
+                    None,
+                );
             }
 
             GameEvent::PermanentTapped { object_id, .. } => {
@@ -265,6 +275,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     &mut triggers,
                     TriggerEvent::SelfBecomesTapped,
                     Some(*object_id),
+                    None,
                 );
             }
 
@@ -276,6 +287,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         &mut triggers,
                         TriggerEvent::SelfAttacks,
                         Some(*attacker_id),
+                        None,
                     );
                 }
             }
@@ -288,6 +300,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         &mut triggers,
                         TriggerEvent::SelfBlocks,
                         Some(*blocker_id),
+                        None,
                     );
                 }
             }
@@ -303,11 +316,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 ///
 /// If `only_object` is `Some(id)`, only checks that specific object.
 /// If `only_object` is `None`, checks all permanents on the battlefield.
+///
+/// `entering_object` is the object that entered the battlefield to cause this event,
+/// if applicable (used by `TriggerDoublerFilter::ArtifactOrCreatureETB` to verify
+/// the entering object's card types — CR 603.2d).
 fn collect_triggers_for_event(
     state: &GameState,
     triggers: &mut Vec<PendingTrigger>,
     event_type: TriggerEvent,
     only_object: Option<ObjectId>,
+    entering_object: Option<ObjectId>,
 ) {
     let object_ids: Vec<ObjectId> = if let Some(id) = only_object {
         vec![id]
@@ -346,6 +364,7 @@ fn collect_triggers_for_event(
                 ability_index: idx,
                 controller: obj.controller,
                 triggering_event: Some(event_type.clone()),
+                entering_object_id: entering_object,
             });
         }
     }
@@ -507,7 +526,7 @@ fn doubler_applies_to_trigger(
 
     match &doubler.filter {
         TriggerDoublerFilter::ArtifactOrCreatureETB => {
-            // The triggering event must be AnyPermanentEntersBattlefield.
+            // The triggering event must be AnyPermanentEntersBattlefield (CR 603.2d).
             let is_etb = matches!(
                 trigger.triggering_event,
                 Some(TriggerEvent::AnyPermanentEntersBattlefield)
@@ -515,37 +534,33 @@ fn doubler_applies_to_trigger(
             if !is_etb {
                 return false;
             }
-            // The trigger's source object must have an AnyPermanentEntersBattlefield trigger.
-            // We know it does because that's what was in triggering_event — the ability
-            // uses trigger_on == AnyPermanentEntersBattlefield.
-            // The rule says "an artifact or creature entering the battlefield" — this refers
-            // to what entered (the object that caused the trigger), not the ability's source.
-            // For M9.4 deterministic: the filter matches any AnyPermanentEntersBattlefield
-            // trigger where the trigger's source has the matching ability.
-            // We need to know if the ENTERING object was an artifact or creature.
-            // The `triggering_event` only tells us the event type, not the specific entering object.
-            // For M9.4 we use a simplified check: any ETB-watching trigger fired from an
-            // `AnyPermanentEntersBattlefield` event on a permanent controlled by the doubler's
-            // controller is doubled. This matches the common case for Panharmonicon.
-            //
-            // A more precise implementation would pass the entering object's ID in the trigger,
-            // but that requires a larger refactor (add entering_object_id to PendingTrigger).
-            // Deferred to a future session; the simplified version covers the test cases.
-            let source_has_etb_ability = state
-                .objects
-                .get(&trigger.source)
-                .map(|obj| {
-                    obj.characteristics
-                        .triggered_abilities
-                        .get(trigger.ability_index)
-                        .map(|ab| {
-                            ab.trigger_on == TriggerEvent::AnyPermanentEntersBattlefield
-                                || ab.trigger_on == TriggerEvent::SelfEntersBattlefield
-                        })
-                        .unwrap_or(false)
+
+            // The entering object must be an artifact or creature (CR 603.2d).
+            // Use entering_object_id (set by check_triggers from PermanentEnteredBattlefield event).
+            // If entering_object_id is absent, we cannot confirm the type — conservatively skip.
+            let entering_id = match trigger.entering_object_id {
+                Some(id) => id,
+                None => return false,
+            };
+
+            // Use calculate_characteristics for type checks under continuous effects,
+            // falling back to raw characteristics if the object is no longer in the
+            // objects map (e.g., it moved zones since entering).
+            let entering_chars =
+                crate::rules::layers::calculate_characteristics(state, entering_id).or_else(|| {
+                    state
+                        .objects
+                        .get(&entering_id)
+                        .map(|o| o.characteristics.clone())
+                });
+
+            entering_chars
+                .map(|chars| {
+                    use crate::state::types::CardType;
+                    chars.card_types.contains(&CardType::Artifact)
+                        || chars.card_types.contains(&CardType::Creature)
                 })
-                .unwrap_or(false);
-            source_has_etb_ability
+                .unwrap_or(false)
         }
     }
 }
