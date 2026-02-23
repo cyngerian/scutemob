@@ -12,15 +12,15 @@
 ## Current State
 
 - **Active Milestone**: M8 — Replacement & Prevention Effects
-- **Status**: Session 3 of 6 complete (zone-change interception + commander die replacement); 383 tests passing
+- **Status**: Session 4 of 6 complete (draw replacement + ETB replacement + Dimir Guildgate); 390 tests passing
 - **Last Updated**: 2026-02-22
 
 ### What Exists (M7 complete, includes M0-M6)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 50 hand-authored cards, CardRegistry
+- `cards/`: CardDefinition framework (30+ Effect primitives), 51 hand-authored cards (incl. Dimir Guildgate), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements
 - `testing/`: Script replay harness, 7 approved game scripts, 303 tests
-- Deferred to M8+: replacement/prevention effects; damage prevention; "ETB tapped" replacement; zone-change choice for commander
+- Deferred to M8+: prevention effects (Session 5); prevention + replacement interaction
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved in fix phase sessions 1-9

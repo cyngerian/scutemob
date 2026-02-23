@@ -19,6 +19,8 @@
   after `power`/`toughness` fields were added. Bulk-fix with a script, but manually fix
   `Beast Within`, `Generous Gift`, `Swan Song` (contain nested `TokenSpec { power, toughness }`).
 - **`CardRegistry::new()` returns `Arc<CardRegistry>`** — do NOT wrap in `Arc::new()` again.
+- **`if let Some(cid) = card_id` moves `card_id`** — use `.clone()` first (`if let Some(cid) = card_id.clone()`) when you need `card_id` again after the pattern. Applies anywhere you match an `Option<T>` where T is not `Copy`.
+- **Variables defined inside `{ }` blocks are unavailable after the block.** In `resolution.rs`, `registry` was defined inside the spell-effect block and needed after it for ETB replacements. Fix: define `let registry = ...` before the inner block.
 - **`GameStateBuilder::build()` returns `Result`** — must unwrap with `?` or `.unwrap()`.
 - **`ObjectSpec::card()` creates naked objects** — no card types, no mana abilities, no
   keywords, no P/T. Always call `enrich_spec_from_def()` before using in scripts. Without
