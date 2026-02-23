@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_041",
+    "name": "Lightning Bolt deals 3 damage to player from 20 life",
+    "description": "p2 is at 20 life. p1 casts Lightning Bolt targeting p2. After resolution, p2 is at 17 life. Tests player-targeting damage at non-default life totals.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "damage",
+      "lightning-bolt",
+      "player-target",
+      "stack"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Variant of stack_001 with p2 at 20 life to verify exact arithmetic. p2 does not die because 17 > 0.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "red": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 20,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Lightning Bolt targeting p2 who is at 20 life.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p2 at 20 life",
+          "assertions": {
+            "players.p2.life": 20,
+            "zones.hand.p1.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Lightning Bolt targeting p2."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "3 damage to p2: 20 - 3 = 17."
+            }
+          ],
+          "note": "Lightning Bolt resolves, p2 takes 3 damage."
+        },
+        {
+          "type": "assert_state",
+          "description": "p2 at 17 life after Lightning Bolt",
+          "assertions": {
+            "players.p2.life": 17,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 120.3: 3 damage reduces p2 from 20 to 17."
+        }
+      ]
+    }
+  ]
+}

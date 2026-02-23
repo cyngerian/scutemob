@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_040",
+    "name": "Dimir Guildgate enters tapped \u2014 dual land with entry restriction",
+    "description": "p1 plays Dimir Guildgate (dual land: Island/Swamp). It enters the battlefield tapped. Tests that a non-basic land with 'enters tapped' correctly enters in the tapped state and can't be tapped for mana immediately.",
+    "cr_sections_tested": [
+      "305.1",
+      "614.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "land",
+      "dual-land",
+      "enter-tapped",
+      "dimir-guildgate",
+      "gate"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Dimir Guildgate oracle: 'Dimir Guildgate enters the battlefield tapped. {T}: Add {U} or {B}.' It enters tapped so can't tap for mana this turn. CR 614.1: ETB replacement effect \u2014 'enters the battlefield tapped' modifies how the permanent enters.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Dimir Guildgate",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 plays Dimir Guildgate. It enters the battlefield tapped.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Dimir Guildgate in hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "play_land",
+          "card": "Dimir Guildgate",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "305.1",
+          "note": "CR 305.1: p1 plays Dimir Guildgate. Special action, no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Dimir Guildgate entered tapped (ETB replacement effect)",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Dimir Guildgate"
+                }
+              ]
+            },
+            "permanent.Dimir Guildgate.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 614.1: ETB replacement effect caused it to enter tapped. Can't tap for mana this turn."
+        }
+      ]
+    }
+  ]
+}

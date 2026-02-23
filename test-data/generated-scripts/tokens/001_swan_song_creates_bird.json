@@ -1,0 +1,231 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_tokens_001",
+    "name": "Swan Song counters a sorcery, creates a Bird token",
+    "description": "p1 casts Harmonize (sorcery). p2 responds with Swan Song targeting Harmonize. Swan Song resolves: Harmonize is countered and its controller (p1) creates a 2/2 blue Bird creature token. Tests that Swan Song produces the token as part of its resolution alongside the counter effect.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2b",
+      "701.6a",
+      "110.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "stack",
+      "counterspell",
+      "token-creation",
+      "swan-song",
+      "bird-token"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Swan Song oracle: 'Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.' It targets sorceries, instants, or enchantments \u2014 Harmonize is a sorcery. p1 casts Harmonize ({2}{G}{G}), p2 responds with Swan Song ({U}). Swan Song resolves first (LIFO): Harmonize is countered, p1 gets a 2/2 Bird token. The Bird token definition exists in the engine (Swan Song's card definition creates Bird tokens). Initial state: p1 has Harmonize with {2}{G}{G}; p2 has Swan Song with {U}.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Swan Song",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Harmonize; p2 responds with Swan Song.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Harmonize in p1 hand, Swan Song in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Harmonize",
+          "targets": [],
+          "mana_paid": {
+            "green": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Harmonize."
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "p1 passes priority. p2 receives priority."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Swan Song",
+          "targets": [
+            {
+              "type": "spell",
+              "card": "Harmonize",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "blue": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Swan Song targeting Harmonize."
+        },
+        {
+          "type": "assert_state",
+          "description": "Both spells on stack",
+          "assertions": {
+            "zones.stack.count": 2
+          },
+          "note": "Swan Song is on top (LIFO order)."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Swan Song resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Swan Song",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": {
+                "card": "Harmonize",
+                "controller": "p1"
+              },
+              "cr_ref": "608.2b",
+              "note": "CR 608.2b: Harmonize is countered, goes to p1's graveyard."
+            },
+            {
+              "effect": "create_token",
+              "controller": "p1",
+              "token": {
+                "name": "Bird",
+                "power": 2,
+                "toughness": 2,
+                "colors": [
+                  "blue"
+                ],
+                "types": [
+                  "Creature"
+                ],
+                "subtypes": [
+                  "Bird"
+                ],
+                "abilities": [
+                  "flying"
+                ]
+              },
+              "cr_ref": "701.6a",
+              "note": "CR 701.6a: p1 (Harmonize's controller) creates a 2/2 blue Bird token with flying."
+            }
+          ],
+          "note": "Swan Song resolves: Harmonize countered, p1 gets Bird token."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Swan Song resolves: Harmonize countered, Bird token on p1's battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Harmonize"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Swan Song"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bird"
+                }
+              ]
+            }
+          },
+          "note": "p1 lost Harmonize (countered to graveyard) but gained a 2/2 Bird token."
+        }
+      ]
+    }
+  ]
+}

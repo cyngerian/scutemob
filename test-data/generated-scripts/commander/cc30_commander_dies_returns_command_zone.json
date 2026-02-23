@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc30",
+    "name": "Commander dies \u2014 player chooses to return to command zone",
+    "description": "p1's commander Llanowar Elves is on the battlefield. p2 casts Doom Blade targeting it. Llanowar Elves would go to the graveyard; p1 chooses to redirect it to the command zone instead (CR 903.9b). Tests the SBA + replacement effect for commander zone return.",
+    "cr_sections_tested": [
+      "903.9b",
+      "704.6",
+      "601.2",
+      "608.2"
+    ],
+    "corner_case_ref": 19,
+    "tags": [
+      "commander",
+      "commander-death",
+      "command-zone-return",
+      "zone-replacement"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 903.9b: if a commander would go to a graveyard or exile, its owner may choose to move it to the command zone instead. The engine implements this as a replacement effect registered at game start. When Doom Blade resolves, Llanowar Elves is destroyed; the replacement effect intercepts the zone change and the engine emits CommanderZoneReturnChoiceRequired. p1 chooses to send it to command zone. The pending_commander_zone_choices mechanism handles this. Initial: p1's Llanowar Elves is on battlefield as commander; p2 has Doom Blade with {1}{B}.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 1
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": true,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p2": [
+          {
+            "card": "Doom Blade",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p2 casts Doom Blade targeting p1's commander Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves (commander) on p1 battlefield",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "black": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Doom Blade targeting p1's Llanowar Elves (nonblack creature, valid)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Doom Blade on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Doom Blade resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Llanowar Elves would be destroyed (move to graveyard)."
+            },
+            {
+              "effect": "commander_zone_choice",
+              "player": "p1",
+              "card": "Llanowar Elves",
+              "choice": "command_zone",
+              "cr_ref": "903.9b",
+              "note": "CR 903.9b: p1 chooses to redirect the commander to the command zone instead of graveyard."
+            }
+          ],
+          "note": "Doom Blade resolves; p1 redirects commander to command zone."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Doom Blade: Llanowar Elves in command zone (not graveyard)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            }
+          },
+          "note": "Commander moved to command zone via replacement effect. Not in graveyard."
+        }
+      ]
+    }
+  ]
+}

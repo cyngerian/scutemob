@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_013",
+    "name": "Harmonize \u2014 draw 3 cards",
+    "description": "p1 casts Harmonize ({2}{G}{G}). On resolution, p1 draws three cards. Tests a straightforward sorcery that draws multiple cards with no other effects.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "draw",
+      "harmonize",
+      "sorcery",
+      "green-draw"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Harmonize oracle: 'Draw three cards.' Cost {2}{G}{G}. p1 has {2}{G}{G} in pool, Harmonize in hand, and 3 cards in library. After resolution: hand grows by 2 (cast -1, drew +3 = net +2). Harmonize goes to p1's graveyard.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Harmonize to draw three cards.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Harmonize in hand, 3 cards in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Harmonize",
+          "targets": [],
+          "mana_paid": {
+            "green": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Harmonize; pays {2}{G}{G}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Harmonize on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Harmonize resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Harmonize",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 3,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 3 cards."
+            }
+          ],
+          "note": "Harmonize resolves: p1 draws 3."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Harmonize resolves: p1 has 3 cards in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 3,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Harmonize"
+                }
+              ]
+            }
+          },
+          "note": "Started 1 card, cast Harmonize (-1 = 0), drew 3 (+3 = 3)."
+        }
+      ]
+    }
+  ]
+}

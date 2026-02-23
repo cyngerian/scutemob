@@ -1,0 +1,267 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_015",
+    "name": "Supreme Verdict \u2014 uncounterable wrath",
+    "description": "p1 casts Supreme Verdict ({1}{W}{W}{U}). p2 attempts to counter it with Counterspell, but Supreme Verdict cannot be countered (CR 101.2). p2's Counterspell fizzles on an illegal target and goes to graveyard without effect. All creatures are then destroyed. Tests the 'can't be countered' property.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "702.113",
+      "113.6",
+      "608.2b"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "board-wipe",
+      "uncounterable",
+      "supreme-verdict",
+      "counterspell-fizzle",
+      "cant-be-countered"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Supreme Verdict oracle: 'This spell can't be countered. Destroy all creatures.' Cost {1}{W}{W}{U}. CR 702.113: 'can't be countered' means the spell isn't countered when resolving; Counterspell targets it but when Counterspell resolves, Supreme Verdict's 'can't be countered' property means the counter effect doesn't apply and the spell continues to resolve. Actually per CR 101.2: if a spell 'can't be countered,' instructions to counter it are simply ignored. The Counterspell spell still resolves (the cast was valid), but the effect is a no-op on Supreme Verdict. This is medium confidence due to the nuance of 'can't be countered' interaction.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 2,
+          "blue": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Supreme Verdict",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Supreme Verdict. p2 attempts to counter it with Counterspell.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Supreme Verdict in p1 hand, Llanowar Elves on p2 battlefield",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Supreme Verdict",
+          "targets": [],
+          "mana_paid": {
+            "white": 2,
+            "blue": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Supreme Verdict. It has 'can't be countered' (CR 702.113)."
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "p1 passes priority. p2 receives priority."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Counterspell",
+          "targets": [
+            {
+              "type": "spell",
+              "card": "Supreme Verdict",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "blue": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Counterspell targeting Supreme Verdict (target is valid at cast time; 'can't be countered' doesn't prevent targeting)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Both spells on stack: Counterspell on top, Supreme Verdict below",
+          "assertions": {
+            "zones.stack.count": 2
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Counterspell resolves first."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Counterspell",
+          "resolution": [
+            {
+              "effect": "counter_spell_attempt",
+              "target": {
+                "card": "Supreme Verdict",
+                "controller": "p1"
+              },
+              "result": "no_effect",
+              "cr_ref": "702.113",
+              "note": "CR 702.113: Supreme Verdict can't be countered. Counterspell's effect is a no-op. Supreme Verdict remains on the stack."
+            }
+          ],
+          "note": "Counterspell resolves but Supreme Verdict cannot be countered \u2014 it remains on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Counterspell resolves: Supreme Verdict still on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Counterspell"
+                }
+              ]
+            }
+          },
+          "note": "Counterspell in graveyard; Supreme Verdict still on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Supreme Verdict resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Supreme Verdict",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected": [
+                {
+                  "card": "Llanowar Elves",
+                  "controller": "p2"
+                }
+              ],
+              "cr_ref": "701.7",
+              "note": "CR 701.7: All creatures destroyed."
+            }
+          ],
+          "note": "Supreme Verdict resolves: Llanowar Elves destroyed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Supreme Verdict: Llanowar Elves destroyed, stack empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Supreme Verdict"
+                }
+              ]
+            }
+          },
+          "note": "Llanowar Elves destroyed. Supreme Verdict in graveyard."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_018",
+    "name": "Mountain taps for {R} \u2014 basic land mana ability",
+    "description": "p1 has a Mountain on the battlefield (untapped). p1 activates it to add {R} to their mana pool. Tests a basic land's mana ability. The simplest possible mana production.",
+    "cr_sections_tested": [
+      "305.6",
+      "605.3",
+      "106.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "basic-land",
+      "mountain",
+      "mana-ability",
+      "red-mana"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Mountain: '{T}: Add {R}.' Basic land intrinsic mana ability from CR 305.6. Activation taps Mountain, adds {R} to pool. No stack used (CR 605.3).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps Mountain for {R}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Mountain on battlefield (untapped)",
+          "assertions": {
+            "permanent.Mountain.tapped": false,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Mountain",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Mountain for {R}. Mana ability \u2014 no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After mana ability: Mountain tapped",
+          "assertions": {
+            "permanent.Mountain.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Mountain tapped; {R} added to mana pool."
+        }
+      ]
+    }
+  ]
+}

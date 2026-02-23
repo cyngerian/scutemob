@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_019",
+    "name": "Solemn Simulacrum dies \u2014 death trigger draws a card",
+    "description": "p1 controls a Solemn Simulacrum that was already on the battlefield. p2 casts Doom Blade to destroy it. When the Simulacrum dies, its death trigger fires: p1 draws a card. Tests the 'dies' triggered ability (ETB not tested here; death trigger only).",
+    "cr_sections_tested": [
+      "603.2",
+      "603.6c",
+      "700.4",
+      "120.2",
+      "608.2",
+      "704.5g"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "death-trigger",
+      "draw",
+      "solemn-simulacrum",
+      "dies",
+      "doom-blade"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Solemn Simulacrum has two triggered abilities: ETB (search library for basic land) and dies ('When Solemn Simulacrum dies, draw a card'). This script tests the death trigger only. Doom Blade destroys the Simulacrum; it moves to p1's graveyard; the dies trigger fires and goes on the stack; p1 draws a card. Library must have 1 card. Initial: p1 controls Solemn Simulacrum (not summoning sick, already on bf); p2 has Doom Blade with {1}{B}.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 6,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p2": [
+          {
+            "card": "Doom Blade",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p2 casts Doom Blade targeting p1's Solemn Simulacrum.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Solemn Simulacrum on p1 battlefield, Doom Blade in p2 hand",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                }
+              ]
+            },
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Solemn Simulacrum",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "black": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Doom Blade targeting p1's Solemn Simulacrum (nonblack, valid)."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p2",
+            "p1"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Doom Blade resolves. p2 is active player; priority starts with p2."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "card": "Solemn Simulacrum",
+                "controller": "p1"
+              },
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Solemn Simulacrum is destroyed, moves to p1's graveyard."
+            },
+            {
+              "effect": "trigger_dies",
+              "source": "Solemn Simulacrum",
+              "trigger_condition": "when_this_creature_dies",
+              "cr_ref": "603.6c",
+              "note": "CR 603.6c: Solemn Simulacrum's dies trigger fires \u2014 draw a card."
+            }
+          ],
+          "note": "Doom Blade resolves: Simulacrum dies, death trigger put on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Doom Blade: Simulacrum in graveyard, death trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Solemn Simulacrum"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                }
+              ]
+            }
+          },
+          "note": "Simulacrum moved to graveyard. Death trigger on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 death trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Solemn Simulacrum dies trigger",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws a card."
+            }
+          ],
+          "note": "Death trigger resolves: p1 draws 1 card."
+        },
+        {
+          "type": "assert_state",
+          "description": "After death trigger: p1 drew a card (hand count = 1)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": "p1 had 0 cards in hand, drew 1 from death trigger."
+        }
+      ]
+    }
+  ]
+}

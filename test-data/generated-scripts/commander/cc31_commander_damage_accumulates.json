@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc31",
+    "name": "Commander damage accumulates \u2014 10 + 11 = 21 (kills player)",
+    "description": "p1's commander has already dealt 10 combat damage to p2 in prior turns. This turn, p1's commander deals 11 more combat damage. p2 now has 21 commander damage from p1 (>= 21), and the SBA kills p2 (CR 704.6c). Tests that commander damage accumulates across turns and that the 21-damage threshold SBA triggers.",
+    "cr_sections_tested": [
+      "903.10",
+      "704.6c"
+    ],
+    "corner_case_ref": 17,
+    "tags": [
+      "commander",
+      "commander-damage",
+      "sba",
+      "21-damage",
+      "player-dies"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "CR 903.10: A player who has been dealt 21 or more combat damage by the same commander loses the game. CR 704.6c: SBA checks commander damage. Initial state: p2 has received 10 commander damage from p1's commander. After 11 more damage (this turn's combat), total = 21. SBA fires: p2 loses. The initial state sets commander_damage_received for p2. The script models the final combat hit. Note: combat scripts are informational (draft) because the harness doesn't support declare attackers. The commander damage SBA behavior is tested in commander_damage.rs.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 8,
+    "active_player": "p1",
+    "phase": "combat_damage",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 35,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 1
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 30,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {
+          "p1": 10
+        },
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": true,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat_damage",
+      "step_note": "p1's commander Llanowar Elves deals 11 more commander damage to p2 (total = 21).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p2 has 10 commander damage from p1 already",
+          "assertions": {
+            "players.p2.life": 30
+          },
+          "note": "p2 has received 10 prior commander damage from p1's commander."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Combat damage step \u2014 commander hits p2",
+          "resolution": [
+            {
+              "effect": "combat_damage_to_player",
+              "source": {
+                "card": "Llanowar Elves",
+                "is_commander": true,
+                "controller": "p1"
+              },
+              "target": "p2",
+              "amount": 11,
+              "is_commander_damage": true,
+              "cr_ref": "903.10",
+              "note": "CR 903.10: p1's commander Llanowar Elves deals 11 combat damage to p2. Commander damage total: 10 + 11 = 21."
+            }
+          ],
+          "note": "Commander deals 11 combat damage; total commander damage from p1 = 21."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "player_loses",
+              "player": "p2",
+              "cr_ref": "704.6c",
+              "note": "CR 704.6c: p2 has received 21 or more combat damage from p1's commander. p2 loses the game."
+            }
+          ],
+          "note": "SBA: p2 has 21 commander damage from p1 \u2014 p2 loses."
+        },
+        {
+          "type": "assert_state",
+          "description": "After SBA: p2 has lost the game (commander damage threshold)",
+          "assertions": {
+            "players.p2.commander_damage_received.p1": 21
+          },
+          "note": "p2 received 21 commander damage from p1, triggering the loss SBA."
+        }
+      ]
+    }
+  ]
+}

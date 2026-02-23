@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_007",
+    "name": "Night's Whisper \u2014 draw 2, lose 2 life",
+    "description": "p1 casts Night's Whisper ({1}{B}). On resolution, p1 draws two cards and loses 2 life. Tests a simple two-effect sorcery: draw then life loss. Similar to Sign in Blood but without targeting.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2",
+      "119.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "draw",
+      "life-loss",
+      "nights-whisper",
+      "sorcery",
+      "black-draw"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Night's Whisper oracle: 'You draw two cards and you lose 2 life.' Cost {1}{B}. Unlike Sign in Blood, this has no target \u2014 it affects the caster unconditionally. After resolution: p1 drew 2 (hand +2 from base 1-1=0, drew 2 = 2), lost 2 life (40 \u2192 38). Library has 2 cards.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Night's Whisper",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Night's Whisper to draw 2 and lose 2 life.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Night's Whisper in hand, p1 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Night's Whisper",
+          "targets": [],
+          "mana_paid": {
+            "black": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Night's Whisper."
+        },
+        {
+          "type": "assert_state",
+          "description": "Night's Whisper on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Night's Whisper resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Night's Whisper",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 2,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 2 cards."
+            },
+            {
+              "effect": "lose_life",
+              "player": "p1",
+              "amount": 2,
+              "cr_ref": "119.1",
+              "note": "CR 119.1: p1 loses 2 life (40 \u2192 38)."
+            }
+          ],
+          "note": "Night's Whisper resolves: p1 draws 2, loses 2 life."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: p1 has 2 cards in hand, at 38 life",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 2,
+            "players.p1.life": 38,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Night's Whisper"
+                }
+              ]
+            }
+          },
+          "note": "Drew 2 (hand = 2), lost 2 life (38)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,224 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_030",
+    "name": "Counterspell saves creatures \u2014 countering an opponent's Wrath of God",
+    "description": "p1 casts Wrath of God. p2 responds with Counterspell targeting Wrath. Counterspell resolves first (LIFO): Wrath is countered. p2's creatures survive because the Wrath never resolved. Tests using a counterspell defensively to protect creatures.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2b",
+      "116.4",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "counterspell",
+      "counter-wrath",
+      "stack",
+      "lifo",
+      "protection"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "p1 casts Wrath of God ({2}{W}{W}). p2 responds with Counterspell ({U}{U}) targeting Wrath. Stack: Counterspell (top), Wrath (bottom). All pass; Counterspell resolves \u2014 Wrath countered, Counterspell to graveyard. Then all pass again on empty stack. p2's Llanowar Elves survives. p1 had {2}{W}{W} in pool; p2 had {U}{U} in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Wrath of God",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Wrath of God. p2 counters it to save creatures.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield, Wrath in p1 hand, Counterspell in p2 hand",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wrath of God",
+          "targets": [],
+          "mana_paid": {
+            "white": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wrath of God."
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "p1 passes priority. p2 receives priority."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Counterspell",
+          "targets": [
+            {
+              "type": "spell",
+              "card": "Wrath of God",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "blue": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Counterspell targeting Wrath of God."
+        },
+        {
+          "type": "assert_state",
+          "description": "Stack: Counterspell on top, Wrath below",
+          "assertions": {
+            "zones.stack.count": 2
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Counterspell resolves first (top of stack)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Counterspell",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": {
+                "card": "Wrath of God",
+                "controller": "p1"
+              },
+              "cr_ref": "608.2b",
+              "note": "CR 608.2b: Wrath of God is countered, goes to p1's graveyard."
+            }
+          ],
+          "note": "Counterspell resolves: Wrath countered."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Counterspell: Wrath countered, stack empty, Elf still alive",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Wrath of God"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Counterspell"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "Wrath countered; Llanowar Elves survives."
+        }
+      ]
+    }
+  ]
+}

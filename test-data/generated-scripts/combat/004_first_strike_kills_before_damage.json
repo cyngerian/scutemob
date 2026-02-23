@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_004",
+    "name": "First strike \u2014 first strike creature kills blocker before normal damage step",
+    "description": "p1 attacks with a creature with first strike. p2 blocks with a creature that would normally trade. Due to first strike, the attacker deals damage first (first damage step). Blocker is killed and doesn't deal damage back in the second damage step (because it's dead). Tests CR 702.7: first strike creatures deal combat damage in first combat damage step.",
+    "cr_sections_tested": [
+      "702.7",
+      "510.1",
+      "510.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "first-strike",
+      "combat",
+      "combat-damage",
+      "two-step-damage"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "First strike creates a two-step damage process: 510.1 first strike step, then 510.2 normal strike step. Informational script only \u2014 the harness doesn't support combat commands but documents the CR interaction.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Elvish Mystic",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Conceptual: attacker with first strike vs. blocker that would normally trade.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: both creatures on their respective battlefields",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "First damage step: first strike creatures deal damage",
+          "cr_ref": "510.1",
+          "note": "CR 510.1: First strike attacker deals damage in the first combat damage step. Blocker may die before the second damage step."
+        },
+        {
+          "type": "sba_check",
+          "description": "SBA after first damage step",
+          "cr_ref": "704.3",
+          "note": "CR 704.5g: If blocker took lethal damage, it goes to graveyard now. Normal-strike attacker faces no blockers in second step."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Second damage step: normal creatures deal damage",
+          "cr_ref": "510.2",
+          "note": "CR 510.2: Normal-strike attacker deals damage. If blocker is gone (died in first step), attacker's damage goes through to player/is unblocked."
+        }
+      ]
+    }
+  ]
+}

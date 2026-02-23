@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_025",
+    "name": "Wall of Omens blocks and survives \u2014 0/4 Defender blocks 3/3",
+    "description": "p2 has a 3/3 Beast token attacking. p1 blocks with Wall of Omens (0/4 Defender). Combat damage: Beast deals 3 to Wall (3 < 4 toughness \u2014 Wall survives). Wall deals 0 to Beast (power 0 \u2014 no damage). Tests that a high-toughness defender blocks without dying to a smaller attacker, and that 0-power creatures deal 0 damage.",
+    "cr_sections_tested": [
+      "510.1",
+      "510.2",
+      "704.5g",
+      "702.3b"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "combat",
+      "blocking",
+      "defender",
+      "wall-of-omens",
+      "combat-damage"
+    ],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Wall of Omens is a 0/4 Defender. Beast token is 3/3. In combat: Beast assigns 3 damage to Wall (3 < 4 toughness \u2014 Wall survives, no SBA). Wall assigns 0 damage to Beast (0 power). This is a combat interaction. Note: the replay harness does NOT currently support DeclareAttackers/DeclareBlockers commands, so this script is informational (draft). It documents the expected behavior. The actual engine behavior is unit-tested in combat.rs. Setting confidence to medium and review_status to pending_review.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p2",
+    "phase": "declare_blockers",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Wall of Omens",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Beast",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_blockers",
+      "step_note": "p1 blocks Beast token with Wall of Omens.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Wall of Omens on p1 battlefield, Beast token on p2 battlefield (attacking)",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Beast"
+                }
+              ]
+            }
+          },
+          "note": "Beast token declared as attacker in previous step."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Combat Damage \u2014 Beast vs Wall of Omens",
+          "resolution": [
+            {
+              "effect": "assign_combat_damage",
+              "attacker": {
+                "card": "Beast",
+                "power": 3
+              },
+              "blocker": {
+                "card": "Wall of Omens",
+                "power": 0,
+                "toughness": 4
+              },
+              "damage_to_blocker": 3,
+              "damage_to_attacker": 0,
+              "cr_ref": "510.1",
+              "note": "CR 510.1: Beast assigns 3 damage to Wall. Wall assigns 0 damage to Beast."
+            }
+          ],
+          "note": "Combat damage assigned: Beast deals 3 to Wall (Wall survives at 3/4 damage), Wall deals 0 to Beast."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "SBAs: Wall has 3 damage but 4 toughness \u2014 not lethal (3 < 4). No creatures die."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat: Wall survives with 3 damage marked; Beast survives with 0 damage; both on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Beast"
+                }
+              ]
+            },
+            "permanent.Wall of Omens.counters.damage": 3
+          },
+          "note": "Wall of Omens has 3 damage marked (3 < 4 toughness, survives). Beast has 0 damage."
+        }
+      ]
+    }
+  ]
+}

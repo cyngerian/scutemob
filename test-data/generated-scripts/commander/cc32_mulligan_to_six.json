@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc32",
+    "name": "Commander mulligan \u2014 player mulligans from 7 to 6",
+    "description": "During the pregame mulligan phase, p1 has 7 cards in hand and chooses to mulligan. p1 shuffles the 7 cards into library and draws 6 (London mulligan: draw 7, then put 1 on bottom). Tests that the Commander format's London mulligan rule functions correctly.",
+    "cr_sections_tested": [
+      "103.4",
+      "103.4b",
+      "103.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mulligan",
+      "london-mulligan",
+      "commander",
+      "pregame",
+      "hand-size"
+    ],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 103.4: Players may mulligan. Commander uses London mulligan (CR 103.4b): shuffle all cards into library, draw 7, then put cards on bottom equal to number of mulligans taken. First mulligan: draw 7, put 1 on bottom = 6 cards in hand. This is a medium confidence script because the mulligan phase is handled specially in the engine and the replay harness may not support the Mulligan command. The engine's mulligan tests are in commander.rs.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 0,
+    "active_player": "p1",
+    "phase": "pregame",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Swords to Plowshares",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "pregame",
+      "step_note": "p1 mulligans from 7 to 6 using London mulligan.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 has 7 cards in hand",
+          "assertions": {
+            "zones.hand.p1.count": 7
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "mulligan_decision",
+          "card": null,
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "103.4b",
+          "note": "CR 103.4b: p1 chooses to mulligan. Shuffles 7 cards into library, draws 7 new cards."
+        },
+        {
+          "type": "assert_state",
+          "description": "After drawing new 7: p1 has 7 cards in hand (before putting 1 on bottom)",
+          "assertions": {
+            "zones.hand.p1.count": 7
+          },
+          "note": "London mulligan: draw 7 first, then decide which card to put on bottom."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "choose_option",
+          "card": null,
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "103.4b",
+          "note": "CR 103.4b: p1 puts 1 card on the bottom of their library (keeps 6)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After mulligan complete: p1 has 6 cards in hand",
+          "assertions": {
+            "zones.hand.p1.count": 6
+          },
+          "note": "p1 mulliganed to 6."
+        }
+      ]
+    }
+  ]
+}

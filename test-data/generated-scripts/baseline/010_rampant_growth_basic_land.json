@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_010",
+    "name": "Rampant Growth \u2014 search for basic land, enter tapped",
+    "description": "p1 casts Rampant Growth ({1}{G}). Searches library for a basic land card and puts it on the battlefield tapped. Tests a simple one-land ramp spell that puts the land into play immediately (no hand step).",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.4"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ramp",
+      "land-fetch",
+      "rampant-growth",
+      "sorcery",
+      "enter-tapped"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Rampant Growth oracle: 'Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.' Cost {1}{G}. Unlike Cultivate which puts one into play and one into hand, Rampant Growth just puts one into play tapped and shuffles. Library has a Mountain. After resolution: Mountain on battlefield tapped, library empty (shuffled). Initial: p1 has {1}{G} in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Rampant Growth",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Mountain",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Rampant Growth to search for a basic land.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Rampant Growth in hand, 1 card in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Rampant Growth",
+          "targets": [],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Rampant Growth."
+        },
+        {
+          "type": "assert_state",
+          "description": "Rampant Growth on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Rampant Growth resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rampant Growth",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Mountain",
+              "cr_ref": "700.4",
+              "note": "p1 searches library, finds Mountain."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Mountain",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Mountain enters battlefield tapped."
+            }
+          ],
+          "note": "Rampant Growth resolves: Mountain enters battlefield tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Rampant Growth: Mountain on battlefield (tapped)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Mountain"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Rampant Growth"
+                }
+              ]
+            }
+          },
+          "note": "Mountain on battlefield tapped. Rampant Growth in graveyard."
+        }
+      ]
+    }
+  ]
+}

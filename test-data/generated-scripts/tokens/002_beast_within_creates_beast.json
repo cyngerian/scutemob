@@ -1,0 +1,219 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_tokens_002",
+    "name": "Beast Within destroys a permanent, creates a Beast token",
+    "description": "p1 casts Beast Within targeting a Sol Ring on p2's battlefield. Sol Ring is destroyed and p2 creates a 3/3 green Beast creature token. Tests Beast Within's dual effect: destroy any permanent + create Beast token for target's controller.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.7",
+      "701.6a",
+      "110.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "removal",
+      "token-creation",
+      "beast-within",
+      "beast-token",
+      "destroy"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Beast Within oracle: 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.' Cost {2}{G}. Targets any permanent \u2014 Sol Ring is an artifact permanent. After resolution: Sol Ring goes to p2's graveyard (indestructible check: Sol Ring has no indestructible), p2 gets a 3/3 Beast token. Beast Within goes to p1's graveyard. Initial: p1 has Beast Within with {2}{G} in pool; p2 has Sol Ring on battlefield (untapped).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Beast Within",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Beast Within targeting p2's Sol Ring.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sol Ring on p2's battlefield, Beast Within in p1's hand",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Beast Within",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Sol Ring",
+              "controller": "p2"
+            }
+          ],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Beast Within targeting p2's Sol Ring."
+        },
+        {
+          "type": "assert_state",
+          "description": "Beast Within on stack",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 Beast Within resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Beast Within",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "card": "Sol Ring",
+                "controller": "p2"
+              },
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Sol Ring is destroyed, moves to p2's graveyard."
+            },
+            {
+              "effect": "create_token",
+              "controller": "p2",
+              "token": {
+                "name": "Beast",
+                "power": 3,
+                "toughness": 3,
+                "colors": [
+                  "green"
+                ],
+                "types": [
+                  "Creature"
+                ],
+                "subtypes": [
+                  "Beast"
+                ],
+                "abilities": []
+              },
+              "cr_ref": "701.6a",
+              "note": "CR 701.6a: p2 (Sol Ring's controller) creates a 3/3 green Beast token."
+            }
+          ],
+          "note": "Beast Within resolves: Sol Ring destroyed, p2 gets Beast token."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Beast Within resolves: Sol Ring gone, p2 has Beast token",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Beast"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Beast Within"
+                }
+              ]
+            }
+          },
+          "note": "Sol Ring destroyed (to graveyard), Beast token created for p2."
+        }
+      ]
+    }
+  ]
+}

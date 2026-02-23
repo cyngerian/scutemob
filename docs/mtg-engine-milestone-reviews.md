@@ -1642,6 +1642,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.4-13 | M9.4 | First loop detection test asserts tautology (always true) | OPEN |
 | MR-M9.4-14 | M9.4 | TriggerDoubler manually registered in tests, registration pathway untested | OPEN |
 | MR-M9.4-15 | M9.4 | Thought Vessel test lacks counter-assertion for non-NoMaxHandSize player | OPEN |
+| MR-CKP-01 | Checkpoint S3 | `TurnBasedAction.action` is dead code — field added `#[serde(default)]` so empty string is accepted, but the replay harness never reads it; if it is ever wired up, empty-string must be handled explicitly | OPEN |
 
 ### INFO
 
@@ -1710,7 +1711,7 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 212 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4) |
+| Total unique issue IDs | 213 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
@@ -1718,7 +1719,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12) |
 | MEDIUM (CLOSED) | 45 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 58 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15) |
+| LOW (OPEN) | 59 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15 + 1 Checkpoint: MR-CKP-01) |
 | LOW (CLOSED) | 6 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3; MR-M7-13, MR-M7-14, MR-M4-07 -- resolved by M9.4) |
 | LOW (DEFERRED) | 5 |
 | INFO | 61 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21) |

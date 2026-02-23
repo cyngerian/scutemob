@@ -1,0 +1,204 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_003",
+    "name": "Rest in Peace ETB \u2014 exiles all graveyards on entry",
+    "description": "Both players have creatures in their graveyards. p1 casts Rest in Peace ({1}{W}). Its ETB triggered ability exiles all cards from all graveyards. Tests the board-wide graveyard exile on ETB.",
+    "cr_sections_tested": [
+      "603.2",
+      "608.2",
+      "400.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "rest-in-peace",
+      "etb-trigger",
+      "graveyard-hate",
+      "exile"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Rest in Peace ETB: exile all cards from all graveyards. Also has a replacement effect for future deaths going to exile instead. The ETB fires when RiP enters; replacement effect activates simultaneously.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Rest in Peace",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Rest in Peace; ETB exiles all graveyards.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: both graveyards have cards",
+          "assertions": {
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Rest in Peace",
+          "targets": [],
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Rest in Peace."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Rest in Peace resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rest in Peace",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Rest in Peace",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Rest in Peace enters battlefield."
+            }
+          ],
+          "note": "RiP enters; ETB trigger and replacement effect both activate."
+        },
+        {
+          "type": "trigger_placed",
+          "controller": "p1",
+          "cr_ref": "603.2",
+          "note": "CR 603.2: 'When Rest in Peace enters the battlefield, exile all cards from all graveyards.'",
+          "source": "Rest in Peace ETB",
+          "trigger_condition": "Rest in Peace ETB"
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 ETB trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rest in Peace ETB",
+          "resolution": [
+            {
+              "effect": "exile_all_in_graveyards",
+              "card": null,
+              "owner": null,
+              "cr_ref": "400.1",
+              "note": "All cards in all graveyards move to exile."
+            }
+          ],
+          "note": "ETB resolves: both graveyards exiled."
+        },
+        {
+          "type": "assert_state",
+          "description": "After RiP ETB: both graveyards empty, RiP on battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Rest in Peace"
+                }
+              ]
+            }
+          },
+          "note": "Both graveyards cleared to exile. RiP replacement effect now routes future zone-changes to exile."
+        }
+      ]
+    }
+  ]
+}

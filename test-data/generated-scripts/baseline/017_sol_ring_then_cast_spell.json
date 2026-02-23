@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_017",
+    "name": "Sol Ring into Wrath of God \u2014 mana acceleration",
+    "description": "p1 plays a land (Swamp), taps Sol Ring for {C}{C}, taps Swamp for {B}, and then casts Wrath of God using the total 3 mana available + 1 extra white needed. Shows how artifact mana acceleration works in practice.",
+    "cr_sections_tested": [
+      "305.1",
+      "605.3",
+      "601.2",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mana-acceleration",
+      "sol-ring",
+      "casting",
+      "wrath-of-god",
+      "mana-combination"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Test: p1 has Sol Ring (untapped on bf), Plains, Plains in hand; has Wrath of God in hand. Sol Ring taps for {C}{C}. Plains taps for {W}. Total mana: {C}{C}{W}{W} = pay for Wrath of God {2}{W}{W}. Actually simpler: p1 has Sol Ring untapped and {W}{W} in mana pool, casts Wrath of God for {2}{W}{W} using Sol Ring {C}{C} + 2 white from pool. After wrath resolves: clears the board.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Birds of Paradise",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Wrath of God",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps Sol Ring for {C}{C}, then casts Wrath of God.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sol Ring untapped, Wrath in hand, p2 has 2 creatures",
+          "assertions": {
+            "permanent.Sol Ring.tapped": false,
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Birds of Paradise"
+                }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Sol Ring",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Sol Ring for {C}{C}. Now has {W}{W}{C}{C} available."
+        },
+        {
+          "type": "assert_state",
+          "description": "Sol Ring tapped, mana available",
+          "assertions": {
+            "permanent.Sol Ring.tapped": true
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wrath of God",
+          "targets": [],
+          "mana_paid": {
+            "white": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wrath of God; pays {2}{W}{W} using {C}{C}{W}{W}."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Wrath of God resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wrath of God",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected": [
+                {
+                  "card": "Llanowar Elves",
+                  "controller": "p2"
+                },
+                {
+                  "card": "Birds of Paradise",
+                  "controller": "p2"
+                }
+              ],
+              "cr_ref": "701.7",
+              "note": "All creatures destroyed."
+            }
+          ],
+          "note": "Wrath resolves: both p2 creatures destroyed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Wrath: p2's creatures gone, Sol Ring still on battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Llanowar Elves",
+                "Birds of Paradise"
+              ]
+            }
+          },
+          "note": "Sol Ring still on battlefield (artifact, not a creature). Both creatures destroyed."
+        }
+      ]
+    }
+  ]
+}

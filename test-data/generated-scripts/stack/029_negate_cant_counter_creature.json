@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_029",
+    "name": "Negate cannot target a creature spell \u2014 invalid targeting",
+    "description": "p1 casts Llanowar Elves (a creature spell). p2 cannot use Negate to counter it because Negate only counters noncreature spells (CR 115.4). This script documents the correct ruling that Negate cannot target creatures. Tests targeting restrictions.",
+    "cr_sections_tested": [
+      "115.4",
+      "115.7a"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "targeting-restriction",
+      "negate",
+      "creature-spell",
+      "invalid-target",
+      "rules-enforcement"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Negate can only target noncreature spells. Llanowar Elves is a creature spell. The engine should reject Negate targeting a creature spell at cast time. This script documents the initial state and the ruling, but since we can't use a 'CommandRejected' action type in the script (only informational), we'll just verify the initial state and note that Negate cannot legally target the Elf. The core test is captured in unit tests (targeting.rs). This script serves as documentation of the constraint.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Negate",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Llanowar Elves. p2 has Negate but cannot target it (creature spell).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves in p1 hand, Negate in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": {
+            "green": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Llanowar Elves (creature spell)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Llanowar Elves on stack. Negate in p2 hand but cannot legally target a creature spell.",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 1
+          },
+          "note": "CR 115.4: Negate requires 'target noncreature spell'. Llanowar Elves is a creature spell \u2014 not a valid target for Negate."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "p2 cannot counter with Negate (illegal target). Both pass \u2014 Llanowar Elves resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Llanowar Elves",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Llanowar Elves",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Llanowar Elves enters battlefield uncountered."
+            }
+          ],
+          "note": "Llanowar Elves resolves normally \u2014 Negate could not target it."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Llanowar Elves on battlefield, Negate still in hand (unused)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p2.count": 1
+          },
+          "note": "Negate not used \u2014 couldn't target creature spell. Llanowar Elves on battlefield."
+        }
+      ]
+    }
+  ]
+}

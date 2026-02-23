@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_034",
+    "name": "Brainstorm + Evolving Wilds — shuffle away bad cards",
+    "description": "Classic Brainstorm interaction: p1 casts Brainstorm (draw 3, put 2 back), then activates Evolving Wilds to shuffle the library. This puts the 2 'top-decked' cards from Brainstorm back into a shuffled library. Tests sequential interactions: draw spell followed by a shuffle effect.",
+    "cr_sections_tested": ["601.2", "608.2", "120.2", "701.17", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["brainstorm", "evolving-wilds", "shuffle", "card-selection", "interaction"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "This is a two-part script. Step 1: cast Brainstorm for {U}, draw 3, put 2 back on top of library. Step 2: activate Evolving Wilds (tap, sacrifice) — this ability puts a basic land on battlefield tapped AND shuffles the library, randomizing the two cards put back by Brainstorm. After: p1 has 1 card in hand (net: cast Brainstorm -1 + draw 3 + put 2 back = 1 card), Evolving Wilds in graveyard, Forest on battlefield tapped, library shuffled. Initial: p1 has {U}, Brainstorm + Evolving Wilds on battlefield, 3 cards in library.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Evolving Wilds", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Brainstorm", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Counterspell", "is_commander": false, "owner": null },
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Brainstorm then activates Evolving Wilds to shuffle.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Brainstorm in hand, Evolving Wilds on battlefield, 3 cards in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Evolving Wilds" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Brainstorm",
+          "targets": [],
+          "mana_paid": { "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Brainstorm."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — Brainstorm resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Brainstorm",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 3,
+              "cr_ref": "120.2",
+              "note": "p1 draws 3 cards (Lightning Bolt, Counterspell, Forest)."
+            },
+            {
+              "effect": "put_cards_on_top_of_library",
+              "player": "p1",
+              "amount": 2,
+              "choice": "p1 puts Counterspell and Lightning Bolt back (keeping Forest)",
+              "cr_ref": "701.17",
+              "note": "p1 puts 2 cards on top of library. Hand: 1 card (Forest)."
+            }
+          ],
+          "note": "Brainstorm resolves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Brainstorm: 1 card in hand, 2 cards on top of library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "2 unwanted cards sitting on top of library — Evolving Wilds will shuffle them away."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Evolving Wilds",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "608.2",
+          "note": "p1 taps and sacrifices Evolving Wilds. Ability goes on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Evolving Wilds ability",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Forest",
+              "cr_ref": "700.4",
+              "note": "p1 finds Forest from library (or from the cards put back)."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped."
+            },
+            {
+              "effect": "shuffle_library",
+              "player": "p1",
+              "cr_ref": "701.16",
+              "note": "Library is shuffled. The 2 cards put back by Brainstorm are now randomized."
+            }
+          ],
+          "note": "Evolving Wilds: Forest on bf tapped, library shuffled."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: 1 card in hand, Forest on battlefield, library shuffled",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Evolving Wilds" }, { "card": "Brainstorm" }] }
+          },
+          "note": "Brainstorm + Evolving Wilds used as card selection. Library shuffled."
+        }
+      ]
+    }
+  ]
+}

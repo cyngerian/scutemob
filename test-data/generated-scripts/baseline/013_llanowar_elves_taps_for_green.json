@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_013",
+    "name": "Llanowar Elves taps for {G} mana",
+    "description": "p1 has a Llanowar Elves on the battlefield (not summoning sick \u2014 placed in initial state from a prior turn). p1 taps it for {G} mana. Tests a creature mana ability (dork) that produces colored mana.",
+    "cr_sections_tested": [
+      "605.1",
+      "605.3",
+      "302.6"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mana-ability",
+      "mana-dork",
+      "llanowar-elves",
+      "creature",
+      "green-mana"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Llanowar Elves oracle: '{T}: Add {G}.' CR 605.1: This is a mana ability. CR 605.3: Mana abilities don't use the stack. The Elf is not summoning sick (placed in initial state, implying it's been there from a prior turn). After activation: Elf is tapped, {G} in p1's mana pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps Llanowar Elves for {G} mana.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on battlefield (untapped)",
+          "assertions": {
+            "permanent.Llanowar Elves.tapped": false,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Llanowar Elves for {G}. Mana ability resolves immediately (no stack)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After mana ability: Llanowar Elves tapped, {G} added to pool",
+          "assertions": {
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Elf tapped. {G} mana added to pool."
+        }
+      ]
+    }
+  ]
+}

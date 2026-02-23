@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_016",
+    "name": "Pull from Tomorrow X=3 \u2014 draw 3, discard 1",
+    "description": "p1 casts Pull from Tomorrow with X=3 ({X}{U}{U} where X=3, total {3}{U}{U}). On resolution, p1 draws 3 cards then discards 1. Tests an X-spell draw effect with an attached discard cost.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "107.3",
+      "120.2",
+      "701.7b"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "draw",
+      "discard",
+      "x-spell",
+      "pull-from-tomorrow",
+      "blue-draw"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Pull from Tomorrow oracle: 'Draw X cards, then discard a card.' Cost {X}{U}{U}. With X=3, cost = {3}{U}{U} = 5 mana total. p1 draws 3, then discards 1. Net hand change: cast -1, draw +3, discard -1 = net +1. Initial hand: 1 card (Pull from Tomorrow). After cast: 0. After draw 3: 3. After discard 1: 2. Library has 3 cards.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 2,
+          "colorless": 3
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Pull from Tomorrow",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Pull from Tomorrow with X=3.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Pull from Tomorrow in hand, 3 cards in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Pull from Tomorrow",
+          "targets": [],
+          "mana_paid": {
+            "blue": 2,
+            "colorless": 3
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Pull from Tomorrow with X=3; pays {3}{U}{U}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Pull from Tomorrow on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Pull from Tomorrow resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Pull from Tomorrow",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 3,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 3 cards (X=3)."
+            },
+            {
+              "effect": "discard_card",
+              "player": "p1",
+              "choice": "p1 discards Forest",
+              "cr_ref": "701.7b",
+              "note": "p1 discards 1 card."
+            }
+          ],
+          "note": "Pull from Tomorrow resolves: draw 3, discard 1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Pull from Tomorrow: p1 has 2 cards in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 2,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Pull from Tomorrow"
+                }
+              ]
+            }
+          },
+          "note": "Cast -1=0, drew +3=3, discarded -1=2. Pull in graveyard."
+        }
+      ]
+    }
+  ]
+}

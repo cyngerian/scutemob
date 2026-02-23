@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_021",
+    "name": "Darksteel Colossus survives Wrath of God (indestructible)",
+    "description": "p1 controls Darksteel Colossus (indestructible) and p2 controls Llanowar Elves. p1 casts Wrath of God. The Elf is destroyed but Darksteel Colossus survives because 'destroy' effects can't destroy indestructible permanents (CR 702.12b). Tests that indestructible correctly prevents destruction from board wipes.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "702.12b",
+      "701.7"
+    ],
+    "corner_case_ref": 6,
+    "tags": [
+      "indestructible",
+      "wrath-of-god",
+      "board-wipe",
+      "darksteel-colossus",
+      "survives"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Darksteel Colossus oracle: 'Trample, indestructible.' It can't be destroyed by 'destroy' effects. Wrath of God says 'destroy all creatures' \u2014 the Colossus survives because CR 702.12b states a permanent with indestructible can't be destroyed. The Elf is destroyed (no indestructible). Initial: p1 has {2}{W}{W} in pool, Wrath of God in hand, controls Darksteel Colossus; p2 controls Llanowar Elves.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Darksteel Colossus",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Wrath of God",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Wrath of God. Darksteel Colossus survives (indestructible); Llanowar Elves dies.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Darksteel Colossus on p1 battlefield, Llanowar Elves on p2 battlefield",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Colossus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wrath of God",
+          "targets": [],
+          "mana_paid": {
+            "white": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wrath of God \u2014 destroy all creatures."
+        },
+        {
+          "type": "assert_state",
+          "description": "Wrath of God on stack",
+          "assertions": {
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Wrath of God resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wrath of God",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected_attempted": [
+                {
+                  "card": "Darksteel Colossus",
+                  "controller": "p1",
+                  "result": "immune (indestructible)"
+                },
+                {
+                  "card": "Llanowar Elves",
+                  "controller": "p2",
+                  "result": "destroyed"
+                }
+              ],
+              "cr_ref": "702.12b",
+              "note": "CR 702.12b: Darksteel Colossus has indestructible \u2014 'destroy' has no effect on it. Llanowar Elves is destroyed normally."
+            }
+          ],
+          "note": "Wrath resolves: Elf destroyed, Colossus survives."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Wrath: Darksteel Colossus still on p1 battlefield; Llanowar Elves in graveyard",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Colossus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "Darksteel Colossus survived (indestructible). Llanowar Elves destroyed."
+        }
+      ]
+    }
+  ]
+}

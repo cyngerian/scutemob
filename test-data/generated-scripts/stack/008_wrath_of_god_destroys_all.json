@@ -1,0 +1,241 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_008",
+    "name": "Wrath of God \u2014 destroys all creatures",
+    "description": "p1 has two creatures and p2 has one creature on the battlefield. p1 casts Wrath of God ({2}{W}{W}). All three creatures are destroyed simultaneously. Tests a mass removal spell that affects all players' creatures equally.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.7",
+      "700.4",
+      "704.5f"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "board-wipe",
+      "destroy-all",
+      "wrath-of-god",
+      "sorcery",
+      "mass-removal"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Wrath of God oracle: 'Destroy all creatures. They can't be regenerated.' Cost {2}{W}{W}. p1 controls Llanowar Elves and Elvish Mystic; p2 controls Birds of Paradise. After Wrath resolves: all three creatures go to their owners' graveyards simultaneously (CR 700.4 'all'). SBAs are checked afterward but nothing further applies (creatures already destroyed). Initial: p1 has {2}{W}{W} in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Elvish Mystic",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Birds of Paradise",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Wrath of God",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Wrath of God to destroy all creatures.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: 3 creatures on battlefield, Wrath of God in hand",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Birds of Paradise"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wrath of God",
+          "targets": [],
+          "mana_paid": {
+            "white": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wrath of God; no targets (affects all creatures)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Wrath of God on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Wrath of God resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wrath of God",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected": [
+                {
+                  "card": "Llanowar Elves",
+                  "controller": "p1"
+                },
+                {
+                  "card": "Elvish Mystic",
+                  "controller": "p1"
+                },
+                {
+                  "card": "Birds of Paradise",
+                  "controller": "p2"
+                }
+              ],
+              "cr_ref": "701.7",
+              "note": "CR 701.7: All creatures are destroyed simultaneously."
+            }
+          ],
+          "note": "Wrath of God resolves: all 3 creatures destroyed."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "SBAs checked: destroyed creatures already moved to graveyards as part of destruction."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Wrath resolves: all creatures gone, in graveyards",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Llanowar Elves",
+                "Elvish Mystic"
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Birds of Paradise"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Elvish Mystic"
+                },
+                {
+                  "card": "Wrath of God"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Birds of Paradise"
+                }
+              ]
+            }
+          },
+          "note": "All 3 creatures destroyed. Wrath of God in p1's graveyard."
+        }
+      ]
+    }
+  ]
+}

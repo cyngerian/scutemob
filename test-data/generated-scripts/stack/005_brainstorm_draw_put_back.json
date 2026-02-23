@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_005",
+    "name": "Brainstorm \u2014 draw 3 put 2 back",
+    "description": "p1 casts Brainstorm ({U} instant). Draw three cards, then put two cards from hand on top of library in any order. Tests multi-draw effect and library manipulation. After resolution: hand size increases by 1 (draw 3, put 2 back), two cards are on top of library.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2",
+      "701.17"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "stack",
+      "draw",
+      "library-manipulation",
+      "brainstorm",
+      "instant"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Brainstorm oracle: 'Draw three cards, then put two cards from your hand on top of your library in any order.' Cost {U}. Initial state: p1 has Brainstorm in hand (1 card), {U} in pool, library has 3 cards (Lightning Bolt, Plains, Swamp). After resolution: p1 drew 3 (hand grows to 3 including Brainstorm from cast -1 + 3 draws = 3), then puts 2 back on library (hand = 1). The choose_option action represents p1 selecting which 2 cards to put back. Net: hand size +1 vs starting count before cast; library net -1 (drew 3, put back 2). Initial hand = 1, after cast = 0, after draw 3 = 3, after put 2 back = 1. Library starts at 3, after draw 3 = 0, after put 2 back = 2.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Brainstorm",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Brainstorm during main phase (instant speed allowed).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Brainstorm in hand, 3 cards in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Brainstorm",
+          "targets": [],
+          "mana_paid": {
+            "blue": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Brainstorm; pays {U}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Brainstorm on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 Brainstorm resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Brainstorm",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 3,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 3 cards (Lightning Bolt, Plains, Swamp). Hand: 3 cards."
+            },
+            {
+              "effect": "put_cards_on_top_of_library",
+              "player": "p1",
+              "amount": 2,
+              "choice": "p1 chooses Plains and Swamp to put back",
+              "cr_ref": "701.17",
+              "note": "CR 701.17: p1 puts 2 cards from hand on top of library. Hand: 1 card (Lightning Bolt)."
+            }
+          ],
+          "note": "Brainstorm resolves: draw 3, put 2 back."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Brainstorm resolves: p1 has 1 card in hand, 2 cards in library",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Brainstorm"
+                }
+              ]
+            }
+          },
+          "note": "Started 1 card, cast (-1 = 0), drew 3 (+3 = 3), put 2 back (-2 = 1). Brainstorm in graveyard."
+        }
+      ]
+    }
+  ]
+}

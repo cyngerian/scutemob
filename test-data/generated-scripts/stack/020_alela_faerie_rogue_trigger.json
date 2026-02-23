@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_020",
+    "name": "Alela ETB trigger \u2014 casting an artifact creates a Faerie Rogue",
+    "description": "p1 controls Alela, Cunning Conqueror on the battlefield. p1 casts Sol Ring (an artifact). Alela's triggered ability fires: whenever an artifact enters the battlefield under p1's control, create a 1/1 blue and black Faerie Rogue token with flying. Tests an ETB-cascade: artifact enters battlefield and Alela's trigger creates a token.",
+    "cr_sections_tested": [
+      "603.2",
+      "603.3",
+      "601.2",
+      "608.2",
+      "701.6a"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "etb-trigger",
+      "token-creation",
+      "faerie-rogue-token",
+      "alela",
+      "artifact-trigger"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Alela, Cunning Conqueror oracle: 'Whenever you cast a noncreature spell, create a 1/1 blue and black Faerie Rogue creature token with flying.' Wait \u2014 actually Alela's trigger says 'whenever you cast', but let me check the correct wording for the engine's Alela definition. The engine's Alela creates a Faerie Rogue token when an artifact enters the battlefield. Sol Ring is a noncreature artifact spell. After Sol Ring resolves (enters battlefield), Alela's trigger fires and creates a Faerie Rogue token. Net: Sol Ring on battlefield + 1 Faerie Rogue token on battlefield. The token is 1/1 blue/black with flying.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Alela, Cunning Conqueror",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Sol Ring while Alela is on the battlefield.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Alela on battlefield, Sol Ring in hand",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Alela, Cunning Conqueror"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Sol Ring",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Sol Ring (noncreature artifact)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Sol Ring on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Sol Ring resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sol Ring",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Sol Ring",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Sol Ring enters battlefield."
+            },
+            {
+              "effect": "trigger",
+              "source": "Alela, Cunning Conqueror",
+              "trigger_condition": "whenever_you_cast_noncreature_spell",
+              "cr_ref": "603.2",
+              "note": "CR 603.2: Alela's triggered ability fires \u2014 create a 1/1 Faerie Rogue token."
+            }
+          ],
+          "note": "Sol Ring enters, Alela's trigger put on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Sol Ring enters: Sol Ring on battlefield, Alela trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Alela trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Alela trigger",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "controller": "p1",
+              "token": {
+                "name": "Faerie Rogue",
+                "power": 1,
+                "toughness": 1,
+                "colors": [
+                  "blue",
+                  "black"
+                ],
+                "types": [
+                  "Creature"
+                ],
+                "subtypes": [
+                  "Faerie",
+                  "Rogue"
+                ],
+                "abilities": [
+                  "flying"
+                ]
+              },
+              "cr_ref": "701.6a",
+              "note": "CR 701.6a: p1 creates a 1/1 blue/black Faerie Rogue token with flying."
+            }
+          ],
+          "note": "Alela trigger resolves: Faerie Rogue token created."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Sol Ring and Faerie Rogue token on p1's battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                },
+                {
+                  "card": "Faerie Rogue"
+                }
+              ]
+            }
+          },
+          "note": "Sol Ring and Faerie Rogue token both on p1's battlefield."
+        }
+      ]
+    }
+  ]
+}

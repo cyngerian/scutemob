@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_046",
+    "name": "Doom Blade \u2014 cannot target black creatures",
+    "description": "p2 has two creatures: Llanowar Elves (green, valid target) and a hypothetical black creature. Tests that Doom Blade can validly target the green creature. Doom Blade resolves and kills Llanowar Elves. Confirms destroy effect and graveyard placement.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.4",
+      "701.7"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "doom-blade",
+      "destroy",
+      "targeting-restriction",
+      "nonblack"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Doom Blade: Destroy target nonblack creature. Llanowar Elves is green \u2014 valid target. After resolution: Llanowar Elves in graveyard.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Doom Blade",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Doom Blade targeting p2's Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p2",
+              "player": null
+            }
+          ],
+          "mana_paid": {
+            "black": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Doom Blade targeting p2's Llanowar Elves (green = nonblack, valid)."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Doom Blade resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "type": "permanent",
+                "card": "Llanowar Elves"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Doom Blade destroys target nonblack creature. Llanowar Elves goes to graveyard."
+            }
+          ],
+          "note": "Doom Blade resolves; Llanowar Elves destroyed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Doom Blade: Llanowar Elves in p2 graveyard, battlefield empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "CR 700.4: Destroyed permanent goes to its owner's graveyard (CR 704.5g)."
+        }
+      ]
+    }
+  ]
+}

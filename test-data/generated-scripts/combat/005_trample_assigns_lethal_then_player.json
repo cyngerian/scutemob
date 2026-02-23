@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_005",
+    "name": "Trample \u2014 excess damage tramples over to defending player",
+    "description": "A creature with trample attacks and is blocked by a smaller creature. The attacker must assign lethal damage to the blocker, then the excess damage is assigned to the defending player. Tests CR 702.19: trample damage assignment.",
+    "cr_sections_tested": [
+      "702.19",
+      "510.1b",
+      "510.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "trample",
+      "combat",
+      "combat-damage",
+      "excess-damage"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "CR 702.19a: If a creature with trample is blocked, the attacking player must assign at least lethal damage to all blockers. Any excess damage is assigned to the defending player. Informational script \u2014 documents the CR rule.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Darksteel Colossus",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Darksteel Colossus (11/11 trample, indestructible) attacks. Solemn Simulacrum (2/2) blocks.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Darksteel Colossus (11/11 trample) vs. Solemn Simulacrum (2/2), p2 at 40",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Colossus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                }
+              ]
+            },
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage: 2 assigned to Solemn Simulacrum (lethal), 9 tramples to p2",
+          "cr_ref": "702.19",
+          "note": "CR 702.19a: Attacker assigns 2 to Simulacrum (lethal damage for a 2-toughness creature), then 9 excess trample damage is assigned to p2. p2 goes from 40 to 31."
+        },
+        {
+          "type": "sba_check",
+          "description": "SBA after combat damage",
+          "cr_ref": "704.5g",
+          "note": "CR 704.5g: Solemn Simulacrum has 2 damage marked = lethal (toughness 2). Destroyed, goes to graveyard."
+        }
+      ]
+    }
+  ]
+}

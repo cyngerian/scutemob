@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_014",
+    "name": "Damnation \u2014 destroy all creatures (cannot regenerate)",
+    "description": "p1 casts Damnation ({2}{B}{B}). All creatures on the battlefield are destroyed and cannot be regenerated. Tests a black sweeper equivalent to Wrath of God. p1 controls Birds of Paradise; p2 controls Llanowar Elves. Both are destroyed.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.7",
+      "701.15"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "board-wipe",
+      "destroy-all",
+      "damnation",
+      "cannot-regenerate",
+      "black-sweeper"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Damnation oracle: 'Destroy all creatures. They can't be regenerated.' Cost {2}{B}{B}. Like Wrath of God but black. Both creatures destroyed simultaneously. The 'can't be regenerated' clause prevents regeneration shields from saving them (CR 701.15). Initial: p1 has Damnation with {2}{B}{B}, controls Birds of Paradise; p2 controls Llanowar Elves.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "black": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Birds of Paradise",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Damnation",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Damnation to destroy all creatures.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Birds of Paradise on p1 battlefield, Llanowar Elves on p2 battlefield",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Birds of Paradise"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Damnation",
+          "targets": [],
+          "mana_paid": {
+            "black": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Damnation."
+        },
+        {
+          "type": "assert_state",
+          "description": "Damnation on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Damnation resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Damnation",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected": [
+                {
+                  "card": "Birds of Paradise",
+                  "controller": "p1"
+                },
+                {
+                  "card": "Llanowar Elves",
+                  "controller": "p2"
+                }
+              ],
+              "cr_ref": "701.7",
+              "note": "CR 701.7: All creatures destroyed simultaneously (can't regenerate)."
+            }
+          ],
+          "note": "Damnation resolves: both creatures destroyed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Damnation: all creatures in graveyards, battlefields empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Birds of Paradise"
+              ]
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Birds of Paradise"
+                },
+                {
+                  "card": "Damnation"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "Both creatures destroyed to graveyards. Damnation in p1's graveyard."
+        }
+      ]
+    }
+  ]
+}

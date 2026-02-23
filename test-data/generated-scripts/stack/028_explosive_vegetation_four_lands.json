@@ -1,0 +1,201 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_028",
+    "name": "Explosive Vegetation \u2014 search for 2 basic lands, both enter tapped",
+    "description": "p1 casts Explosive Vegetation ({3}{G}). Searches library for up to 2 basic land cards and puts both onto the battlefield tapped. Tests the two-land-simultaneous-entry version of ramp (unlike Cultivate which puts one in hand).",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.4"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ramp",
+      "land-search",
+      "explosive-vegetation",
+      "sorcery",
+      "two-lands"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Explosive Vegetation oracle: 'Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.' Cost {3}{G}. Both lands enter the battlefield tapped (unlike Cultivate where one goes to hand). Library has Forest and Plains. After resolution: both on battlefield tapped.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 3
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Explosive Vegetation",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Explosive Vegetation to fetch 2 basic lands.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Explosive Vegetation in hand, 2 lands in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Explosive Vegetation",
+          "targets": [],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 3
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Explosive Vegetation; pays {3}{G}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Explosive Vegetation on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Explosive Vegetation resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Explosive Vegetation",
+          "resolution": [
+            {
+              "effect": "search_library",
+              "player": "p1",
+              "criteria": "basic land",
+              "count": 2,
+              "found": [
+                "Forest",
+                "Plains"
+              ],
+              "cr_ref": "700.4",
+              "note": "p1 finds Forest and Plains."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Plains",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Plains enters battlefield tapped."
+            }
+          ],
+          "note": "Explosive Vegetation: Forest and Plains both enter tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Explosive Vegetation: both lands on battlefield (tapped)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Forest"
+                },
+                {
+                  "card": "Plains"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Explosive Vegetation"
+                }
+              ]
+            }
+          },
+          "note": "Forest and Plains on battlefield tapped. Explosive Vegetation in graveyard."
+        }
+      ]
+    }
+  ]
+}

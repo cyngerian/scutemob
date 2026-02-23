@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_032",
+    "name": "Wayfarer's Bauble — sacrifice for basic land next turn",
+    "description": "p1 has Wayfarer's Bauble on the battlefield. p1 activates it: pay {2}, tap, sacrifice to search for a basic land and put it on the battlefield tapped at the beginning of the next end step. Tests a delayed land ramp from sacrifice.",
+    "cr_sections_tested": ["608.2", "603.7", "700.4"],
+    "corner_case_ref": null,
+    "tags": ["ramp", "wayfarers-bauble", "sacrifice", "delayed-trigger", "land-fetch"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Wayfarer's Bauble oracle: '{2}, {T}, Sacrifice Wayfarer's Bauble: Search your library for a basic land card and put it onto the battlefield tapped. Then shuffle.' Costs {2}. The land comes into play immediately on resolution (not end step). Simpler than originally thought — this is a direct fetch, not delayed. p1 pays {2}, taps and sacrifices Bauble; ability resolves, Forest enters battlefield tapped. Initial: p1 has {2} in pool, Bauble on battlefield, Forest in library.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Wayfarer's Bauble", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Wayfarer's Bauble to fetch a basic land.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Wayfarer's Bauble on battlefield (untapped)",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Wayfarer's Bauble" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Wayfarer's Bauble",
+          "targets": [],
+          "mana_paid": { "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "608.2",
+          "note": "p1 pays {2}, taps, sacrifices Wayfarer's Bauble. Ability goes on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Bauble sacrificed, ability on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Wayfarer's Bauble"] }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wayfarer's Bauble ability",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Forest",
+              "cr_ref": "700.4",
+              "note": "p1 finds Forest."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped."
+            }
+          ],
+          "note": "Ability resolves: Forest enters battlefield tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After: Forest on battlefield (tapped), Bauble in graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Wayfarer's Bauble" }] }
+          },
+          "note": "Bauble sacrificed; Forest enters tapped."
+        }
+      ]
+    }
+  ]
+}

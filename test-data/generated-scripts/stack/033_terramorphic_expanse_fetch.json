@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_033",
+    "name": "Terramorphic Expanse — tap sacrifice to fetch basic land tapped",
+    "description": "p1 has Terramorphic Expanse on the battlefield. p1 taps and sacrifices it to search for a basic land and put it on the battlefield tapped. Tests a fetch land that is functionally identical to Evolving Wilds.",
+    "cr_sections_tested": ["608.2", "605.5", "700.4"],
+    "corner_case_ref": null,
+    "tags": ["land", "fetch-land", "terramorphic-expanse", "sacrifice", "search-library"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Terramorphic Expanse oracle: '{T}, Sacrifice Terramorphic Expanse: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' Functionally identical to Evolving Wilds. After activation: Expanse in graveyard, Island on battlefield tapped.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Terramorphic Expanse", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps and sacrifices Terramorphic Expanse to fetch an Island.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Terramorphic Expanse on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Terramorphic Expanse" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Terramorphic Expanse",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "608.2",
+          "note": "p1 taps and sacrifices Terramorphic Expanse. Ability on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Terramorphic Expanse sacrificed, ability on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Terramorphic Expanse"] }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Terramorphic Expanse ability",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Island",
+              "cr_ref": "700.4",
+              "note": "p1 finds Island."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Island",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Island enters battlefield tapped."
+            }
+          ],
+          "note": "Ability resolves: Island enters tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After: Island on battlefield (tapped), Expanse in graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Island" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Terramorphic Expanse" }] }
+          },
+          "note": "Terramorphic Expanse in graveyard; Island on battlefield."
+        }
+      ]
+    }
+  ]
+}

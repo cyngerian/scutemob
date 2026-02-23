@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_014",
+    "name": "Birds of Paradise taps for any color mana",
+    "description": "p1 has a Birds of Paradise (0/1 flying) on the battlefield. p1 activates its mana ability to add {G} (choosing green). Tests a creature mana ability that produces any color, confirming the BoP works as a mana dork.",
+    "cr_sections_tested": [
+      "605.1",
+      "605.3",
+      "302.6"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mana-ability",
+      "mana-dork",
+      "birds-of-paradise",
+      "any-color",
+      "flying"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Birds of Paradise oracle: '{T}: Add one mana of any color.' CR 605.1: Mana ability. p1 chooses to add {G}. After activation: Birds tapped, {G} in pool. The card has flying but that doesn't affect this interaction.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Birds of Paradise",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps Birds of Paradise for {G} mana.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Birds of Paradise on battlefield (untapped)",
+          "assertions": {
+            "permanent.Birds of Paradise.tapped": false,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Birds of Paradise",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Birds of Paradise, choosing to add {G}. Mana ability, no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After mana ability: Birds of Paradise tapped",
+          "assertions": {
+            "permanent.Birds of Paradise.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Birds tapped. Mana ability doesn't use the stack."
+        }
+      ]
+    }
+  ]
+}

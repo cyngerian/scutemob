@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_012",
+    "name": "Cultivate \u2014 put land onto battlefield, put another in hand",
+    "description": "p1 casts Cultivate ({2}{G}). Searches library for up to two basic land cards; put one onto the battlefield tapped and the other into hand. Tests a two-part land search sorcery where one land enters the battlefield immediately and another goes to hand for later use.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.4",
+      "701.14"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ramp",
+      "land-search",
+      "cultivate",
+      "sorcery",
+      "land-fetch"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Cultivate oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G}. Library has a Forest and a Plains. After resolution: Forest enters battlefield tapped, Plains goes to hand. Library is shuffled (now empty). Initial: p1 has Cultivate in hand with {2}{G} in pool; library has Forest and Plains.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Cultivate",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Cultivate to search for two basic lands.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Cultivate in hand, 2 lands in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Cultivate",
+          "targets": [],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Cultivate."
+        },
+        {
+          "type": "assert_state",
+          "description": "Cultivate on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Cultivate resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cultivate",
+          "resolution": [
+            {
+              "effect": "search_library",
+              "player": "p1",
+              "criteria": "basic land",
+              "count": 2,
+              "found": [
+                "Forest",
+                "Plains"
+              ],
+              "cr_ref": "700.4",
+              "note": "p1 searches library, reveals Forest and Plains."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped."
+            },
+            {
+              "effect": "put_into_hand",
+              "card": "Plains",
+              "player": "p1",
+              "cr_ref": "608.2",
+              "note": "Plains goes to p1's hand."
+            }
+          ],
+          "note": "Cultivate resolves: Forest on battlefield tapped, Plains in hand."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Cultivate resolves: Forest on battlefield (tapped), Plains in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Forest"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Cultivate"
+                }
+              ]
+            }
+          },
+          "note": "Forest on battlefield (tapped), Plains in hand (count = 1). Cultivate in graveyard."
+        }
+      ]
+    }
+  ]
+}

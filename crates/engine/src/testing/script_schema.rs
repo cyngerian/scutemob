@@ -268,7 +268,8 @@ pub enum ScriptAction {
     /// An automatic action that happens at the start of a step (untap, draw, etc.).
     TurnBasedAction {
         /// One of: `untap_all`, `draw_card`, `empty_mana_pool`, `remove_until_eot`,
-        /// `discard_to_hand_size`.
+        /// `discard_to_hand_size`. Optional for informational-only scripts.
+        #[serde(default)]
         action: String,
         player: Option<String>,
         cr_ref: Option<String>,

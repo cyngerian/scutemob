@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_003",
+    "name": "Swiftfoot Boots — equip grants haste and hexproof",
+    "description": "p1 has Llanowar Elves and Swiftfoot Boots on the battlefield. p1 equips Swiftfoot Boots onto Llanowar Elves ({1} equip cost). Tests that Swiftfoot Boots equip resolves and creature gains haste and hexproof. Hexproof means opponents cannot target the creature with spells or abilities.",
+    "cr_sections_tested": ["301.5b", "702.20", "702.11"],
+    "corner_case_ref": null,
+    "tags": ["equipment", "swiftfoot-boots", "haste", "hexproof", "equip"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Swiftfoot Boots: Equipped creature has hexproof and haste. Equip {1}. Hexproof = can't be the target of spells or abilities opponents control. Script documents equip effect.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Swiftfoot Boots", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 equips Swiftfoot Boots onto Llanowar Elves for {1}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Swiftfoot Boots and Llanowar Elves on p1 battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Swiftfoot Boots" }, { "card": "Llanowar Elves" }] }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Swiftfoot Boots",
+          "targets": [
+            { "type": "permanent", "card": "Llanowar Elves", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "301.5b",
+          "note": "CR 301.5b: p1 activates equip {1}, targeting Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After equip: both permanents still on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Swiftfoot Boots" }, { "card": "Llanowar Elves" }] }
+          },
+          "note": "CR 702.11: Llanowar Elves now has hexproof — opponents can't target it. Also has haste."
+        }
+      ]
+    }
+  ]
+}

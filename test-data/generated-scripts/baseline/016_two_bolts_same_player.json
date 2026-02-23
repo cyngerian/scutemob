@@ -1,0 +1,216 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_016",
+    "name": "Two Lightning Bolts deal 6 total damage to a player",
+    "description": "p1 casts two Lightning Bolts targeting p2 in sequence. Each deals 3 damage. After both resolve, p2 has taken 6 total damage (40 \u2192 34). Tests that damage accumulates correctly from multiple spell resolutions.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.3",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "damage",
+      "multiple-spells",
+      "lightning-bolt",
+      "accumulated-damage"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "p1 casts Bolt 1 targeting p2 (3 damage). Both pass; it resolves, p2 at 37. Then p1 casts Bolt 2 targeting p2 (3 more damage). Both pass; it resolves, p2 at 34. Tests sequential spell resolution and damage accumulation. Initial: p1 has 2 Lightning Bolts in hand, {R}{R} in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "red": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts two Lightning Bolts targeting p2.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: 2 Lightning Bolts in hand, p2 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "players.p2.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts first Lightning Bolt targeting p2."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 first Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
+              "amount": 3,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: First Bolt deals 3 damage to p2 (40 \u2192 37)."
+            }
+          ],
+          "note": "First Lightning Bolt resolves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After first Bolt: p2 at 37, 1 Bolt still in hand",
+          "assertions": {
+            "players.p2.life": 37,
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts second Lightning Bolt targeting p2."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 second Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
+              "amount": 3,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Second Bolt deals 3 damage to p2 (37 \u2192 34)."
+            }
+          ],
+          "note": "Second Lightning Bolt resolves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After both Bolts: p2 at 34, hand empty",
+          "assertions": {
+            "players.p2.life": 34,
+            "zones.hand.p1.count": 0,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Total damage: 6 (3+3). p2 at 34 life."
+        }
+      ]
+    }
+  ]
+}

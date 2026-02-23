@@ -1,0 +1,257 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_006",
+    "name": "Arcane Denial counters a spell, controller draws",
+    "description": "p1 casts Harmonize (sorcery). p2 casts Arcane Denial targeting Harmonize. Arcane Denial resolves: Harmonize is countered, its controller (p1) draws 2 next upkeep, and p2 draws a card immediately. Tests that Arcane Denial produces the full effect sequence: counter target spell, controller draws 2 at beginning of their next upkeep (trigger), caster draws 1 now.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2b",
+      "608.2",
+      "120.2",
+      "603.2",
+      "116.4"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "stack",
+      "counterspell",
+      "draw",
+      "delayed-trigger",
+      "arcane-denial"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Arcane Denial oracle: 'Counter target spell. Its controller may draw up to two cards at the beginning of the next upkeep. You draw a card.' So: (1) Counter the targeted spell; (2) Arcane Denial's caster (p2) draws 1 now; (3) a delayed trigger is set up so Harmonize's controller (p1) may draw up to 2 at next upkeep. This script tests only the immediate effects (counter + p2 draws 1). The delayed upkeep trigger is noted but not executed in the script (future turn). Initial state: p1 has Harmonize in hand with {2}{G}{G} in pool; p2 has Arcane Denial with {1}{U} in pool. Sequence: p1 casts Harmonize, p2 responds with Arcane Denial, all pass, Arcane Denial resolves first (LIFO).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_paid": {},
+        "mana_pool": {
+          "green": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Arcane Denial",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Counterspell",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Harmonize. p2 responds with Arcane Denial.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Harmonize in p1 hand, Arcane Denial in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 2,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Harmonize",
+          "targets": [],
+          "mana_paid": {
+            "green": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Harmonize; pays {2}{G}{G}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Harmonize on stack, p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "p1 passes priority after casting. p2 receives priority."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Arcane Denial",
+          "targets": [
+            {
+              "type": "spell",
+              "card": "Harmonize",
+              "controller": "p1"
+            }
+          ],
+          "mana_paid": {
+            "blue": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Arcane Denial targeting Harmonize on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Both spells on stack: Arcane Denial on top, Harmonize below",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p2.count": 1
+          },
+          "note": "LIFO: Arcane Denial resolves before Harmonize."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 Arcane Denial resolves first (top of stack)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Arcane Denial",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": {
+                "card": "Harmonize",
+                "controller": "p1"
+              },
+              "cr_ref": "608.2b",
+              "note": "CR 608.2b: Harmonize is countered and moved to p1's graveyard."
+            },
+            {
+              "effect": "draw_card",
+              "player": "p2",
+              "amount": 1,
+              "cr_ref": "120.2",
+              "note": "Arcane Denial: 'You draw a card' \u2014 p2 draws 1."
+            },
+            {
+              "effect": "create_delayed_trigger",
+              "trigger": "at_beginning_of_next_upkeep",
+              "affected_player": "p1",
+              "effect_description": "p1 may draw up to 2 cards",
+              "cr_ref": "603.7",
+              "note": "CR 603.7: Delayed triggered ability created \u2014 p1 may draw up to 2 at next upkeep."
+            }
+          ],
+          "note": "Arcane Denial resolves: counters Harmonize, p2 draws 1, delayed trigger for p1 created."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Arcane Denial resolves: Harmonize countered, p2 drew a card",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Harmonize"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Arcane Denial"
+                }
+              ]
+            },
+            "zones.hand.p2.count": 2
+          },
+          "note": "p2 had 1 card (Island), drew 1 = 2. Harmonize countered to p1's graveyard. Arcane Denial to p2's graveyard."
+        }
+      ]
+    }
+  ]
+}

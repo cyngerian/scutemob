@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_006",
+    "name": "Sol Ring mana ability \u2014 tap for {C}{C}",
+    "description": "p1 has a Sol Ring on the battlefield (untapped). p1 activates Sol Ring's mana ability to add {C}{C} to their mana pool. Tests that mana abilities don't use the stack (CR 605.3), execute immediately, and add colorless mana to the pool.",
+    "cr_sections_tested": [
+      "605.1",
+      "605.3",
+      "106.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mana-ability",
+      "sol-ring",
+      "artifact",
+      "colorless-mana",
+      "mana-pool"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Sol Ring oracle: '{T}: Add {C}{C}.' CR 605.3: Mana abilities don't use the stack and resolve immediately. Tapping Sol Ring adds 2 colorless to mana pool. Note: the replay harness processes activate_ability with action='tap_for_mana' \u2014 this triggers the mana ability execution path. After activation: Sol Ring is tapped, p1 has {C}{C} in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Sol Ring",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Sol Ring's mana ability to add {C}{C}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sol Ring on battlefield untapped, empty mana pool",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Sol Ring"
+                }
+              ]
+            },
+            "permanent.Sol Ring.tapped": false,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Sol Ring",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 activates Sol Ring's mana ability: tap Sol Ring, add {C}{C}. Mana abilities don't use the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: Sol Ring tapped, {C}{C} in mana pool, stack still empty",
+          "assertions": {
+            "permanent.Sol Ring.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Mana ability resolved immediately without the stack. Sol Ring is tapped."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_051",
+    "name": "Arcane Signet enters, then taps to cast Counterspell",
+    "description": "p1 casts Arcane Signet ({2}). After it resolves, p1 taps it to add {U}, then uses that {U} plus {U} already in pool to cast Counterspell. Tests a two-spell sequence where a mana rock powers a subsequent spell.",
+    "cr_sections_tested": ["601.2", "605.3", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["arcane-signet", "mana-artifact", "counterspell", "sequence"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Two-spell sequence: cast Arcane Signet, tap it for mana, cast Counterspell. Tests multi-turn resource sequencing.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1, "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Arcane Signet", "is_commander": false, "owner": null },
+          { "card": "Counterspell", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Arcane Signet, waits, then taps for mana to cast Counterspell.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: 2 cards in hand, {U}{2} in pool",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Arcane Signet",
+          "targets": [],
+          "mana_paid": { "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Arcane Signet for {2}."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — Arcane Signet resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Arcane Signet",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Arcane Signet",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Arcane Signet enters battlefield."
+            }
+          ],
+          "note": "Arcane Signet is now on battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "Arcane Signet on battlefield, 1 card in hand (Counterspell)",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Arcane Signet" }] },
+            "zones.hand.p1.count": 1,
+            "permanent.Arcane Signet.tapped": false
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Arcane Signet",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: Tap Arcane Signet for {U} (choosing blue). Mana ability, no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Arcane Signet tapped, now have {U}{U} in pool (original {U} + tapped {U})",
+          "assertions": {
+            "permanent.Arcane Signet.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Counterspell",
+          "targets": [],
+          "mana_paid": { "blue": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Counterspell with {U}{U} from pool (Island mana + Arcane Signet)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Counterspell on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Counterspell on stack, ready to counter a spell."
+        }
+      ]
+    }
+  ]
+}

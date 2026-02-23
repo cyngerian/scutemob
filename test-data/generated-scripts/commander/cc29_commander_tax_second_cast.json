@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc29",
+    "name": "Commander tax accumulates on recasts from command zone",
+    "description": "p1's commander Llanowar Elves has been cast once from the command zone and died, returning to the command zone. p1 casts it again. The commander tax adds {2} to the cost, making the total cost {1}{G} + {2} = {3}{G}. Tests that the commander tax correctly increases by {2} for each previous cast from the command zone (CR 903.8).",
+    "cr_sections_tested": [
+      "903.8",
+      "601.2",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "commander",
+      "commander-tax",
+      "command-zone",
+      "recasting"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 903.8: commander tax adds {2} for each previous time the commander was cast from the command zone. Llanowar Elves costs {G} normally. After 1 prior cast, tax = {2}, total = {2}{G}. We set times_cast_from_command_zone = 1 in initial state. p1 casts with {2}{G} (extra {2} for tax). The engine validates commander tax correctly. Initial: Llanowar Elves in command zone, times_cast = 1; p1 has {2}{G} in mana pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "command_zone",
+          "times_cast_from_command_zone": 1
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": true,
+            "owner": null
+          }
+        ]
+      },
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts their commander Llanowar Elves for the second time, paying {2} extra tax.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves in command zone, p1 has {3}{G} in pool (including tax)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Commander is in command zone. Has been cast once before (tax = {2})."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "903.8",
+          "note": "CR 903.8: p1 casts Llanowar Elves from command zone. Base cost {G} + commander tax {2} = {2}{G}. Pays {2}{G} total."
+        },
+        {
+          "type": "assert_state",
+          "description": "Llanowar Elves on stack",
+          "assertions": {
+            "zones.stack.count": 1
+          },
+          "note": "Commander spell on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Llanowar Elves resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Llanowar Elves",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Llanowar Elves",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Llanowar Elves enters battlefield under p1's control."
+            }
+          ],
+          "note": "Commander enters battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Llanowar Elves on battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            }
+          },
+          "note": "Commander successfully cast with tax and entered battlefield."
+        }
+      ]
+    }
+  ]
+}

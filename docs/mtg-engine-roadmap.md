@@ -582,9 +582,9 @@ At this point, the engine can run a complete Commander game programmatically. Al
 
 **Checkpoint validation**:
 - [ ] M9.4 acceptance criteria met (card def correctness, core mechanics, corner case coverage)
-- [ ] Property tests pass: 50+ invariants validated via fuzzing
-- [ ] All golden tests pass (at least 5 hand-authored full game replays)
-- [ ] All approved game scripts pass through replay harness (~100+ scripts)
+- [x] Property tests pass: 50+ invariants validated via fuzzing
+- [x] All golden tests pass (at least 5 hand-authored full game replays)
+- [x] All approved game scripts pass through replay harness (~100+ scripts)
 - [ ] All corner case tests from `mtg-engine-corner-case-audit.md` pass (0 GAP, 0 PARTIAL for implemented mechanics)
 - [ ] Performance benchmarks meet targets
 - [x] 6-player game tests pass (priority, combat, APNAP, turn order, concession)

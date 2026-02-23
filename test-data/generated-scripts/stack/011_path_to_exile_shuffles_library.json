@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_011",
+    "name": "Path to Exile exiles a creature, target player may search for basic land",
+    "description": "p1 casts Path to Exile targeting p2's Llanowar Elves. The Elf is exiled. Then p2 may search their library for a basic land and put it on the battlefield tapped. Tests Path to Exile's exile effect plus the optional library search granted to the exiled creature's controller.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.14",
+      "700.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "removal",
+      "exile",
+      "path-to-exile",
+      "land-ramp",
+      "library-search"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Path to Exile oracle: 'Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.' Cost {W}. After resolution: Llanowar Elves goes to exile zone, p2 may search library for basic land. If p2 searches, Plains enters battlefield tapped and library is shuffled. The 'may' means p2 can decline; in this script p2 chooses to search and finds a Forest. Initial: p1 has Path to Exile with {W} in pool; p2 has Llanowar Elves on battlefield and 1 Forest in library.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Path to Exile",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p2": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Path to Exile targeting p2's Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield, Path to Exile in p1 hand",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Path to Exile",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p2"
+            }
+          ],
+          "mana_paid": {
+            "white": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Path to Exile targeting p2's Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "Path to Exile on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Path to Exile resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Path to Exile",
+          "resolution": [
+            {
+              "effect": "exile_permanent",
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p2"
+              },
+              "cr_ref": "701.14",
+              "note": "CR 701.14: Llanowar Elves is exiled."
+            },
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p2",
+              "choice": "p2 chooses to search, finds Forest",
+              "cr_ref": "700.2",
+              "note": "p2 may search library for a basic land; p2 finds Forest."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p2",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped under p2's control."
+            }
+          ],
+          "note": "Path to Exile resolves: Llanowar Elves exiled, p2 gets Forest tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Path resolves: Elf exiled, Forest on battlefield tapped",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Forest"
+                }
+              ]
+            },
+            "zones.exile": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Path to Exile"
+                }
+              ]
+            }
+          },
+          "note": "Llanowar Elves in exile zone. Forest on battlefield (tapped). Path to Exile in graveyard."
+        }
+      ]
+    }
+  ]
+}

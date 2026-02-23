@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_008",
+    "name": "Multiple blockers \u2014 attacker assigns damage in declared order",
+    "description": "p1 attacks with Darksteel Colossus (11/11, trample). p2 blocks with both Llanowar Elves (1/1) and Elvish Mystic (1/1). p1 must assign damage in the declared order: at least lethal to each blocker before assigning to the next. With trample, excess damage goes to p2. Tests CR 510.1c multi-blocker damage assignment.",
+    "cr_sections_tested": [
+      "510.1c",
+      "702.19",
+      "509.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "multi-blocker",
+      "combat-damage",
+      "damage-assignment",
+      "trample"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "CR 510.1c: When multiple creatures block a single attacker, the attacking player assigns damage in a declared order. CR 510.1d: Attacker must assign at least lethal damage to each blocker before moving to the next. With trample, remaining damage goes to defending player.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 6,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Darksteel Colossus",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Elvish Mystic",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Darksteel Colossus (11/11 trample) attacks; both p2 creatures block.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Darksteel Colossus vs two 1/1 blockers, p2 at 40",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Colossus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Elvish Mystic"
+                }
+              ]
+            },
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare order: p1 orders Llanowar Elves first, Elvish Mystic second",
+          "cr_ref": "509.2",
+          "note": "CR 509.2: When multiple creatures block one attacker, the attacker declares the damage assignment order."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Damage assignment: 1 to Llanowar Elves, 1 to Elvish Mystic, 9 trample to p2",
+          "cr_ref": "510.1c",
+          "note": "CR 510.1c: 1 damage to Llanowar Elves (lethal for 1/1), 1 damage to Elvish Mystic (lethal), 9 excess trample damage to p2. p2: 40 - 9 = 31."
+        },
+        {
+          "type": "sba_check",
+          "description": "SBA: both blockers have lethal damage",
+          "cr_ref": "704.5g",
+          "note": "Both 1/1 blockers destroyed."
+        }
+      ]
+    }
+  ]
+}

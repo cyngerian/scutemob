@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_036",
+    "name": "Darksteel Ingot \u2014 indestructible artifact mana rock taps for any color",
+    "description": "p1 casts Darksteel Ingot ({3}) and then activates it for mana. Tests an indestructible artifact mana source. The indestructible property means it won't be destroyed by Wrath effects.",
+    "cr_sections_tested": [
+      "601.2",
+      "605.3",
+      "702.12"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "mana-artifact",
+      "darksteel-ingot",
+      "indestructible",
+      "any-color-mana"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Darksteel Ingot oracle: 'Indestructible. {T}: Add one mana of any color.' Cost {3}. Cast for {3}, enters battlefield with indestructible. Then tap for mana. Initial: p1 has {3} in pool, Darksteel Ingot in hand.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 3
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Darksteel Ingot",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Darksteel Ingot then taps it for mana.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Darksteel Ingot in hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Darksteel Ingot",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 3
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Darksteel Ingot."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Darksteel Ingot resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Darksteel Ingot",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Darksteel Ingot",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Darksteel Ingot enters battlefield (indestructible)."
+            }
+          ],
+          "note": "Darksteel Ingot enters battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "Darksteel Ingot on battlefield (untapped, indestructible)",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Ingot"
+                }
+              ]
+            },
+            "permanent.Darksteel Ingot.tapped": false
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Darksteel Ingot",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Darksteel Ingot for mana. Mana ability, no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Darksteel Ingot tapped",
+          "assertions": {
+            "permanent.Darksteel Ingot.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Ingot tapped for mana."
+        }
+      ]
+    }
+  ]
+}

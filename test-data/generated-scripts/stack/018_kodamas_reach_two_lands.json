@@ -1,0 +1,198 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_018",
+    "name": "Kodama's Reach \u2014 search for two basic lands (sorcery)",
+    "description": "p1 casts Kodama's Reach ({2}{G}, Arcane sorcery). Same effect as Cultivate: search library for up to two basic lands, put one onto battlefield tapped and one into hand. Tests that the functional duplicate of Cultivate works identically.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "700.4"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ramp",
+      "land-search",
+      "kodamas-reach",
+      "sorcery",
+      "arcane"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Kodama's Reach oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G} (Arcane sorcery). Identical to Cultivate functionally. p1 finds Island and Swamp: Island onto battlefield tapped, Swamp to hand.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Kodama's Reach",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Kodama's Reach.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Kodama's Reach in hand, 2 basic lands in library",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Kodama's Reach",
+          "targets": [],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Kodama's Reach; pays {2}{G}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Kodama's Reach on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Kodama's Reach resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Kodama's Reach",
+          "resolution": [
+            {
+              "effect": "search_library",
+              "player": "p1",
+              "criteria": "basic land",
+              "count": 2,
+              "found": [
+                "Island",
+                "Swamp"
+              ],
+              "cr_ref": "700.4",
+              "note": "p1 finds Island and Swamp."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Island",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Island enters battlefield tapped."
+            },
+            {
+              "effect": "put_into_hand",
+              "card": "Swamp",
+              "player": "p1",
+              "cr_ref": "608.2",
+              "note": "Swamp goes to p1's hand."
+            }
+          ],
+          "note": "Kodama's Reach: Island on battlefield tapped, Swamp in hand."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Kodama's Reach: Island on battlefield, Swamp in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Island"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Kodama's Reach"
+                }
+              ]
+            }
+          },
+          "note": "Island on battlefield tapped, Swamp in hand, Kodama's Reach in graveyard."
+        }
+      ]
+    }
+  ]
+}

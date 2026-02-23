@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_043",
+    "name": "LIFO stack \u2014 Bolt + Bolt resolve in reverse cast order",
+    "description": "p1 casts Lightning Bolt targeting p2, then p2 responds with Lightning Bolt targeting p1. The stack has 2 objects (LIFO: p2's bolt on top). p2's bolt resolves first, then p1's. Final: p1 at 37, p2 at 37.",
+    "cr_sections_tested": [
+      "601.2",
+      "116.4",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "stack",
+      "lifo",
+      "priority",
+      "two-spells",
+      "lightning-bolt"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Tests CR 116.4 LIFO resolution. p1 casts Bolt at p2, p2 responds with Bolt at p1. Stack has 2 items. Both pass priority, top item (p2's bolt) resolves first. Then both pass again, p1's bolt resolves.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "red": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "red": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Bolt targeting p2. p2 responds with Bolt targeting p1. Then both resolve.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: both have Bolt in hand, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Lightning Bolt targeting p2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After p1 cast: stack has 1 item",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "CR 116.1: After casting, priority goes to active player (p1). p1 passes to give p2 priority."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p1",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 116.1: p2 now has priority after p1 passed. p2 casts Bolt targeting p1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After p2 response: stack has 2 items (LIFO: p2's bolt on top)",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p2.count": 0
+          },
+          "note": "CR 116.4: LIFO \u2014 p2's bolt is on top and resolves first."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 top of stack (p2's Bolt) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt (p2's)",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "p2's bolt deals 3 to p1: 40 -> 37."
+            }
+          ],
+          "note": "p2's bolt resolves first (LIFO). p1 takes 3 damage."
+        },
+        {
+          "type": "assert_state",
+          "description": "After p2's Bolt resolves: p1 at 37, stack has 1 item",
+          "assertions": {
+            "players.p1.life": 37,
+            "zones.stack.count": 1
+          },
+          "note": "p1's bolt still on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 p1's Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt (p1's)",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "p1's bolt deals 3 to p2: 40 -> 37."
+            }
+          ],
+          "note": "p1's bolt resolves. p2 takes 3 damage."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: both players at 37 life, stack empty",
+          "assertions": {
+            "players.p1.life": 37,
+            "players.p2.life": 37,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 116.4: LIFO confirmed \u2014 p2's bolt resolved first despite being cast second."
+        }
+      ]
+    }
+  ]
+}

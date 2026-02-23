@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_044",
+    "name": "Negate counters Harmonize \u2014 noncreature, noncreature spell only",
+    "description": "p1 casts Harmonize ({2}{G}{G}). p2 responds with Negate ({1}{U}). Negate counters Harmonize. Harmonize goes to graveyard with no effect. Tests Negate's noncreature restriction against a sorcery.",
+    "cr_sections_tested": [
+      "601.2",
+      "701.5",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "counterspell",
+      "negate",
+      "harmonize",
+      "noncreature-spell"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Negate: Counter target noncreature spell. Harmonize is a sorcery (noncreature). Negate can counter it.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Harmonize",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Negate",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Harmonize; p2 counters with Negate.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Harmonize in p1 hand, Negate in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Harmonize",
+          "targets": [],
+          "mana_paid": {
+            "green": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Harmonize."
+        },
+        {
+          "type": "assert_state",
+          "description": "Harmonize on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "pass_priority",
+          "card": null,
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "116.1",
+          "note": "CR 116.1: p1 passes priority after casting Harmonize so p2 can respond."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Negate",
+          "targets": [
+            {
+              "type": "spell",
+              "card": "Harmonize",
+              "controller": "p1",
+              "player": null
+            }
+          ],
+          "mana_paid": {
+            "blue": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Negate targeting Harmonize on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Both spells on stack: Negate on top",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p2.count": 0
+          },
+          "note": "CR 116.4: LIFO \u2014 Negate is on top."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Negate resolves first."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Negate",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": {
+                "type": "spell",
+                "card": "Harmonize"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.5",
+              "note": "CR 701.5: Negate counters Harmonize. Harmonize goes to graveyard."
+            }
+          ],
+          "note": "Negate resolves; Harmonize is countered."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Negate resolves: Harmonize countered and in graveyard, stack empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Harmonize"
+                }
+              ]
+            }
+          },
+          "note": "CR 701.5: Countered spell goes to owner's graveyard. Harmonize drew no cards."
+        }
+      ]
+    }
+  ]
+}

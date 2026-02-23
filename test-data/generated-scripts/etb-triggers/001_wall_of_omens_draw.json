@@ -1,0 +1,209 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_001",
+    "name": "Wall of Omens ETB \u2014 draw a card when it enters the battlefield",
+    "description": "p1 casts Wall of Omens ({1}{W}). When it enters the battlefield, its ETB triggered ability triggers: p1 draws a card. Tests that a creature ETB trigger fires and resolves correctly. Wall of Omens is a 0/4 defender.",
+    "cr_sections_tested": [
+      "603.2",
+      "603.3",
+      "601.2",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "etb-trigger",
+      "wall-of-omens",
+      "draw",
+      "defender"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Wall of Omens oracle: '{T}: Draw a card. When Wall of Omens enters the battlefield, draw a card.' Actually the ETB is the separate ability from the tap. p1 draws 1 when it ETBs. Starting hand count: 1 (Wall of Omens itself). After resolving, hand = 0 (was in hand, now on BF) + 1 from draw = 1.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Wall of Omens",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Wall of Omens; ETB trigger fires and draws a card.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Wall of Omens in hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wall of Omens",
+          "targets": [],
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wall of Omens."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Wall of Omens resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wall of Omens",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Wall of Omens",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Wall of Omens enters battlefield."
+            }
+          ],
+          "note": "Wall of Omens enters; ETB trigger placed on stack."
+        },
+        {
+          "type": "trigger_placed",
+          "controller": "p1",
+          "cr_ref": "603.2",
+          "note": "CR 603.2: 'When Wall of Omens enters the battlefield, draw a card.' Trigger goes on stack.",
+          "source": "Wall of Omens ETB",
+          "trigger_condition": "Wall of Omens ETB"
+        },
+        {
+          "type": "assert_state",
+          "description": "After ETB placement: Wall on battlefield, ETB trigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 ETB trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wall of Omens ETB",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.4",
+              "note": "p1 draws 1 card."
+            }
+          ],
+          "note": "ETB resolves: p1 draws 1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After ETB: Wall of Omens on battlefield, p1 drew 1 card, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Wall of Omens"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 603.3: ETB trigger fired and resolved; p1 drew 1 card from the trigger."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_039",
+    "name": "Reliquary Tower \u2014 no maximum hand size while on battlefield",
+    "description": "p1 plays Reliquary Tower (land with 'You have no maximum hand size' static ability). Tests that a land-based hand size removal works the same as artifact-based (Thought Vessel). Reliquary Tower enters battlefield as a land play (no stack).",
+    "cr_sections_tested": [
+      "305.1",
+      "402.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "hand-size",
+      "reliquary-tower",
+      "land",
+      "static-ability",
+      "no-maximum-hand"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Reliquary Tower oracle: '{T}: Add {C}.' and 'You have no maximum hand size.' It's a land, so it enters battlefield via the play-land special action (CR 305.1). No stack, no priority round needed for entry. After playing: Tower on battlefield, p1 has no maximum hand size.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Reliquary Tower",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 plays Reliquary Tower as their land for the turn.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Reliquary Tower in hand, 1 land play remaining",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "play_land",
+          "card": "Reliquary Tower",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "305.1",
+          "note": "CR 305.1: p1 plays Reliquary Tower as land for the turn. Special action, no stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Reliquary Tower on battlefield; no maximum hand size active",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Reliquary Tower"
+                }
+              ]
+            },
+            "permanent.Reliquary Tower.tapped": false,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 402.3: p1's maximum hand size is now 'no maximum' while Reliquary Tower is in play."
+        }
+      ]
+    }
+  ]
+}

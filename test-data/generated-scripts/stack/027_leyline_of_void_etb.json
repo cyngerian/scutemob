@@ -1,0 +1,165 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_027",
+    "name": "Leyline of the Void \u2014 if in opening hand, enters at start of game",
+    "description": "Leyline of the Void can be in play at the start of the game if it was in the opening hand. If not, it can be cast for {2}{B}{B}. This script tests casting Leyline for its mana cost mid-game. When it enters the battlefield, it establishes a replacement effect: cards put into opponents' graveyards are instead exiled.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "614.1",
+      "103.6"
+    ],
+    "corner_case_ref": 15,
+    "tags": [
+      "replacement-effect",
+      "leyline",
+      "graveyard-hate",
+      "exile",
+      "static-ability"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Leyline of the Void oracle: 'If Leyline of the Void is in your opening hand, you may begin the game with it on the battlefield. If a card that an opponent owns would be put into a graveyard from anywhere, exile it instead.' This script tests casting it normally for {2}{B}{B}. After it enters, any card an opponent owns that would go to graveyard is exiled. Then p2's creature dies (Llanowar Elves via a Lightning Bolt on p1) \u2014 but wait, it's p2 who owns Llanowar Elves. When it would go to p2's graveyard, instead it goes to exile.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "black": 2,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Leyline of the Void",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Leyline of the Void for its mana cost.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Leyline of the Void in hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Leyline of the Void",
+          "targets": [],
+          "mana_paid": {
+            "black": 2,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Leyline of the Void; pays {2}{B}{B}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Leyline on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Leyline of the Void resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Leyline of the Void",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Leyline of the Void",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Leyline of the Void enters battlefield."
+            },
+            {
+              "effect": "register_replacement_effect",
+              "description": "If a card that p2 owns would be put into a graveyard from anywhere, exile it instead.",
+              "cr_ref": "614.1",
+              "note": "CR 614.1: Replacement effect now active."
+            }
+          ],
+          "note": "Leyline enters battlefield; replacement effect registered."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Leyline enters: on battlefield, replacement effect active",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Leyline of the Void"
+                }
+              ]
+            }
+          },
+          "note": "Leyline of the Void on battlefield. Graveyard replacement effect active for p2's cards."
+        }
+      ]
+    }
+  ]
+}

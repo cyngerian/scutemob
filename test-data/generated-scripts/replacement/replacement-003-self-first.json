@@ -4,9 +4,20 @@
     "id": "script_replacement_003",
     "name": "Self-replacement applies before global replacement (CR 614.15)",
     "description": "Darksteel Colossus (self-replacement: would go to graveyard -> go to library) and Rest in Peace (global: would go to graveyard -> exile) both apply when the Colossus would die. CR 614.15 mandates the self-replacement applies first. Result: Colossus goes to library; Rest in Peace no longer applies (destination changed). This tests the auto-apply behavior of a single self-replacement when competing with a non-self replacement per CR 616.1a.",
-    "cr_sections_tested": ["614.1a", "614.15", "616.1", "616.1a"],
+    "cr_sections_tested": [
+      "614.1a",
+      "614.15",
+      "616.1",
+      "616.1a"
+    ],
     "corner_case_ref": 17,
-    "tags": ["replacement", "self-replacement", "darksteel-colossus", "rest-in-peace", "priority"],
+    "tags": [
+      "replacement",
+      "self-replacement",
+      "darksteel-colossus",
+      "rest-in-peace",
+      "priority"
+    ],
     "confidence": "medium",
     "review_status": "pending_review",
     "reviewed_by": null,
@@ -17,7 +28,7 @@
         "step_index": 0,
         "action_index": 4,
         "raised_by": "claude-sonnet-4-6",
-        "description": "Darksteel Colossus is indestructible — cannot die via damage or destroy effects. A 'sacrifice' player action is needed to force it to the graveyard. The harness does not currently translate sacrifice actions. Pending harness enhancement.",
+        "description": "Darksteel Colossus is indestructible \u2014 cannot die via damage or destroy effects. A 'sacrifice' player action is needed to force it to the graveyard. The harness does not currently translate sacrifice actions. Pending harness enhancement.",
         "resolution": null,
         "resolved_by": null,
         "resolved_date": null
@@ -34,7 +45,10 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 1, "colorless": 12 },
+        "mana_pool": {
+          "white": 1,
+          "colorless": 12
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -55,8 +69,16 @@
       "battlefield": {},
       "hand": {
         "p1": [
-          { "card": "Rest in Peace", "is_commander": false, "owner": null },
-          { "card": "Darksteel Colossus", "is_commander": false, "owner": null }
+          {
+            "card": "Rest in Peace",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Darksteel Colossus",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -78,14 +100,20 @@
           "action": "cast_spell",
           "card": "Rest in Peace",
           "targets": [],
-          "mana_paid": { "white": 1, "colorless": 1 },
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "p1 casts Rest in Peace. After resolution, global graveyard->exile replacement active."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Rest in Peace resolves and enters battlefield."
         },
@@ -101,14 +129,19 @@
           "action": "cast_spell",
           "card": "Darksteel Colossus",
           "targets": [],
-          "mana_paid": { "colorless": 11 },
+          "mana_paid": {
+            "colorless": 11
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "p1 casts Darksteel Colossus. After resolution, its self-replacement (graveyard->library) is registered."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Darksteel Colossus resolves."
         },
@@ -124,8 +157,12 @@
           "assertions": {
             "zones.battlefield.p1": {
               "includes": [
-                { "card": "Rest in Peace" },
-                { "card": "Darksteel Colossus" }
+                {
+                  "card": "Rest in Peace"
+                },
+                {
+                  "card": "Darksteel Colossus"
+                }
               ]
             }
           },
@@ -146,8 +183,16 @@
           "type": "assert_state",
           "description": "Darksteel Colossus in library (self-replacement applied), not in graveyard/exile",
           "assertions": {
-            "zones.battlefield.p1": { "excludes": ["Darksteel Colossus"] },
-            "zones.graveyard.p1": { "excludes": ["Darksteel Colossus"] }
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Darksteel Colossus"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Darksteel Colossus"
+              ]
+            }
           },
           "note": "Self-replacement applied first (CR 614.15); Colossus went to library. RiP no longer applicable. Note: sacrifice action pending harness support."
         }

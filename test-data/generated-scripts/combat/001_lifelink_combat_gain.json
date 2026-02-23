@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_001",
+    "name": "Lifelink \u2014 damage dealt also causes controller to gain life",
+    "description": "p1 has a creature with lifelink (Darksteel Colossus 11/11) attacking p2's 3/3 blocker. When Darksteel Colossus deals combat damage, p1 gains 11 life (lifelink). The blocker is destroyed. Tests lifelink CR 702.15: damage dealt by creature with lifelink causes its controller to gain that much life.",
+    "cr_sections_tested": [
+      "702.15",
+      "510.1",
+      "510.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "lifelink",
+      "combat",
+      "combat-damage",
+      "life-gain"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Lifelink is a static ability (CR 702.15a). When a creature with lifelink deals damage, its controller gains that much life simultaneously. Darksteel Colossus has lifelink (check definitions). Script is informational \u2014 no direct combat commands in harness, uses informational action types.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 30,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Darksteel Colossus",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "p1 attacks with Darksteel Colossus. p2 blocks with Solemn Simulacrum.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 at 30 life, Darksteel Colossus untapped",
+          "assertions": {
+            "players.p1.life": 30,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Darksteel Colossus"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers: Darksteel Colossus attacks p2",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: Darksteel Colossus declared as attacker against p2."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers: Solemn Simulacrum blocks Darksteel Colossus",
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares Solemn Simulacrum as a blocker."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage: Darksteel Colossus deals 11 (lifelink), Solemn Simulacrum deals 2",
+          "cr_ref": "510.1",
+          "note": "CR 510.1: Combat damage assigned simultaneously. Darksteel Colossus deals 11 to Solemn Simulacrum. Solemn Simulacrum deals 2 to Darksteel Colossus (indestructible, no effect). CR 702.15: Lifelink \u2014 p1 gains 11 life."
+        },
+        {
+          "type": "sba_check",
+          "description": "SBA: Solemn Simulacrum has lethal damage",
+          "cr_ref": "704.5g",
+          "note": "Solemn Simulacrum: 2/2 took 11 damage \u2014 lethal. Goes to graveyard."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_002",
+    "name": "Lightning Greaves — equip grants haste and shroud",
+    "description": "p1 has Solemn Simulacrum and Lightning Greaves on the battlefield. p1 equips Greaves to Solemn Simulacrum (free equip cost {0}). Tests that equipping works (card stays on battlefield) and creature gains haste + shroud from the equipment.",
+    "cr_sections_tested": ["301.5b", "702.20", "702.18"],
+    "corner_case_ref": null,
+    "tags": ["equipment", "lightning-greaves", "haste", "shroud", "equip"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Lightning Greaves: Equipped creature has haste and shroud. Equip {0}. p1 activates equip ability (activate_ability). Equipment stays on battlefield, creature gains keywords. Informational script — equip is activate_ability which harness skips.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Lightning Greaves", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Solemn Simulacrum", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 equips Lightning Greaves onto Solemn Simulacrum.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Greaves and Simulacrum on p1 battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Lightning Greaves" }, { "card": "Solemn Simulacrum" }] },
+            "permanent.Lightning Greaves.tapped": false
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Lightning Greaves",
+          "targets": [
+            { "type": "permanent", "card": "Solemn Simulacrum", "controller": "p1", "player": null }
+          ],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "301.5b",
+          "note": "CR 301.5b: p1 activates equip ability ({0}), targeting Solemn Simulacrum."
+        },
+        {
+          "type": "assert_state",
+          "description": "After equip: both permanents still on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Lightning Greaves" }, { "card": "Solemn Simulacrum" }] }
+          },
+          "note": "CR 301.5b: Equipment stays on battlefield when equipped. Creature gains haste and shroud."
+        }
+      ]
+    }
+  ]
+}

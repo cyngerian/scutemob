@@ -2,11 +2,25 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_replacement_002",
-    "name": "Multiple replacement effects — player chooses order (CR 616.1)",
+    "name": "Multiple replacement effects \u2014 player chooses order (CR 616.1)",
     "description": "p1 controls a commander and Rest in Peace is active. The commander would die (via SBA). Two replacements apply: the commander zone-change replacement (die -> command zone) and Rest in Peace (die -> exile). The affected player (p1, the commander's owner) must order them via Command::OrderReplacements. Choosing the command-zone replacement first sends the commander to command zone; choosing RiP first sends it to exile and then the commander replacement optionally applies again from exile.",
-    "cr_sections_tested": ["614.1a", "614.5", "616.1", "616.1a", "616.1f", "903.9"],
+    "cr_sections_tested": [
+      "614.1a",
+      "614.5",
+      "616.1",
+      "616.1a",
+      "616.1f",
+      "903.9"
+    ],
     "corner_case_ref": 18,
-    "tags": ["replacement", "zone-change", "commander", "rest-in-peace", "multiple-replacements", "player-choice"],
+    "tags": [
+      "replacement",
+      "zone-change",
+      "commander",
+      "rest-in-peace",
+      "multiple-replacements",
+      "player-choice"
+    ],
     "confidence": "medium",
     "review_status": "pending_review",
     "reviewed_by": null,
@@ -34,7 +48,9 @@
     "players": {
       "p1": {
         "life": 40,
-        "mana_pool": { "white": 2 },
+        "mana_pool": {
+          "white": 2
+        },
         "land_plays_remaining": 0,
         "poison_counters": 0,
         "commander_damage_received": {},
@@ -73,7 +89,11 @@
       },
       "hand": {
         "p1": [
-          { "card": "Rest in Peace", "is_commander": false, "owner": null }
+          {
+            "card": "Rest in Peace",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "graveyard": {},
@@ -87,7 +107,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p1 casts Rest in Peace, then their commander would die — two replacements compete",
+      "step_note": "p1 casts Rest in Peace, then their commander would die \u2014 two replacements compete",
       "actions": [
         {
           "type": "player_action",
@@ -95,14 +115,20 @@
           "action": "cast_spell",
           "card": "Rest in Peace",
           "targets": [],
-          "mana_paid": { "white": 1, "colorless": 1 },
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
           "mana_source": [],
           "cr_ref": "601.2",
           "note": "p1 casts Rest in Peace. Both commander zone-change replacement and RiP will compete."
         },
         {
           "type": "priority_round",
-          "players": ["p1", "p2"],
+          "players": [
+            "p1",
+            "p2"
+          ],
           "result": "all_pass",
           "note": "Rest in Peace resolves, enters battlefield, registers its replacement effect."
         },
@@ -142,10 +168,18 @@
           "type": "assert_state",
           "description": "Commander in command zone after player ordered commander replacement first",
           "assertions": {
-            "zones.battlefield.p1": { "excludes": ["Llanowar Elves"] },
-            "zones.graveyard.p1": { "excludes": ["Llanowar Elves"] }
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            }
           },
-          "note": "Commander went to command zone; not in graveyard (RiP didn't apply). Note: harness currently skips order_replacements action — this script is pending_review."
+          "note": "Commander went to command zone; not in graveyard (RiP didn't apply). Note: harness currently skips order_replacements action \u2014 this script is pending_review."
         }
       ]
     }

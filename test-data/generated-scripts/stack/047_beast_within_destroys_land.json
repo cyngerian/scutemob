@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_047",
+    "name": "Beast Within destroys a land \u2014 target gets 3/3 Beast",
+    "description": "p2 has a Command Tower on the battlefield. p1 casts Beast Within ({2}{G}) targeting the land. Command Tower is destroyed and p2 gets a 3/3 green Beast token. Tests Beast Within's ability to destroy any permanent.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "111.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "beast-within",
+      "destroy",
+      "land-destruction",
+      "token",
+      "beast-token"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Beast Within: Destroy target permanent. Its controller creates a 3/3 green Beast creature token. Can target lands \u2014 rare removal that hits any permanent type.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Command Tower",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Beast Within",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Beast Within targeting p2's Command Tower.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Command Tower on p2 battlefield",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Command Tower"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Beast Within",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Command Tower",
+              "controller": "p2",
+              "player": null
+            }
+          ],
+          "mana_paid": {
+            "green": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Beast Within targeting Command Tower."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Beast Within resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Beast Within",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "type": "permanent",
+                "card": "Command Tower"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7",
+              "note": "Command Tower destroyed."
+            },
+            {
+              "effect": "create_token",
+              "target": {
+                "type": "player",
+                "player": "p1"
+              },
+              "token": {
+                "name": "Beast",
+                "power": 3,
+                "toughness": 3,
+                "colors": [
+                  "green"
+                ]
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "111.1",
+              "note": "p1 (Beast Within's controller) creates a 3/3 green Beast token."
+            }
+          ],
+          "note": "Beast Within resolves: land destroyed, p2 gets Beast token."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Beast Within: Command Tower in p2 graveyard, Beast token on p2 battlefield",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Beast"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Command Tower"
+                }
+              ]
+            }
+          },
+          "note": "Beast Within can destroy any permanent, including lands. p1 (caster) gets the 3/3 Beast token."
+        }
+      ]
+    }
+  ]
+}

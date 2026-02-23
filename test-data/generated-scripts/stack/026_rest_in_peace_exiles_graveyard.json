@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_026",
+    "name": "Rest in Peace ETB \u2014 exiles all graveyards",
+    "description": "p1 casts Rest in Peace ({1}{W}). When it enters the battlefield, all cards in all graveyards are exiled inline (WhenEntersBattlefield fires without going on the stack in this engine). Tests the ETB effect that exiles all graveyards.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "603.2",
+      "614.6"
+    ],
+    "corner_case_ref": 14,
+    "tags": [
+      "replacement-effect",
+      "rest-in-peace",
+      "graveyard-hate",
+      "exile",
+      "etb"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Rest in Peace oracle: 'When Rest in Peace enters the battlefield, exile all cards from all graveyards.' In this engine, WhenEntersBattlefield triggers fire inline (not via the stack). p1's graveyard has Lightning Bolt; p2's graveyard has Llanowar Elves. When RIP enters: both graveyards are exiled inline. The stack is empty after resolution.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Rest in Peace",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Rest in Peace. Its ETB exiles all graveyards inline.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: cards in both graveyards, Rest in Peace in hand",
+          "assertions": {
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Rest in Peace",
+          "targets": [],
+          "mana_paid": {
+            "white": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Rest in Peace."
+        },
+        {
+          "type": "assert_state",
+          "description": "Rest in Peace on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Rest in Peace resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rest in Peace",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Rest in Peace",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Rest in Peace enters battlefield."
+            },
+            {
+              "effect": "etb_inline",
+              "source": "Rest in Peace",
+              "trigger_condition": "when_this_enters_battlefield",
+              "cr_ref": "603.2",
+              "note": "CR 603.2: ETB fires inline \u2014 exile all cards from all graveyards (WhenEntersBattlefield fires inline in this engine)."
+            }
+          ],
+          "note": "Rest in Peace enters; ETB fires inline exiling all graveyard cards."
+        },
+        {
+          "type": "assert_state",
+          "description": "After RIP resolves: on battlefield, both graveyards empty, stack empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Rest in Peace"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "excludes": [
+                "Lightning Bolt"
+              ]
+            },
+            "zones.graveyard.p2": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            }
+          },
+          "note": "Both graveyard cards now in exile. Stack is empty (ETB fired inline)."
+        }
+      ]
+    }
+  ]
+}

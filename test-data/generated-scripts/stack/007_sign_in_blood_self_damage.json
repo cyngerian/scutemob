@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_007",
+    "name": "Sign in Blood \u2014 target self to draw 2 at cost of 2 life",
+    "description": "p1 casts Sign in Blood targeting themselves. On resolution, p1 loses 2 life and draws 2 cards. Tests that a targeted spell can validly target its own controller and that both parts of the effect execute (damage then draw).",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2",
+      "119.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "stack",
+      "draw",
+      "life-loss",
+      "self-target",
+      "sign-in-blood"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Sign in Blood oracle: 'Target player loses 2 life and draws two cards.' Cost {B}{B}. Player may target themselves. p1 has {B}{B} in pool. After resolution: p1 loses 2 life (40 \u2192 38) and draws 2 cards. Library must have at least 2 cards. Initial hand: 1 card (Sign in Blood). After cast: hand = 0. After resolution: hand = 2 (drew 2), life = 38.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "black": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Sign in Blood",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Sign in Blood targeting themselves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sign in Blood in hand, p1 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Sign in Blood",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p1",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "black": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Sign in Blood targeting p1 (themselves). Pays {B}{B}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Sign in Blood on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 Sign in Blood resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sign in Blood",
+          "resolution": [
+            {
+              "effect": "lose_life",
+              "player": "p1",
+              "amount": 2,
+              "cr_ref": "119.1",
+              "note": "CR 119.1: p1 loses 2 life (40 \u2192 38)."
+            },
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 2,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 2 cards."
+            }
+          ],
+          "note": "Sign in Blood resolves: p1 loses 2 life, draws 2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: p1 at 38 life with 2 cards in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "players.p1.life": 38,
+            "zones.hand.p1.count": 2,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Sign in Blood"
+                }
+              ]
+            }
+          },
+          "note": "p1 lost 2 life (40 \u2192 38) and drew 2 cards (Lightning Bolt and Forest)."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_035",
+    "name": "Commander's Sphere — cast, tap for mana, sacrifice to draw",
+    "description": "p1 casts Commander's Sphere ({3}), then on a later action sacrifices it for a card draw. Tests Commander's Sphere's two modes: mana acceleration and card draw on sacrifice.",
+    "cr_sections_tested": ["601.2", "605.3", "608.2", "120.2"],
+    "corner_case_ref": null,
+    "tags": ["mana-artifact", "commanders-sphere", "draw", "sacrifice", "commander-mana"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Commander's Sphere oracle: '{T}: Add one mana of any color in your commander's color identity.' and '{T}, Sacrifice Commander's Sphere: Draw a card.' Cost {3}. This script shows casting the sphere and then sacrificing it (paying {T}) to draw a card. Initial: p1 has {3} in pool, sphere already on battlefield, 1 card in library.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Commander's Sphere", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 sacrifices Commander's Sphere to draw a card.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Commander's Sphere on battlefield (untapped)",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Commander's Sphere" }] },
+            "permanent.Commander's Sphere.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Commander's Sphere",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "608.2",
+          "note": "p1 taps and sacrifices Commander's Sphere. Ability (draw a card) goes on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Commander's Sphere sacrificed, ability on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Commander's Sphere"] }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Commander's Sphere ability",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws a card."
+            }
+          ],
+          "note": "Sphere ability resolves: draw 1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After: p1 has 1 card in hand, Sphere in graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": { "includes": [{ "card": "Commander's Sphere" }] }
+          },
+          "note": "Commander's Sphere sacrificed; drew 1 card."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_011",
+    "name": "Divination \u2014 draw 2 cards",
+    "description": "p1 casts Divination ({2}{U}). On resolution, p1 draws two cards. The simplest blue draw spell \u2014 no life cost, no targeting, no scry. Tests a pure draw sorcery.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "draw",
+      "divination",
+      "sorcery",
+      "blue-draw"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Divination oracle: 'Draw two cards.' Cost {2}{U}. No life loss, no targeting. After resolution: p1 drew 2 (hand: 1 cast -1 = 0, drew 2 = 2). Library has 2 cards.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "blue": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Divination",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Divination to draw 2 cards.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Divination in hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Divination",
+          "targets": [],
+          "mana_paid": {
+            "blue": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Divination; pays {2}{U}."
+        },
+        {
+          "type": "assert_state",
+          "description": "Divination on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Divination resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Divination",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 2,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 2 cards."
+            }
+          ],
+          "note": "Divination resolves: p1 draws 2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Divination: p1 has 2 cards in hand",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 2,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Divination"
+                }
+              ]
+            }
+          },
+          "note": "Drew 2 cards, Divination in graveyard."
+        }
+      ]
+    }
+  ]
+}

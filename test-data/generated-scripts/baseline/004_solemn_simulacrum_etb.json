@@ -1,0 +1,234 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_004",
+    "name": "Solemn Simulacrum ETB \u2014 draws a card",
+    "description": "p1 casts Solemn Simulacrum (4 CMC artifact creature). When it enters the battlefield, its ETB trigger goes on the stack: search library for a basic land, put it onto the battlefield tapped, then draw a card. Tests ETB trigger creation, stack ordering, and draw effect.",
+    "cr_sections_tested": [
+      "603.2",
+      "603.3",
+      "608.2",
+      "120.2",
+      "700.4"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "etb-trigger",
+      "draw",
+      "ramp",
+      "artifact-creature",
+      "solemn-simulacrum"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Solemn Simulacrum has two triggered abilities: (1) ETB: search library for a basic land, put it onto battlefield tapped; (2) dies: draw a card. This script tests the ETB trigger only. The library contains one Plains for the search. After ETB resolves: Plains on battlefield tapped, p1 drew a card (hand size 1 \u2192 1 after casting simulacrum from hand of 2, so net hand stays at 1). Initial state: p1 has Solemn Simulacrum and one other card in hand, 4 colorless in mana pool. ETB trigger puts Plains on battlefield tapped, then draws a card. Hand ends at 1 (cast simulacrum -1, drew +1). Note: engine ETB system fires triggered abilities and puts them on the stack for the active player to resolve via priority passing.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 4
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Solemn Simulacrum from hand, paying {4} colorless.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Solemn Simulacrum in hand, library has 1 card",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Solemn Simulacrum",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 4
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Solemn Simulacrum; pays {4} from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Solemn Simulacrum on stack, hand has 1 card",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "Solemn Simulacrum moved from hand to stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Solemn Simulacrum resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Solemn Simulacrum",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Solemn Simulacrum",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Solemn Simulacrum enters the battlefield under p1's control."
+            },
+            {
+              "effect": "trigger_etb",
+              "source": "Solemn Simulacrum",
+              "trigger_condition": "when_this_enters_battlefield",
+              "cr_ref": "603.2",
+              "note": "CR 603.2: ETB trigger fires \u2014 search library for basic land, put it onto battlefield tapped."
+            }
+          ],
+          "note": "Solemn Simulacrum enters battlefield, ETB trigger goes on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Solemn Simulacrum enters: it's on battlefield, ETB trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                }
+              ]
+            }
+          },
+          "note": "Simulacrum on battlefield; ETB trigger waiting on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 ETB trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Solemn Simulacrum ETB trigger",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "controller": "p1",
+              "result": "Plains",
+              "cr_ref": "700.4",
+              "note": "CR 700.4: Search library; find Plains."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Plains",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Plains enters battlefield tapped."
+            },
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws a card."
+            }
+          ],
+          "note": "ETB trigger resolves: Plains enters tapped, p1 draws."
+        },
+        {
+          "type": "assert_state",
+          "description": "After ETB resolves: Plains on battlefield tapped, p1 drew a card",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Solemn Simulacrum"
+                },
+                {
+                  "card": "Plains"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 2
+          },
+          "note": "p1 started with 2 cards in hand, cast Simulacrum (-1 = 1), ETB drew (+1 = 2). Plains on bf tapped."
+        }
+      ]
+    }
+  ]
+}

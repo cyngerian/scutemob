@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_023",
+    "name": "Evolving Wilds — sacrifice to search for basic land",
+    "description": "p1 has Evolving Wilds on the battlefield. p1 activates its ability (sacrifice Evolving Wilds: search library for a basic land card, put it onto battlefield tapped, shuffle). Tests a fetch land activation that sacrifices itself, produces a tapped basic land, and triggers no other effects.",
+    "cr_sections_tested": ["605.5", "608.2", "700.4", "701.14"],
+    "corner_case_ref": null,
+    "tags": ["land", "fetch-land", "evolving-wilds", "sacrifice", "search-library"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Evolving Wilds oracle: '{T}, Sacrifice Evolving Wilds: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' CR 605.5: Not a mana ability (doesn't produce mana). Goes on the stack as an activated ability. After resolution: Evolving Wilds in graveyard, basic land on battlefield tapped. Library has a Forest.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Evolving Wilds", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Evolving Wilds to fetch a basic land.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Evolving Wilds on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Evolving Wilds" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Evolving Wilds",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "608.2",
+          "note": "p1 taps and sacrifices Evolving Wilds. Activated ability goes on the stack (CR 605.5: not a mana ability)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Evolving Wilds ability on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Evolving Wilds"] }
+          },
+          "note": "Evolving Wilds sacrificed; ability on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both pass — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Evolving Wilds ability",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Forest",
+              "cr_ref": "700.4",
+              "note": "p1 searches library, finds Forest."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters battlefield tapped."
+            }
+          ],
+          "note": "Ability resolves: Forest enters battlefield tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: Evolving Wilds in graveyard, Forest on battlefield (tapped)",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Evolving Wilds" }] }
+          },
+          "note": "Evolving Wilds in graveyard; Forest on battlefield."
+        }
+      ]
+    }
+  ]
+}

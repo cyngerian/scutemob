@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_008",
+    "name": "Lightning Bolt deals 3 damage to a creature \u2014 SBA kills it",
+    "description": "p2 has a Llanowar Elves (1/1) on the battlefield. p1 casts Lightning Bolt targeting it. Bolt deals 3 damage to the Elf; SBA check sees the Elf has damage >= toughness (3 >= 1) and destroys it (CR 704.5g). Tests targeted spell + SBA creature death.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "120.3",
+      "704.5g"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "damage",
+      "creature-target",
+      "sba",
+      "lightning-bolt",
+      "lethal-damage"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Lightning Bolt deals 3 damage. Llanowar Elves is a 1/1. When Bolt resolves, 3 damage is marked on the Elf. SBA check sees a creature with damage >= toughness (3 >= 1) and destroys it (CR 704.5g). The Elf moves to p2's graveyard. Initial: p1 has {R} in pool, Lightning Bolt in hand; p2 has Llanowar Elves on battlefield.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "red": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Lightning Bolt targeting p2's Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield, Lightning Bolt in p1 hand",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p2"
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Lightning Bolt targeting p2's Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "Lightning Bolt on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "Both pass \u2014 Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "permanent",
+                "card": "Llanowar Elves",
+                "controller": "p2"
+              },
+              "amount": 3,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Bolt deals 3 damage to Llanowar Elves (marking damage)."
+            }
+          ],
+          "note": "Lightning Bolt deals 3 damage to Llanowar Elves."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p2"
+              },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Llanowar Elves has 3 damage >= toughness 1. Destroyed, moves to graveyard."
+            }
+          ],
+          "note": "SBAs: Llanowar Elves has lethal damage, goes to graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Bolt + SBA: Llanowar Elves dead, in graveyard",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "excludes": [
+                "Llanowar Elves"
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            }
+          },
+          "note": "Llanowar Elves died to lethal damage via SBA. Lightning Bolt in graveyard."
+        }
+      ]
+    }
+  ]
+}

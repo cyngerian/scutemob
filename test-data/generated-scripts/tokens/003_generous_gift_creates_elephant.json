@@ -1,0 +1,219 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_tokens_003",
+    "name": "Generous Gift destroys a creature, creates an Elephant token",
+    "description": "p1 casts Generous Gift targeting a Llanowar Elves on p2's battlefield. The Elf is destroyed and p2 creates a 3/3 green Elephant creature token. Tests Generous Gift's identical-to-Beast-Within effect on a creature target.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.7",
+      "701.6a",
+      "110.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "removal",
+      "token-creation",
+      "generous-gift",
+      "elephant-token",
+      "destroy"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Generous Gift oracle: 'Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.' Cost {2}{W}. Same as Beast Within but white. Target is Llanowar Elves (1/1 green Elf Druid). After resolution: Llanowar Elves in p2's graveyard, p2 has 3/3 Elephant token. Initial: p1 has Generous Gift with {2}{W} in pool; p2 has Llanowar Elves on battlefield.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Generous Gift",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Generous Gift targeting p2's Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p2 battlefield, Generous Gift in p1 hand",
+          "assertions": {
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Generous Gift",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p2"
+            }
+          ],
+          "mana_paid": {
+            "white": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Generous Gift targeting p2's Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "Generous Gift on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass \u2014 Generous Gift resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Generous Gift",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p2"
+              },
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Llanowar Elves is destroyed, moves to p2's graveyard."
+            },
+            {
+              "effect": "create_token",
+              "controller": "p2",
+              "token": {
+                "name": "Elephant",
+                "power": 3,
+                "toughness": 3,
+                "colors": [
+                  "green"
+                ],
+                "types": [
+                  "Creature"
+                ],
+                "subtypes": [
+                  "Elephant"
+                ],
+                "abilities": []
+              },
+              "cr_ref": "701.6a",
+              "note": "CR 701.6a: p2 (Llanowar Elves's controller) creates a 3/3 green Elephant token."
+            }
+          ],
+          "note": "Generous Gift resolves: Llanowar Elves destroyed, Elephant token created for p2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Generous Gift resolves: Llanowar Elves gone, p2 has Elephant token",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Elephant"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Generous Gift"
+                }
+              ]
+            }
+          },
+          "note": "Llanowar Elves destroyed, Elephant token on p2's battlefield."
+        }
+      ]
+    }
+  ]
+}

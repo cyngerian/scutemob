@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_006",
+    "name": "Double strike \u2014 deals damage in both first strike and normal damage steps",
+    "description": "A creature with double strike participates in both the first-strike combat damage step and the normal combat damage step. It deals its power in damage twice. Tests CR 702.4: double strike.",
+    "cr_sections_tested": [
+      "702.4",
+      "510.1",
+      "510.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "double-strike",
+      "combat",
+      "combat-damage",
+      "two-step-damage"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "CR 702.4a: Double strike is both first strike and regular strike. Creature deals damage in first combat damage step AND second. Informational script only.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Birds of Paradise",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Creature with double strike attacks unblocked.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p2 at 40 life",
+          "assertions": {
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "First strike damage step: double-strike attacker deals power to defending player",
+          "cr_ref": "510.1",
+          "note": "CR 702.4a: Double strike creature participates in first combat damage step."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Normal damage step: double-strike attacker deals power again",
+          "cr_ref": "510.2",
+          "note": "CR 702.4a: Double strike creature also participates in second combat damage step. Total damage = 2x power."
+        }
+      ]
+    }
+  ]
+}
