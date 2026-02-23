@@ -66,6 +66,11 @@ pub enum ReplacementModification {
     PreventDamage(u32),
     /// Prevent all damage from this event (CR 615.1).
     PreventAllDamage,
+    /// CR 701.20: Redirect a zone change to the owner's library AND shuffle it in
+    /// (instead of going to the target zone). Used for Darksteel Colossus:
+    /// "if it would be put into a graveyard, shuffle it into its owner's library instead."
+    /// Unlike `RedirectToZone(Library)`, this also emits a `LibraryShuffled` event.
+    ShuffleIntoOwnerLibrary,
 }
 
 /// Filters which objects a replacement trigger matches.

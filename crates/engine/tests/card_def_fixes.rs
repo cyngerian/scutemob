@@ -13,11 +13,12 @@
 //! - Rogue's Passage: creature with CantBeBlocked can't be blocked (CR 509.1b)
 //! - Rest in Peace ETB: exiles all cards from all graveyards on entry (CR 603.2)
 
+use mtg_engine::state::player::CardId;
 use mtg_engine::{
-    all_cards, calculate_characteristics, process_command, CardRegistry, CardType, Command,
-    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId, ObjectSpec,
-    PlayerId, Step, TriggerCondition, ZoneId,
+    all_cards, calculate_characteristics, process_command, start_game, CardRegistry, CardType,
+    Command, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
+    GameState, GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId,
+    ObjectSpec, PlayerId, Step, TriggerCondition, ZoneId,
 };
 
 // ── Helper: find an object by name ───────────────────────────────────────────
@@ -705,4 +706,167 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
          got {} ObjectExiled events; events: {:?}",
         exile_count, events
     );
+}
+
+// ── CR 113.6b: Leyline of the Void — opening hand rule ───────────────────────
+
+#[test]
+/// CR 113.6b — Leyline of the Void: if in the opening hand, the player may begin
+/// the game with it on the battlefield. `start_game` places it on the battlefield
+/// before the first turn as a pre-game action (deterministic: always placed).
+fn test_leyline_opening_hand() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let leyline_card_id = CardId("leyline-of-the-void".to_string());
+    let registry = CardRegistry::new(all_cards());
+
+    // Build state: Leyline of the Void is in p1's opening hand.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::enchantment(p1, "Leyline of the Void")
+                .with_card_id(leyline_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // CR 113.6b: start_game should place Leyline on the battlefield
+    // before the first turn begins (pre-game action, not cast or resolved).
+    let (final_state, events) = start_game(state).expect("start_game failed");
+
+    // Leyline must now be on the battlefield.
+    let battlefield_objects = final_state.objects_in_zone(&ZoneId::Battlefield);
+    let leyline_on_bf = battlefield_objects
+        .iter()
+        .any(|o| o.characteristics.name == "Leyline of the Void");
+    assert!(
+        leyline_on_bf,
+        "Leyline of the Void should be on the battlefield after start_game (CR 113.6b); \
+         battlefield: {:?}",
+        battlefield_objects
+            .iter()
+            .map(|o| &o.characteristics.name)
+            .collect::<Vec<_>>()
+    );
+
+    // Leyline must NOT be in p1's hand anymore.
+    let hand_objects = final_state.objects_in_zone(&ZoneId::Hand(p1));
+    let leyline_in_hand = hand_objects
+        .iter()
+        .any(|o| o.characteristics.name == "Leyline of the Void");
+    assert!(
+        !leyline_in_hand,
+        "Leyline of the Void should not remain in hand after start_game (CR 113.6b)"
+    );
+
+    // A PermanentEnteredBattlefield event must have been emitted during pre-game setup.
+    let etb_event = events.iter().any(
+        |e| matches!(e, GameEvent::PermanentEnteredBattlefield { player, .. } if *player == p1),
+    );
+    assert!(
+        etb_event,
+        "PermanentEnteredBattlefield event should be emitted for Leyline pre-game placement; \
+         events: {:?}",
+        events
+    );
+}
+
+// ── CR 701.20: Darksteel Colossus — shuffle into owner's library ─────────────
+
+#[test]
+/// CR 701.20 / CR 614.1a — Darksteel Colossus replacement effect: if Darksteel
+/// Colossus would be put into a graveyard from anywhere, shuffle it into its
+/// owner's library instead. The replacement emits a `LibraryShuffled` event.
+fn test_darksteel_colossus_shuffles_into_library() {
+    use mtg_engine::rules::replacement::{
+        check_zone_change_replacement, register_permanent_replacement_abilities, ZoneChangeAction,
+    };
+    use mtg_engine::state::zone::ZoneType;
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let colossus_card_id = CardId("darksteel-colossus".to_string());
+    let registry = CardRegistry::new(all_cards());
+
+    // Build state: Darksteel Colossus is on p1's battlefield.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::artifact(p1, "Darksteel Colossus")
+                .with_card_id(colossus_card_id)
+                .with_types(vec![CardType::Artifact, CardType::Creature])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Find the Colossus object on the battlefield.
+    let colossus_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .iter()
+        .find(|o| o.characteristics.name == "Darksteel Colossus")
+        .map(|o| o.id)
+        .expect("Darksteel Colossus should be on battlefield");
+
+    // Register Darksteel Colossus's self-replacement ability.
+    // This binds the SpecificObject filter to this exact ObjectId.
+    let colossus_cid = state.objects.get(&colossus_id).unwrap().card_id.clone();
+    let reg = state.card_registry.clone();
+    register_permanent_replacement_abilities(
+        &mut state,
+        colossus_id,
+        p1,
+        colossus_cid.as_ref(),
+        &reg,
+    );
+
+    // CR 614.1a / 701.20: Check that a Battlefield→Graveyard zone change for
+    // this Colossus is intercepted and redirected to the library.
+    let action = check_zone_change_replacement(
+        &state,
+        colossus_id,
+        ZoneType::Battlefield,
+        ZoneType::Graveyard,
+        p1,
+        &std::collections::HashSet::new(),
+    );
+
+    // The replacement must redirect to the library (not graveyard).
+    match &action {
+        ZoneChangeAction::Redirect { to, events, .. } => {
+            assert_eq!(
+                *to,
+                ZoneId::Library(p1),
+                "Darksteel Colossus replacement should redirect to Library(p1), got {:?}",
+                to
+            );
+
+            // CR 701.20: A LibraryShuffled event must be in the emitted events.
+            let has_shuffle = events
+                .iter()
+                .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1));
+            assert!(
+                has_shuffle,
+                "ShuffleIntoOwnerLibrary must emit LibraryShuffled for p1; events: {:?}",
+                events
+            );
+        }
+        other => {
+            panic!(
+                "Expected ZoneChangeAction::Redirect for Darksteel Colossus, got: {:?}",
+                other
+            );
+        }
+    }
 }

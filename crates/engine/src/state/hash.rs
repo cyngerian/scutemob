@@ -723,6 +723,7 @@ impl HashInto for ReplacementModification {
                 n.hash_into(hasher);
             }
             ReplacementModification::PreventAllDamage => 5u8.hash_into(hasher),
+            ReplacementModification::ShuffleIntoOwnerLibrary => 6u8.hash_into(hasher),
         }
     }
 }
@@ -1981,6 +1982,7 @@ impl HashInto for AbilityDefinition {
                 modification.hash_into(hasher);
                 is_self.hash_into(hasher);
             }
+            AbilityDefinition::OpeningHand => 6u8.hash_into(hasher),
         }
     }
 }

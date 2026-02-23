@@ -458,11 +458,98 @@ fn validate_player_exists(state: &GameState, player: PlayerId) -> Result<(), Gam
     Ok(())
 }
 
+/// CR 113.6b: Move opening-hand permanents to the battlefield before the game starts.
+///
+/// Scans each player's hand for cards whose CardDefinition contains
+/// `AbilityDefinition::OpeningHand`. If found, the card is moved from
+/// hand to battlefield as a pre-game action (not cast; no spell or ETB triggers fire).
+/// This implements the Leyline family rule: "If ~ is in your opening hand, you may
+/// begin the game with it on the battlefield."
+///
+/// Deterministic M9.4 simplification: always place the card on the battlefield
+/// (the "may" choice is always taken). Interactive player choice is deferred.
+fn place_opening_hand_permanents(
+    state: &mut GameState,
+    events: &mut Vec<GameEvent>,
+) -> Result<(), GameStateError> {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::state::zone::ZoneId;
+
+    // Collect player IDs first (can't borrow state and iterate players simultaneously).
+    let player_ids: Vec<crate::state::player::PlayerId> = state.players.keys().copied().collect();
+
+    for player_id in player_ids {
+        // Collect (ObjectId, CardId) pairs in hand before moving.
+        let hand_ids: Vec<crate::state::game_object::ObjectId> = state
+            .zones
+            .get(&ZoneId::Hand(player_id))
+            .map(|z| z.object_ids())
+            .unwrap_or_default();
+
+        let hand_entries: Vec<(
+            crate::state::game_object::ObjectId,
+            Option<crate::state::player::CardId>,
+        )> = hand_ids
+            .into_iter()
+            .map(|obj_id| {
+                let card_id = state.objects.get(&obj_id).and_then(|o| o.card_id.clone());
+                (obj_id, card_id)
+            })
+            .collect();
+
+        for (obj_id, card_id_opt) in hand_entries {
+            // Check if this card has the OpeningHand ability.
+            let has_opening_hand: bool = card_id_opt
+                .as_ref()
+                .and_then(|cid| state.card_registry.get(cid.clone()))
+                .map(|def| {
+                    def.abilities
+                        .iter()
+                        .any(|a| matches!(a, AbilityDefinition::OpeningHand))
+                })
+                .unwrap_or(false);
+
+            if has_opening_hand {
+                // CR 113.6b: Move from hand to battlefield (pre-game, not cast).
+                let (new_id, _old) = state.move_object_to_zone(obj_id, ZoneId::Battlefield)?;
+
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: player_id,
+                    object_id: new_id,
+                });
+
+                // Register replacement abilities and static continuous effects from
+                // this permanent's card definition so its effects are active from
+                // the start of the game (e.g., Leyline exile replacement).
+                let registry = std::sync::Arc::clone(&state.card_registry);
+                replacement::register_permanent_replacement_abilities(
+                    state,
+                    new_id,
+                    player_id,
+                    card_id_opt.as_ref(),
+                    &registry,
+                );
+                replacement::register_static_continuous_effects(
+                    state,
+                    new_id,
+                    card_id_opt.as_ref(),
+                    &registry,
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// Start the game: set up the first turn and enter the first step.
 /// Call this after building the initial state to begin gameplay.
 pub fn start_game(state: GameState) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
     let mut state = state;
     let mut events = Vec::new();
+
+    // CR 113.6b: Place opening-hand permanents on the battlefield before game starts.
+    place_opening_hand_permanents(&mut state, &mut events)?;
 
     let active = state.turn.active_player;
     turn_actions::reset_turn_state(&mut state, active);

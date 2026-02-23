@@ -114,6 +114,13 @@ pub enum AbilityDefinition {
         #[serde(default)]
         is_self: bool,
     },
+    /// CR 113.6b: Opening-hand static ability — "If ~ is in your opening hand, you may
+    /// begin the game with it on the battlefield."
+    ///
+    /// Cards with this ability are placed on the battlefield by `start_game` before
+    /// the first turn begins. The card is moved from the player's hand to the
+    /// battlefield as a pre-game action (not cast, not resolved, no ETB trigger).
+    OpeningHand,
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

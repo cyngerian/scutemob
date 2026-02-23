@@ -549,6 +549,25 @@ pub fn check_zone_change_replacement(
                         applied_id: id,
                     }
                 }
+                Some(ReplacementModification::ShuffleIntoOwnerLibrary) => {
+                    // CR 701.20: Redirect to library AND shuffle the library.
+                    // The shuffle event is included in the redirect events so the
+                    // interception site can emit both the redirect and the shuffle.
+                    let dest =
+                        resolve_zone_type_to_zone_id(crate::state::zone::ZoneType::Library, owner);
+                    let events = vec![
+                        GameEvent::ReplacementEffectApplied {
+                            effect_id: id,
+                            description: "Shuffled into owner's library".to_string(),
+                        },
+                        GameEvent::LibraryShuffled { player: owner },
+                    ];
+                    ZoneChangeAction::Redirect {
+                        to: dest,
+                        events,
+                        applied_id: id,
+                    }
+                }
                 _ => {
                     // Non-redirect modifications (EntersTapped, etc.) don't change the zone.
                     // For zone-change interception, only RedirectToZone is relevant.
@@ -623,6 +642,13 @@ pub fn resolve_pending_zone_change(
         ReplacementModification::RedirectToZone(zone_type) => {
             resolve_zone_type_to_zone_id(*zone_type, pending.affected_player)
         }
+        ReplacementModification::ShuffleIntoOwnerLibrary => {
+            // CR 701.20: redirect to library and shuffle
+            resolve_zone_type_to_zone_id(
+                crate::state::zone::ZoneType::Library,
+                pending.affected_player,
+            )
+        }
         _ => {
             // Non-redirect: use original destination
             resolve_zone_type_to_zone_id(pending.original_destination, pending.affected_player)
@@ -632,8 +658,19 @@ pub fn resolve_pending_zone_change(
     // Check for additional applicable replacements on the modified event (CR 616.1f)
     let new_to = match &modification {
         ReplacementModification::RedirectToZone(zt) => *zt,
+        ReplacementModification::ShuffleIntoOwnerLibrary => crate::state::zone::ZoneType::Library,
         _ => pending.original_destination,
     };
+
+    // If shuffling into library, emit shuffle event.
+    if matches!(
+        &modification,
+        ReplacementModification::ShuffleIntoOwnerLibrary
+    ) {
+        events.push(GameEvent::LibraryShuffled {
+            player: pending.affected_player,
+        });
+    }
 
     // Re-check with the modified destination, using the stored original_from zone
     // so non-battlefield zone changes use the correct "from" zone (MR-M8-01).

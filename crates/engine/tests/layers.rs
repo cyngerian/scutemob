@@ -1418,3 +1418,149 @@ fn test_613_layer_ordering_type_before_ability() {
         "enchantment-creature should lose all abilities via layer 6"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CC#6: Humility + Magus of the Moon non-dependency test
+// ---------------------------------------------------------------------------
+
+/// CC#6 / CR 613.1d + 613.1f + 613.8: Humility + Magus of the Moon do NOT form a
+/// dependency because they affect different layers (layer 4 vs layer 6/7b).
+///
+/// Magus of the Moon (layer 4): nonbasic lands become Mountains.
+/// Humility (layers 6+7b): all creatures lose all abilities and are 1/1.
+///
+/// These effects don't interact: Magus does not affect whether Humility applies
+/// to creatures, and Humility does not affect whether Magus changes land types.
+/// Both apply independently in their respective layers (CR 613.1d before 613.1f).
+///
+/// Expected results:
+/// - The nonbasic land is now a Mountain (Land — Mountain, layer 4 via Magus).
+/// - The creature is 1/1 with no keywords (layer 6+7b via Humility).
+/// - No dependency check is needed because the effects are in different layers.
+#[test]
+fn test_cc6_humility_magus_of_moon_nondependency() {
+    let p = PlayerId(1);
+
+    // State: one nonbasic land + one creature (Flying Bear)
+    let state = GameStateBuilder::new()
+        .add_player(p)
+        .object(ObjectSpec::land(p, "Nonbasic Land")) // not basic — affected by Magus
+        .object(
+            ObjectSpec::creature(p, "Flying Bear", 2, 2).with_keyword(KeywordAbility::Flying), // Humility should strip this
+        )
+        // Magus of the Moon effect — Layer 4: nonbasic lands become Mountains (CR 613.1d).
+        // "Nonbasic lands are Mountains" → SetTypeLine { Land — Mountain } on AllNonbasicLands.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(1),
+            source: None,
+            timestamp: 10, // Magus entered first
+            layer: EffectLayer::TypeChange,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::AllNonbasicLands,
+            modification: LayerModification::SetTypeLine {
+                supertypes: OrdSet::new(),
+                card_types: ordset![CardType::Land],
+                subtypes: ordset![SubType("Mountain".to_string())],
+            },
+            is_cda: false,
+        })
+        // Humility effect 1 — Layer 6: all creatures lose all abilities (CR 613.1f).
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(2),
+            source: None,
+            timestamp: 20, // Humility entered second
+            layer: EffectLayer::Ability,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::AllCreatures,
+            modification: LayerModification::RemoveAllAbilities,
+            is_cda: false,
+        })
+        // Humility effect 2 — Layer 7b: all creatures have base P/T 1/1 (CR 613.4b).
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(3),
+            source: None,
+            timestamp: 20, // Same Humility timestamp
+            layer: EffectLayer::PtSet,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::AllCreatures,
+            modification: LayerModification::SetPowerToughness {
+                power: 1,
+                toughness: 1,
+            },
+            is_cda: false,
+        })
+        .build()
+        .unwrap();
+
+    // Find the land and the creature by type.
+    let land_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Nonbasic Land")
+        .map(|(id, _)| *id)
+        .expect("Nonbasic Land not found");
+
+    let creature_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Flying Bear")
+        .map(|(id, _)| *id)
+        .expect("Flying Bear not found");
+
+    // ── Verify Magus of the Moon effect (layer 4) ──────────────────────────
+    let land_chars = calculate_characteristics(&state, land_id).unwrap();
+
+    // The nonbasic land should now be typed as Land — Mountain (CR 613.1d).
+    assert!(
+        land_chars.card_types.contains(&CardType::Land),
+        "land should still be a Land; types: {:?}",
+        land_chars.card_types
+    );
+    assert!(
+        land_chars
+            .subtypes
+            .contains(&SubType("Mountain".to_string())),
+        "nonbasic land should be a Mountain via Magus of the Moon (layer 4); \
+         subtypes: {:?}",
+        land_chars.subtypes
+    );
+
+    // ── Verify Humility effect (layers 6 + 7b) ─────────────────────────────
+    let creature_chars = calculate_characteristics(&state, creature_id).unwrap();
+
+    // Flying should be stripped by Humility's layer-6 RemoveAllAbilities.
+    assert!(
+        !creature_chars.keywords.contains(&KeywordAbility::Flying),
+        "Flying should be removed by Humility (layer 6); keywords: {:?}",
+        creature_chars.keywords
+    );
+    assert!(
+        creature_chars.keywords.is_empty(),
+        "Humility (layer 6) should remove all keywords; keywords: {:?}",
+        creature_chars.keywords
+    );
+
+    // P/T should be 1/1 from Humility's layer-7b SetPowerToughness.
+    assert_eq!(
+        creature_chars.power,
+        Some(1),
+        "Humility should set base P/T to 1/1; power: {:?}",
+        creature_chars.power
+    );
+    assert_eq!(
+        creature_chars.toughness,
+        Some(1),
+        "Humility should set base P/T to 1/1; toughness: {:?}",
+        creature_chars.toughness
+    );
+
+    // ── No dependency: both effects applied independently ───────────────────
+    // The land is a Mountain (Magus layer 4) and the creature is 1/1 no-ability (Humility).
+    // Neither result depends on the other (different layers → no CR 613.8 dependency).
+    // The land should NOT be affected by Humility (it's not a creature).
+    assert!(
+        !land_chars.card_types.contains(&CardType::Creature),
+        "the land should not become a creature; types: {:?}",
+        land_chars.card_types
+    );
+}

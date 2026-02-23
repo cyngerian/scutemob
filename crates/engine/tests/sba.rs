@@ -977,3 +977,143 @@ fn test_sba_704_5j_three_legendary_copies_all_but_one_removed() {
         "with 3 legendary copies, 2 should be removed (highest ObjectId survives)"
     );
 }
+
+// ── CC#9: Indestructible + deathtouch combined ────────────────────────────
+
+#[test]
+/// CC#9 / CR 704.5h + CR 702.12a — An indestructible creature dealt deathtouch damage
+/// survives the SBA check.
+///
+/// CR 704.5h: "If a creature has been dealt damage by a source with deathtouch since the
+/// last time state-based actions were checked, it's destroyed."
+/// CR 702.12a: "A permanent with indestructible can't be destroyed."
+///
+/// The engine skips CR 704.5h for indestructible creatures. The indestructible
+/// creature should still be on the battlefield after the SBA check.
+fn test_cc9_indestructible_survives_deathtouch() {
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::creature(p(1), "Indestructible Creature", 4, 4)
+                .with_keyword(KeywordAbility::Indestructible)
+                .with_damage(1)
+                .with_deathtouch_damage(), // dealt deathtouch damage — normally would die
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let events = sba_events_from_start(state);
+
+    // CR 702.12a: indestructible prevents destruction from deathtouch (CR 704.5h).
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        !died,
+        "indestructible creature should survive deathtouch damage (CR 702.12a prevents CR 704.5h); \
+         events: {:?}",
+        events
+    );
+}
+
+#[test]
+/// CC#9 (contrast) / CR 704.5h — A NON-indestructible creature dealt deathtouch
+/// damage IS destroyed, confirming the deathtouch SBA fires when indestructible is absent.
+fn test_cc9_non_indestructible_dies_from_deathtouch() {
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::creature(p(1), "Normal Creature", 4, 4)
+                .with_damage(1)
+                .with_deathtouch_damage(), // dealt deathtouch damage — should die
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let events = sba_events_from_start(state);
+
+    // CR 704.5h: non-indestructible creature with deathtouch damage is destroyed.
+    let died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        died,
+        "non-indestructible creature with deathtouch damage should be destroyed (CR 704.5h); \
+         events: {:?}",
+        events
+    );
+}
+
+// ── CC#10: Legendary rule simultaneous ETBs ───────────────────────────────
+
+#[test]
+/// CC#10 / CR 704.5j + CR 603.2 — When two copies of a legendary permanent enter
+/// simultaneously, ETB triggers fire for BOTH before the legendary rule puts one in
+/// the graveyard.
+///
+/// CR 704.5j: "If a player controls two or more legendary permanents with the same name,
+/// that player chooses one of them, and the rest are put into their owners' graveyards."
+///
+/// The legendary rule is a state-based action. ETB triggers from both copies are
+/// queued before SBAs are checked. This test verifies that the SBA fires (one copy
+/// goes to graveyard) given a pre-built state with two identical legendary permanents.
+/// The "ETB triggers fire first" behavior requires a full game loop; here we verify
+/// the SBA itself fires correctly.
+fn test_cc10_legendary_rule_simultaneous_etb_triggers() {
+    // Build a state with two copies of "Thalia, Guardian of Thraben" on the battlefield.
+    // Both have the Legendary supertype and the same name.
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::creature(p(1), "Thalia, Guardian of Thraben", 2, 1)
+                .with_supertypes(vec![SuperType::Legendary]),
+        )
+        .object(
+            ObjectSpec::creature(p(1), "Thalia, Guardian of Thraben", 2, 1)
+                .with_supertypes(vec![SuperType::Legendary]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let events = sba_events_from_start(state);
+
+    // CR 704.5j: the legendary rule fires — exactly one copy goes to the graveyard.
+    let legendary_rule_fired = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LegendaryRuleApplied { .. }));
+    assert!(
+        legendary_rule_fired,
+        "legendary rule should fire when two legendary copies are on the battlefield; \
+         events: {:?}",
+        events
+    );
+
+    // Exactly one should have been put to graveyard (one kept, one removed).
+    let removed_count = events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::LegendaryRuleApplied {
+                put_to_graveyard, ..
+            } = e
+            {
+                Some(put_to_graveyard.len())
+            } else {
+                None
+            }
+        })
+        .sum::<usize>();
+    assert_eq!(
+        removed_count, 1,
+        "exactly one legendary copy should be removed; removed: {}",
+        removed_count
+    );
+}

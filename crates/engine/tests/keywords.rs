@@ -13,8 +13,9 @@
 //! - Vigilance: attacker doesn't tap (CR 702.20) — tested in combat.rs
 
 use mtg_engine::{
-    check_and_apply_sbas, process_command, AttackTarget, Command, GameEvent, GameStateBuilder,
-    KeywordAbility, ObjectSpec, PlayerId, Step,
+    all_cards, check_and_apply_sbas, process_command, AttackTarget, CardRegistry, CardType,
+    Command, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec,
+    PlayerId, Step, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -687,5 +688,109 @@ fn test_702_15_lifelink_grants_life_on_combat_damage() {
         state.players[&p1].life_total,
         initial_life,
         events
+    );
+}
+
+// ── CC#22: Hexproof does not block global non-targeted effects ────────────────
+
+#[test]
+/// CC#22 / CR 702.11a — Hexproof only prevents an opponent from targeting the creature.
+/// It does NOT protect against non-targeted global effects like Wrath of God.
+///
+/// CR 702.11a: "Hexproof is an evergreen keyword ability. A permanent or player with
+/// hexproof can't be the target of spells or abilities your opponents control."
+///
+/// Wrath of God says "Destroy all creatures" — it doesn't target any specific creature,
+/// so hexproof provides no protection. The hexproof creature is still destroyed.
+fn test_cc22_hexproof_does_not_block_global_effects() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let wrath_def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Wrath of God")
+        .expect("Wrath of God must be in all_cards()");
+    let wrath_card_id = wrath_def.card_id.clone();
+    let registry = CardRegistry::new(vec![wrath_def]);
+
+    // p1 casts Wrath of God; p2 has a hexproof creature on the battlefield.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Wrath of God")
+                .with_card_id(wrath_card_id)
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(ManaCost {
+                    white: 2,
+                    generic: 2,
+                    ..Default::default()
+                })
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Hexproof Creature", 3, 3)
+                .with_keyword(KeywordAbility::Hexproof),
+        )
+        .object(ObjectSpec::creature(p1, "Normal Creature", 2, 2))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Give p1 enough mana for Wrath of God ({2WW}).
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 4);
+
+    let wrath_id = find_object(&state, "Wrath of God");
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: wrath_id,
+            targets: vec![], // no targets — global effect
+        },
+    )
+    .expect("casting Wrath of God failed");
+
+    // Both players pass priority to resolve.
+    let (state, events) = {
+        let (s, e1) =
+            process_command(state, Command::PassPriority { player: p1 }).expect("p1 pass failed");
+        let (s2, e2) =
+            process_command(s, Command::PassPriority { player: p2 }).expect("p2 pass failed");
+        let mut all = e1;
+        all.extend(e2);
+        (s2, all)
+    };
+
+    // CR 702.11a: hexproof does NOT protect against non-targeted global effects.
+    // Both the hexproof creature AND the normal creature should be destroyed.
+    let destroyed_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CreatureDied { .. }))
+        .count();
+
+    assert_eq!(
+        destroyed_count, 2,
+        "Wrath of God should destroy both creatures (hexproof and normal); \
+         destroyed: {}; events: {:?}",
+        destroyed_count, events
+    );
+
+    // Verify the hexproof creature is NOT on the battlefield.
+    let hexproof_still_on_battlefield = state.objects.values().any(|obj| {
+        obj.characteristics.name == "Hexproof Creature"
+            && obj.zone == mtg_engine::ZoneId::Battlefield
+    });
+    assert!(
+        !hexproof_still_on_battlefield,
+        "Hexproof Creature should be gone from the battlefield after Wrath of God (CR 702.11a)"
     );
 }
