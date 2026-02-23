@@ -11,19 +11,20 @@
 
 ## Current State
 
-- **Active Milestone**: M9.4 — Engine Correctness & Core Mechanics
-- **Status**: Corner case audit complete; M9.4 roadmap section drafted; session plan pending
+- **Active Milestone**: Engine Core Complete checkpoint — M9.4 complete; checkpoint items pending
+- **Status**: M9.4 sessions 1-10 done — 499 tests passing; all corner cases COVERED (except 3 deferred)
 - **Last Updated**: 2026-02-23
 
-### What Exists (M9 complete, includes M0-M8)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (incl. Rest in Peace, Leyline of the Void, Darksteel Colossus), CardRegistry
-- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion)
-- `testing/`: Script replay harness (with commander registration), 11 approved game scripts, 448 tests; 6-player test suite
+### What Exists (M9.4 complete, includes M0-M9)
+- `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (all definitions correct — no simplifications), CardRegistry
+- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Goad, etc.)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b)
+- `testing/`: Script replay harness (with commander registration), 11 approved game scripts, 499 tests; 6-player test suite
+- All 35 corner cases: 29 COVERED, 3 DEFERRED (phasing, morph, mutate)
 
 ### Known Issue Summary (from code reviews)
-- **HIGH open**: 0 — all resolved through M9
-- **MEDIUM open**: 0 — all resolved through M9
+- **HIGH open**: 0 — all resolved through M9.4
+- **MEDIUM open**: 0 — all resolved through M9.4
 - **~43 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage — deferred, address opportunistically
 - **Full details**: `docs/mtg-engine-milestone-reviews.md`
 

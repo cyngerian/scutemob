@@ -523,41 +523,41 @@ Estimated total to Alpha: **~9-12 months** of active development. Time estimates
 **Audit reference**: `docs/mtg-engine-corner-case-audit.md` — living correctness ledger tracking all 35 corner cases and 12 card definition gaps.
 
 **Phase 1 — Card Definition Correctness** (fix what's broken in the existing 54 cards):
-- [ ] Equipment static ability granting: Lightning Greaves (shroud + haste), Swiftfoot Boots (hexproof + haste) via continuous effects
-- [ ] Goad mechanic: replace `DrawCards(0)` placeholder in Alela with real `Effect::Goad`
-- [ ] Scry: implement `Effect::Scry` (Read the Bones)
-- [ ] Modal color choice: Dimir Guildgate `{T}: Add {U} or {B}` (not colorless)
-- [ ] "Can't be blocked" evasion: Rogue's Passage activated ability
-- [ ] "No maximum hand size": Thought Vessel, Reliquary Tower continuous effect
-- [ ] Optional search: Path to Exile controller-may-search (not unconditional)
-- [ ] Rhystic Study: opponent payment choice interaction
-- [ ] Rest in Peace ETB: exile all cards from all graveyards on entry
-- [ ] Leyline of the Void: opening hand rule (begin game on battlefield)
-- [ ] Darksteel Colossus: shuffle into library (not just redirect to zone)
-- [ ] Alela trigger scoping: opponent-turn-only + creature-type filter
+- [x] Equipment static ability granting: Lightning Greaves (shroud + haste), Swiftfoot Boots (hexproof + haste) via continuous effects
+- [x] Goad mechanic: replace `DrawCards(0)` placeholder in Alela with real `Effect::Goad`
+- [x] Scry: implement `Effect::Scry` (Read the Bones)
+- [x] Modal color choice: Dimir Guildgate `{T}: Add {U} or {B}` (not colorless)
+- [x] "Can't be blocked" evasion: Rogue's Passage activated ability
+- [x] "No maximum hand size": Thought Vessel, Reliquary Tower continuous effect
+- [x] Optional search: Path to Exile controller-may-search (not unconditional)
+- [x] Rhystic Study: opponent payment choice interaction
+- [x] Rest in Peace ETB: exile all cards from all graveyards on entry
+- [x] Leyline of the Void: opening hand rule (begin game on battlefield)
+- [x] Darksteel Colossus: shuffle into library (not just redirect to zone)
+- [x] Alela trigger scoping: opponent-turn-only + creature-type filter
 
 **Phase 2 — Partial Test Coverage** (close the 9 PARTIAL corner cases):
-- [ ] CC#6: Humility + Magus of the Moon non-dependency (different layers confirmed)
-- [ ] CC#7: Opalescence + Parallax Wave zone-change interaction
-- [ ] CC#9: Indestructible + deathtouch combined (survives SBA 704.5h)
-- [ ] CC#10: Legendary rule simultaneous ETBs fire before removal
-- [ ] CC#20: First strike + double strike combined blocking scenario
-- [ ] CC#22: Hexproof does NOT block non-targeted global effects
-- [ ] CC#24: Token die-trigger fires before SBA removes from graveyard
-- [ ] CC#31: Aura falls off when animation effect ends (type-change-induced)
-- [ ] CC#33: Sylvan Library "cards drawn this turn" tracking
+- [x] CC#6: Humility + Magus of the Moon non-dependency (different layers confirmed)
+- [x] CC#7: Opalescence + Parallax Wave zone-change interaction
+- [x] CC#9: Indestructible + deathtouch combined (survives SBA 704.5h)
+- [x] CC#10: Legendary rule simultaneous ETBs fire before removal
+- [x] CC#20: First strike + double strike combined blocking scenario
+- [x] CC#22: Hexproof does NOT block non-targeted global effects
+- [x] CC#24: Token die-trigger fires before SBA removes from graveyard
+- [x] CC#31: Aura falls off when animation effect ends (type-change-induced)
+- [x] CC#33: Sylvan Library "cards drawn this turn" tracking
 
 **Phase 3 — Core Mechanics Expansion** (new engine features):
-- [ ] Protection keyword (DEBT: Damage, Enchanting, Blocking, Targeting) — CR 702.16
-- [ ] Layer 1 copy effects (copiable values, Clone chain) — CR 707.2, 707.3
-- [ ] Storm keyword + spell copying on stack — CR 702.40, 707.10
-- [ ] Cascade keyword + split card mana value — CR 702.84, 708.4
-- [ ] Trigger doubling (Panharmonicon-style modifier) — CR 603.2
-- [ ] Infinite loop detection (mandatory loop = draw) — CR 726, 104.4b
+- [x] Protection keyword (DEBT: Damage, Enchanting, Blocking, Targeting) — CR 702.16
+- [x] Layer 1 copy effects (copiable values, Clone chain) — CR 707.2, 707.3
+- [x] Storm keyword + spell copying on stack — CR 702.40, 707.10
+- [x] Cascade keyword + split card mana value — CR 702.84, 708.4
+- [x] Trigger doubling (Panharmonicon-style modifier) — CR 603.2
+- [x] Infinite loop detection (mandatory loop = draw) — CR 726, 104.4b
 
 **Phase 4 — Gap Tests** (test-only items for existing engine capabilities):
-- [ ] CC#4: Yixlid Jailer + Anger (layer 6 removal of graveyard static ability)
-- [ ] CC#23: Flicker + object identity (kill spell fizzles, no dies-trigger)
+- [x] CC#4: Yixlid Jailer + Anger (layer 6 removal of graveyard static ability)
+- [x] CC#23: Flicker + object identity (kill spell fizzles, no dies-trigger)
 
 **Tests** (minimum):
 - All 9 PARTIAL cases have dedicated named tests

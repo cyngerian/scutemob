@@ -305,6 +305,7 @@ impl GameStateBuilder {
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,
+            loop_detection_hashes: OrdMap::new(),
             history: Vector::new(),
             card_registry: self.card_registry,
         };

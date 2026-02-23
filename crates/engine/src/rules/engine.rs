@@ -15,6 +15,7 @@ use super::command::Command;
 use super::commander;
 use super::events::GameEvent;
 use super::lands;
+use super::loop_detection;
 use super::mana;
 use super::priority::{self, PriorityResult};
 use super::replacement;
@@ -61,6 +62,8 @@ pub fn process_command(
         }
         Command::PlayLand { player, card } => {
             validate_player_active(&state, player)?;
+            // CR 104.4b: playing a land is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
             let events = lands::handle_play_land(&mut state, player, card)?;
             all_events.extend(events);
         }
@@ -70,6 +73,8 @@ pub fn process_command(
             targets,
         } => {
             validate_player_active(&state, player)?;
+            // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
             let mut events = casting::handle_cast_spell(&mut state, player, card, targets)?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -88,6 +93,8 @@ pub fn process_command(
             targets,
         } => {
             validate_player_active(&state, player)?;
+            // CR 104.4b: activating an ability is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
             let events = abilities::handle_activate_ability(
                 &mut state,
                 player,
@@ -99,11 +106,15 @@ pub fn process_command(
         }
         Command::DeclareAttackers { player, attackers } => {
             validate_player_active(&state, player)?;
+            // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
             let events = combat::handle_declare_attackers(&mut state, player, attackers)?;
             all_events.extend(events);
         }
         Command::DeclareBlockers { player, blockers } => {
             validate_player_active(&state, player)?;
+            // CR 104.4b: declaring blockers is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
             let events = combat::handle_declare_blockers(&mut state, player, blockers)?;
             all_events.extend(events);
         }
@@ -278,6 +289,22 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             let had_events = !sba_events.is_empty() || !trigger_events.is_empty();
             if had_events && state.turn.cleanup_sba_rounds < MAX_CLEANUP_SBA_ROUNDS {
                 state.turn.cleanup_sba_rounds += 1;
+
+                // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
+                // check for a recurring board state indicating a mandatory infinite loop.
+                if let Some(loop_event) = loop_detection::check_for_mandatory_loop(state) {
+                    events.push(loop_event);
+                    // All active players lose — game is a draw.
+                    let active_players: Vec<_> = state.active_players();
+                    for p in active_players {
+                        if let Some(player) = state.players.get_mut(&p) {
+                            player.has_lost = true;
+                        }
+                    }
+                    events.extend(check_game_over(state));
+                    return Ok(events);
+                }
+
                 // Grant priority — when all pass, handle_all_passed will re-enter cleanup.
                 let active = state.turn.active_player;
                 let (passed, priority_events) = priority::grant_initial_priority(state);
@@ -307,7 +334,24 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
 
             // Flush any pending triggers before granting priority (CR 603.3).
             let trigger_events = abilities::flush_pending_triggers(state);
-            events.extend(trigger_events);
+            events.extend(trigger_events.clone());
+
+            // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
+            // check for a recurring board state indicating a mandatory infinite loop.
+            if !trigger_events.is_empty() {
+                if let Some(loop_event) = loop_detection::check_for_mandatory_loop(state) {
+                    events.push(loop_event);
+                    // All active players lose — game is a draw.
+                    let active_players: Vec<_> = state.active_players();
+                    for p in active_players {
+                        if let Some(player) = state.players.get_mut(&p) {
+                            player.has_lost = true;
+                        }
+                    }
+                    events.extend(check_game_over(state));
+                    return Ok(events);
+                }
+            }
 
             // Grant priority to active player (if still alive)
             let active = state.turn.active_player;

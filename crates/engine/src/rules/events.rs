@@ -594,6 +594,17 @@ pub enum GameEvent {
         controller: PlayerId,
     },
 
+    // ── M9.4: Infinite loop detection (CR 104.4b) ────────────────────────
+    /// The engine detected a mandatory infinite loop and the game is a draw.
+    ///
+    /// CR 104.4b: if the game situation is such that the game cannot proceed,
+    /// and all remaining choices are mandatory (no player can choose to break
+    /// the loop), the game is a draw.
+    ///
+    /// Emitted when the same board state hash has been observed N times (threshold 3)
+    /// during a mandatory-action sequence (SBA + trigger cycles with no player choices).
+    LoopDetected { description: String },
+
     // ── M9.4: Scry event ──────────────────────────────────────────────────
     /// A player performed a scry action (CR 701.18).
     ///

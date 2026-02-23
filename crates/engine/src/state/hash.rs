@@ -1532,6 +1532,11 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 goading_player.hash_into(hasher);
             }
+            // M9.4: LoopDetected (discriminant 68) — CR 104.4b
+            GameEvent::LoopDetected { description } => {
+                68u8.hash_into(hasher);
+                description.hash_into(hasher);
+            }
         }
     }
 }
@@ -2116,7 +2121,13 @@ impl GameState {
     /// command), all game objects in those zones, continuous effects, delayed triggers,
     /// replacement effects, pending triggers, stack objects, combat state.
     ///
-    /// Excludes: event history (O(n) in game length), hand contents, library contents.
+    /// Excludes:
+    /// - Event history (O(n) in game length)
+    /// - Hand contents and library contents (hidden information)
+    /// - `loop_detection_hashes` (M9.4 CR 104.4b): this field is metadata used by the
+    ///   loop-detection algorithm, not actual game state. Different engine instances may
+    ///   accumulate different hash histories depending on when their mandatory-action
+    ///   sequences began, so including it in the public hash would cause false mismatches.
     pub fn public_state_hash(&self) -> [u8; 32] {
         let mut hasher = Hasher::new();
 

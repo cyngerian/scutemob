@@ -12,6 +12,7 @@ pub mod engine;
 pub mod events;
 pub mod lands;
 pub mod layers;
+pub mod loop_detection;
 pub mod mana;
 pub mod priority;
 pub mod protection;

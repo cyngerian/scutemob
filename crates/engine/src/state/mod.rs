@@ -107,6 +107,15 @@ pub struct GameState {
     pub combat: Option<CombatState>,
     /// Monotonic counter for generating ObjectIds and timestamps.
     pub timestamp_counter: u64,
+    /// Tracks state hash occurrences for mandatory infinite loop detection (CR 104.4b).
+    ///
+    /// Maps a truncated game-state hash (u64) to the number of times that hash has
+    /// been seen during the current mandatory-action sequence (SBA + trigger cycles).
+    /// Reset whenever a player makes a meaningful game choice.
+    ///
+    /// Excluded from `public_state_hash` — this is metadata, not game state.
+    /// See `rules/loop_detection.rs` for the detection algorithm.
+    pub loop_detection_hashes: im::OrdMap<u64, u32>,
     /// Append-only event log for triggers that look back at history.
     pub history: Vector<GameEvent>,
     /// Card definitions registry: maps CardId → CardDefinition.
