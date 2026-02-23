@@ -477,6 +477,11 @@ impl HashInto for EffectFilter {
                 9u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            EffectFilter::AttachedCreature => 10u8.hash_into(hasher),
+            EffectFilter::DeclaredTarget { index } => {
+                11u8.hash_into(hasher);
+                index.hash_into(hasher);
+            }
         }
     }
 }
@@ -1626,6 +1631,7 @@ impl HashInto for ForEachTarget {
                 5u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            ForEachTarget::EachCardInAllGraveyards => 6u8.hash_into(hasher),
         }
     }
 }

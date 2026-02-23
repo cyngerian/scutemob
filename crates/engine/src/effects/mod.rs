@@ -855,6 +855,22 @@ fn execute_effect_inner(
 
         // ── Continuous Effects ─────────────────────────────────────────────
         Effect::ApplyContinuousEffect { effect_def } => {
+            use crate::state::continuous_effect::EffectFilter as CEFilter;
+            // Resolve DeclaredTarget filter to a specific object at runtime (CR 611.2a).
+            let resolved_filter = match &effect_def.filter {
+                CEFilter::DeclaredTarget { index } => {
+                    // Resolve declared target index to a SingleObject filter.
+                    let obj_id = ctx.targets.get(*index).and_then(|t| match t.target {
+                        Target::Object(id) => Some(id),
+                        Target::Player(_) => None,
+                    });
+                    match obj_id {
+                        Some(id) => CEFilter::SingleObject(id),
+                        None => return, // No valid target; skip effect.
+                    }
+                }
+                other => other.clone(),
+            };
             // Build a ContinuousEffect from the definition and add it to state.
             let id_inner = state.next_object_id().0;
             let ts = state.timestamp_counter;
@@ -864,7 +880,7 @@ fn execute_effect_inner(
                 source: Some(source),
                 layer: effect_def.layer,
                 modification: effect_def.modification.clone(),
-                filter: effect_def.filter.clone(),
+                filter: resolved_filter,
                 duration: effect_def.duration,
                 is_cda: false,
                 timestamp: ts,
@@ -1570,5 +1586,13 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .collect(),
         // Player-based ForEach targets return no objects (players aren't ObjectIds).
         ForEachTarget::EachOpponent | ForEachTarget::EachPlayer => vec![],
+
+        // CR 614.1: All cards currently in any graveyard.
+        ForEachTarget::EachCardInAllGraveyards => state
+            .objects
+            .iter()
+            .filter(|(_, obj)| matches!(obj.zone, ZoneId::Graveyard(_)))
+            .map(|(&id, _)| id)
+            .collect(),
     }
 }

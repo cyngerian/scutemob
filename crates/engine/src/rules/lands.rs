@@ -120,6 +120,30 @@ pub fn handle_play_land(
         &registry,
     );
 
+    // CR 604 / CR 613: Register static continuous effects from this land's card definition.
+    super::replacement::register_static_continuous_effects(
+        state,
+        new_land_id,
+        card_id.as_ref(),
+        &registry,
+    );
+
+    events.push(GameEvent::LandPlayed {
+        player,
+        new_land_id,
+    });
+
+    // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects from card
+    // definition inline (e.g., Rest in Peace ETB exile). Interactive ETB triggers
+    // are handled via PendingTrigger.
+    events.extend(super::replacement::fire_when_enters_triggered_effects(
+        state,
+        new_land_id,
+        player,
+        card_id.as_ref(),
+        &registry,
+    ));
+
     // 10. Decrement land plays for this turn.
     {
         let player_state = state.player_mut(player)?;
@@ -130,9 +154,5 @@ pub fn handle_play_land(
     //     starts fresh. The active player retains priority (CR 117.3b).
     state.turn.players_passed = im::OrdSet::new();
 
-    events.push(GameEvent::LandPlayed {
-        player,
-        new_land_id,
-    });
     Ok(events)
 }

@@ -210,6 +210,32 @@ fn effect_applies_to(
                     .map(|o| o.controller == *player_id)
                     .unwrap_or(false)
         }
+
+        // DeclaredTarget should be resolved to SingleObject before being stored in state.
+        // If it somehow reaches here unresolved, treat it as non-matching.
+        EffectFilter::DeclaredTarget { .. } => false,
+
+        // CR 301.5 / CR 702.6a: Equipment static ability applies only to the equipped
+        // creature. The source object's `attached_to` field identifies that creature.
+        // If the equipment is not attached to anything, the filter matches nothing.
+        EffectFilter::AttachedCreature => {
+            if obj_zone != ZoneId::Battlefield {
+                return false;
+            }
+            // Find the source of this effect and check if it is attached to object_id.
+            // `effect.source` must be `Some(source_id)` for AttachedCreature to work
+            // (true for WhileSourceOnBattlefield static abilities on Equipment).
+            if let Some(source_id) = effect.source {
+                state
+                    .objects
+                    .get(&source_id)
+                    .and_then(|src| src.attached_to)
+                    .map(|attached| attached == object_id)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
     }
 }
 

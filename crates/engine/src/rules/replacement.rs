@@ -746,6 +746,50 @@ pub fn apply_self_etb_from_definition(
     evts
 }
 
+/// CR 603.2 / CR 614: Fire "When ~ enters the battlefield" triggered ability effects
+/// inline for a permanent entering the battlefield.
+///
+/// This executes `AbilityDefinition::Triggered { trigger_condition: WhenEntersBattlefield }`
+/// effects immediately at ETB time, without going through the stack. Used for cards
+/// whose ETB effect is mandatory and non-interactive (e.g., Rest in Peace: "exile all
+/// cards from all graveyards").
+///
+/// Note: Most ETB triggered abilities should go on the stack via the trigger dispatch
+/// system (`PendingTrigger` → `flush_pending_triggers`). This function is for the
+/// specific case where the card-def trigger dispatch is not yet wired to the runtime,
+/// and the effect is non-interactive and deterministic.
+pub fn fire_when_enters_triggered_effects(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    card_id: Option<&crate::state::player::CardId>,
+    registry: &crate::cards::registry::CardRegistry,
+) -> Vec<GameEvent> {
+    use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
+    use crate::effects::{execute_effect, EffectContext};
+
+    let Some(cid) = card_id else {
+        return Vec::new();
+    };
+    let Some(def) = registry.get(cid.clone()) else {
+        return Vec::new();
+    };
+
+    let mut evts = Vec::new();
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            effect,
+            ..
+        } = ability
+        {
+            let mut ctx = EffectContext::new(controller, new_id, vec![]);
+            evts.extend(execute_effect(state, effect, &mut ctx));
+        }
+    }
+    evts
+}
+
 /// CR 614.12: Apply global ETB replacement effects to a just-entered permanent.
 ///
 /// Called in resolution.rs and lands.rs immediately after a permanent enters the
@@ -993,6 +1037,57 @@ pub fn register_permanent_replacement_abilities(
                 is_self_replacement: *is_self,
                 trigger: resolved_trigger,
                 modification: modification.clone(),
+            });
+        }
+    }
+}
+
+// ── Static continuous effect registration (Session 2, M9.4) ──────────────
+
+/// Register static continuous effects from a card definition when a permanent
+/// enters the battlefield (CR 604, CR 613).
+///
+/// Called at every ETB site (resolution.rs, lands.rs) immediately after
+/// `register_permanent_replacement_abilities`. Reads each
+/// `AbilityDefinition::Static` from the card definition and creates a
+/// `ContinuousEffect` entry in `state.continuous_effects` with:
+///
+/// - `source: Some(new_id)` — `is_effect_active` deactivates it when source leaves.
+/// - `duration: WhileSourceOnBattlefield`.
+/// - `layer`, `filter`, and `modification` from the definition.
+///
+/// The `filter` field is used as-is; `EffectFilter::AttachedCreature` will resolve
+/// correctly at characteristic-calculation time via the source's `attached_to` field.
+pub fn register_static_continuous_effects(
+    state: &mut GameState,
+    new_id: ObjectId,
+    card_id: Option<&crate::state::player::CardId>,
+    registry: &crate::cards::registry::CardRegistry,
+) {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::state::continuous_effect::{ContinuousEffect, EffectId};
+
+    let Some(cid) = card_id else {
+        return;
+    };
+    let Some(def) = registry.get(cid.clone()) else {
+        return;
+    };
+
+    for ability in &def.abilities {
+        if let AbilityDefinition::Static { continuous_effect } = ability {
+            let eff_id = state.next_object_id().0;
+            let ts = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            state.continuous_effects.push_back(ContinuousEffect {
+                id: EffectId(eff_id),
+                source: Some(new_id),
+                timestamp: ts,
+                layer: continuous_effect.layer,
+                duration: continuous_effect.duration,
+                filter: continuous_effect.filter.clone(),
+                modification: continuous_effect.modification.clone(),
+                is_cda: false,
             });
         }
     }

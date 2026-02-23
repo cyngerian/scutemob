@@ -25,8 +25,12 @@ use crate::state::{
 };
 
 use super::card_definition::{
-    AbilityDefinition, CardDefinition, Cost, Effect, EffectAmount, EffectTarget, PlayerTarget,
-    TargetFilter, TargetRequirement, TriggerCondition, TypeLine,
+    AbilityDefinition, CardDefinition, ContinuousEffectDef, Cost, Effect, EffectAmount,
+    EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TriggerCondition,
+    TypeLine,
+};
+use crate::state::continuous_effect::{
+    EffectDuration, EffectFilter, EffectLayer, LayerModification,
 };
 use crate::state::replacement_effect::{ObjectFilter, ReplacementModification, ReplacementTrigger};
 use crate::state::zone::ZoneType;
@@ -391,21 +395,44 @@ pub fn all_cards() -> Vec<CardDefinition> {
         },
 
         // 13. Rogue's Passage — Land; {T}: add {C}; {4}, {T}: target creature can't be
-        //     blocked this turn. (Unblockable effect not implemented; tap ability only.)
+        //     blocked this turn. (CR 509.1: creature with CantBeBlocked keyword can't
+        //     be declared as a blocker's attack target.)
         CardDefinition {
             card_id: cid("rogues-passage"),
             name: "Rogue's Passage".to_string(),
             mana_cost: None,
             types: types(&[CardType::Land]),
             oracle_text: "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn.".to_string(),
-            abilities: vec![AbilityDefinition::Activated {
-                cost: Cost::Tap,
-                effect: Effect::AddMana {
-                    player: PlayerTarget::Controller,
-                    mana: mana_pool(0, 0, 0, 0, 0, 1),
+            abilities: vec![
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 0, 0, 1),
+                    },
+                    timing_restriction: None,
                 },
-                timing_restriction: None,
-            }],
+                // CR 509.1 / CR 702 (CantBeBlocked): {4}, {T}: target creature can't be
+                // blocked this turn. Applies a UntilEndOfTurn continuous effect granting
+                // KeywordAbility::CantBeBlocked in layer 6.
+                AbilityDefinition::Activated {
+                    cost: Cost::Sequence(vec![
+                        Cost::Mana(ManaCost { generic: 4, ..Default::default() }),
+                        Cost::Tap,
+                    ]),
+                    effect: Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(super::card_definition::ContinuousEffectDef {
+                            layer: crate::state::EffectLayer::Ability,
+                            modification: crate::state::LayerModification::AddKeyword(
+                                KeywordAbility::CantBeBlocked,
+                            ),
+                            filter: crate::state::EffectFilter::DeclaredTarget { index: 0 },
+                            duration: crate::state::EffectDuration::UntilEndOfTurn,
+                        }),
+                    },
+                    timing_restriction: None,
+                },
+            ],
             ..Default::default()
         },
 
@@ -1075,9 +1102,11 @@ pub fn all_cards() -> Vec<CardDefinition> {
 
         // 40. Rhystic Study — {2U}, Enchantment; whenever an opponent casts a spell,
         //     you may draw a card unless that player pays {1}.
-        //     MayPayOrElse: opponent is the payer (EachOpponent); or_else draws for controller.
-        //     In M7 the payment is never made — the draw always fires. Interactive
-        //     payment choice is deferred to M9+ (interactive priority pass).
+        //     M9.4: payer is DeclaredTarget { index: 0 } — the opponent who cast the spell.
+        //     The triggering opponent is expected to be passed as target 0 when the
+        //     card-def trigger dispatch system is wired up (currently deferred).
+        //     In the interim the draw always fires (payment never collected) because
+        //     triggered abilities resolve with targets: vec![].
         CardDefinition {
             card_id: cid("rhystic-study"),
             name: "Rhystic Study".to_string(),
@@ -1088,7 +1117,11 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
                 effect: Effect::MayPayOrElse {
                     cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                    payer: PlayerTarget::EachOpponent,
+                    // DeclaredTarget { index: 0 } = the specific opponent who cast the spell.
+                    // This is the correct model (CR 603.1): only "that player" pays, not all
+                    // opponents. Resolves to an empty list at runtime until trigger context
+                    // wiring passes the casting opponent as target 0.
+                    payer: PlayerTarget::DeclaredTarget { index: 0 },
                     or_else: Box::new(Effect::DrawCards {
                         player: PlayerTarget::Controller,
                         count: EffectAmount::Fixed(1),
@@ -1222,6 +1255,8 @@ pub fn all_cards() -> Vec<CardDefinition> {
 
         // 45. Lightning Greaves — {2}, Artifact — Equipment; Equipped creature has
         //     haste and shroud. Equip {0}.
+        //     CR 702.6a: Equipment static ability grants keywords to equipped creature.
+        //     CR 604.2: Static ability functions while on the battlefield.
         CardDefinition {
             card_id: cid("lightning-greaves"),
             name: "Lightning Greaves".to_string(),
@@ -1229,14 +1264,27 @@ pub fn all_cards() -> Vec<CardDefinition> {
             types: types_sub(&[CardType::Artifact], &["Equipment"]),
             oracle_text: "Equipped creature has haste and shroud. (It can't be the target of spells or abilities your opponents control.)\nEquip {0}".to_string(),
             abilities: vec![
-                // Static ability (granting haste and shroud) not yet modelled via ContinuousEffectDef.
-                // Keywords listed for reference; enforcement via layer system (M8+).
+                // CR 702.6a: Equipped creature has Haste and Shroud (layer 6 ability grant).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeywords(
+                            [KeywordAbility::Haste, KeywordAbility::Shroud]
+                                .into_iter()
+                                .collect(),
+                        ),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
             ],
             ..Default::default()
         },
 
         // 46. Swiftfoot Boots — {2}, Artifact — Equipment; Equipped creature has
         //     haste and hexproof. Equip {1}.
+        //     CR 702.6a: Equipment static ability grants keywords to equipped creature.
+        //     CR 604.2: Static ability functions while on the battlefield.
         CardDefinition {
             card_id: cid("swiftfoot-boots"),
             name: "Swiftfoot Boots".to_string(),
@@ -1244,7 +1292,19 @@ pub fn all_cards() -> Vec<CardDefinition> {
             types: types_sub(&[CardType::Artifact], &["Equipment"]),
             oracle_text: "Equipped creature has haste and hexproof.\nEquip {1}".to_string(),
             abilities: vec![
-                // Static ability; not yet modelled.
+                // CR 702.6a: Equipped creature has Haste and Hexproof (layer 6 ability grant).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeywords(
+                            [KeywordAbility::Haste, KeywordAbility::Hexproof]
+                                .into_iter()
+                                .collect(),
+                        ),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
             ],
             ..Default::default()
         },
@@ -1376,11 +1436,9 @@ pub fn all_cards() -> Vec<CardDefinition> {
         //      graveyards. If a card would be put into a graveyard from anywhere,
         //      exile it instead."
         //
-        //     Simplification: The ETB "exile all graveyard cards" effect is deferred
-        //     (requires targeting non-battlefield objects, not yet modelled). The
-        //     ongoing replacement — all cards to graveyard → exile instead — is fully
-        //     implemented. Registered via register_permanent_replacement_abilities when
-        //     Rest in Peace enters the battlefield.
+        //     ETB trigger: fires inline via fire_when_enters_triggered_effects at ETB
+        //     site (not via the stack), exiling all cards currently in all graveyards.
+        //     Ongoing replacement: registered via register_permanent_replacement_abilities.
         CardDefinition {
             card_id: cid("rest-in-peace"),
             name: "Rest in Peace".to_string(),
@@ -1391,6 +1449,18 @@ pub fn all_cards() -> Vec<CardDefinition> {
                  If a card would be put into a graveyard from anywhere, exile it instead."
                     .to_string(),
             abilities: vec![
+                // CR 603.2: ETB triggered ability — exile all cards from all graveyards.
+                // Executed inline (non-interactively) via fire_when_enters_triggered_effects.
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::ForEach {
+                        over: ForEachTarget::EachCardInAllGraveyards,
+                        effect: Box::new(Effect::ExileObject {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                        }),
+                    },
+                    intervening_if: None,
+                },
                 // CR 614.1a: Replacement — any card going to any graveyard → exile instead.
                 // is_self: false — global effect, not tied to Rest in Peace itself.
                 AbilityDefinition::Replacement {

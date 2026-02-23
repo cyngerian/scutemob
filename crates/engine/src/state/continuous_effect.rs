@@ -79,6 +79,22 @@ pub enum EffectFilter {
     ControlledBy(PlayerId),
     /// Applies to all creature permanents controlled by a specific player.
     CreaturesControlledBy(PlayerId),
+    /// Applies to the creature that the source Equipment or Aura is attached to.
+    ///
+    /// Resolved at characteristic-calculation time: the source object's `attached_to`
+    /// field points to the target creature. Used for Equipment static abilities such
+    /// as Lightning Greaves ("equipped creature has haste and shroud").
+    AttachedCreature,
+    /// Placeholder filter for effects whose target is declared at resolution time.
+    ///
+    /// When `Effect::ApplyContinuousEffect` is executed, any `DeclaredTarget` filter
+    /// is replaced at runtime with `SingleObject(resolved_id)` using the declared
+    /// target at the given `index`. Used for activated abilities like Rogue's Passage
+    /// ("{4},{T}: target creature can't be blocked this turn").
+    DeclaredTarget {
+        /// Index into the declared targets list (0-indexed).
+        index: usize,
+    },
 }
 
 /// What a continuous effect does when applied.

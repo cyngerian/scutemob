@@ -346,6 +346,18 @@ pub fn handle_declare_blockers(
                 blocker_id, attacker_id
             )));
         }
+
+        // CR 509.1 / KeywordAbility::CantBeBlocked: a creature with this keyword
+        // cannot be blocked at all. Applied by Rogue's Passage activated ability.
+        if attacker_chars
+            .keywords
+            .contains(&KeywordAbility::CantBeBlocked)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot be blocked (CantBeBlocked keyword)",
+                attacker_id
+            )));
+        }
     }
 
     // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.

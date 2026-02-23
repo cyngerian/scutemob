@@ -1,16 +1,23 @@
-//! Tests verifying M9.4 Session 1 card definition corrections.
+//! Tests verifying M9.4 Session 1 and Session 2 card definition corrections.
 //!
-//! Covers:
+//! Session 1 covers:
 //! - Read the Bones: Scry 2 fires before drawing two cards (CR 701.18)
 //! - Dimir Guildgate: modal color choice (CR 106.6)
 //! - Path to Exile: optional search via deterministic MayPayOrElse (CR 701.19)
 //! - Thought Vessel / Reliquary Tower: no-maximum-hand-size skips cleanup discard (CR 402.2)
 //! - Alela, Cunning Conqueror: WheneverYouCastSpell has during_opponent_turn: true (CR 603.1)
+//!
+//! Session 2 covers:
+//! - Lightning Greaves: equipped creature gets Haste and Shroud (CR 702.6a, CR 613.1f)
+//! - Swiftfoot Boots: equipped creature gets Haste and Hexproof (CR 702.6a, CR 613.1f)
+//! - Rogue's Passage: creature with CantBeBlocked can't be blocked (CR 509.1b)
+//! - Rest in Peace ETB: exiles all cards from all graveyards on entry (CR 603.2)
 
 use mtg_engine::{
-    all_cards, process_command, CardRegistry, CardType, Command, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, Step,
-    TriggerCondition, ZoneId,
+    all_cards, calculate_characteristics, process_command, CardRegistry, CardType, Command,
+    ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent, GameState,
+    GameStateBuilder, KeywordAbility, LayerModification, ManaColor, ManaCost, ObjectId, ObjectSpec,
+    PlayerId, Step, TriggerCondition, ZoneId,
 };
 
 // ── Helper: find an object by name ───────────────────────────────────────────
@@ -385,4 +392,317 @@ fn test_alela_opponent_turn_only() {
             "Alela's WheneverYouCastSpell should have during_opponent_turn: true (CR 603.1)"
         );
     }
+}
+
+// ── CR 702.6a: Lightning Greaves — equipped creature gets Haste and Shroud ───
+
+/// Helper: find an object id by name in `state`.
+fn find_obj(state: &GameState, name: &str) -> ObjectId {
+    state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == name)
+        .map(|(id, _)| *id)
+        .unwrap_or_else(|| panic!("object '{}' not found in state", name))
+}
+
+#[test]
+/// CR 702.6a / CR 613.1f — Lightning Greaves static ability: equipped creature
+/// gains Haste and Shroud via a layer-6 continuous effect scoped to the attached
+/// creature (EffectFilter::AttachedCreature).
+fn test_lightning_greaves_grants_haste_shroud() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Build state with a Bear and Lightning Greaves on the battlefield.
+    // The continuous effect from the greaves' Static ability uses AttachedCreature,
+    // resolved by checking the source's `attached_to` field at calculation time.
+    let greaves_effect = ContinuousEffect {
+        id: EffectId(999),
+        source: None, // filled in after we know greaves_id
+        timestamp: 1,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::AttachedCreature,
+        modification: LayerModification::AddKeywords(
+            [KeywordAbility::Haste, KeywordAbility::Shroud]
+                .into_iter()
+                .collect(),
+        ),
+        is_cda: false,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Bear", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::artifact(p1, "Lightning Greaves").in_zone(ZoneId::Battlefield))
+        .add_continuous_effect(greaves_effect)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let bear_id = find_obj(&state, "Bear");
+    let greaves_id = find_obj(&state, "Lightning Greaves");
+
+    // Wire the attachment relationship: greaves attached_to bear; bear has greaves in attachments.
+    state.objects.get_mut(&greaves_id).unwrap().attached_to = Some(bear_id);
+    state
+        .objects
+        .get_mut(&bear_id)
+        .unwrap()
+        .attachments
+        .push_back(greaves_id);
+
+    // Fix up the source on the continuous effect now that we have the greaves id.
+    let effect_idx = state
+        .continuous_effects
+        .iter()
+        .position(|e| e.id == EffectId(999))
+        .unwrap();
+    let mut eff = state.continuous_effects[effect_idx].clone();
+    eff.source = Some(greaves_id);
+    state.continuous_effects.remove(effect_idx);
+    state.continuous_effects.push_back(eff);
+
+    // CR 613.1f: Layer 6 ability modification — bear should now have Haste and Shroud.
+    let chars = calculate_characteristics(&state, bear_id).unwrap();
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Haste),
+        "Bear equipped with Lightning Greaves must have Haste (CR 702.6a); keywords: {:?}",
+        chars.keywords
+    );
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Shroud),
+        "Bear equipped with Lightning Greaves must have Shroud (CR 702.6a); keywords: {:?}",
+        chars.keywords
+    );
+
+    // Sanity: the greaves itself should NOT have haste/shroud (AttachedCreature only applies
+    // to the creature the greaves is attached to, not the greaves itself).
+    let greaves_chars = calculate_characteristics(&state, greaves_id).unwrap();
+    assert!(
+        !greaves_chars.keywords.contains(&KeywordAbility::Haste),
+        "Lightning Greaves itself should NOT have Haste; keywords: {:?}",
+        greaves_chars.keywords
+    );
+}
+
+// ── CR 702.6a: Swiftfoot Boots — equipped creature gets Haste and Hexproof ───
+
+#[test]
+/// CR 702.6a / CR 613.1f — Swiftfoot Boots static ability: equipped creature
+/// gains Haste and Hexproof via a layer-6 continuous effect scoped to the
+/// attached creature (EffectFilter::AttachedCreature).
+fn test_swiftfoot_boots_grants_haste_hexproof() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let boots_effect = ContinuousEffect {
+        id: EffectId(998),
+        source: None, // filled in after we know boots_id
+        timestamp: 1,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::AttachedCreature,
+        modification: LayerModification::AddKeywords(
+            [KeywordAbility::Haste, KeywordAbility::Hexproof]
+                .into_iter()
+                .collect(),
+        ),
+        is_cda: false,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Bear", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::artifact(p1, "Swiftfoot Boots").in_zone(ZoneId::Battlefield))
+        .add_continuous_effect(boots_effect)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let bear_id = find_obj(&state, "Bear");
+    let boots_id = find_obj(&state, "Swiftfoot Boots");
+
+    // Wire the attachment relationship.
+    state.objects.get_mut(&boots_id).unwrap().attached_to = Some(bear_id);
+    state
+        .objects
+        .get_mut(&bear_id)
+        .unwrap()
+        .attachments
+        .push_back(boots_id);
+
+    // Fix up the source on the continuous effect.
+    let effect_idx = state
+        .continuous_effects
+        .iter()
+        .position(|e| e.id == EffectId(998))
+        .unwrap();
+    let mut eff = state.continuous_effects[effect_idx].clone();
+    eff.source = Some(boots_id);
+    state.continuous_effects.remove(effect_idx);
+    state.continuous_effects.push_back(eff);
+
+    // CR 613.1f: Layer 6 ability modification — bear should now have Haste and Hexproof.
+    let chars = calculate_characteristics(&state, bear_id).unwrap();
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Haste),
+        "Bear equipped with Swiftfoot Boots must have Haste (CR 702.6a); keywords: {:?}",
+        chars.keywords
+    );
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Hexproof),
+        "Bear equipped with Swiftfoot Boots must have Hexproof (CR 702.6a); keywords: {:?}",
+        chars.keywords
+    );
+}
+
+// ── CR 509.1b: Rogue's Passage — CantBeBlocked creature can't be blocked ─────
+
+#[test]
+/// CR 509.1b / CR 702.xxx — A creature with the CantBeBlocked keyword cannot
+/// be declared as a blocker target. The engine rejects the DeclareBlockers
+/// command with an InvalidCommand error.
+fn test_rogues_passage_cant_be_blocked() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 has an attacker with CantBeBlocked; p2 has a potential blocker.
+    // We start in DeclareBlockers to test that the block declaration is rejected.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Unblockable Attacker", 2, 2)
+                .with_keyword(KeywordAbility::CantBeBlocked)
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(ObjectSpec::creature(p2, "Wall of Stone", 0, 8).in_zone(ZoneId::Battlefield))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_obj(&state, "Unblockable Attacker");
+    let blocker_id = find_obj(&state, "Wall of Stone");
+
+    // Manually register the attacker as attacking p2 (simulate being in combat).
+    let mut state = state;
+    if let Some(combat) = state.combat.as_mut() {
+        combat
+            .attackers
+            .insert(attacker_id, mtg_engine::AttackTarget::Player(p2));
+    } else {
+        // Create a minimal combat state with the attacker.
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers
+            .insert(attacker_id, mtg_engine::AttackTarget::Player(p2));
+        state.combat = Some(cs);
+    }
+
+    // Attempting to block the CantBeBlocked attacker must fail.
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Blocking a creature with CantBeBlocked should fail; got Ok"
+    );
+}
+
+// ── CR 603.2: Rest in Peace ETB — exiles all graveyard cards on entry ─────────
+
+#[test]
+/// CR 603.2 / CR 614.1a — Rest in Peace: when it enters the battlefield, its
+/// triggered ability fires inline and exiles all cards from all graveyards.
+/// Verifies ObjectExiled events are emitted for each graveyard card.
+fn test_rest_in_peace_etb_exiles_graveyards() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let rip_def = all_cards()
+        .into_iter()
+        .find(|d| d.name == "Rest in Peace")
+        .expect("Rest in Peace must be in all_cards()");
+    let card_id = rip_def.card_id.clone();
+    let registry = CardRegistry::new(vec![rip_def]);
+
+    // p1 has Rest in Peace in hand; both players have a card in their graveyard.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Rest in Peace")
+                .with_card_id(card_id)
+                .with_types(vec![CardType::Enchantment])
+                .with_mana_cost(ManaCost {
+                    white: 1,
+                    generic: 1,
+                    ..Default::default()
+                })
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .object(
+            ObjectSpec::card(p1, "Dead Creature")
+                .with_types(vec![CardType::Creature])
+                .in_zone(ZoneId::Graveyard(p1)),
+        )
+        .object(
+            ObjectSpec::card(p2, "Opponent Dead Sorcery")
+                .with_types(vec![CardType::Sorcery])
+                .in_zone(ZoneId::Graveyard(p2)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Pay {1W} for Rest in Peace.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 2);
+
+    let rip_id = find_obj(&state, "Rest in Peace");
+
+    // Cast Rest in Peace.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: rip_id,
+            targets: vec![],
+        },
+    )
+    .expect("casting Rest in Peace failed");
+
+    // Both players pass priority to resolve.
+    let (_state, events) = pass_all(state, &[p1, p2]);
+
+    // CR 603.2: The ETB trigger fires inline at resolution.
+    // Two ObjectExiled events should appear (one for each graveyard card).
+    let exile_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::ObjectExiled { .. }))
+        .count();
+
+    assert_eq!(
+        exile_count, 2,
+        "Rest in Peace ETB should exile 2 graveyard cards (one per player); \
+         got {} ObjectExiled events; events: {:?}",
+        exile_count, events
+    );
 }

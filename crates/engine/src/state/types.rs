@@ -112,4 +112,9 @@ pub enum KeywordAbility {
     /// `no_max_hand_size` flag is set on that player's `PlayerState`, skipping
     /// the cleanup discard step (CR 514.1).
     NoMaxHandSize,
+    /// CR 509.1: "This creature can't be blocked."
+    ///
+    /// Checked in `rules/combat.rs:handle_declare_blockers`. Any blocker assignment
+    /// targeting a creature with this keyword is rejected.
+    CantBeBlocked,
 }

@@ -180,10 +180,32 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     &registry,
                 );
 
+                // CR 604 / CR 613: Register static continuous effects from this
+                // permanent's card definition (Equipment, Aura, global ability grants).
+                super::replacement::register_static_continuous_effects(
+                    state,
+                    new_id,
+                    card_id.as_ref(),
+                    &registry,
+                );
+
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
                 });
+
+                // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects
+                // from card definition inline (Rest in Peace ETB exile, etc.).
+                // Interactive/stackable ETB triggers are handled via PendingTrigger.
+                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(etb_trigger_evts);
+
                 events.push(GameEvent::SpellResolved {
                     player: controller,
                     stack_object_id: stack_obj.id,

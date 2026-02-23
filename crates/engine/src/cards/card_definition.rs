@@ -604,6 +604,10 @@ pub enum ForEachTarget {
     EachOpponentsCreature,
     /// Every permanent matching a filter.
     EachPermanentMatching(TargetFilter),
+    /// Every card in every graveyard (all players).
+    ///
+    /// Used by Rest in Peace ETB: "exile all cards from all graveyards" (CR 614.1).
+    EachCardInAllGraveyards,
 }
 
 // ── Timing Restriction ────────────────────────────────────────────────────────
