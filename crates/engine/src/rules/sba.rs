@@ -35,6 +35,7 @@ use crate::state::types::{CardType, CounterType, KeywordAbility, SubType, SuperT
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
+use super::commander;
 use super::events::{GameEvent, LossReason};
 use super::layers::calculate_characteristics;
 use super::replacement;
@@ -98,6 +99,10 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     events.extend(check_aura_sbas(state));
     events.extend(check_equipment_sbas(state, &chars_map));
     events.extend(check_counter_annihilation(state));
+    // CR 903.9a / CR 704.6d: check for commanders in graveyard or exile and
+    // return them to the command zone. Called after counter annihilation per
+    // the plan (704.6d runs after 704.5 SBAs).
+    events.extend(commander::check_commander_zone_return_sba(state));
 
     events
 }

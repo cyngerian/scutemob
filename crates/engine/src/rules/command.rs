@@ -122,4 +122,43 @@ pub enum Command {
         player: PlayerId,
         ids: Vec<ReplacementId>,
     },
+
+    // ── M9: Commander zone return command ────────────────────────────────
+    /// Return a commander from graveyard or exile to its owner's command zone
+    /// as a state-based action choice (CR 903.9a / CR 704.6d).
+    ///
+    /// In M9 this command is handled automatically by the SBA (no explicit
+    /// player action required). The command variant is retained for future
+    /// M10+ player opt-out support.
+    ReturnCommanderToCommandZone {
+        player: PlayerId,
+        object_id: ObjectId,
+    },
+
+    // ── M9: Mulligan commands (CR 103.5 / CR 103.5c) ─────────────────────
+    /// Take a mulligan: shuffle hand into library, draw 7, then put N cards
+    /// on the bottom where N = mulligan number (0 for the free mulligan).
+    ///
+    /// CR 103.5: Mulligan procedure. CR 103.5c: First mulligan in multiplayer
+    /// is free (draw back to 7 with no cards to bottom).
+    TakeMulligan { player: PlayerId },
+
+    /// Keep hand (with optional cards to put on the bottom of library).
+    ///
+    /// CR 103.5: After deciding to keep, a player with N mulligans taken puts
+    /// N cards from their hand on the bottom of their library in any order.
+    /// For the free mulligan (N=0 effectively), no cards go to the bottom.
+    KeepHand {
+        player: PlayerId,
+        /// Cards to put on the bottom of library (in order, bottom-most last).
+        /// Length must equal the number of mulligans taken by this player.
+        cards_to_bottom: Vec<ObjectId>,
+    },
+
+    // ── M9: Companion command (CR 702.139a) ───────────────────────────────
+    /// Pay {3} to put companion from the sideboard into hand (CR 702.139a).
+    ///
+    /// Special action: costs {3}, requires main phase, stack empty, priority,
+    /// and that the player has not already used this action.
+    BringCompanion { player: PlayerId },
 }

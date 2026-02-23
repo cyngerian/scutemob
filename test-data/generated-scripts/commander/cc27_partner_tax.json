@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc27",
+    "name": "Commander Tax with Partner Commanders tracked independently (CC #27)",
+    "description": "Corner case #27: Two partner commanders. Each is cast multiple times from the command zone. Commander tax is tracked per-commander: casting Commander A twice adds {4} to A's cost but does NOT affect Commander B's cost. CR 903.8: commander tax is per-card, not per-player. CR 702.124d: partner commanders function independently for tax tracking. This script exercises the full tax sequence: A cast first time (printed cost), A cast second time (+{2}), B cast first time (printed cost), B cast second time (+{2}), verifying independence.",
+    "cr_sections_tested": ["903.8", "702.124", "702.124d"],
+    "corner_case_ref": 27,
+    "tags": ["commander", "commander-tax", "partner", "independent-tax"],
+    "confidence": "high",
+    "review_status": "draft",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Marked draft: the replay harness 'cast_spell' action calls find_in_hand which looks only in ZoneId::Hand; it cannot find cards in ZoneId::Command. The harness needs a 'cast_from_command_zone' action type to support this script. When added, this script should be upgraded to approved. The behavior is unit-tested in commander.rs::test_partner_commanders_separate_tax_tracking and test_cast_commander_from_command_zone_second_time / test_cast_commander_from_command_zone_third_time.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 10, "green": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "command_zone",
+          "times_cast_from_command_zone": 0
+        },
+        "partner_commander": {
+          "card": "Darksteel Colossus",
+          "zone": "command_zone",
+          "times_cast_from_command_zone": 0
+        }
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": true, "owner": "p1" },
+          { "card": "Darksteel Colossus", "is_commander": true, "owner": "p1" }
+        ]
+      },
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "INFORMATIONAL: p1 casts both partner commanders multiple times to verify independent tax tracking",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: both partner commanders in command zone, p1 at 40 life",
+          "assertions": {
+            "players.p1.life": 40
+          },
+          "note": "CR 702.124d: partner commanders tracked independently for tax. Both commanders start in command zone."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_from_command_zone",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "903.8",
+          "note": "CR 903.8: First cast of Commander A (Llanowar Elves, {G}) — no tax. Printed cost {G} only. Tax counter for A increments to 1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Commander A resolves and enters battlefield."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Llanowar Elves",
+          "resolution": [
+            {
+              "effect": "permanent_enters_battlefield",
+              "card": "Llanowar Elves",
+              "owner": "p1",
+              "cr_ref": "608.3a",
+              "note": "Commander A (Llanowar Elves) enters battlefield."
+            }
+          ],
+          "note": "Commander A on battlefield. Tax for A is now 1 (next cast +{2}). Tax for B remains 0."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "INFORMATIONAL: Commander A dies and returns to command zone. Then p1 re-casts A with +{2} tax.",
+          "cr_ref": "903.9a",
+          "note": "SBA returns Commander A to command zone. Tax counter for A is 1; cost is {G}+{2}={2}{G}."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_from_command_zone",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "903.8",
+          "note": "CR 903.8: Second cast of Commander A — pays +{2} tax. Total: {G}+{2}={2}{G}. Tax for B still 0."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Commander A resolves again. Tax for A is now 2 (next cast +{4})."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_from_command_zone",
+          "card": "Darksteel Colossus",
+          "targets": [],
+          "mana_paid": { "colorless": 11 },
+          "mana_source": [],
+          "cr_ref": "903.8",
+          "note": "CR 903.8: First cast of Commander B (Darksteel Colossus, {11}) — no tax, despite A having been cast twice. Tax for B is independent. Printed cost {11} only."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Commander B resolves. Tax for A = 2 (next +{4}), Tax for B = 1 (next +{2}). Independence verified."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "triggered_abilities": [],
+          "note": "No SBAs. CR 702.124d: partner commander tax is per-commander. A's casts don't affect B's tax and vice versa."
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,7 @@ use super::abilities;
 use super::casting;
 use super::combat;
 use super::command::Command;
+use super::commander;
 use super::events::GameEvent;
 use super::lands;
 use super::mana;
@@ -118,6 +119,37 @@ pub fn process_command(
         Command::OrderReplacements { player, ids } => {
             validate_player_active(&state, player)?;
             let events = replacement::handle_order_replacements(&mut state, player, ids)?;
+            all_events.extend(events);
+        }
+        Command::ReturnCommanderToCommandZone { player, object_id } => {
+            // CR 903.9a / CR 704.6d: commander owner returns commander from
+            // graveyard or exile to command zone. In M9 this is auto-applied
+            // by the SBA; this arm handles any explicit player-issued command.
+            validate_player_exists(&state, player)?;
+            let events =
+                commander::handle_return_commander_to_command_zone(&mut state, player, object_id)?;
+            all_events.extend(events);
+        }
+
+        // ── M9: Mulligan commands (CR 103.5 / CR 103.5c) ─────────────────
+        Command::TakeMulligan { player } => {
+            validate_player_exists(&state, player)?;
+            let events = commander::handle_take_mulligan(&mut state, player)?;
+            all_events.extend(events);
+        }
+        Command::KeepHand {
+            player,
+            cards_to_bottom,
+        } => {
+            validate_player_exists(&state, player)?;
+            let events = commander::handle_keep_hand(&mut state, player, cards_to_bottom)?;
+            all_events.extend(events);
+        }
+
+        // ── M9: Companion command (CR 702.139a) ───────────────────────────
+        Command::BringCompanion { player } => {
+            validate_player_active(&state, player)?;
+            let events = commander::handle_bring_companion(&mut state, player)?;
             all_events.extend(events);
         }
     }

@@ -22,9 +22,10 @@
 use im::OrdSet;
 
 use crate::cards::card_definition::{AbilityDefinition, TargetController, TargetRequirement};
+use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::error::GameStateError;
-use crate::state::game_object::{Characteristics, ObjectId};
+use crate::state::game_object::{Characteristics, ManaCost, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::targeting::{SpellTarget, Target};
@@ -54,12 +55,29 @@ pub fn handle_cast_spell(
         });
     }
 
-    // Fetch the card and validate it is in the player's hand.
+    // Fetch the card and validate it is in the player's hand OR command zone.
+    // CR 903.8: A player may cast their commander from the command zone.
     let card_obj = state.object(card)?;
-    if card_obj.zone != ZoneId::Hand(player) {
+    let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
+    if card_obj.zone != ZoneId::Hand(player) && !casting_from_command_zone {
         return Err(GameStateError::InvalidCommand(
             "card is not in your hand".into(),
         ));
+    }
+
+    // CR 903.8: Only a player's own commander may be cast from the command zone.
+    if casting_from_command_zone {
+        let card_id_opt = card_obj.card_id.clone();
+        let player_state = state.player(player)?;
+        let is_commander = card_id_opt
+            .as_ref()
+            .map(|cid| player_state.commander_ids.contains(cid))
+            .unwrap_or(false);
+        if !is_commander {
+            return Err(GameStateError::InvalidCommand(
+                "only your own commander may be cast from the command zone".into(),
+            ));
+        }
     }
 
     // Lands are not cast — they are played as a special action (CR 305.1).
@@ -85,7 +103,22 @@ pub fn handle_cast_spell(
 
     // Extract the card's target requirements and mana cost while card_obj borrow is alive.
     let card_id = card_obj.card_id.clone();
-    let mana_cost = card_obj.characteristics.mana_cost.clone();
+    let base_mana_cost = card_obj.characteristics.mana_cost.clone();
+
+    // CR 903.8: Apply commander tax if casting from command zone.
+    // Additional cost: {2} * times_previously_cast.
+    let mana_cost: Option<ManaCost> = if casting_from_command_zone {
+        let tax = {
+            let player_state = state.player(player)?;
+            card_id
+                .as_ref()
+                .and_then(|cid| player_state.commander_tax.get(cid).copied())
+                .unwrap_or(0)
+        };
+        base_mana_cost.map(|cost| apply_commander_tax(&cost, tax))
+    } else {
+        base_mana_cost
+    };
 
     // Validate casting window.
     if !is_instant_speed {
@@ -107,6 +140,7 @@ pub fn handle_cast_spell(
     let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) = {
         let registry = state.card_registry.clone();
         card_id
+            .clone()
             .and_then(|cid| registry.get(cid))
             .and_then(|def| {
                 def.abilities.iter().find_map(|a| {
@@ -163,6 +197,21 @@ pub fn handle_cast_spell(
     };
     state.stack_objects.push_back(stack_obj);
 
+    // CR 903.8: Increment commander tax counter if cast from command zone.
+    let commander_tax_paid = if casting_from_command_zone {
+        if let Some(ref cid) = card_id {
+            let player_state = state.player_mut(player)?;
+            let count = player_state.commander_tax.entry(cid.clone()).or_insert(0);
+            let tax = *count;
+            *count += 1;
+            tax
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
     // CR 601.2i: "Then the active player receives priority."
     // Reset the priority round — a game action occurred.
     state.turn.players_passed = OrdSet::new();
@@ -173,6 +222,18 @@ pub fn handle_cast_spell(
         stack_object_id: stack_entry_id,
         source_object_id: new_card_id,
     });
+
+    // CR 903.8: Emit commander-specific event when casting from command zone.
+    if casting_from_command_zone {
+        if let Some(cid) = card_id {
+            events.push(GameEvent::CommanderCastFromCommandZone {
+                player,
+                card_id: cid,
+                tax_paid: commander_tax_paid,
+            });
+        }
+    }
+
     events.push(GameEvent::PriorityGiven {
         player: state.turn.active_player,
     });

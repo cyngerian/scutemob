@@ -80,6 +80,21 @@ impl GameStateBuilder {
             .add_player(PlayerId(4))
     }
 
+    /// Create a builder pre-configured with 6 players (IDs 1-6) at 40 life.
+    ///
+    /// Used by 6-player tests to validate that the engine's multiplayer systems
+    /// (priority rotation, APNAP ordering, combat with multiple defending players,
+    /// turn advancement skipping eliminated players) work correctly at N=6.
+    pub fn six_player() -> Self {
+        Self::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .add_player(PlayerId(3))
+            .add_player(PlayerId(4))
+            .add_player(PlayerId(5))
+            .add_player(PlayerId(6))
+    }
+
     /// Add a player with Commander starting life (40).
     pub fn add_player(mut self, id: PlayerId) -> Self {
         self.players.push(PlayerConfig {
@@ -230,6 +245,9 @@ impl GameStateBuilder {
                 has_conceded: false,
                 commander_ids: config.commander_ids.iter().cloned().collect(),
                 max_hand_size: config.max_hand_size,
+                companion: None,
+                companion_used: false,
+                mulligan_count: 0,
             };
             players.insert(config.id, player_state);
         }
@@ -366,13 +384,18 @@ impl GameStateBuilder {
     }
 }
 
-/// Register replacement effects for commander zone changes (CR 903.9).
+/// Register replacement effects for commander zone changes (CR 903.9b).
 ///
-/// For each player's commander (identified by `CardId`), registers two
-/// replacement effects: one for graveyard and one for exile. Each redirects
-/// the commander to the command zone. These are `Indefinite` duration effects
-/// with `is_self_replacement: false` — they compete with other replacements
-/// like Rest in Peace and the affected player chooses the order (CR 616.1).
+/// CR 903.9a (graveyard/exile): These paths are now handled by a state-based
+/// action (`check_commander_zone_return_sba` in `sba.rs`), NOT replacement
+/// effects. The M8 replacement registrations for graveyard and exile have been
+/// removed as part of the M9 SBA model update.
+///
+/// CR 903.9b (hand/library): These two paths ARE replacement effects because
+/// CR 903.9b says "instead." For each player's commander (identified by `CardId`),
+/// registers two replacement effects: one redirecting hand-bound moves to the
+/// command zone, one redirecting library-bound moves to the command zone.
+/// These are `Indefinite` duration effects with `is_self_replacement: false`.
 pub fn register_commander_zone_replacements(state: &mut GameState) {
     use super::continuous_effect::EffectDuration;
     use super::zone::ZoneType;
@@ -384,33 +407,33 @@ pub fn register_commander_zone_replacements(state: &mut GameState) {
         .collect();
 
     for (owner, card_id) in commanders {
-        // CR 903.9: commander would go to graveyard → may go to command zone.
-        let id_grave = state.next_replacement_id();
+        // CR 903.9b: commander would go to hand → may go to command zone instead.
+        let id_hand = state.next_replacement_id();
         state.replacement_effects.push_back(ReplacementEffect {
-            id: id_grave,
+            id: id_hand,
             source: None,
             controller: owner,
             duration: EffectDuration::Indefinite,
             is_self_replacement: false,
             trigger: ReplacementTrigger::WouldChangeZone {
                 from: None,
-                to: ZoneType::Graveyard,
+                to: ZoneType::Hand,
                 filter: ObjectFilter::HasCardId(card_id.clone()),
             },
             modification: ReplacementModification::RedirectToZone(ZoneType::Command),
         });
 
-        // CR 903.9: commander would go to exile → may go to command zone.
-        let id_exile = state.next_replacement_id();
+        // CR 903.9b: commander would go to library → may go to command zone instead.
+        let id_library = state.next_replacement_id();
         state.replacement_effects.push_back(ReplacementEffect {
-            id: id_exile,
+            id: id_library,
             source: None,
             controller: owner,
             duration: EffectDuration::Indefinite,
             is_self_replacement: false,
             trigger: ReplacementTrigger::WouldChangeZone {
                 from: None,
-                to: ZoneType::Exile,
+                to: ZoneType::Library,
                 filter: ObjectFilter::HasCardId(card_id),
             },
             modification: ReplacementModification::RedirectToZone(ZoneType::Command),

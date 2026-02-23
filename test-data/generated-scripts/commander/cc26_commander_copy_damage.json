@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_commander_cc26",
+    "name": "Commander Damage from a Copy does NOT count (CC #26)",
+    "description": "Corner case #26: A copy of an opponent's commander deals combat damage to you. The damage is normal combat damage, NOT commander damage. CR 707.2: copies don't copy external designations — a clone of a commander is not itself a commander. The engine tracks commander damage by CardId membership in commander_ids. A copy has a different CardId (or none matching) so it never increments commander_damage_received. This script is informational (draft) because the replay harness does not yet support DeclareAttackers / DeclareBlockers commands; the behavior is unit-tested in crates/engine/tests/commander_damage.rs::test_commander_damage_from_copy_does_not_count.",
+    "cr_sections_tested": ["903.3", "903.10", "707.2", "704.6c"],
+    "corner_case_ref": 26,
+    "tags": ["commander", "commander-damage", "copy", "clone", "no-commander-damage"],
+    "confidence": "high",
+    "review_status": "draft",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-23",
+    "generation_notes": "Marked draft because the replay harness does not support DeclareAttackers/DeclareBlockers. The corresponding unit test is test_commander_damage_from_copy_does_not_count in commander_damage.rs (Session 4). When the harness gains combat support, this script should be upgraded to approved and verified end-to-end.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p2",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 1
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": true,
+            "subtypes": null,
+            "is_basic": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Grizzly Bears",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": false,
+            "subtypes": null,
+            "is_basic": null
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "INFORMATIONAL: p2 would attack p1 with a copy of p1's commander (represented here as Grizzly Bears with no CardId in commander_ids). Combat damage would not count as commander damage.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: p1 at 40 life, commander on battlefield; Grizzly Bears (non-commander copy) on p2's side",
+          "assertions": {
+            "players.p1.life": 40,
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Grizzly Bears" }] }
+          },
+          "note": "CR 707.2: A copy of Llanowar Elves does not inherit the commander designation. Engine: CardId of copy not in commander_ids."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "INFORMATIONAL: p2 attacks with Grizzly Bears (clone-of-commander stand-in). Grizzly Bears deals 2 combat damage to p1. This is normal damage, not commander damage.",
+          "cr_ref": "510.1",
+          "note": "The harness does not execute DeclareAttackers. This step is documentation only. Unit test: test_commander_damage_from_copy_does_not_count in commander_damage.rs."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "triggered_abilities": [],
+          "note": "CR 903.10: commander_damage_received NOT incremented for p1 because Grizzly Bears' CardId is not in any commander_ids. No commander damage SBA fires even if 21 such attacks happened."
+        }
+      ]
+    }
+  ]
+}

@@ -395,6 +395,9 @@ impl HashInto for PlayerState {
         self.has_conceded.hash_into(hasher);
         self.commander_ids.hash_into(hasher);
         self.max_hand_size.hash_into(hasher);
+        self.companion.hash_into(hasher);
+        self.companion_used.hash_into(hasher);
+        self.mulligan_count.hash_into(hasher);
     }
 }
 
@@ -1339,6 +1342,54 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 new_command_id.hash_into(hasher);
                 owner.hash_into(hasher);
+            }
+            // M9: CommanderCastFromCommandZone variant (discriminant 57)
+            GameEvent::CommanderCastFromCommandZone {
+                player,
+                card_id,
+                tax_paid,
+            } => {
+                57u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_id.hash_into(hasher);
+                tax_paid.hash_into(hasher);
+            }
+            // M9: CommanderReturnedToCommandZone variant (discriminant 58)
+            GameEvent::CommanderReturnedToCommandZone {
+                card_id,
+                owner,
+                from_zone,
+            } => {
+                58u8.hash_into(hasher);
+                card_id.hash_into(hasher);
+                owner.hash_into(hasher);
+                from_zone.hash_into(hasher);
+            }
+            // M9: MulliganTaken (discriminant 59)
+            GameEvent::MulliganTaken {
+                player,
+                mulligan_number,
+                is_free,
+            } => {
+                59u8.hash_into(hasher);
+                player.hash_into(hasher);
+                mulligan_number.hash_into(hasher);
+                is_free.hash_into(hasher);
+            }
+            // M9: MulliganKept (discriminant 60)
+            GameEvent::MulliganKept {
+                player,
+                cards_to_bottom,
+            } => {
+                60u8.hash_into(hasher);
+                player.hash_into(hasher);
+                cards_to_bottom.hash_into(hasher);
+            }
+            // M9: CompanionBroughtToHand (discriminant 61)
+            GameEvent::CompanionBroughtToHand { player, card_id } => {
+                61u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_id.hash_into(hasher);
             }
         }
     }

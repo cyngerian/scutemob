@@ -102,4 +102,7 @@ pub enum KeywordAbility {
     Trample,
     Vigilance,
     Ward,
+    /// CR 702.124: Partner keyword — allows two legendary creatures to serve as
+    /// commanders together. Both commanders must have partner.
+    Partner,
 }

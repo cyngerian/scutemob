@@ -80,4 +80,17 @@ pub struct PlayerState {
     pub commander_ids: Vector<CardId>,
     /// Maximum hand size for cleanup discard (CR 402.2). Default 7.
     pub max_hand_size: usize,
+    /// CardId of this player's companion, if any (CR 702.139).
+    ///
+    /// A companion is a card in the sideboard with the Companion keyword
+    /// that meets the deck restriction. Set at game setup before mulligan.
+    pub companion: Option<CardId>,
+    /// Whether this player has already used the companion special action
+    /// (CR 702.139a). Once used, `BringCompanion` is rejected.
+    pub companion_used: bool,
+    /// Number of mulligans taken by this player during the pregame procedure
+    /// (CR 103.5). Used to determine how many cards must go to the bottom of
+    /// library on `KeepHand` (CR 103.5c: first mulligan free, subsequent cost
+    /// N-1 cards where N is mulligan number).
+    pub mulligan_count: u32,
 }

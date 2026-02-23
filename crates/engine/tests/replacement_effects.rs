@@ -1147,11 +1147,12 @@ fn test_creature_dies_with_exile_replacement_goes_to_exile() {
     );
 }
 
-// ── Commander dies → single replacement auto-applies → command zone ──
+// ── Commander dies → SBA auto-returns to command zone (M9 model) ──
 
 #[test]
-/// CR 903.9 — Commander with lethal damage: zone-change replacement redirects to command zone
-/// Source: M8 Session 3 commander auto-apply
+/// CR 903.9a / CR 704.6d — Commander with lethal damage: SBA returns commander to
+/// command zone (M9 model — not a replacement effect, but a state-based action).
+/// Source: M9 Session 3 SBA model update
 fn test_commander_dies_auto_redirects_to_command_zone() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
 
@@ -1165,7 +1166,9 @@ fn test_commander_dies_auto_redirects_to_command_zone() {
         .build()
         .unwrap();
 
-    // Register commander zone-change replacements.
+    // In M9, no graveyard/exile replacement is registered for commanders —
+    // those paths are now handled by SBA (check_commander_zone_return_sba).
+    // The hand/library replacements are still registered via CR 903.9b.
     register_commander_zone_replacements(&mut state);
 
     let _cmdr_id = state
@@ -1181,35 +1184,40 @@ fn test_commander_dies_auto_redirects_to_command_zone() {
         state
             .objects_in_zone(&ZoneId::Graveyard(PlayerId(1)))
             .is_empty(),
-        "graveyard should be empty — commander redirected to command zone"
+        "graveyard should be empty — commander returned to command zone via SBA"
     );
 
     // Commander should be in command zone.
     let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
     assert_eq!(cmd_objects.len(), 1, "commander should be in command zone");
 
-    // ReplacementEffectApplied should be emitted.
+    // CommanderReturnedToCommandZone SBA event should be emitted (M9 model).
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
-        "should emit ReplacementEffectApplied event"
+            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
+        "should emit CommanderReturnedToCommandZone event (SBA model)"
     );
 
-    // No CreatureDied event (it went to command zone, not graveyard).
+    // No CreatureDied event (commander went directly to command zone via graveyard SBA return).
+    // Note: The commander first enters graveyard (CreatureDied fires), then SBA returns it.
+    // Check it ends up in command zone, not graveyard.
+    let graveyard = state.objects_in_zone(&ZoneId::Graveyard(PlayerId(1)));
     assert!(
-        !events
-            .iter()
-            .any(|e| matches!(e, GameEvent::CreatureDied { .. })),
-        "should not emit CreatureDied — commander went to command zone"
+        graveyard.is_empty(),
+        "graveyard should be empty after SBA return"
     );
 }
 
-// ── Commander dies with Rest in Peace active → NeedsChoice ──
+// ── Commander dies with Rest in Peace active → SBA returns from exile (M9 model) ──
 
 #[test]
-/// CR 903.9 + CR 616.1 — Commander + Rest in Peace: two replacements compete, player chooses
-/// Source: M8 Session 3 corner case 18
+/// CR 903.9a + Corner case #18 — Commander + Rest in Peace: M9 SBA model.
+///
+/// With M9, graveyard/exile commander returns are SBAs, not replacements.
+/// RiP (graveyard→exile) still fires as a replacement on the graveyard event.
+/// Then the commander-return SBA fires on the next SBA pass to pull it from exile.
+/// Source: M9 Session 3 corner case 18 (SBA model update)
 fn test_commander_dies_with_rest_in_peace_needs_choice() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
 
@@ -1239,60 +1247,56 @@ fn test_commander_dies_with_rest_in_peace_needs_choice() {
         .build()
         .unwrap();
 
-    // Register commander zone-change replacements (adds 2 effects per commander).
+    // Register commander zone-change replacements (hand/library only in M9).
     register_commander_zone_replacements(&mut state);
-
-    let cmdr_id = state
-        .objects_in_zone(&ZoneId::Battlefield)
-        .first()
-        .unwrap()
-        .id;
 
     let events = mtg_engine::check_and_apply_sbas(&mut state);
 
-    // Two replacements compete: RiP (exile instead) and commander (command zone instead).
-    // The affected player (commander owner, P1) must choose.
-    assert!(
-        events.iter().any(|e| matches!(
-            e,
-            GameEvent::ReplacementChoiceRequired { player, choices, .. }
-            if *player == PlayerId(1) && choices.len() == 2
-        )),
-        "should emit ReplacementChoiceRequired with 2 choices"
+    // With M9 model: RiP redirects graveyard→exile, then SBA auto-returns from exile.
+    // End result: commander is in command zone.
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
+    assert_eq!(
+        cmd_objects.len(),
+        1,
+        "commander should be in command zone (RiP exiled it, SBA returned it)"
     );
 
-    // Commander should still be on the battlefield (pending choice).
+    // Graveyard should be empty (RiP prevented it from going there).
     assert!(
         state
-            .objects
-            .get(&cmdr_id)
-            .map(|o| o.zone == ZoneId::Battlefield)
-            .unwrap_or(false),
-        "commander should remain on battlefield while choice is pending"
+            .objects_in_zone(&ZoneId::Graveyard(PlayerId(1)))
+            .is_empty(),
+        "graveyard should be empty"
     );
 
-    // Should have a pending zone change.
-    assert_eq!(
-        state.pending_zone_changes.len(),
-        1,
-        "should have one pending zone change"
+    // Exile should also be empty (SBA returned commander to command zone).
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).is_empty(),
+        "exile should be empty — SBA returned commander to command zone"
     );
-    assert_eq!(
-        state.pending_zone_changes[0].object_id, cmdr_id,
-        "pending zone change should be for the commander"
+
+    // CommanderReturnedToCommandZone event should have been emitted.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
+        "should emit CommanderReturnedToCommandZone event from SBA"
     );
-    assert_eq!(
-        state.pending_zone_changes[0].affected_player,
-        PlayerId(1),
-        "affected player should be the commander's owner"
+
+    // No pending zone changes (resolved immediately by SBA).
+    assert!(
+        state.pending_zone_changes.is_empty(),
+        "no pending zone changes — SBA handles it automatically"
     );
 }
 
-// ── Commander dies with Rest in Peace → player chooses command zone ──
+// ── Commander dies with Rest in Peace → SBA auto-returns from exile (M9 model) ──
 
 #[test]
-/// CR 903.9 + CR 616.1 — Player resolves choice by sending commander to command zone
-/// Source: M8 Session 3 corner case 18 resolution
+/// CR 903.9a + CR 616.1 — Commander + Rest in Peace: in M9, the SBA auto-returns
+/// the commander from exile (where RiP sent it) to the command zone.
+/// No player choice is required for graveyard/exile paths (M9 simplification, deferred to M10+).
+/// Source: M9 Session 3 corner case 18 (SBA model)
 fn test_commander_dies_with_rip_player_chooses_command_zone() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
 
@@ -1323,44 +1327,16 @@ fn test_commander_dies_with_rip_player_chooses_command_zone() {
 
     register_commander_zone_replacements(&mut state);
 
-    // Run SBAs to get the pending choice.
-    let _sba_events = mtg_engine::check_and_apply_sbas(&mut state);
+    // Run SBAs. With M9 model: RiP redirects graveyard→exile, then SBA auto-returns from exile.
+    let events = mtg_engine::check_and_apply_sbas(&mut state);
 
-    // Find the commander replacement ID (the one that redirects to command zone).
-    let cmdr_repl_id = state
-        .replacement_effects
-        .iter()
-        .find(|e| {
-            matches!(
-                &e.modification,
-                ReplacementModification::RedirectToZone(ZoneType::Command)
-            ) && matches!(
-                &e.trigger,
-                ReplacementTrigger::WouldChangeZone {
-                    to: ZoneType::Graveyard,
-                    ..
-                }
-            )
-        })
-        .map(|e| e.id)
-        .expect("commander graveyard replacement should exist");
-
-    // Player 1 chooses commander replacement first.
-    let (state, _order_events) = mtg_engine::process_command(
-        state,
-        Command::OrderReplacements {
-            player: PlayerId(1),
-            ids: vec![cmdr_repl_id],
-        },
-    )
-    .expect("OrderReplacements should succeed");
-
-    // Commander should now be in the command zone.
+    // In M9, the SBA auto-returns the commander (no player choice required for exile path).
+    // Commander should be in command zone.
     let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
     assert_eq!(
         cmd_objects.len(),
         1,
-        "commander should be in command zone after player chose"
+        "commander should be in command zone after SBA auto-return"
     );
 
     // Graveyard should be empty.
@@ -1371,16 +1347,28 @@ fn test_commander_dies_with_rip_player_chooses_command_zone() {
         "graveyard should be empty"
     );
 
-    // Exile should be empty (RiP didn't get to fire first).
+    // Exile should also be empty (SBA returned it from exile).
     assert!(
         state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile should be empty — commander went to command zone"
+        "exile should be empty — SBA returned commander to command zone"
     );
 
-    // Pending zone changes should be cleared.
+    // Pending zone changes should be empty (SBA resolved it automatically).
     assert!(
         state.pending_zone_changes.is_empty(),
         "pending zone changes should be cleared"
+    );
+
+    // CommanderReturnedToCommandZone event should be emitted.
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::CommanderReturnedToCommandZone {
+                from_zone: ZoneType::Exile,
+                ..
+            }
+        )),
+        "should emit CommanderReturnedToCommandZone from exile"
     );
 }
 
@@ -1424,13 +1412,15 @@ fn test_has_card_id_filter_matches_object() {
     );
 }
 
-// ── Creature in ExileObject effect with redirect ──
+// ── Creature in ExileObject effect — commander goes to exile, SBA returns it (M9 model) ──
 
 #[test]
-/// CR 614 — ExileObject effect checks replacement effects (auto-apply redirect)
-/// Source: M8 Session 3 effect interception
+/// CR 614 + CR 903.9a — ExileObject effect on commander: in M9, the effect moves the
+/// commander to exile (no replacement for exile path), then a subsequent SBA pass returns
+/// it to the command zone.
+/// Source: M9 Session 3 SBA model update
 fn test_exile_effect_checks_replacements() {
-    // A commander being exiled should be redirectable to command zone.
+    // A commander being exiled should be returned by SBA on next pass.
     let cmdr_card_id = CardId("cmdr-exile".to_string());
 
     let mut state = GameStateBuilder::four_player()
@@ -1441,6 +1431,8 @@ fn test_exile_effect_checks_replacements() {
         .build()
         .unwrap();
 
+    // In M9, register_commander_zone_replacements registers hand/library only (CR 903.9b).
+    // Exile path is now handled by SBA (CR 903.9a).
     register_commander_zone_replacements(&mut state);
 
     let cmdr_id = state
@@ -1467,26 +1459,37 @@ fn test_exile_effect_checks_replacements() {
         }],
     );
 
-    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+    let _events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
-    // Commander should be in command zone, not exile.
+    // After the effect, commander is in exile (no replacement intercepts exile in M9).
+    // The SBA will return it on the next check.
+    let exile_objects = state.objects_in_zone(&ZoneId::Exile);
+    assert_eq!(
+        exile_objects.len(),
+        1,
+        "commander should be in exile after ExileObject (before SBA runs)"
+    );
+
+    // Now run SBA — it should return the commander to command zone.
+    let sba_events = mtg_engine::check_and_apply_sbas(&mut state);
+
     let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
     assert_eq!(
         cmd_objects.len(),
         1,
-        "commander should be redirected to command zone when exiled"
+        "commander should be in command zone after SBA runs"
     );
     assert!(
         state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile zone should be empty — commander was redirected"
+        "exile zone should be empty after SBA return"
     );
 
-    // ReplacementEffectApplied should be emitted.
+    // CommanderReturnedToCommandZone event should have been emitted by SBA.
     assert!(
-        events
+        sba_events
             .iter()
-            .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
-        "should emit ReplacementEffectApplied event"
+            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
+        "should emit CommanderReturnedToCommandZone from SBA"
     );
 }
 
@@ -1566,11 +1569,14 @@ fn test_destroy_effect_checks_replacements() {
     );
 }
 
-// ── register_commander_zone_replacements creates correct effects ──
+// ── register_commander_zone_replacements creates correct effects (M9 model) ──
 
 #[test]
-/// CR 903.9 — register_commander_zone_replacements creates 2 effects per commander
-/// Source: M8 Session 3 commander registration validation
+/// CR 903.9b — register_commander_zone_replacements creates 2 effects per commander (M9 model).
+///
+/// In M9, only hand and library replacements are registered (CR 903.9b). Graveyard and exile
+/// paths are handled by the SBA in check_commander_zone_return_sba (CR 903.9a / CR 704.6d).
+/// Source: M9 Session 3 SBA model update
 fn test_register_commander_replacements_creates_effects() {
     let cmdr_id = CardId("cmdr-test".to_string());
     let mut state = GameStateBuilder::four_player()
@@ -1586,35 +1592,35 @@ fn test_register_commander_replacements_creates_effects() {
 
     register_commander_zone_replacements(&mut state);
 
-    // Should have 2 effects: one for graveyard, one for exile.
+    // Should have 2 effects: one for hand, one for library (M9 model).
     assert_eq!(
         state.replacement_effects.len(),
         2,
-        "should have 2 replacement effects for commander"
+        "should have 2 replacement effects for commander (hand + library)"
     );
 
-    // One should trigger on WouldChangeZone to Graveyard.
+    // One should trigger on WouldChangeZone to Hand (CR 903.9b).
     assert!(
         state.replacement_effects.iter().any(|e| matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
-                to: ZoneType::Graveyard,
+                to: ZoneType::Hand,
                 ..
             }
         )),
-        "should have graveyard replacement"
+        "should have hand replacement (CR 903.9b bounce redirect)"
     );
 
-    // One should trigger on WouldChangeZone to Exile.
+    // One should trigger on WouldChangeZone to Library (CR 903.9b).
     assert!(
         state.replacement_effects.iter().any(|e| matches!(
             &e.trigger,
             ReplacementTrigger::WouldChangeZone {
-                to: ZoneType::Exile,
+                to: ZoneType::Library,
                 ..
             }
         )),
-        "should have exile replacement"
+        "should have library replacement (CR 903.9b tuck redirect)"
     );
 
     // Both should redirect to Command zone.
@@ -1636,16 +1642,34 @@ fn test_register_commander_replacements_creates_effects() {
     );
 }
 
-// ── Pending zone change skipped in subsequent SBA pass ──
+// ── Pending zone change skipped in subsequent SBA pass (non-commander scenario) ──
 
 #[test]
-/// CR 614 — Objects with pending replacement choices are skipped in SBA passes
-/// Source: M8 Session 3 pending skip validation
+/// CR 614 — Objects with pending replacement choices are skipped in SBA passes.
+///
+/// In M9, commander graveyard/exile paths are SBAs (no pending zone change created).
+/// This test verifies the pending-skip logic still works for non-commander objects
+/// with two competing replacements.
+/// Source: M8 Session 3 pending skip validation (adapted for M9 model)
 fn test_pending_zone_change_skipped_in_sba() {
-    let cmdr_card_id = CardId("cmdr-skip".to_string());
-
-    let rip_effect = ReplacementEffect {
-        id: ReplacementId(100),
+    // Use a non-commander creature to test the pending-zone-change skipping logic.
+    // Two replacements compete: exile-instead-of-graveyard (effect_a) and
+    // graveyard-instead-of-exile (effect_b), both targeting the creature.
+    let effect_a = ReplacementEffect {
+        id: ReplacementId(10),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    let effect_b = ReplacementEffect {
+        id: ReplacementId(11),
         source: None,
         controller: PlayerId(2),
         duration: EffectDuration::Indefinite,
@@ -1659,17 +1683,11 @@ fn test_pending_zone_change_skipped_in_sba() {
     };
 
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
-        .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 3, 3)
-                .with_card_id(cmdr_card_id.clone())
-                .with_damage(3),
-        )
-        .with_replacement_effect(rip_effect)
+        .object(ObjectSpec::creature(PlayerId(1), "Creature", 3, 3).with_damage(3))
+        .with_replacement_effect(effect_a)
+        .with_replacement_effect(effect_b)
         .build()
         .unwrap();
-
-    register_commander_zone_replacements(&mut state);
 
     // First SBA pass creates the pending zone change.
     let _events1 = mtg_engine::check_and_apply_sbas(&mut state);
@@ -2467,45 +2485,54 @@ fn test_indefinite_replacement_survives_cleanup() {
 
 #[test]
 /// CR 616.1 — DestroyPermanent emits ReplacementChoiceRequired when multiple
-/// replacement effects apply to the same zone change.
+/// replacement effects apply to the same zone change (non-commander scenario).
 /// Source: MR-M8-02 fix — ChoiceRequired arm now handled in DestroyPermanent.
+///
+/// In M9, commander graveyard replacements are SBAs. This test uses two explicit
+/// non-commander graveyard replacements to exercise the ChoiceRequired path.
 fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
-    let cmdr_card_id = CardId("cmdr-destroy".to_string());
-
-    // Register a "exile instead of graveyard" effect (RiP-style).
-    let rip_effect = ReplacementEffect {
+    // Two competing graveyard replacements on a non-commander creature.
+    let effect_a = ReplacementEffect {
         id: ReplacementId(0),
         source: None,
         controller: PlayerId(2),
         duration: EffectDuration::Indefinite,
         is_self_replacement: false,
         trigger: ReplacementTrigger::WouldChangeZone {
-            from: None, // matches any source zone
+            from: None,
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    let effect_b = ReplacementEffect {
+        id: ReplacementId(1),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
             to: ZoneType::Graveyard,
             filter: ObjectFilter::Any,
         },
         modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
     };
 
-    // Commander has its own redirect-to-command-zone replacement.
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
-        .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 4, 4).with_card_id(cmdr_card_id.clone()),
-        )
-        .with_replacement_effect(rip_effect)
+        .object(ObjectSpec::creature(PlayerId(1), "Creature", 4, 4))
+        .with_replacement_effect(effect_a)
+        .with_replacement_effect(effect_b)
         .build()
         .unwrap();
 
-    register_commander_zone_replacements(&mut state);
-
-    let cmdr_id = state
+    let creature_id = state
         .objects_in_zone(&ZoneId::Battlefield)
         .first()
         .unwrap()
         .id;
 
-    // Execute DestroyPermanent on the commander.
+    // Execute DestroyPermanent on the creature.
     use mtg_engine::effects::EffectContext;
     use mtg_engine::SpellTarget;
     use mtg_engine::Target;
@@ -2518,14 +2545,14 @@ fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
         PlayerId(2),
         ObjectId(999),
         vec![SpellTarget {
-            target: Target::Object(cmdr_id),
+            target: Target::Object(creature_id),
             zone_at_cast: Some(ZoneId::Battlefield),
         }],
     );
 
     let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
-    // Should have emitted ReplacementChoiceRequired, not moved the commander yet.
+    // Should have emitted ReplacementChoiceRequired, not moved the creature yet.
     assert!(
         events
             .iter()
@@ -2533,43 +2560,33 @@ fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
         "CR 616.1: should emit ReplacementChoiceRequired when multiple replacements apply"
     );
 
-    // Commander should still be on battlefield (or in pending_zone_changes), not yet moved.
+    // Creature should still be on battlefield (or in pending_zone_changes), not yet moved.
     assert_eq!(
         state.pending_zone_changes.len(),
         1,
         "a PendingZoneChange should have been created"
     );
 
-    // Commander should still be on battlefield until choice is resolved.
+    // Creature should still be on battlefield until choice is resolved.
     assert!(
         state
             .objects_in_zone(&ZoneId::Battlefield)
             .iter()
-            .any(|o| o.id == cmdr_id),
-        "commander should still be on battlefield until player chooses"
+            .any(|o| o.id == creature_id),
+        "creature should still be on battlefield until player chooses"
     );
 }
 
 #[test]
 /// CR 616.1 — ExileObject emits ReplacementChoiceRequired when multiple
-/// replacement effects apply to the same zone change.
+/// replacement effects apply to the same zone change (non-commander scenario).
 /// Source: MR-M8-02 fix — ChoiceRequired arm now handled in ExileObject.
+///
+/// In M9, commander exile replacements are SBAs. This test uses two explicit
+/// exile replacements to exercise the ChoiceRequired path.
 fn test_exile_object_emits_choice_required_for_multiple_replacements() {
-    let cmdr_card_id = CardId("cmdr-exile2".to_string());
-
-    // "Redirect graveyard to exile" — irrelevant for exile target, but
-    // "Redirect exile to command zone" from commander registration IS relevant.
-    let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
-        .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 4, 4).with_card_id(cmdr_card_id.clone()),
-        )
-        .build()
-        .unwrap();
-
-    // Add a second "redirect exile to graveyard" effect so there are 2 replacements
-    // competing when the commander would be exiled.
-    let second_effect = ReplacementEffect {
+    // Two competing exile replacements on a non-commander creature.
+    let effect_a = ReplacementEffect {
         id: ReplacementId(200),
         source: None,
         controller: PlayerId(2),
@@ -2582,12 +2599,28 @@ fn test_exile_object_emits_choice_required_for_multiple_replacements() {
         },
         modification: ReplacementModification::RedirectToZone(ZoneType::Graveyard),
     };
-    state.replacement_effects.push_back(second_effect);
+    let effect_b = ReplacementEffect {
+        id: ReplacementId(201),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Exile,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Graveyard),
+    };
 
-    // Register commander replacement (redirects exile → command zone).
-    register_commander_zone_replacements(&mut state);
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(PlayerId(1), "Creature", 4, 4))
+        .with_replacement_effect(effect_a)
+        .with_replacement_effect(effect_b)
+        .build()
+        .unwrap();
 
-    let cmdr_id = state
+    let creature_id = state
         .objects_in_zone(&ZoneId::Battlefield)
         .first()
         .unwrap()
@@ -2605,7 +2638,7 @@ fn test_exile_object_emits_choice_required_for_multiple_replacements() {
         PlayerId(2),
         ObjectId(999),
         vec![SpellTarget {
-            target: Target::Object(cmdr_id),
+            target: Target::Object(creature_id),
             zone_at_cast: Some(ZoneId::Battlefield),
         }],
     );

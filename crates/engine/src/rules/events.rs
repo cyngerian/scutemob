@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::{ManaCost, ObjectId};
-use crate::state::player::PlayerId;
+use crate::state::player::{CardId, PlayerId};
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::ManaColor;
-use crate::state::zone::ZoneId;
+use crate::state::zone::{ZoneId, ZoneType};
 
 /// The target of a combat damage assignment: a creature, player, or planeswalker.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -482,4 +482,90 @@ pub enum GameEvent {
         prevented: u32,
         remaining: u32,
     },
+
+    // ── M9: Commander casting events (discriminant 57) ────────────────────
+    /// A commander was cast from the command zone (CR 903.8).
+    ///
+    /// Distinct from `SpellCast` for UI clarity — allows the frontend to display
+    /// a dedicated "commander entered from command zone" notification. Both
+    /// `SpellCast` and `CommanderCastFromCommandZone` are emitted for the same cast.
+    ///
+    /// `tax_paid` is the number of times previously cast (the additional cost
+    /// was `tax_paid * 2` generic mana).
+    CommanderCastFromCommandZone {
+        player: PlayerId,
+        card_id: CardId,
+        tax_paid: u32,
+    },
+
+    // ── M9: Commander zone return SBA (discriminant 58) ──────────────────
+    /// A commander was automatically returned to its owner's command zone by a
+    /// state-based action (CR 903.9a / CR 704.6d).
+    ///
+    /// Emitted when `check_commander_zone_return_sba` detects a commander in
+    /// graveyard or exile and auto-returns it. `from_zone` indicates which zone
+    /// the commander was moved from.
+    ///
+    /// Note (M9 simplification): the owner's choice to leave the commander in
+    /// graveyard/exile is auto-applied as a return. Player opt-out is deferred
+    /// to M10+ when a choice UI exists.
+    CommanderReturnedToCommandZone {
+        card_id: CardId,
+        owner: PlayerId,
+        from_zone: ZoneType,
+    },
+
+    // ── M9: Mulligan events (discriminants 59-60) ─────────────────────────
+    /// A player took a mulligan (CR 103.5 / CR 103.5c).
+    ///
+    /// `mulligan_number` is 1-based (1 = first mulligan). `is_free` is true
+    /// for the first mulligan in multiplayer where the player draws back to 7
+    /// with no cards required to go to the bottom (CR 103.5c).
+    MulliganTaken {
+        player: PlayerId,
+        mulligan_number: u32,
+        is_free: bool,
+    },
+
+    /// A player kept their hand (or mulliganed hand) (CR 103.5).
+    ///
+    /// `cards_to_bottom` lists the ObjectIds of cards put on the bottom of
+    /// the player's library as a result of the mulligan. Empty for no-mulligan
+    /// or the free mulligan.
+    MulliganKept {
+        player: PlayerId,
+        cards_to_bottom: Vec<ObjectId>,
+    },
+
+    // ── M9: Companion event (discriminant 61) ─────────────────────────────
+    /// A player paid {3} to bring their companion from the sideboard into hand
+    /// (CR 702.139a).
+    ///
+    /// Emitted when `handle_bring_companion` successfully completes the special
+    /// action. The companion card is now in the player's hand.
+    CompanionBroughtToHand { player: PlayerId, card_id: CardId },
+}
+
+impl GameEvent {
+    /// Returns `true` if this event reveals or commits to hidden information.
+    ///
+    /// Used by the M10 network layer to identify safe rewind checkpoints:
+    /// once hidden information has been revealed, replaying from before that
+    /// point would allow cheating. Events that return `true` include drawing
+    /// cards, discarding cards (reveals the card's identity to all players),
+    /// and any future scry/peek/face-down reveal events.
+    ///
+    /// All other events (priority, turn structure, combat, SBAs, etc.) return
+    /// `false` — they involve only public information and are safe to rewind.
+    pub fn reveals_hidden_info(&self) -> bool {
+        match self {
+            // Drawing a card reveals which card was drawn (the card moves from
+            // hidden zone to the player's hand; other players learn it exists).
+            GameEvent::CardDrawn { .. } => true,
+            // Discarding reveals the card's identity to all players.
+            GameEvent::CardDiscarded { .. } => true,
+            // All other events involve only public information.
+            _ => false,
+        }
+    }
 }

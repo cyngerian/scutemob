@@ -25,6 +25,10 @@ pub use state::{
     TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
 };
 
+pub use rules::commander::{
+    apply_commander_tax, compute_color_identity, validate_deck, validate_partner_commanders,
+    DeckValidationResult, DeckViolation,
+};
 pub use rules::engine::{process_command, start_game};
 pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
