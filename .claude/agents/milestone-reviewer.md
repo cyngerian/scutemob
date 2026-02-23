@@ -221,12 +221,26 @@ reviews document. Add entries for each new finding:
 1. Write the complete review section to `docs/mtg-engine-milestone-reviews.md`, inserting
    it before the cross-milestone index section.
 2. Update the Table of Contents if needed.
-3. Summarize the review:
+3. **If any HIGH or MEDIUM findings exist**, create `memory/m<N>-fix-session-plan.md`
+   grouping all open HIGH and MEDIUM findings into sessions of 5-8 fixes each. Use this
+   structure:
+   ```markdown
+   # M<N> Fix Session Plan
+
+   ## Session 1 — <theme>
+   - [ ] MR-M<N>-01 (HIGH) — brief title
+   - [ ] MR-M<N>-03 (MEDIUM) — brief title
+
+   ## Session 2 — <theme>
+   - [ ] MR-M<N>-05 (HIGH) — brief title
+   ```
+   Group by file or subsystem when possible so each session touches a coherent area.
+   This file is the working checklist for the `fix-session-runner` agent.
+4. Summarize the review:
    - Total findings by severity
    - Whether a fix phase is needed (any HIGH or MEDIUM = yes)
-   - If fix phase needed, recommend running the `rules-implementation-planner` agent to
-     author a session plan, or note that a manual `memory/m<N>-session-plan.md` should
-     be created grouping issues into sessions of 5-8 fixes each.
+   - If fix phase needed, confirm that `memory/m<N>-fix-session-plan.md` was created
+     and is ready for the `fix-session-runner` agent.
    - If only LOWs, note they can be addressed opportunistically.
 
 ## Important Constraints

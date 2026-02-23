@@ -367,6 +367,11 @@ pub fn object_matches_filter(state: &GameState, obj_id: ObjectId, filter: &Objec
             .and_then(|o| o.card_id.as_ref())
             .map(|cid| cid == target_card_id)
             .unwrap_or(false),
+        ObjectFilter::OwnedByOpponentsOf(player_id) => state
+            .objects
+            .get(&obj_id)
+            .map(|o| o.owner != *player_id)
+            .unwrap_or(false),
     }
 }
 
@@ -388,6 +393,74 @@ pub fn player_matches_filter(player_id: PlayerId, filter: &PlayerFilter) -> bool
         PlayerFilter::Any => true,
         PlayerFilter::Specific(id) => player_id == *id,
         PlayerFilter::OpponentsOf(id) => player_id != *id,
+    }
+}
+
+// ── Draw interception helpers (Session 4) ─────────────────────────────────
+
+/// The result of checking WouldDraw replacement effects for a draw event.
+#[derive(Debug)]
+pub enum DrawAction {
+    /// No replacement effects apply — perform the draw normally.
+    Proceed,
+    /// A SkipDraw replacement was auto-applied — skip the draw entirely.
+    /// Contains the `ReplacementEffectApplied` event to emit.
+    Skip(GameEvent),
+    /// Multiple replacements apply — the player must choose (CR 616.1).
+    /// Emit the returned `ReplacementChoiceRequired` event and defer the draw.
+    NeedsChoice(GameEvent),
+}
+
+/// CR 614.11: Check WouldDraw replacement effects before performing a draw.
+///
+/// Finds applicable replacements for `player` drawing a card, determines the
+/// action per CR 616.1, and returns a `DrawAction` indicating how the draw
+/// should proceed.
+///
+/// Called from both `draw_card` (turn_actions.rs) and `draw_one_card`
+/// (effects/mod.rs) to keep the two draw paths consistent.
+pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> DrawAction {
+    use crate::state::replacement_effect::{
+        PlayerFilter, ReplacementModification, ReplacementTrigger,
+    };
+
+    let trigger = ReplacementTrigger::WouldDraw {
+        player_filter: PlayerFilter::Specific(player),
+    };
+    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
+    let action = determine_action(state, &applicable, player, "draw a card");
+
+    match action {
+        ReplacementResult::NoApplicable => DrawAction::Proceed,
+        ReplacementResult::AutoApply(id) => {
+            let modification = state
+                .replacement_effects
+                .iter()
+                .find(|e| e.id == id)
+                .map(|e| e.modification.clone());
+            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
+                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
+                DrawAction::Skip(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "skip that draw".to_string(),
+                })
+            } else {
+                // Other modifications are not applicable to draws — proceed normally.
+                DrawAction::Proceed
+            }
+        }
+        ReplacementResult::NeedsChoice {
+            player,
+            choices,
+            event_description,
+        } => {
+            // CR 616.1: Multiple WouldDraw replacements apply — player must choose order.
+            DrawAction::NeedsChoice(GameEvent::ReplacementChoiceRequired {
+                player,
+                event_description,
+                choices,
+            })
+        }
     }
 }
 
@@ -562,11 +635,12 @@ pub fn resolve_pending_zone_change(
         _ => pending.original_destination,
     };
 
-    // Re-check with the modified destination
+    // Re-check with the modified destination, using the stored original_from zone
+    // so non-battlefield zone changes use the correct "from" zone (MR-M8-01).
     let action = check_zone_change_replacement(
         state,
         pending.object_id,
-        crate::state::zone::ZoneType::Battlefield, // still on battlefield
+        pending.original_from, // use stored from-zone, not hardcoded Battlefield
         new_to,
         pending.affected_player,
         &already_applied,
@@ -592,7 +666,13 @@ pub fn resolve_pending_zone_change(
 
             // Do the zone move
             if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
-                events.extend(zone_change_events(pending.object_id, new_id, final_dest));
+                events.extend(zone_change_events(
+                    state,
+                    pending.object_id,
+                    new_id,
+                    final_dest,
+                    pending.affected_player,
+                ));
             }
         }
         ZoneChangeAction::ChoiceRequired {
@@ -600,9 +680,10 @@ pub fn resolve_pending_zone_change(
             choices,
             event_description,
         } => {
-            // Another choice needed — re-add as pending
+            // Another choice needed — re-add as pending, preserving original_from
             state.pending_zone_changes.push_back(PendingZoneChange {
                 object_id: pending.object_id,
+                original_from: pending.original_from,
                 original_destination: new_to,
                 affected_player: player,
                 already_applied: already_applied.into_iter().collect(),
@@ -776,20 +857,46 @@ fn emit_etb_modification(
 }
 
 /// Produce appropriate GameEvents for a zone change based on the destination.
-fn zone_change_events(old_id: ObjectId, new_id: ObjectId, dest: ZoneId) -> Vec<GameEvent> {
+///
+/// `owner` is used for the `ObjectExiled` player field and `CommanderZoneRedirect`.
+/// `card_types` is used to choose `CreatureDied` vs `PermanentDestroyed` for graveyard moves.
+fn zone_change_events(
+    state: &GameState,
+    old_id: ObjectId,
+    new_id: ObjectId,
+    dest: ZoneId,
+    owner: PlayerId,
+) -> Vec<GameEvent> {
     match dest {
-        ZoneId::Graveyard(_) => vec![GameEvent::CreatureDied {
-            object_id: old_id,
-            new_grave_id: new_id,
-        }],
+        ZoneId::Graveyard(_) => {
+            // MR-M8-06: check card types before choosing event variant.
+            let is_creature = state
+                .objects
+                .get(&new_id)
+                .map(|o| o.characteristics.card_types.contains(&CardType::Creature))
+                .unwrap_or(false);
+            if is_creature {
+                vec![GameEvent::CreatureDied {
+                    object_id: old_id,
+                    new_grave_id: new_id,
+                }]
+            } else {
+                vec![GameEvent::PermanentDestroyed {
+                    object_id: old_id,
+                    new_grave_id: new_id,
+                }]
+            }
+        }
         ZoneId::Exile => vec![GameEvent::ObjectExiled {
-            player: PlayerId(0), // caller should override if needed
+            player: owner, // MR-M8-04: use real owner instead of hardcoded PlayerId(0)
             object_id: old_id,
             new_exile_id: new_id,
         }],
-        ZoneId::Command(_) => vec![GameEvent::ReplacementEffectApplied {
-            effect_id: ReplacementId(u64::MAX), // sentinel for commander redirect
-            description: format!("Commander {:?} sent to command zone", old_id),
+        ZoneId::Command(_) => vec![GameEvent::CommanderZoneRedirect {
+            // MR-M8-05: proper variant instead of ReplacementId(u64::MAX) sentinel
+            object_id: old_id,
+            new_command_id: new_id,
+            owner,
         }],
         _ => vec![],
     }
@@ -847,6 +954,10 @@ pub fn register_permanent_replacement_abilities(
             // specific object at registration time. The card definition uses
             // `ObjectFilter::Any` as a placeholder meaning "this object," but
             // we must narrow it at runtime so the effect doesn't fire for other objects.
+            //
+            // For non-self WouldChangeZone effects with `OwnedByOpponentsOf`, bind the
+            // controller's PlayerId at registration time so "opponents" is computed
+            // relative to the Leyline controller (MR-M8-09).
             let resolved_trigger = if *is_self {
                 match trigger {
                     ReplacementTrigger::WouldChangeZone { from, to, .. } => {
@@ -859,7 +970,18 @@ pub fn register_permanent_replacement_abilities(
                     other => other.clone(),
                 }
             } else {
-                trigger.clone()
+                match trigger {
+                    ReplacementTrigger::WouldChangeZone {
+                        from,
+                        to,
+                        filter: ObjectFilter::OwnedByOpponentsOf(_),
+                    } => ReplacementTrigger::WouldChangeZone {
+                        from: *from,
+                        to: *to,
+                        filter: ObjectFilter::OwnedByOpponentsOf(controller),
+                    },
+                    other => other.clone(),
+                }
             };
 
             let id = state.next_replacement_id();

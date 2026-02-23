@@ -99,34 +99,17 @@ pub fn draw_card(
     }
 
     // CR 614.11: Check WouldDraw replacement effects before performing the draw.
+    // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
     {
-        use crate::rules::replacement::{self, ReplacementResult};
-        use crate::state::replacement_effect::{
-            PlayerFilter, ReplacementModification, ReplacementTrigger,
-        };
-        let trigger = ReplacementTrigger::WouldDraw {
-            player_filter: PlayerFilter::Specific(player),
-        };
-        let applicable =
-            replacement::find_applicable(state, &trigger, &std::collections::HashSet::new());
-        let action = replacement::determine_action(state, &applicable, player, "draw a card");
-        if let ReplacementResult::AutoApply(id) = action {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
-                return Ok(vec![GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
-                }]);
+        use crate::rules::replacement::{self, DrawAction};
+        match replacement::check_would_draw_replacement(state, player) {
+            DrawAction::Proceed => {}
+            DrawAction::Skip(event) => return Ok(vec![event]),
+            DrawAction::NeedsChoice(event) => {
+                // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
+                return Ok(vec![event]);
             }
-            // Other modifications are not applicable to draws — fall through.
         }
-        // NeedsChoice for multiple draw replacements requires M9+ interactive handling.
-        // Fall through so the draw proceeds normally.
     }
 
     let library_zone = ZoneId::Library(player);

@@ -79,6 +79,10 @@ pub struct GameState {
     /// Zone changes waiting for player choice among replacement effects (CR 616.1).
     /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
     pub pending_zone_changes: Vector<PendingZoneChange>,
+    /// Prevention shield counters: remaining capacity for `PreventDamage(n)` effects (CR 615.7).
+    /// Keyed by ReplacementId. When a counter reaches 0 the corresponding ReplacementEffect
+    /// is removed from `replacement_effects`. `PreventAllDamage` effects need no counter.
+    pub prevention_counters: im::OrdMap<ReplacementId, u32>,
     /// Triggered abilities waiting to be put on the stack.
     pub pending_triggers: Vector<PendingTrigger>,
     /// Stack objects (spells and abilities on the stack).

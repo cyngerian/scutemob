@@ -18,7 +18,7 @@ use super::game_object::{
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
-    ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
+    ObjectFilter, ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
@@ -31,6 +31,7 @@ pub struct GameStateBuilder {
     objects: Vec<ObjectSpec>,
     continuous_effects: Vec<ContinuousEffect>,
     replacement_effects: Vec<ReplacementEffect>,
+    prevention_counters: OrdMap<ReplacementId, u32>,
     turn_number: u32,
     step: Option<Step>,
     active_player: Option<PlayerId>,
@@ -55,6 +56,7 @@ impl GameStateBuilder {
             objects: Vec::new(),
             continuous_effects: Vec::new(),
             replacement_effects: Vec::new(),
+            prevention_counters: im::OrdMap::new(),
             turn_number: 1,
             step: None,
             active_player: None,
@@ -192,6 +194,15 @@ impl GameStateBuilder {
         self
     }
 
+    /// Register a prevention shield counter for a `PreventDamage(n)` replacement effect.
+    ///
+    /// Used in tests to set up a shield with a specific remaining capacity.
+    /// The corresponding `ReplacementEffect` must also be added via `with_replacement_effect`.
+    pub fn with_prevention_counter(mut self, id: ReplacementId, n: u32) -> Self {
+        self.prevention_counters.insert(id, n);
+        self
+    }
+
     /// Build the `GameState`. Returns `Err` if configuration is invalid (e.g. no players).
     pub fn build(self) -> Result<GameState, GameStateError> {
         if self.players.is_empty() {
@@ -266,6 +277,7 @@ impl GameStateBuilder {
             replacement_effects: Vector::new(),
             next_replacement_id: 0,
             pending_zone_changes: Vector::new(),
+            prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
@@ -286,6 +298,9 @@ impl GameStateBuilder {
             }
             state.replacement_effects.push_back(effect);
         }
+
+        // Copy any pre-set prevention shield counters (from with_prevention_counter).
+        state.prevention_counters = self.prevention_counters;
 
         // Add objects
         for spec in self.objects {

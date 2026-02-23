@@ -1,277 +1,73 @@
-# M8 Session Plan — Replacement & Prevention Effects
+# M8 Fix Phase — Session Plan
 
-Generated during M8 kickoff (2026-02-22). Milestone spec: `docs/mtg-engine-roadmap.md` M8 section.
-
-## What M8 Delivers
-
-- Replacement effect framework: intercept events before they fire, apply modifications
-- Self-replacement priority (CR 614.15)
-- Player choice when multiple replacements apply (CR 616.1)
-- Loop prevention: a replacement can apply to a given event at most once (CR 614.5)
-- Prevention effects: "prevent the next N damage" / "prevent all damage" (CR 615)
-- Prevention + replacement interaction (CR 616)
-- "If ~ would die" replacements → critical foundation for M9 commander zone-change
-- "If a player would draw" replacements
-- "Enters the battlefield" replacements (ETB tapped, ETB with counters)
-- Commander zone-change choice wired up
-
-## Architecture Summary
-
-### New files
-- `state/replacement_effect.rs` — `ReplacementId`, `ReplacementEffect`, `ReplacementTrigger`,
-  `ReplacementModification`; register in `state/mod.rs`
-- `rules/replacement.rs` — `apply_replacements()`, loop prevention, self-replacement priority;
-  register in `rules/mod.rs`
-
-### Data model
-```
-ReplacementEffect {
-    id: ReplacementId,
-    source: Option<ObjectId>,       // None = from a spell resolution (no permanent source)
-    controller: PlayerId,
-    duration: EffectDuration,       // reuse from continuous_effect.rs
-    is_self_replacement: bool,      // CR 614.15 — applies before player-ordered effects
-    trigger: ReplacementTrigger,
-    modification: ReplacementModification,
-}
-
-ReplacementTrigger:
-  WouldChangeZone { from: Option<ZoneType>, to: ZoneType, filter: ObjectFilter }
-  WouldDraw { player_filter: PlayerFilter }
-  WouldEnterBattlefield { filter: ObjectFilter }
-  WouldGainLife { player_filter: PlayerFilter }
-  DamageWouldBeDealt { target_filter: TargetFilter }
-
-ReplacementModification:
-  RedirectToZone(ZoneType)           // "to exile instead", "to command zone instead"
-  EntersTapped                       // ETB replacement: permanent arrives tapped
-  EntersWithCounters { counter, n }  // ETB replacement: arrives with N counters
-  SkipDraw                           // "skip that draw"
-  PreventDamage(u32)                 // prevent exactly N damage (decrements shield)
-  PreventAllDamage                   // prevent all damage from this event
-  ReplaceGainLifeWithDraw            // "draw that many cards instead"
-```
-
-### GameState changes
-- Add `replacement_effects: Vec<ReplacementEffect>` to `GameState`
-- Add `next_replacement_id: u64` counter
-- `GameStateBuilder::with_replacement_effect(re) -> Self`
-
-### New events (add to `rules/events.rs`)
-```
-ReplacementEffectApplied { effect_id: ReplacementId, description: String }
-ReplacementChoiceRequired { player: PlayerId, event_description: String,
-                             choices: Vec<ReplacementId> }
-DamagePrevented { source: ObjectId, target: ..., prevented: u32, remaining: u32 }
-```
-
-### New command (add to `rules/command.rs` or equivalent)
-```
-Command::OrderReplacements { ids_in_order: Vec<ReplacementId> }
-```
-
-### AbilityDefinition
-Add `Replacement { trigger: ReplacementTrigger, modification: ReplacementModification,
-                   is_self: bool }` variant — static replacement abilities of permanents.
-
-When a permanent with a `Replacement` ability enters the battlefield, the engine registers
-a `ReplacementEffect` in `state.replacement_effects` (source = that object, duration =
-`WhileSourceOnBattlefield`). When it leaves, the effect is filtered out at the same point
-continuous effects are checked.
-
-### Interception sites
-1. **SBA zone changes** (`rules/sba.rs`): before emitting `CreatureDied` /
-   `PlaneswalkerDied`, call `apply_replacements()` with `WouldChangeZone { to: Graveyard }`.
-2. **Effect zone changes** (`effects/mod.rs`): `ExileObject`, `DestroyPermanent`,
-   `ObjectPutInGraveyard` effects — check replacements before the move.
-3. **Draw** (`rules/turn_actions.rs` draw step + `effects/mod.rs` DrawCards effect) —
-   check `WouldDraw` replacements.
-4. **ETB** (permanent enters battlefield in `rules/resolution.rs` and `effects/mod.rs`) —
-   check `WouldEnterBattlefield` to apply tapped/counters modifications before the object
-   settles on the battlefield.
-5. **Damage** (`effects/mod.rs` DealDamage + `rules/combat.rs` combat damage) — check
-   prevention and damage replacement effects.
-
-## Session Breakdown
+> Generated from M8 code review findings (MR-M8-01 through MR-M8-10).
+> 3 HIGH + 7 MEDIUM = 10 issues across 2 fix sessions.
 
 ---
 
-### Session 1 — Data model and GameState wiring
-**~5 items**
+## Session 1: Critical Fixes (6 issues) — COMPLETE
 
-Files: `state/replacement_effect.rs` (new), `state/mod.rs`, `state/builder.rs`
+Focus: The three HIGH findings plus tightly-related MEDIUM fixes in the same files.
 
-1. Define `ReplacementId(u64)`, `ReplacementEffect`, `ReplacementTrigger`,
-   `ReplacementModification` (as outlined above). Full serde + clone + debug derives.
-2. Add `ObjectFilter` enum (reuse/adapt from existing targeting): `AnyObject`,
-   `CardId(CardId)`, `ControlledBy(PlayerId)`, `AnyCreature`, `Commander`.
-3. Add `PlayerFilter` enum: `AnyPlayer`, `SpecificPlayer(PlayerId)`.
-4. Add `replacement_effects: im::Vector<ReplacementEffect>` and
-   `next_replacement_id: u64` to `GameState`.
-5. Add `GameStateBuilder::with_replacement_effect(re: ReplacementEffect) -> Self` helper.
-6. Tests: serialize/deserialize a `ReplacementEffect`, builder round-trip.
+| # | Issue | Severity | File(s) | Summary |
+|---|-------|----------|---------|---------|
+| 1 | MR-M8-01 | HIGH | `replacement.rs:569`, `state/replacement_effect.rs` | Add `original_from: ZoneType` to `PendingZoneChange`; update all creation sites (sba.rs, effects/mod.rs); use in `resolve_pending_zone_change` re-check instead of hardcoded `Battlefield` |
+| 2 | MR-M8-02 | HIGH | `effects/mod.rs:323-332,401-410` | Add `ChoiceRequired` match arms in `DestroyPermanent` and `ExileObject` — create `PendingZoneChange` + emit `ReplacementChoiceRequired`, matching SBA pattern |
+| 3 | MR-M8-03 | HIGH | `turn_actions.rs:216`, `rules/layers.rs` | Expire `UntilEndOfTurn` replacement effects during cleanup; also remove corresponding `prevention_counters` entries |
+| 4 | MR-M8-04 | MEDIUM | `replacement.rs:779-796` | Add `owner: PlayerId` param to `zone_change_events`; use real owner instead of hardcoded `PlayerId(0)` in `ObjectExiled` |
+| 5 | MR-M8-05 | MEDIUM | `replacement.rs:790-793` | Replace `ReplacementId(u64::MAX)` sentinel with a proper `GameEvent::CommanderZoneRedirect` variant (or use real effect ID) |
+| 6 | MR-M8-06 | MEDIUM | `replacement.rs:781-784` | Check object card types before choosing event variant — don't always emit `CreatureDied` for graveyard moves |
 
----
+All 6 fixes applied. 6 new tests added. 400 tests passing, 0 failures.
 
-### Session 2 — Core application framework
-**~6 items**
+### Tests added (Session 1):
+- [x] `test_until_end_of_turn_replacement_expires_at_cleanup` — covers MR-M8-03 + MR-M8-13
+- [x] `test_indefinite_replacement_survives_cleanup` — covers MR-M8-03 negative case
+- [x] `test_destroy_permanent_emits_choice_required_for_multiple_replacements` — covers MR-M8-02
+- [x] `test_exile_object_emits_choice_required_for_multiple_replacements` — covers MR-M8-02
+- [x] `test_zone_change_events_enchantment_emits_permanent_destroyed` — covers MR-M8-06
+- [x] `GameEvent::CommanderZoneRedirect` hash test integrated into hash.rs impl — covers MR-M8-05
 
-Files: `rules/replacement.rs` (new), `rules/mod.rs`, `rules/events.rs`,
-`rules/command.rs` (or wherever `Command` lives)
-
-1. `find_applicable(state, trigger: &ReplacementTrigger) -> Vec<ReplacementId>` —
-   returns IDs of all currently-active replacement effects matching the trigger.
-   (Active = source still on battlefield if `WhileSourceOnBattlefield`, duration
-   not expired if `UntilEndOfTurn`.)
-2. `apply_one(state, id: ReplacementId, events: &mut Vec<GameEvent>) -> GameState` —
-   applies a single replacement effect, emitting `ReplacementEffectApplied`.
-3. `apply_replacements(state, trigger, candidate_events, already_applied: HashSet<ReplacementId>)`
-   — full loop:
-   a. Filter out already-applied effects (CR 614.5).
-   b. Sort self-replacements first (CR 614.15).
-   c. If 0 applicable: return unmodified event.
-   d. If 1 applicable: auto-apply.
-   e. If 2+: emit `ReplacementChoiceRequired` and return `NeedsChoice` sentinel;
-      the pending choice blocks further processing until `Command::OrderReplacements` arrives.
-4. Add `ReplacementChoiceRequired`, `ReplacementEffectApplied`, `DamagePrevented`
-   to `GameEvent`.
-5. Add `Command::OrderReplacements { ids: Vec<ReplacementId> }` and wire into
-   `process_command`.
-6. Tests: 0 effects (no-op), 1 effect auto-applied, self-replacement sorted first,
-   loop prevention (same effect can't apply twice), `OrderReplacements` command routes correctly.
+### Notes:
+- MR-M8-05: Used `GameEvent::CommanderZoneRedirect` new variant (not real effect ID) — cleaner API
+- MR-M8-04: `zone_change_events` now takes `state`, `old_id`, `new_id`, `dest`, `owner`
+- All DestroyPermanent/ExileObject match arms rewritten as full exhaustive matches (no `_ =>` wildcard)
 
 ---
 
-### Session 3 — Zone-change interception + Commander die replacement
-**~6 items**
+## Session 2: Remaining MEDIUMs (4 issues) — COMPLETE
 
-Files: `rules/sba.rs`, `effects/mod.rs`, `cards/definitions.rs` (or wherever
-commander-specific logic lives)
+Focus: Draw replacement DRY, WouldDraw NeedsChoice, Leyline filter, hash gap.
 
-1. Wire `apply_replacements` into `sba.rs` creature-dies check:
-   before moving creature to graveyard (before emitting `CreatureDied`), call with
-   `WouldChangeZone { from: Some(Battlefield), to: Graveyard, filter: matching creature }`.
-   If a replacement fires, redirect accordingly and emit `ReplacementEffectApplied`.
-2. Wire into `sba.rs` planeswalker-dies check similarly.
-3. Wire into `effects/mod.rs` `ExileObject` effect — check `WouldChangeZone { to: Exile }`.
-4. Wire into `effects/mod.rs` `DestroyPermanent` effect — check `WouldChangeZone { to: Graveyard }`.
-5. Commander zone-change replacement: when a commander would go to graveyard or exile,
-   register a `ReplacementEffect { trigger: WouldChangeZone { to: Graveyard | Exile,
-   filter: Commander }, modification: RedirectToZone(CommandZone), is_self: false }`.
-   This is registered at game start for each commander (duration: `Indefinite`, source: None).
-   Implement the choice prompt: `ReplacementChoiceRequired` for the owning player to choose
-   command zone vs. the other replacement (or default zone).
-6. Tests (per roadmap):
-   - Commander dies → choice event emitted, choosing command zone works
-   - Commander dies with Rest in Peace active → controller chooses order (case 18 from corner-cases)
-   - Simple replacement: creature dies with no replacement → goes to graveyard normally
-   - Creature dies with "exile instead" replacement → goes to exile
+| # | Issue | Severity | File(s) | Summary |
+|---|-------|----------|---------|---------|
+| 1 | MR-M8-07 | MEDIUM | `turn_actions.rs:101-130`, `effects/mod.rs:1236-1263` | Extract shared WouldDraw replacement check into `replacement.rs` (e.g., `check_would_draw_replacement`); call from both draw paths |
+| 2 | MR-M8-08 | MEDIUM | `turn_actions.rs:128`, `effects/mod.rs:1262` | Handle `NeedsChoice` for WouldDraw — emit `ReplacementChoiceRequired` or document as M8 limitation if no current card triggers it |
+| 3 | MR-M8-09 | MEDIUM | `definitions.rs:1383-1394` | Add `ObjectFilter::OwnedByOpponentsOf(PlayerId)` variant; use for Leyline of the Void; implement in `object_matches_filter` |
+| 4 | MR-M8-10 | MEDIUM | `state/hash.rs:401-416` | Add `self.cleanup_sba_rounds.hash_into(hasher)` to `TurnState::hash_into` |
 
----
+All 4 fixes applied. 4 new tests added. 404 tests passing, 0 failures.
 
-### Session 4 — Draw replacement + ETB replacement ✅ COMPLETE
-**~5 items** (8 tests added, 390 total passing)
+### Tests added (Session 2):
+- [x] `test_draw_cards_effect_respects_skip_draw_replacement` — covers MR-M8-07 (draw_one_card path respects SkipDraw)
+- [x] `test_draw_needs_choice_emits_replacement_choice_required` — covers MR-M8-08 (NeedsChoice defers draw)
+- [x] `test_leyline_of_the_void_opponent_only_filter` — covers MR-M8-09 (filter bound to controller, matches opponents only)
+- [x] `test_hash_cleanup_sba_rounds_affects_hash` — covers MR-M8-10 (cleanup_sba_rounds in hash)
 
-Files: `rules/turn_actions.rs`, `effects/mod.rs` (DrawCards effect), `rules/resolution.rs`
-or wherever permanents enter the battlefield
-
-1. Wire `apply_replacements` into the draw-card action (both turn-based draw step and
-   the `DrawCards` effect): check `WouldDraw { player_filter }` before moving top library
-   card to hand.
-2. Implement `SkipDraw` modification: player skips the draw entirely (e.g., Teferi's
-   Puzzle Box replacement where cards go back and are drawn fresh — simplified to skip
-   for now).
-3. Wire `apply_replacements` into the permanent-enters-battlefield path: after the object
-   is placed in the Battlefield zone but before `PermanentEnteredBattlefield` is emitted,
-   apply `WouldEnterBattlefield` replacements (e.g., `EntersTapped`, `EntersWithCounters`).
-4. Update card definitions: lands with "enters the battlefield tapped" (Guildgates, etc.)
-   should register `Replacement { trigger: WouldEnterBattlefield { filter: SelfObject },
-   modification: EntersTapped, is_self: true }` as a static ability.
-5. Tests (per roadmap):
-   - Simple draw replacement (no applicable effect → card drawn normally)
-   - "Skip that draw" replacement fires → no `CardDrawn` event
-   - ETB tapped: land enters tapped, `PermanentTapped` fires, triggers watching "untapped"
-     do NOT fire (case 19 from corner-cases)
-   - ETB with counters: permanent arrives with correct counter count
+### Notes:
+- MR-M8-07/08: `DrawAction` enum in `replacement.rs` with `Proceed/Skip/NeedsChoice` variants; both draw paths use `check_would_draw_replacement`
+- MR-M8-08: `NeedsChoice` now emits `ReplacementChoiceRequired` and defers the draw (not just a comment)
+- MR-M8-09: `ObjectFilter::OwnedByOpponentsOf(PlayerId(0))` in card definition — `PlayerId(0)` is a placeholder; `register_permanent_replacement_abilities` binds the actual controller at registration time
+- MR-M8-10: Single line added to `TurnState::hash_into`; hash sensitivity test confirms states differing only in `cleanup_sba_rounds` produce different hashes
 
 ---
 
-### Session 5 — Prevention effects ✅ COMPLETE
-**~5 items** (4 prevention tests + 1 Rhystic Study trigger fix; 395 tests passing)
+## LOW findings (deferred)
 
-Files: `state/replacement_effect.rs` (add prevention shield state),
-`rules/replacement.rs` (prevention logic), `rules/combat.rs`, `effects/mod.rs`
-
-1. Prevention shields: add `PreventionShield { id: ReplacementId, remaining: u32 }` state
-   or implement as a `ReplacementModification::PreventDamage(u32)` with mutable state
-   tracked in `GameState` (decrement on each application). The `remaining` field lives on
-   a separate `PreventionCounter` map in `GameState` keyed by `ReplacementId`.
-2. Wire prevention into non-combat `DealDamage` effect: before applying damage, call
-   `apply_replacements` with `DamageWouldBeDealt` trigger. `PreventDamage(n)` decrements
-   the shield and reduces damage; `PreventAllDamage` zeroes it. Emit `DamagePrevented`.
-3. Wire prevention into `apply_combat_damage` in `rules/combat.rs` similarly.
-4. CR 616 ordering (prevention + replacement): when both a prevention and a non-prevention
-   replacement apply to the same damage event, treat them both as applicable and let the
-   player order them via `ReplacementChoiceRequired`.
-5. Tests (per roadmap):
-   - "Prevent the next 3 damage" shield: take 5 → 2 gets through, 3 prevented
-   - Shield depletes correctly (state decrements)
-   - "Prevent all damage" — all damage zeroed
-   - Replacement + prevention interaction: player chooses order, both outcomes correct
-
----
-
-### ✅ Session 6 — Card definitions + game scripts (COMPLETE — 395 tests)
-**~6 items**
-
-Files: `cards/definitions.rs`, `test-data/generated-scripts/replacement/` (new scripts)
-
-1. Add/update card definitions that use replacement effects:
-   - Rest in Peace (`WouldChangeZone { to: Graveyard }` → `RedirectToZone(Exile)`)
-   - Leyline of the Void (same trigger, same modification, for opponents)
-   - At least one ETB-tapped land definition if not already done in S4
-   - At least one "if ~ would die" self-replacement card
-   - Notion Thief (`WouldDraw` for opponents → skip + controller draws instead) — if
-     `ReplaceGainLifeWithDraw` analogue is feasible; skip if too complex
-2. Generate game scripts for `test-data/generated-scripts/replacement/`:
-   - `replacement-001-simple.json`: single replacement effect, no player choice needed
-   - `replacement-002-multiple-ordered.json`: two replacements, player chooses order (case 16)
-   - `replacement-003-self-first.json`: self-replacement applies before other (case 17)
-   - `replacement-004-commander-die.json`: commander dies, owner sends to command zone (case 18)
-   - `replacement-005-etb-tapped.json`: land with "enters tapped" (case 19)
-   - `replacement-006-kalitas.json`: commander dies with Kalitas-style exile replacement (case 28)
-3. Human-review all scripts and mark `approved`.
-4. Run full test suite: `cargo test --all` — all passing.
-5. Run `cargo clippy -- -D warnings` — no warnings.
-6. Run `cargo fmt --check` — clean.
-
----
-
-## Milestone Acceptance Criteria Checklist
-
-From roadmap M8:
-- [x] Replacement effects integrate cleanly with existing event system
-- [x] Commander zone-change choice works correctly (harness registers commanders)
-- [x] No infinite loops possible in replacement effect chains (loop-prevention enforced)
-- [x] Replacement effect game scripts pass through replay harness (3 approved scripts run)
-- [x] All 6 sessions complete
-- [x] 336+ tests passing (395 passing — 59 new from M8)
-
-## Key CR References
-
-- CR 614 — Replacement and Prevention Effects (general)
-- CR 614.5 — A replacement effect can apply to a given event at most once
-- CR 614.15 — Self-replacement effects apply first
-- CR 615 — Prevention Effects
-- CR 616 — Interaction of replacement + prevention effects
-- CR 903.9 — Commander zone-change replacement
-
-## Corner Cases Addressed
-
-- Case 16: Multiple replacement effects, player chooses order → Session 2 + 3
-- Case 17: Self-replacement applies first → Session 2
-- Case 18: Commander dies with Rest in Peace → Session 3
-- Case 19: ETB tapped, not a trigger → Session 4
-- Case 28: Commander dies with Kalitas exile replacement → Session 3 + 6
-- Case 33: Sylvan Library draw replacement (Dredge) → framework in Session 4; full
-  Sylvan Library card definition deferred (complex multi-draw tracking)
+MR-M8-11 through MR-M8-16 — address opportunistically during M9 or later:
+- MR-M8-11: Damage prevention registration order vs player choice (rare edge case)
+- MR-M8-12: Self-ETB bypasses replacement framework (correct for current cards)
+- MR-M8-13: Test gap for UntilEndOfTurn expiration (covered by Session 1 fix of MR-M8-03)
+- MR-M8-14: Darksteel Colossus shuffle simplification
+- MR-M8-15: No multi-ETB interaction test
+- MR-M8-16: Stale replacement effects grow unbounded

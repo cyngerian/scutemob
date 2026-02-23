@@ -724,18 +724,52 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         })
         .collect();
 
+    // --- CR 615: Apply damage prevention for each assignment ---
+    // Mutates prevention shields in state; must happen before damage application.
+    let mut prevention_events: Vec<GameEvent> = Vec::new();
+    let final_amounts: Vec<u32> = assignments
+        .iter()
+        .map(|a| {
+            let (final_dmg, pevts) = crate::rules::replacement::apply_damage_prevention(
+                state, a.source, &a.target, a.amount,
+            );
+            prevention_events.extend(pevts);
+            final_dmg
+        })
+        .collect();
+
+    // Build the post-prevention assignment list for the CombatDamageDealt event.
+    let final_assignments: Vec<CombatDamageAssignment> = assignments
+        .iter()
+        .zip(final_amounts.iter())
+        .map(|(a, &amt)| CombatDamageAssignment {
+            source: a.source,
+            target: a.target.clone(),
+            amount: amt,
+        })
+        .collect();
+
     // --- Apply damage and collect lifelink gains ---
     // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
     let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
 
-    for (assignment, (source_deathtouch, source_lifelink, source_controller, commander_info)) in
-        assignments.iter().zip(app_info.iter())
+    for (
+        (assignment, (source_deathtouch, source_lifelink, source_controller, commander_info)),
+        &final_dmg,
+    ) in assignments
+        .iter()
+        .zip(app_info.iter())
+        .zip(final_amounts.iter())
     {
+        if final_dmg == 0 {
+            // All damage prevented for this assignment — skip state mutation.
+            continue;
+        }
         match &assignment.target {
             CombatDamageTarget::Creature(obj_id) => {
                 if let Some(obj) = state.objects.get_mut(obj_id) {
-                    obj.damage_marked += assignment.amount;
-                    if *source_deathtouch && assignment.amount > 0 {
+                    obj.damage_marked += final_dmg;
+                    if *source_deathtouch {
                         obj.deathtouch_damage = true;
                     }
                 }
@@ -743,7 +777,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             CombatDamageTarget::Player(player_id) => {
                 // Apply life loss.
                 if let Some(player) = state.players.get_mut(player_id) {
-                    player.life_total -= assignment.amount as i32;
+                    player.life_total -= final_dmg as i32;
                 }
                 // Track commander damage (CR 903.10a).
                 if let Some((attacking_player, card_id)) = commander_info {
@@ -756,7 +790,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                             .and_then(|m| m.get(card_id))
                             .copied()
                             .unwrap_or(0);
-                        let new_val = current + assignment.amount;
+                        let new_val = current + final_dmg;
 
                         let inner = state
                             .players
@@ -779,21 +813,23 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 // Planeswalkers receive damage as marked damage; SBA 704.5i
                 // handles the loyalty counter check separately.
                 if let Some(obj) = state.objects.get_mut(pw_id) {
-                    obj.damage_marked += assignment.amount;
+                    obj.damage_marked += final_dmg;
                 }
             }
         }
 
         // CR 702.15a: Lifelink — source's controller gains life equal to damage dealt.
-        if *source_lifelink && assignment.amount > 0 {
+        if *source_lifelink {
             let entry = lifelink_gains.entry(*source_controller).or_insert(0);
-            *entry += assignment.amount;
+            *entry += final_dmg;
         }
     }
 
-    let mut events = vec![GameEvent::CombatDamageDealt {
-        assignments: assignments.clone(),
-    }];
+    // Prevention events fire before CombatDamageDealt (they modify the event as it happens).
+    let mut events = prevention_events;
+    events.push(GameEvent::CombatDamageDealt {
+        assignments: final_assignments,
+    });
 
     // Apply lifelink gains and emit LifeGained events.
     for (controller, amount) in &lifelink_gains {

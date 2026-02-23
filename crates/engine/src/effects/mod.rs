@@ -118,18 +118,30 @@ fn execute_effect_inner(
             for resolved in targets {
                 match resolved {
                     ResolvedTarget::Player(p) => {
-                        if let Some(player) = state.players.get_mut(&p) {
-                            player.life_total -= dmg as i32;
+                        // CR 615: check prevention before applying damage.
+                        let damage_target = CombatDamageTarget::Player(p);
+                        let (final_dmg, prev_events) =
+                            crate::rules::replacement::apply_damage_prevention(
+                                state,
+                                ctx.source,
+                                &damage_target,
+                                dmg,
+                            );
+                        events.extend(prev_events);
+                        if final_dmg > 0 {
+                            if let Some(player) = state.players.get_mut(&p) {
+                                player.life_total -= final_dmg as i32;
+                            }
+                            events.push(GameEvent::DamageDealt {
+                                source: ctx.source,
+                                target: damage_target,
+                                amount: final_dmg,
+                            });
+                            events.push(GameEvent::LifeLost {
+                                player: p,
+                                amount: final_dmg,
+                            });
                         }
-                        events.push(GameEvent::DamageDealt {
-                            source: ctx.source,
-                            target: CombatDamageTarget::Player(p),
-                            amount: dmg,
-                        });
-                        events.push(GameEvent::LifeLost {
-                            player: p,
-                            amount: dmg,
-                        });
                     }
                     ResolvedTarget::Object(id) => {
                         let card_types = state
@@ -138,39 +150,51 @@ fn execute_effect_inner(
                             .map(|o| o.characteristics.card_types.clone())
                             .unwrap_or_default();
 
-                        if card_types.contains(&CardType::Planeswalker) {
-                            // CR 120.3c: damage to planeswalker removes loyalty counters.
-                            if let Some(obj) = state.objects.get_mut(&id) {
-                                let cur = obj
-                                    .counters
-                                    .get(&crate::state::types::CounterType::Loyalty)
-                                    .copied()
-                                    .unwrap_or(0);
-                                let new_val = cur.saturating_sub(dmg);
-                                obj.counters
-                                    .insert(crate::state::types::CounterType::Loyalty, new_val);
-                            }
-                        } else {
-                            // CR 120.3b: damage to a creature marks damage_marked.
-                            if let Some(obj) = state.objects.get_mut(&id) {
-                                obj.damage_marked += dmg;
-                                // CR 702.2: deathtouch — mark for SBA.
-                                // (deathtouch_damage field exists on the source; for spell damage
-                                // we do not set deathtouch_damage here — spell damage sources
-                                // don't have the deathtouch keyword in this context.)
-                            }
-                        }
-
-                        let target_enum = if card_types.contains(&CardType::Planeswalker) {
+                        let damage_target = if card_types.contains(&CardType::Planeswalker) {
                             CombatDamageTarget::Planeswalker(id)
                         } else {
                             CombatDamageTarget::Creature(id)
                         };
-                        events.push(GameEvent::DamageDealt {
-                            source: ctx.source,
-                            target: target_enum,
-                            amount: dmg,
-                        });
+
+                        // CR 615: check prevention before applying damage.
+                        let (final_dmg, prev_events) =
+                            crate::rules::replacement::apply_damage_prevention(
+                                state,
+                                ctx.source,
+                                &damage_target,
+                                dmg,
+                            );
+                        events.extend(prev_events);
+
+                        if final_dmg > 0 {
+                            if card_types.contains(&CardType::Planeswalker) {
+                                // CR 120.3c: damage to planeswalker removes loyalty counters.
+                                if let Some(obj) = state.objects.get_mut(&id) {
+                                    let cur = obj
+                                        .counters
+                                        .get(&crate::state::types::CounterType::Loyalty)
+                                        .copied()
+                                        .unwrap_or(0);
+                                    let new_val = cur.saturating_sub(final_dmg);
+                                    obj.counters
+                                        .insert(crate::state::types::CounterType::Loyalty, new_val);
+                                }
+                            } else {
+                                // CR 120.3b: damage to a creature marks damage_marked.
+                                if let Some(obj) = state.objects.get_mut(&id) {
+                                    obj.damage_marked += final_dmg;
+                                    // CR 702.2: deathtouch — mark for SBA.
+                                    // (deathtouch_damage field exists on the source; for spell
+                                    // damage we do not set deathtouch_damage here — spell damage
+                                    // sources don't have the deathtouch keyword in this context.)
+                                }
+                            }
+                            events.push(GameEvent::DamageDealt {
+                                source: ctx.source,
+                                target: damage_target,
+                                amount: final_dmg,
+                            });
+                        }
                     }
                 }
             }
@@ -296,31 +320,66 @@ fn execute_effect_inner(
                         &std::collections::HashSet::new(),
                     );
 
-                    let dest = match &action {
+                    match action {
                         crate::rules::replacement::ZoneChangeAction::Redirect {
-                            to,
+                            to: dest,
                             events: repl_events,
                             ..
                         } => {
-                            events.extend(repl_events.clone());
-                            *to
+                            events.extend(repl_events);
+                            if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                match dest {
+                                    ZoneId::Exile => {
+                                        events.push(GameEvent::ObjectExiled {
+                                            player: owner,
+                                            object_id: id,
+                                            new_exile_id: new_id,
+                                        });
+                                    }
+                                    ZoneId::Command(_) => {
+                                        // Commander redirected — no destruction event.
+                                    }
+                                    _ => {
+                                        if card_types.contains(&CardType::Creature) {
+                                            events.push(GameEvent::CreatureDied {
+                                                object_id: id,
+                                                new_grave_id: new_id,
+                                            });
+                                        } else {
+                                            events.push(GameEvent::PermanentDestroyed {
+                                                object_id: id,
+                                                new_grave_id: new_id,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        _ => ZoneId::Graveyard(owner),
-                    };
-
-                    if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
-                        match dest {
-                            ZoneId::Exile => {
-                                events.push(GameEvent::ObjectExiled {
-                                    player: owner,
-                                    object_id: id,
-                                    new_exile_id: new_id,
-                                });
-                            }
-                            ZoneId::Command(_) => {
-                                // Commander redirected — no destruction event.
-                            }
-                            _ => {
+                        // CR 616.1: Multiple replacements — defer until player chooses.
+                        crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                            player,
+                            choices,
+                            event_description,
+                        } => {
+                            use crate::state::replacement_effect::PendingZoneChange;
+                            state.pending_zone_changes.push_back(PendingZoneChange {
+                                object_id: id,
+                                original_from: ZoneType::Battlefield,
+                                original_destination: ZoneType::Graveyard,
+                                affected_player: player,
+                                already_applied: Vec::new(),
+                            });
+                            events.push(GameEvent::ReplacementChoiceRequired {
+                                player,
+                                event_description,
+                                choices,
+                            });
+                        }
+                        crate::rules::replacement::ZoneChangeAction::Proceed => {
+                            // No replacement — move to graveyard normally.
+                            if let Ok((new_id, _old)) =
+                                state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                            {
                                 if card_types.contains(&CardType::Creature) {
                                     events.push(GameEvent::CreatureDied {
                                         object_id: id,
@@ -374,34 +433,59 @@ fn execute_effect_inner(
                             &std::collections::HashSet::new(),
                         );
 
-                        let dest = match &action {
+                        match action {
                             crate::rules::replacement::ZoneChangeAction::Redirect {
-                                to,
+                                to: dest,
                                 events: repl_events,
                                 ..
                             } => {
-                                events.extend(repl_events.clone());
-                                *to
-                            }
-                            _ => ZoneId::Exile,
-                        };
-
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
-                            if let Some(idx) = idx_opt {
-                                ctx.target_remaps.insert(idx, new_id);
-                            }
-                            match dest {
-                                ZoneId::Command(_) => {
-                                    // Commander redirected — no exile event.
+                                events.extend(repl_events);
+                                if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                    if let Some(idx) = idx_opt {
+                                        ctx.target_remaps.insert(idx, new_id);
+                                    }
+                                    match dest {
+                                        ZoneId::Command(_) => {
+                                            // Commander redirected — no exile event.
+                                        }
+                                        _ => {
+                                            events.push(GameEvent::ObjectExiled {
+                                                player: ctx.controller,
+                                                object_id: id,
+                                                new_exile_id: new_id,
+                                            });
+                                        }
+                                    }
                                 }
-                                ZoneId::Exile => {
-                                    events.push(GameEvent::ObjectExiled {
-                                        player: ctx.controller,
-                                        object_id: id,
-                                        new_exile_id: new_id,
-                                    });
-                                }
-                                _ => {
+                            }
+                            // CR 616.1: Multiple replacements — defer until player chooses.
+                            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                                player,
+                                choices,
+                                event_description,
+                            } => {
+                                use crate::state::replacement_effect::PendingZoneChange;
+                                state.pending_zone_changes.push_back(PendingZoneChange {
+                                    object_id: id,
+                                    original_from: from_zone_type,
+                                    original_destination: ZoneType::Exile,
+                                    affected_player: player,
+                                    already_applied: Vec::new(),
+                                });
+                                events.push(GameEvent::ReplacementChoiceRequired {
+                                    player,
+                                    event_description,
+                                    choices,
+                                });
+                            }
+                            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                                // No replacement — exile normally.
+                                if let Ok((new_id, _old)) =
+                                    state.move_object_to_zone(id, ZoneId::Exile)
+                                {
+                                    if let Some(idx) = idx_opt {
+                                        ctx.target_remaps.insert(idx, new_id);
+                                    }
                                     events.push(GameEvent::ObjectExiled {
                                         player: ctx.controller,
                                         object_id: id,
@@ -1211,29 +1295,15 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
 /// Draw one card for a player (CR 121.1). Returns events.
 fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
     // CR 614.11: Check WouldDraw replacement effects before performing the draw.
+    // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
     {
-        use crate::rules::replacement::{self, ReplacementResult};
-        use crate::state::replacement_effect::{
-            PlayerFilter, ReplacementModification, ReplacementTrigger,
-        };
-        let trigger = ReplacementTrigger::WouldDraw {
-            player_filter: PlayerFilter::Specific(player),
-        };
-        let applicable =
-            replacement::find_applicable(state, &trigger, &std::collections::HashSet::new());
-        let action = replacement::determine_action(state, &applicable, player, "draw a card");
-        if let ReplacementResult::AutoApply(id) = action {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
-                return vec![GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
-                }];
+        use crate::rules::replacement::{self, DrawAction};
+        match replacement::check_would_draw_replacement(state, player) {
+            DrawAction::Proceed => {}
+            DrawAction::Skip(event) => return vec![event],
+            DrawAction::NeedsChoice(event) => {
+                // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
+                return vec![event];
             }
         }
     }

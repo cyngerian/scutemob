@@ -1,16 +1,18 @@
-//! Tests for replacement/prevention effects (M8 Sessions 1-2).
+//! Tests for replacement/prevention effects (M8 Sessions 1-5).
 //!
 //! Session 1: data model, serde, builder wiring.
 //! Session 2: core application framework — find_applicable, determine_action,
 //!            loop prevention, self-replacement priority, OrderReplacements command.
+//! Session 5: prevention effects — PreventDamage shields, PreventAllDamage, depletion.
 
 use std::collections::HashSet;
 
 use mtg_engine::rules::replacement::{self, ReplacementResult};
 use mtg_engine::{
-    Command, CounterType, DamageTargetFilter, EffectDuration, GameEvent, GameStateBuilder,
-    ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId, ReplacementEffect, ReplacementId,
-    ReplacementModification, ReplacementTrigger, ZoneId, ZoneType,
+    CombatDamageTarget, Command, CounterType, DamageTargetFilter, EffectDuration, GameEvent,
+    GameStateBuilder, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, ZoneId,
+    ZoneType,
 };
 
 /// Helper: create a simple zone-change replacement effect for testing.
@@ -1785,7 +1787,9 @@ fn test_draw_skip_draw_replacement_fires_no_card_drawn() {
         "hand should still be empty"
     );
     assert!(
-        !events.iter().any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
         "CardDrawn should NOT be emitted when SkipDraw applies"
     );
     assert!(
@@ -1882,11 +1886,7 @@ fn test_etb_land_enters_tapped_replacement() {
         .unwrap();
     state.turn.priority_holder = Some(p1);
 
-    let land_id = state
-        .objects_in_zone(&ZoneId::Hand(p1))
-        .first()
-        .unwrap()
-        .id;
+    let land_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
     let (new_state, events) = mtg_engine::process_command(
         state,
@@ -1906,7 +1906,9 @@ fn test_etb_land_enters_tapped_replacement() {
 
     // CR 614.1c: entered tapped, not untap-then-tap.
     assert!(
-        events.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
         "PermanentTapped event should be emitted"
     );
     assert!(
@@ -2060,11 +2062,7 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
         .unwrap();
     state.turn.priority_holder = Some(p1);
 
-    let gate_id = state
-        .objects_in_zone(&ZoneId::Hand(p1))
-        .first()
-        .unwrap()
-        .id;
+    let gate_id = state.objects_in_zone(&ZoneId::Hand(p1)).first().unwrap().id;
 
     let (new_state, events) = mtg_engine::process_command(
         state,
@@ -2076,14 +2074,20 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
     .unwrap();
 
     let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
-    assert_eq!(bf_objects.len(), 1, "Dimir Guildgate should be on the battlefield");
+    assert_eq!(
+        bf_objects.len(),
+        1,
+        "Dimir Guildgate should be on the battlefield"
+    );
     assert!(
         bf_objects[0].status.tapped,
         "Dimir Guildgate should enter tapped (self-ETB replacement from card definition)"
     );
     // CR 614.1c: entered tapped — PermanentTapped fires.
     assert!(
-        events.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
         "PermanentTapped event should be emitted for Dimir Guildgate's ETB replacement"
     );
     // Self-ETB replacements do NOT emit ReplacementEffectApplied (no registered ID).
@@ -2092,5 +2096,890 @@ fn test_dimir_guildgate_enters_tapped_via_card_definition() {
             .iter()
             .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
         "self-ETB from card definition should NOT emit ReplacementEffectApplied"
+    );
+}
+
+// ── Session 5: Prevention effects (CR 615) ───────────────────────────────────
+
+#[test]
+/// CR 615.7 — "Prevent the next N damage" shield reduces damage by N; excess gets through.
+/// Source: M8 Session 5 — prevent-next-3 shield takes 5 damage → 2 gets through
+fn test_prevention_shield_partial_reduce() {
+    let shield_id = ReplacementId(10);
+    let source = ObjectId(1);
+    let player = PlayerId(1);
+
+    let effect = ReplacementEffect {
+        id: shield_id,
+        source: None,
+        controller: player,
+        duration: EffectDuration::UntilEndOfTurn,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventDamage(3),
+    };
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(effect)
+        .with_prevention_counter(shield_id, 3)
+        .build()
+        .unwrap();
+
+    let target = CombatDamageTarget::Player(player);
+    let (final_dmg, events) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 5);
+
+    // CR 615.7: 3 damage prevented, 2 gets through.
+    assert_eq!(final_dmg, 2, "3-damage shield should reduce 5 to 2");
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::DamagePrevented {
+                prevented: 3,
+                remaining: 2,
+                ..
+            }
+        )),
+        "DamagePrevented event should report 3 prevented, 2 remaining"
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::ReplacementEffectApplied { effect_id, .. }
+            if *effect_id == shield_id
+        )),
+        "ReplacementEffectApplied should be emitted for the shield"
+    );
+}
+
+#[test]
+/// CR 615.7 — Prevention shield depletes: counter reaches 0 and effect is removed.
+/// Source: M8 Session 5 — shield exhausted after preventing damage equal to its capacity
+fn test_prevention_shield_depletes_and_is_removed() {
+    let shield_id = ReplacementId(20);
+    let source = ObjectId(1);
+    let player = PlayerId(1);
+
+    let effect = ReplacementEffect {
+        id: shield_id,
+        source: None,
+        controller: player,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventDamage(3),
+    };
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(effect)
+        .with_prevention_counter(shield_id, 3)
+        .build()
+        .unwrap();
+
+    let target = CombatDamageTarget::Player(player);
+
+    // First hit: 5 damage; shield prevents 3, counter → 0, effect removed.
+    let (final_dmg, _) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 5);
+    assert_eq!(final_dmg, 2, "first hit: 3 prevented, 2 gets through");
+
+    // Shield counter should be gone and effect should be removed.
+    assert!(
+        !state.prevention_counters.contains_key(&shield_id),
+        "prevention counter should be removed after shield is exhausted"
+    );
+    assert!(
+        !state.replacement_effects.iter().any(|e| e.id == shield_id),
+        "ReplacementEffect should be removed when shield counter reaches 0"
+    );
+
+    // Second hit: no prevention in effect — all 3 damage gets through.
+    let (final_dmg2, events2) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 3);
+    assert_eq!(
+        final_dmg2, 3,
+        "second hit: shield gone, all damage gets through"
+    );
+    assert!(
+        !events2
+            .iter()
+            .any(|e| matches!(e, GameEvent::DamagePrevented { .. })),
+        "no DamagePrevented on second hit after shield is exhausted"
+    );
+}
+
+#[test]
+/// CR 615.1 — "Prevent all damage" zeros all damage from the event; effect is not consumed.
+/// Source: M8 Session 5 — PreventAllDamage modification
+fn test_prevent_all_damage() {
+    let shield_id = ReplacementId(30);
+    let source = ObjectId(1);
+    let player = PlayerId(1);
+
+    let effect = ReplacementEffect {
+        id: shield_id,
+        source: None,
+        controller: player,
+        duration: EffectDuration::UntilEndOfTurn,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventAllDamage,
+    };
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(effect)
+        .build()
+        .unwrap();
+
+    let target = CombatDamageTarget::Player(player);
+
+    // First event: 7 damage → all prevented.
+    let (final_dmg, events) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 7);
+    assert_eq!(final_dmg, 0, "PreventAllDamage should zero all damage");
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::DamagePrevented {
+                prevented: 7,
+                remaining: 0,
+                ..
+            }
+        )),
+        "DamagePrevented event should show 7 prevented, 0 remaining"
+    );
+
+    // Effect is NOT consumed — it should still be active.
+    assert!(
+        state.replacement_effects.iter().any(|e| e.id == shield_id),
+        "PreventAllDamage effect should remain active (not consumed)"
+    );
+
+    // Second event: 5 more damage → also all prevented.
+    let (final_dmg2, _) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 5);
+    assert_eq!(
+        final_dmg2, 0,
+        "PreventAllDamage prevents a second event too"
+    );
+}
+
+#[test]
+/// CR 615.7 / CR 616.1 — Two prevention effects apply to the same event sequentially.
+/// Both reduce damage in registration order; the first shield can be exhausted first.
+/// Source: M8 Session 5 — sequential prevention shields on same damage event
+fn test_two_prevention_effects_sequential() {
+    let shield_a = ReplacementId(40); // PreventDamage(3)
+    let shield_b = ReplacementId(41); // PreventDamage(4)
+    let source = ObjectId(1);
+    let player = PlayerId(1);
+
+    let effect_a = ReplacementEffect {
+        id: shield_a,
+        source: None,
+        controller: player,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventDamage(3),
+    };
+    let effect_b = ReplacementEffect {
+        id: shield_b,
+        source: None,
+        controller: player,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventDamage(4),
+    };
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(effect_a)
+        .with_prevention_counter(shield_a, 3)
+        .with_replacement_effect(effect_b)
+        .with_prevention_counter(shield_b, 4)
+        .build()
+        .unwrap();
+
+    let target = CombatDamageTarget::Player(player);
+
+    // 6 damage incoming:
+    //   shield_a (PreventDamage(3)): prevents 3, counter → 0, shield exhausted.
+    //   shield_b (PreventDamage(4)): prevents remaining 3, counter → 1.
+    // Final: 0 damage through.
+    let (final_dmg, events) =
+        mtg_engine::rules::replacement::apply_damage_prevention(&mut state, source, &target, 6);
+
+    assert_eq!(
+        final_dmg, 0,
+        "both shields together should prevent all 6 damage"
+    );
+
+    // Shield A should be exhausted and removed.
+    assert!(
+        !state.replacement_effects.iter().any(|e| e.id == shield_a),
+        "shield_a (3-cap) should be removed after exhaustion"
+    );
+    // Shield B should have 1 remaining.
+    assert_eq!(
+        state.prevention_counters.get(&shield_b).copied(),
+        Some(1),
+        "shield_b (4-cap) should have 1 remaining after preventing 3"
+    );
+
+    // Two DamagePrevented events should have been emitted.
+    let prevented_events: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::DamagePrevented { .. }))
+        .collect();
+    assert_eq!(
+        prevented_events.len(),
+        2,
+        "one DamagePrevented event per prevention effect applied"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8 Fix Session 1 — MR-M8-03: UntilEndOfTurn replacement expiration
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+/// CR 514.2 — UntilEndOfTurn replacement effects are removed during Cleanup.
+/// Source: MR-M8-03 fix — expire_end_of_turn_effects now also removes replacement effects.
+fn test_until_end_of_turn_replacement_expires_at_cleanup() {
+    let shield_id = ReplacementId(50);
+
+    let effect = ReplacementEffect {
+        id: shield_id,
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::UntilEndOfTurn,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventDamage(5),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(effect)
+        .with_prevention_counter(shield_id, 5)
+        .build()
+        .unwrap();
+
+    // Effect should be active before cleanup.
+    assert_eq!(
+        state.replacement_effects.len(),
+        1,
+        "effect should be registered before cleanup"
+    );
+    assert!(
+        state.prevention_counters.contains_key(&shield_id),
+        "prevention counter should exist before cleanup"
+    );
+
+    // Simulate cleanup: call expire_end_of_turn_effects.
+    mtg_engine::rules::layers::expire_end_of_turn_effects(&mut state);
+
+    // Effect should be gone after cleanup.
+    assert_eq!(
+        state.replacement_effects.len(),
+        0,
+        "UntilEndOfTurn replacement effect should be removed at cleanup (CR 514.2)"
+    );
+    assert!(
+        !state.prevention_counters.contains_key(&shield_id),
+        "prevention counter for expired effect should also be removed"
+    );
+}
+
+#[test]
+/// CR 514.2 — Indefinite replacement effects survive Cleanup; UntilEndOfTurn ones do not.
+/// Source: MR-M8-03 fix — only UntilEndOfTurn effects expire, others persist.
+fn test_indefinite_replacement_survives_cleanup() {
+    let eot_id = ReplacementId(60);
+    let indefinite_id = ReplacementId(61);
+
+    let eot_effect = ReplacementEffect {
+        id: eot_id,
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::UntilEndOfTurn,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::DamageWouldBeDealt {
+            target_filter: DamageTargetFilter::Any,
+        },
+        modification: ReplacementModification::PreventAllDamage,
+    };
+
+    let indefinite_effect = ReplacementEffect {
+        id: indefinite_id,
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .with_replacement_effect(eot_effect)
+        .with_replacement_effect(indefinite_effect)
+        .build()
+        .unwrap();
+
+    assert_eq!(state.replacement_effects.len(), 2);
+
+    mtg_engine::rules::layers::expire_end_of_turn_effects(&mut state);
+
+    // Only the UntilEndOfTurn effect should be removed.
+    assert_eq!(
+        state.replacement_effects.len(),
+        1,
+        "only UntilEndOfTurn should be removed; Indefinite should survive"
+    );
+    assert!(
+        state
+            .replacement_effects
+            .iter()
+            .any(|e| e.id == indefinite_id),
+        "the Indefinite effect should still be present"
+    );
+    assert!(
+        !state.replacement_effects.iter().any(|e| e.id == eot_id),
+        "the UntilEndOfTurn effect should have been removed"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8 Fix Session 1 — MR-M8-02: ChoiceRequired in DestroyPermanent/ExileObject
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+/// CR 616.1 — DestroyPermanent emits ReplacementChoiceRequired when multiple
+/// replacement effects apply to the same zone change.
+/// Source: MR-M8-02 fix — ChoiceRequired arm now handled in DestroyPermanent.
+fn test_destroy_permanent_emits_choice_required_for_multiple_replacements() {
+    let cmdr_card_id = CardId("cmdr-destroy".to_string());
+
+    // Register a "exile instead of graveyard" effect (RiP-style).
+    let rip_effect = ReplacementEffect {
+        id: ReplacementId(0),
+        source: None,
+        controller: PlayerId(2),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None, // matches any source zone
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+
+    // Commander has its own redirect-to-command-zone replacement.
+    let mut state = GameStateBuilder::four_player()
+        .player_commander(PlayerId(1), cmdr_card_id.clone())
+        .object(
+            ObjectSpec::creature(PlayerId(1), "Commander", 4, 4).with_card_id(cmdr_card_id.clone()),
+        )
+        .with_replacement_effect(rip_effect)
+        .build()
+        .unwrap();
+
+    register_commander_zone_replacements(&mut state);
+
+    let cmdr_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    // Execute DestroyPermanent on the commander.
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::SpellTarget;
+    use mtg_engine::Target;
+    use mtg_engine::{CardEffectTarget, Effect};
+
+    let effect = Effect::DestroyPermanent {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+    };
+    let mut ctx = EffectContext::new(
+        PlayerId(2),
+        ObjectId(999),
+        vec![SpellTarget {
+            target: Target::Object(cmdr_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Should have emitted ReplacementChoiceRequired, not moved the commander yet.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementChoiceRequired { .. })),
+        "CR 616.1: should emit ReplacementChoiceRequired when multiple replacements apply"
+    );
+
+    // Commander should still be on battlefield (or in pending_zone_changes), not yet moved.
+    assert_eq!(
+        state.pending_zone_changes.len(),
+        1,
+        "a PendingZoneChange should have been created"
+    );
+
+    // Commander should still be on battlefield until choice is resolved.
+    assert!(
+        state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .iter()
+            .any(|o| o.id == cmdr_id),
+        "commander should still be on battlefield until player chooses"
+    );
+}
+
+#[test]
+/// CR 616.1 — ExileObject emits ReplacementChoiceRequired when multiple
+/// replacement effects apply to the same zone change.
+/// Source: MR-M8-02 fix — ChoiceRequired arm now handled in ExileObject.
+fn test_exile_object_emits_choice_required_for_multiple_replacements() {
+    let cmdr_card_id = CardId("cmdr-exile2".to_string());
+
+    // "Redirect graveyard to exile" — irrelevant for exile target, but
+    // "Redirect exile to command zone" from commander registration IS relevant.
+    let mut state = GameStateBuilder::four_player()
+        .player_commander(PlayerId(1), cmdr_card_id.clone())
+        .object(
+            ObjectSpec::creature(PlayerId(1), "Commander", 4, 4).with_card_id(cmdr_card_id.clone()),
+        )
+        .build()
+        .unwrap();
+
+    // Add a second "redirect exile to graveyard" effect so there are 2 replacements
+    // competing when the commander would be exiled.
+    let second_effect = ReplacementEffect {
+        id: ReplacementId(200),
+        source: None,
+        controller: PlayerId(2),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: None,
+            to: ZoneType::Exile,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Graveyard),
+    };
+    state.replacement_effects.push_back(second_effect);
+
+    // Register commander replacement (redirects exile → command zone).
+    register_commander_zone_replacements(&mut state);
+
+    let cmdr_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::SpellTarget;
+    use mtg_engine::Target;
+    use mtg_engine::{CardEffectTarget, Effect};
+
+    let effect = Effect::ExileObject {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+    };
+    let mut ctx = EffectContext::new(
+        PlayerId(2),
+        ObjectId(999),
+        vec![SpellTarget {
+            target: Target::Object(cmdr_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Should emit ReplacementChoiceRequired.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementChoiceRequired { .. })),
+        "CR 616.1: ExileObject should emit ReplacementChoiceRequired when multiple replacements apply"
+    );
+    assert_eq!(
+        state.pending_zone_changes.len(),
+        1,
+        "a PendingZoneChange should have been created"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8 Fix Session 1 — MR-M8-06: zone_change_events event type for non-creatures
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+/// CR 701.7 — A non-creature permanent going to graveyard via pending zone change
+/// resolution emits PermanentDestroyed, not CreatureDied.
+/// Source: MR-M8-06 fix — zone_change_events checks card types.
+fn test_zone_change_events_enchantment_emits_permanent_destroyed() {
+    // Two replacements both redirecting from graveyard so the enchantment gets
+    // a ChoiceRequired, which we then resolve to exercise zone_change_events.
+    let effect_a = ReplacementEffect {
+        id: ReplacementId(300),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    // effect_b is a self-replacement that redirects to graveyard (no-op redirect,
+    // just to create a 2-effect scenario).
+    let effect_b = ReplacementEffect {
+        id: ReplacementId(301),
+        source: None,
+        controller: PlayerId(1),
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: true, // triggers first per CR 614.15
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+
+    // Place an enchantment on the battlefield.
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::enchantment(PlayerId(1), "Aura"))
+        .with_replacement_effect(effect_a)
+        .with_replacement_effect(effect_b)
+        .build()
+        .unwrap();
+
+    let enchantment_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    // Manually insert a pending zone change so we can call process_command.
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+    state.pending_zone_changes.push_back(PendingZoneChange {
+        object_id: enchantment_id,
+        original_from: ZoneType::Battlefield,
+        original_destination: ZoneType::Graveyard,
+        affected_player: PlayerId(1),
+        already_applied: Vec::new(),
+    });
+
+    // Player 1 resolves the choice by picking effect_b (self-replacement to Exile).
+    let (state, events) = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: PlayerId(1),
+            ids: vec![ReplacementId(301)],
+        },
+    )
+    .unwrap();
+
+    // The enchantment should now be in exile, not graveyard.
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).len() >= 1,
+        "enchantment should be in exile after redirect"
+    );
+
+    // Should NOT emit CreatureDied (it's an enchantment, not a creature).
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CreatureDied { .. })),
+        "non-creature should not emit CreatureDied (MR-M8-06)"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// M8 Fix Session 2 — MR-M8-07/08/09/10
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── MR-M8-07: shared draw path via DrawCards effect ──────────────────────
+
+#[test]
+/// CR 614.10 / CR 614.11 — SkipDraw via DrawCards effect (draw_one_card path)
+/// is handled identically to the turn-draw path (draw_card).
+/// Source: MR-M8-07 — both draw paths use check_would_draw_replacement.
+fn test_draw_cards_effect_respects_skip_draw_replacement() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Effect, EffectAmount, PlayerTarget};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Register a SkipDraw replacement for p1.
+    let skip_effect = ReplacementEffect {
+        id: ReplacementId(500),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+
+    // Give p1 a library card so we can verify it stays there.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Forest").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_effect)
+        .build()
+        .unwrap();
+
+    let effect = Effect::DrawCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(1),
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(999), vec![]);
+
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // Library should still have the card — SkipDraw prevented the draw.
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "draw_one_card path: library should still have 1 card when SkipDraw applies"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        0,
+        "draw_one_card path: hand should still be empty when SkipDraw applies"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "draw_one_card path: CardDrawn should NOT be emitted when SkipDraw applies"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(500))
+        ),
+        "draw_one_card path: ReplacementEffectApplied should be emitted for SkipDraw"
+    );
+}
+
+// ── MR-M8-08: NeedsChoice for multiple WouldDraw replacements ────────────
+
+#[test]
+/// CR 616.1 — Multiple WouldDraw replacements cause ReplacementChoiceRequired
+/// to be emitted; the draw is deferred rather than proceeding silently.
+/// Source: MR-M8-08 — NeedsChoice handled in check_would_draw_replacement.
+fn test_draw_needs_choice_emits_replacement_choice_required() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Two competing SkipDraw replacements with no self-replacement.
+    // Neither is a self-replacement, so NeedsChoice triggers (CR 616.1e).
+    let skip_a = ReplacementEffect {
+        id: ReplacementId(600),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let skip_b = ReplacementEffect {
+        id: ReplacementId(601),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_a)
+        .with_replacement_effect(skip_b)
+        .build()
+        .unwrap();
+
+    // draw_card path
+    use mtg_engine::rules::turn_actions::draw_card;
+    let events = draw_card(&mut state, p1).unwrap();
+
+    // The draw should be deferred — ReplacementChoiceRequired emitted.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementChoiceRequired { player, .. } if *player == p1)),
+        "CR 616.1: draw_card should emit ReplacementChoiceRequired when multiple WouldDraw replacements apply"
+    );
+    // Card must not have been drawn.
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "library should still have the card when draw is deferred"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        0,
+        "hand should be empty when draw is deferred"
+    );
+}
+
+// ── MR-M8-09: Leyline of the Void opponent-only filter ───────────────────
+
+#[test]
+/// CR 614.1a — ObjectFilter::OwnedByOpponentsOf matches opponent-owned objects
+/// and excludes the owning player's own objects.
+/// Validates the filter used by Leyline of the Void (MR-M8-09).
+/// Source: MR-M8-09 — OwnedByOpponentsOf filter bound at registration.
+fn test_leyline_of_the_void_opponent_only_filter() {
+    use mtg_engine::rules::replacement::object_matches_filter;
+    use mtg_engine::{all_cards, CardId, CardRegistry};
+
+    let p1 = PlayerId(1); // Leyline controller
+    let p2 = PlayerId(2); // Leyline's opponent
+
+    let leyline_card_id = CardId("leyline-of-the-void".to_string());
+    let registry = CardRegistry::new(all_cards());
+
+    // Build state: Leyline on battlefield (p1), one p1-owned card and one p2-owned card.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::enchantment(p1, "Leyline of the Void")
+                .with_card_id(leyline_card_id)
+                .in_zone(ZoneId::Battlefield),
+        )
+        // p1's own card in graveyard
+        .object(ObjectSpec::card(p1, "Forest").in_zone(ZoneId::Graveyard(p1)))
+        // p2's card in graveyard
+        .object(ObjectSpec::card(p2, "Swamp").in_zone(ZoneId::Graveyard(p2)))
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Register Leyline's replacement effect (binds OwnedByOpponentsOf to p1).
+    let leyline_obj_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    let leyline_cid = state.objects.get(&leyline_obj_id).unwrap().card_id.clone();
+    let reg = state.card_registry.clone();
+    mtg_engine::rules::replacement::register_permanent_replacement_abilities(
+        &mut state,
+        leyline_obj_id,
+        p1,
+        leyline_cid.as_ref(),
+        &reg,
+    );
+
+    // Extract the registered filter — it should be OwnedByOpponentsOf(p1).
+    let leyline_filter = state
+        .replacement_effects
+        .iter()
+        .find(|e| e.source == Some(leyline_obj_id))
+        .map(|e| {
+            if let ReplacementTrigger::WouldChangeZone { filter, .. } = &e.trigger {
+                filter.clone()
+            } else {
+                ObjectFilter::Any
+            }
+        })
+        .expect("Leyline should have registered a replacement effect");
+
+    assert!(
+        matches!(leyline_filter, ObjectFilter::OwnedByOpponentsOf(pid) if pid == p1),
+        "registered filter should be OwnedByOpponentsOf(p1), not the placeholder"
+    );
+
+    // Find the two graveyard objects by owner.
+    let p1_card_id = state
+        .objects
+        .values()
+        .find(|o| o.owner == p1 && o.zone == ZoneId::Graveyard(p1))
+        .map(|o| o.id)
+        .expect("p1's Forest should be in graveyard");
+
+    let p2_card_id = state
+        .objects
+        .values()
+        .find(|o| o.owner == p2 && o.zone == ZoneId::Graveyard(p2))
+        .map(|o| o.id)
+        .expect("p2's Swamp should be in graveyard");
+
+    // p2's card should match (opponent-owned).
+    assert!(
+        object_matches_filter(&state, p2_card_id, &leyline_filter),
+        "Leyline should match p2's card (opponent-owned)"
+    );
+    // p1's card should NOT match (controller's own card).
+    assert!(
+        !object_matches_filter(&state, p1_card_id, &leyline_filter),
+        "Leyline should NOT match p1's own card (MR-M8-09)"
+    );
+}
+
+// ── MR-M8-10: cleanup_sba_rounds included in hash ────────────────────────
+
+#[test]
+/// Architecture Invariant 7 — `cleanup_sba_rounds` field contributes to the hash.
+/// Two states differing only in cleanup_sba_rounds must produce different hashes.
+/// Source: MR-M8-10 — cleanup_sba_rounds added to TurnState::hash_into.
+fn test_hash_cleanup_sba_rounds_affects_hash() {
+    let state1 = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .build()
+        .unwrap();
+
+    let mut state2 = state1.clone();
+
+    // States must be identical before modification.
+    assert_eq!(
+        state1.public_state_hash(),
+        state2.public_state_hash(),
+        "precondition: identical states must have identical hashes"
+    );
+
+    // Advance cleanup_sba_rounds in state2 only.
+    state2.turn.cleanup_sba_rounds = 1;
+
+    // Hashes must now differ.
+    assert_ne!(
+        state1.public_state_hash(),
+        state2.public_state_hash(),
+        "states differing only in cleanup_sba_rounds must have different hashes (MR-M8-10)"
     );
 }

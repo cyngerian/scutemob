@@ -33,8 +33,9 @@ resolves 5-8 issues identified during a milestone code review.
    milestone and architecture invariants.
 2. **Determine the milestone number** — user specifies it, or infer from CLAUDE.md's
    "Active Milestone" field.
-3. **Read the session plan** at `memory/m<N>-session-plan.md`. Identify which session
-   to run:
+3. **Read `memory/m<N>-fix-session-plan.md`** — this is the working checklist created by
+   the `milestone-reviewer` agent. **Never read or modify `memory/m<N>-session-plan.md`.**
+   Identify which session to run:
    - If the user specifies a session number, use that.
    - Otherwise, find the first session with unchecked items (look for `- [ ]` vs `- [x]`).
 4. **Load relevant gotchas**:
@@ -103,9 +104,10 @@ After all fixes pass verification:
      `CLOSED — fix session <N>` (where N is the session number).
    - Update the cross-milestone issue index entries to match.
 
-2. **Update the session plan** at `memory/m<N>-session-plan.md`:
+2. **Update `memory/m<N>-fix-session-plan.md`**:
    - Check off completed items: change `- [ ]` to `- [x]`
    - Add any notes about unexpected issues or deviations from the plan.
+   - **Never modify `memory/m<N>-session-plan.md`** — that file is read-only.
 
 ## Commit
 

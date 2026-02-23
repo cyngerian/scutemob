@@ -7,8 +7,9 @@
 use mtg_engine::state::{CardType, ObjectId};
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
-    CombatDamageTarget, Command, Effect, EffectAmount, GameEvent, GameStateBuilder, ManaColor,
-    ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, Target, TypeLine, ZoneId,
+    CombatDamageTarget, Command, Cost, Effect, EffectAmount, GameEvent, GameStateBuilder,
+    ManaColor, ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, Target, TriggerEvent,
+    TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1006,5 +1007,123 @@ fn test_effect_counter_spell_removes_from_stack() {
             .iter()
             .any(|e| matches!(e, GameEvent::SpellCountered { player, .. } if *player == p2)),
         "expected SpellCountered event"
+    );
+}
+
+// ── Rhystic Study — MayPayOrElse triggered ability ────────────────────────────
+
+#[test]
+/// CR 603.1, CR 603.3 — Rhystic Study: whenever an opponent casts a spell the
+/// controller may draw a card unless that player pays {1}.
+///
+/// In M7 the payment choice is not interactive — the `or_else` branch always fires
+/// (the opponent never pays). Verifies the full pipeline: SpellCast event → trigger
+/// queued → trigger flushed to stack → trigger resolves → controller draws a card.
+///
+/// The trigger uses TriggerEvent::AnySpellCast (the state-level mechanism that
+/// corresponds to TriggerCondition::WheneverOpponentCastsSpell in the CardDefinition
+/// DSL). Opponent-only filtering is enforced at the CardDefinition layer and will be
+/// wired to check_triggers in a future milestone.
+fn test_rhystic_study_draws_card_when_opponent_casts() {
+    let p1 = p(1); // Rhystic Study controller
+    let p2 = p(2); // opponent who casts a spell
+
+    // Rhystic Study on the battlefield as p1's permanent.
+    // TriggeredAbilityDef: fires on AnySpellCast; effect = MayPayOrElse { pay {1} or draw }.
+    let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
+        .with_types(vec![CardType::Enchantment])
+        .with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::AnySpellCast,
+            intervening_if: None,
+            description: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".into(),
+            effect: Some(Effect::MayPayOrElse {
+                cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                payer: PlayerTarget::EachOpponent,
+                or_else: Box::new(Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                }),
+            }),
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    // p2 has a spell to cast (instant, no targets).
+    let filler = ObjectSpec::card(p2, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p2));
+
+    // p1 needs library cards to draw from.
+    let library_card = ObjectSpec::card(p1, "Plains").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(rhystic_study)
+        .object(filler)
+        .object(library_card)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    // Count p1's initial hand size.
+    let initial_hand = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // p2 casts Shock — this emits SpellCast, which check_triggers picks up as AnySpellCast.
+    let shock_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p2))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: shock_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // After CastSpell, the Rhystic Study trigger should be pending.
+    // Flush triggers: both p2 and p1 pass → trigger goes on stack → both pass again →
+    // trigger resolves → p1 draws a card.
+    //
+    // Pass p2 (priority after CastSpell resets to active player p2):
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    // Pass p1:
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    // Now the Shock resolves. Rhystic Study trigger may have gone on the stack before this.
+    // After the pass cycle, triggers are flushed to the stack by the engine before granting priority.
+
+    // Keep passing until the stack is empty (trigger resolves, then Shock resolves).
+    let mut current = state;
+    for _ in 0..6 {
+        if current.stack_objects.is_empty() {
+            break;
+        }
+        let (ns, _) =
+            process_command(current.clone(), Command::PassPriority { player: p2 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p1 }).unwrap();
+        current = ns;
+    }
+
+    // p1 should have drawn exactly one card from the Rhystic Study trigger.
+    let final_hand = current
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    assert_eq!(
+        final_hand,
+        initial_hand + 1,
+        "Rhystic Study should draw 1 card for p1 when opponent casts a spell (M7: payment always skipped)"
     );
 }

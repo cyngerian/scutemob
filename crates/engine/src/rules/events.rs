@@ -435,6 +435,21 @@ pub enum GameEvent {
     },
 
     // ── M8: Replacement/prevention effect events ────────────────────────
+    /// A commander was sent to its owner's command zone instead of changing zones
+    /// (CR 903.9a — owner may choose command zone when commander would change zones).
+    ///
+    /// Emitted when a commander redirect replacement effect resolves via
+    /// `resolve_pending_zone_change`. Distinct from `ReplacementEffectApplied` so
+    /// the UI can show a targeted "went to command zone" notification.
+    CommanderZoneRedirect {
+        /// The commander's ObjectId on the battlefield (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in the command zone (CR 400.7).
+        new_command_id: ObjectId,
+        /// The commander's owner.
+        owner: PlayerId,
+    },
+
     /// A replacement effect was applied to an event (CR 614).
     ///
     /// Emitted whenever a replacement effect intercepts and modifies an event

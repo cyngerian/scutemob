@@ -87,6 +87,10 @@ pub enum ObjectFilter {
     /// Used for commander zone-change replacements: the CardId survives zone changes
     /// even though the ObjectId doesn't (CR 400.7).
     HasCardId(CardId),
+    /// Matches any object owned by an opponent of the specified player.
+    /// Used for effects like Leyline of the Void ("a card an opponent owns").
+    /// Bound at registration time with the controller's PlayerId.
+    OwnedByOpponentsOf(PlayerId),
 }
 
 /// Filters which players a replacement trigger matches.
@@ -151,6 +155,11 @@ pub struct ReplacementEffect {
 pub struct PendingZoneChange {
     /// The object that's waiting to be moved.
     pub object_id: ObjectId,
+    /// The zone the object is moving from.
+    /// Used in the re-check after a replacement is applied (CR 616.1f)
+    /// so the re-check uses the correct "from" zone rather than
+    /// assuming Battlefield.
+    pub original_from: ZoneType,
     /// Where the object was going to go before replacement.
     pub original_destination: ZoneType,
     /// The affected player who must choose (typically the object's owner).

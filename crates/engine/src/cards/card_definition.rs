@@ -10,11 +10,11 @@
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 
+use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
     CardId, CardType, Color, CounterType, KeywordAbility, ManaColor, ManaCost, ManaPool, SubType,
     SuperType,
 };
-use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 
 // ── Card Definition ───────────────────────────────────────────────────────────
 

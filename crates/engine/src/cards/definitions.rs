@@ -19,6 +19,7 @@
 
 use im::OrdSet;
 
+use crate::state::player::PlayerId;
 use crate::state::{
     CardId, CardType, Color, KeywordAbility, ManaCost, ManaPool, SubType, SuperType,
 };
@@ -1367,10 +1368,10 @@ pub fn all_cards() -> Vec<CardDefinition> {
         //      that player's graveyard from anywhere, exile it instead."
         //
         //     Simplification: The "opening hand" leyline rule is not modelled — Leyline
-        //     enters play normally when cast. The opponent-only filter is simplified to
-        //     ObjectFilter::Any (affects all cards going to graveyard, including the
-        //     controller's own). A proper opponent-ownership filter would require a new
-        //     ObjectFilter variant. Registered via register_permanent_replacement_abilities.
+        //     enters play normally when cast. The opponent-only filter uses
+        //     ObjectFilter::OwnedByOpponentsOf with a placeholder PlayerId(0); the
+        //     registration function (register_permanent_replacement_abilities) binds the
+        //     actual controller's PlayerId at registration time (MR-M8-09).
         CardDefinition {
             card_id: cid("leyline-of-the-void"),
             name: "Leyline of the Void".to_string(),
@@ -1381,13 +1382,14 @@ pub fn all_cards() -> Vec<CardDefinition> {
                  If a card an opponent owns would be put into that player's graveyard from anywhere, exile it instead."
                     .to_string(),
             abilities: vec![
-                // CR 614.1a: Replacement — cards going to graveyard → exile instead.
-                // Note: ideally opponent-only; simplified to ObjectFilter::Any for M8.
+                // CR 614.1a: Replacement — opponent-owned cards going to graveyard → exile.
+                // PlayerId(0) is a placeholder bound to the actual controller at
+                // registration time by register_permanent_replacement_abilities.
                 AbilityDefinition::Replacement {
                     trigger: ReplacementTrigger::WouldChangeZone {
                         from: None,
                         to: ZoneType::Graveyard,
-                        filter: ObjectFilter::Any,
+                        filter: ObjectFilter::OwnedByOpponentsOf(PlayerId(0)),
                     },
                     modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
                     is_self: false,
@@ -1396,25 +1398,46 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
+
         // 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
-        //     Flying. Whenever you cast your first spell during each opponent's turn, create
-        //     a 1/1 black Faerie Rogue creature token with flying. Whenever one or more
-        //     Faeries you control deal combat damage to a player, goad target creature that
-        //     player controls.
+        //     Flying. Whenever you cast your first spell during each opponent's turn,
+        //     create a 1/1 black Faerie Rogue creature token with flying. Whenever one or
+        //     more Faeries you control deal combat damage to a player, goad target creature
+        //     that player controls.
+        //
+        //     Simplification 1: TriggerCondition has no "during each opponent's turn" scoping.
+        //     WheneverYouCastSpell is used as the closest approximation; it will also fire on
+        //     your own turn.
+        //     TODO: Add TriggerCondition::WheneverYouCastSpellDuringOpponentTurn (or a
+        //     general "during opponent's turn" scope modifier) to restrict the token creation
+        //     trigger to opponent turns only, and to track "first spell" per turn.
+        //
+        //     Simplification 2: WhenDealsCombatDamageToPlayer is self-referential (this
+        //     creature). The oracle text fires for "one or more Faeries you control" which
+        //     requires a controller-filtered creature-type watcher. Approximated as
+        //     WhenDealsCombatDamageToPlayer (fires when Alela itself deals combat damage).
+        //     TODO: Add TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer
+        //     with a creature-type filter.
+        //
+        //     Simplification 3: Effect::Goad does not exist. The second triggered ability
+        //     is recorded as a no-op Effect::DrawCards(0) placeholder.
+        //     TODO: Add Effect::Goad { target: EffectTarget } for the goad mechanic.
         CardDefinition {
             card_id: cid("alela-cunning-conqueror"),
             name: "Alela, Cunning Conqueror".to_string(),
-            mana_cost: Some(ManaCost { blue: 1, black: 1, generic: 2, ..Default::default() }),
+            mana_cost: Some(ManaCost { generic: 2, blue: 1, black: 1, ..Default::default() }),
             types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Faerie", "Warlock"]),
-            oracle_text: "Flying\nWhenever you cast your first spell during each opponent's turn, create a 1/1 black Faerie Rogue creature token with flying.\nWhenever one or more Faeries you control deal combat damage to a player, goad target creature that player controls.".to_string(),
+            oracle_text:
+                "Flying\n\
+                 Whenever you cast your first spell during each opponent's turn, create a 1/1 black Faerie Rogue creature token with flying.\n\
+                 Whenever one or more Faeries you control deal combat damage to a player, goad target creature that player controls."
+                    .to_string(),
             power: Some(2),
             toughness: Some(4),
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Flying),
-                // TODO: TriggerCondition::WheneverYouCastSpell does not distinguish "first spell
-                // during each opponent's turn" — needs a new variant that tracks per-opponent-turn
-                // cast count and fires only on the first cast. Using WheneverYouCastSpell as a
-                // placeholder (will fire on every spell, not just the first per opponent's turn).
+                // TODO: restrict to opponent's turns only and track "first spell per turn".
+                // Uses WheneverYouCastSpell as an approximation (fires on all turns).
                 AbilityDefinition::Triggered {
                     trigger_condition: TriggerCondition::WheneverYouCastSpell,
                     effect: Effect::CreateToken {
@@ -1424,7 +1447,9 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             toughness: 1,
                             colors: [Color::Black].into_iter().collect(),
                             card_types: [CardType::Creature].into_iter().collect(),
-                            subtypes: [SubType("Faerie".to_string()), SubType("Rogue".to_string())].into_iter().collect(),
+                            subtypes: [SubType("Faerie".to_string()), SubType("Rogue".to_string())]
+                                .into_iter()
+                                .collect(),
                             keywords: [KeywordAbility::Flying].into_iter().collect(),
                             count: 1,
                             tapped: false,
@@ -1433,9 +1458,18 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     },
                     intervening_if: None,
                 },
-                // TODO: No TriggerCondition for "whenever Faeries you control deal combat damage
-                // to a player" (requires creature-type filter on combat damage trigger). No Effect
-                // for Goad. Both need new DSL variants. Omitting this ability for now.
+                // TODO: replace WhenDealsCombatDamageToPlayer with a Faerie-filtered
+                // controller-creature trigger; replace placeholder effect with Effect::Goad.
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                    // TODO: Effect::Goad { target: EffectTarget::DeclaredTarget { index: 0 } }
+                    // Placeholder: no-op draw of 0 cards until Goad effect is implemented.
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(0),
+                    },
+                    intervening_if: None,
+                },
             ],
         },
 
@@ -1477,5 +1511,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
             ],
         },
+
+
     ]
 }

@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-22 (M0, M1, and M2 re-reviewed)
+> **Last Updated**: 2026-02-22 (M8 reviewed)
 
 ---
 
@@ -43,7 +43,7 @@
 - [M5: The Layer System](#m5-the-layer-system)
 - [M6: Combat](#m6-combat)
 - [M7: Card Definition Framework & First Cards](#m7-card-definition-framework--first-cards)
-- [M8: Replacement & Prevention Effects](#m8-replacement--prevention-effects)
+- [M8: Replacement & Prevention Effects](#m8-replacement--prevention-effects) **(REVIEWED)**
 - [M9: Commander Rules Integration](#m9-commander-rules-integration)
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
@@ -1058,34 +1058,109 @@ reviews appear adequate for their scope.
 
 ## M8: Replacement & Prevention Effects
 
-**Review Status**: NOT STARTED (current milestone)
+**Review Status**: REVIEWED (2026-02-22)
 
-### Files Expected
+### Files Introduced
 
-Per roadmap deliverables:
-- Replacement effect framework in `effects/` or `rules/`
-- Self-replacement effects (CR 614.15)
-- Player choice for multiple replacement effects
-- Loop prevention (CR 614.5)
-- Prevention effects (prevent N damage, prevent all damage)
-- Prevention/replacement interaction (CR 616)
-- "If ~ would die" replacement effects
-- "If a player would draw" replacement effects
-- "Enters the battlefield" replacement effects (e.g., "enters tapped")
+| File | Lines | Purpose |
+|------|-------|---------|
+| `state/replacement_effect.rs` | 160 | Type definitions: `ReplacementEffect`, `ReplacementId`, `ReplacementTrigger` (5 variants), `ReplacementModification` (6 variants), `ObjectFilter` (7 variants), `PlayerFilter` (3 variants), `DamageTargetFilter` (4 variants), `PendingZoneChange` |
+| `rules/replacement.rs` | 991 | Core replacement/prevention logic: `find_applicable`, `determine_action`, `check_zone_change_replacement`, `apply_etb_replacements`, `apply_self_etb_from_definition`, `register_permanent_replacement_abilities`, `apply_damage_prevention`, `resolve_pending_zone_change`, `handle_order_replacements` |
+| `tests/replacement_effects.rs` | 2346 | 50+ tests across Sessions 1-5: serde round-trip, builder wiring, find_applicable, determine_action, loop prevention, self-replacement priority, OrderReplacements command, zone-change interception, commander replacement, draw replacement, ETB replacement, prevention shields |
+| `test-data/generated-scripts/replacement/*.json` | 6 files | Game scripts: RiP simple redirect, multiple ordered, self-first, commander die, ETB tapped, Kalitas-style |
 
-### CR Sections to Implement
+### Files Modified
 
-| CR Section | Description |
-|------------|-------------|
-| CR 614 | Replacement effects |
-| CR 614.5 | Loop prevention |
-| CR 614.15 | Self-replacement effects priority |
-| CR 615 | Prevention effects |
-| CR 616 | Interaction between replacement and prevention |
+| File | Delta | Changes |
+|------|-------|---------|
+| `state/mod.rs` | +30 | New fields: `replacement_effects`, `next_replacement_id`, `pending_zone_changes`, `prevention_counters`. Added `next_replacement_id()` method. |
+| `state/hash.rs` | +200 | `HashInto` impls for all new M8 types: `ReplacementId`, `ObjectFilter`, `PlayerFilter`, `DamageTargetFilter`, `ZoneType`, `ReplacementTrigger`, `ReplacementModification`, `ReplacementEffect`, `PendingZoneChange`. Hash for new `GameEvent` variants. M8 fields added to `public_state_hash`. |
+| `state/builder.rs` | +80 | `with_replacement_effect()`, `with_prevention_counter()` builder methods. `register_commander_zone_replacements()`. New fields initialized in `build()`. |
+| `rules/engine.rs` | +10 | `Command::OrderReplacements` handler calling `replacement::handle_order_replacements()`. |
+| `rules/command.rs` | +5 | New `Command::OrderReplacements { player, ids }` variant. |
+| `rules/events.rs` | +15 | New events: `ReplacementEffectApplied`, `ReplacementChoiceRequired`, `DamagePrevented`. |
+| `rules/sba.rs` | +90 | Zone-change replacement interception in creature and planeswalker SBA checks. Pending zone change skip logic. |
+| `rules/combat.rs` | +25 | Damage prevention integration in `apply_combat_damage`. |
+| `rules/resolution.rs` | +30 | ETB replacement integration: `apply_self_etb_from_definition`, `apply_etb_replacements`, `register_permanent_replacement_abilities` after permanent ETB. |
+| `rules/lands.rs` | +25 | Same ETB replacement integration for PlayLand path. |
+| `rules/turn_actions.rs` | +30 | WouldDraw replacement check in `draw_card`. |
+| `effects/mod.rs` | +120 | `apply_damage_prevention` calls in `DealDamage`. `check_zone_change_replacement` in `DestroyPermanent` and `ExileObject`. `draw_one_card` helper with WouldDraw replacement. |
+| `cards/definitions.rs` | +120 | 4 new card definitions: Dimir Guildgate (ETB tapped), Rest in Peace, Leyline of the Void, Darksteel Colossus. |
+| `cards/card_definition.rs` | +10 | `AbilityDefinition::Replacement { trigger, modification, is_self }` variant. |
+| `state/stubs.rs` | ~0 | Comment update: "ReplacementEffect has moved to state/replacement_effect.rs (M8)". |
+
+### CR Sections Implemented
+
+| CR Section | Implementation |
+|------------|---------------|
+| CR 614 | `replacement.rs` -- replacement effect framework (find, apply, chain) |
+| CR 614.5 | `replacement.rs:60` -- `already_applied` HashSet prevents re-application |
+| CR 614.10 | `turn_actions.rs:119`, `effects/mod.rs:1255` -- SkipDraw modification |
+| CR 614.11 | `turn_actions.rs:101-130`, `effects/mod.rs:1237-1263` -- WouldDraw replacement check |
+| CR 614.12 | `replacement.rs:677-776` -- ETB replacement effects (EntersTapped, EntersWithCounters) |
+| CR 614.15 | `replacement.rs:71-82` -- self-replacements partitioned first in find_applicable |
+| CR 615.1 | `replacement.rs:960-974` -- PreventAllDamage zeroes damage, not consumed |
+| CR 615.7 | `replacement.rs:927-958` -- PreventDamage shields with counter decrement and depletion |
+| CR 616.1 | `replacement.rs:92-138` -- determine_action: NoApplicable/AutoApply/NeedsChoice |
+| CR 616.1a | `replacement.rs:107-130` -- self-replacement auto-apply when alone, choice when multiple |
+| CR 616.1e | `replacement.rs:132-138` -- non-self multiple replacements: player chooses among all |
+| CR 616.1f | `replacement.rs:559-616` -- re-check after applying one replacement |
+| CR 903.9 | `builder.rs:register_commander_zone_replacements` -- commander graveyard/exile redirects |
 
 ### Findings
 
-(None yet — milestone in progress)
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M8-01 | **HIGH** | `replacement.rs:569` | **Hardcoded `ZoneType::Battlefield` as "from" zone in `resolve_pending_zone_change` re-check.** When re-checking remaining replacements after applying one (CR 616.1f), the `from` zone is hardcoded to `Battlefield`. This is incorrect for zone changes originating from other zones (e.g., a card moving from Library to Graveyard intercepted by Rest in Peace -- Darksteel Colossus from anywhere). The `from` zone should be preserved from the original event context. Currently, `PendingZoneChange` does not store the `from` zone at all. **Fix:** Add an `original_from: ZoneType` field to `PendingZoneChange`, populate it at all creation sites (sba.rs, effects/mod.rs), and use it in the re-check call instead of `ZoneType::Battlefield`. | CLOSED — fix session 1 |
+| MR-M8-02 | **HIGH** | `effects/mod.rs:323-332,401-410` | **`DestroyPermanent` and `ExileObject` ignore `ChoiceRequired` from `check_zone_change_replacement`.** Both effect handlers match `ZoneChangeAction::Redirect` but treat `ChoiceRequired` as `_ => default_destination`, proceeding with the original zone move. When a commander is destroyed with Rest in Peace active (two competing replacements), the object moves to the default zone without player choice, violating CR 616.1. SBAs correctly handle this case by creating pending zone changes, but effect-driven zone moves do not. **Fix:** Add `ZoneChangeAction::ChoiceRequired` match arms in both `DestroyPermanent` and `ExileObject` that create `PendingZoneChange` entries and emit `ReplacementChoiceRequired` events, matching the SBA pattern. | CLOSED — fix session 1 |
+| MR-M8-03 | **HIGH** | `turn_actions.rs:216`, `rules/layers.rs:490-497` | **`UntilEndOfTurn` replacement effects never expire.** `expire_end_of_turn_effects` (called during cleanup) only filters `state.continuous_effects` by `EffectDuration::UntilEndOfTurn`. It does not touch `state.replacement_effects`. Prevention shields with `UntilEndOfTurn` duration (e.g., "prevent the next 3 damage this turn") persist indefinitely across turns, violating CR 514.2. This affects any `ReplacementEffect` or `PreventDamage` shield registered with `UntilEndOfTurn` duration. **Fix:** Add a parallel expiration step in `cleanup_actions` that filters `state.replacement_effects` to remove entries with `UntilEndOfTurn` duration, and removes corresponding `prevention_counters` entries. | CLOSED — fix session 1 |
+| MR-M8-04 | **MEDIUM** | `replacement.rs:779-796` | **`zone_change_events` uses hardcoded `PlayerId(0)` for `ObjectExiled` events.** The helper function that produces zone-change events after a pending replacement resolves hardcodes `player: PlayerId(0)` in the `ObjectExiled` variant (line 786). This produces incorrect event data. The actual owner/controller of the exiled object is available at all call sites but not passed to this helper. **Fix:** Add an `owner: PlayerId` parameter to `zone_change_events` and use it in the `ObjectExiled` event construction. Update the call site at line 595. | CLOSED — fix session 1 |
+| MR-M8-05 | **MEDIUM** | `replacement.rs:790-793` | **`ReplacementId(u64::MAX)` sentinel for commander redirect events.** `zone_change_events` emits a `ReplacementEffectApplied` event with `effect_id: ReplacementId(u64::MAX)` as a sentinel when the destination is the command zone. This violates the invariant that `ReplacementEffectApplied.effect_id` references a real replacement effect. Any consumer of this event (triggers, UI, replay) that tries to look up the effect by ID will fail silently. A dedicated `GameEvent::CommanderSentToCommandZone` variant would be cleaner. **Fix:** Either define a `CommanderZoneRedirect` event variant or use the actual replacement effect ID (which is available from the `check_zone_change_replacement` result). | CLOSED — fix session 1 |
+| MR-M8-06 | **MEDIUM** | `replacement.rs:781-784` | **`zone_change_events` always emits `CreatureDied` for graveyard destinations.** When an object is redirected to the graveyard (e.g., a non-creature permanent), the helper unconditionally emits `CreatureDied`. Non-creature permanents going to the graveyard should emit `PermanentDestroyed` or `ObjectPutInGraveyard` instead. The SBA code in `sba.rs` correctly distinguishes creature vs non-creature, but this helper does not. **Fix:** Check the object's card types before choosing the event variant, matching the pattern used in `sba.rs` and `effects/mod.rs`. | CLOSED — fix session 1 |
+| MR-M8-07 | **MEDIUM** | `turn_actions.rs:101-130`, `effects/mod.rs:1236-1263` | **Duplicated WouldDraw replacement logic in two draw paths.** `draw_card` (turn_actions.rs) and `draw_one_card` (effects/mod.rs) both contained identical 30-line blocks checking WouldDraw replacement effects. Both checked `find_applicable`, `determine_action`, and handled `SkipDraw`. **Fix:** Extracted `check_would_draw_replacement` into `replacement.rs` returning `DrawAction` enum; both paths now call it. | CLOSED — fix session 2 |
+| MR-M8-08 | **MEDIUM** | `turn_actions.rs:128`, `effects/mod.rs:1262` | **`NeedsChoice` result for WouldDraw replacements silently falls through to normal draw.** **Fix:** `check_would_draw_replacement` now returns `DrawAction::NeedsChoice(ReplacementChoiceRequired)` when multiple WouldDraw replacements apply; both `draw_card` and `draw_one_card` emit the event and defer the draw. | CLOSED — fix session 2 |
+| MR-M8-09 | **MEDIUM** | `definitions.rs:1383-1394` | **Leyline of the Void uses `ObjectFilter::Any` instead of opponent-only filter.** **Fix:** Added `ObjectFilter::OwnedByOpponentsOf(PlayerId)` variant; `object_matches_filter` checks `obj.owner != player_id`; `register_permanent_replacement_abilities` binds `OwnedByOpponentsOf` to the actual controller at registration time; Leyline definition updated to use it. | CLOSED — fix session 2 |
+| MR-M8-10 | **MEDIUM** | `state/turn.rs:125`, `state/hash.rs:401-416` | **`TurnState::cleanup_sba_rounds` field not included in hash.** **Fix:** Added `self.cleanup_sba_rounds.hash_into(hasher)` to `TurnState::hash_into`. | CLOSED — fix session 2 |
+| MR-M8-11 | **LOW** | `replacement.rs:891-991` | **`apply_damage_prevention` applies all shields in registration order (CR 615.7 gap).** CR 615.7 states: "the player or the controller of the permanent chooses which damage the shield prevents" when two or more applicable sources deal damage simultaneously. The current implementation applies shields in registration order without player choice. For single-source damage this is correct, but for simultaneous multi-source damage (e.g., two blockers dealing damage to an attacker), the player should choose which shield applies to which source. **Fix:** For M8 this is acceptable since multi-source simultaneous damage with multiple shields is extremely rare. Document as a known limitation and plan to revisit in M9+. | OPEN |
+| MR-M8-12 | **LOW** | `replacement.rs:633-666` | **Self-ETB replacements from card definitions bypass the replacement effect framework.** `apply_self_etb_from_definition` reads abilities directly from the card definition and applies modifications inline, without going through `find_applicable`/`determine_action`. This means self-ETB replacements do not participate in CR 616.1f re-checking, and do not respect `already_applied` loop prevention (CR 614.5). For current use cases (EntersTapped, EntersWithCounters) this is correct since they modify state directly. But if a card has both a self-ETB and a global ETB replacement, the ordering might not follow CR 614.15 exactly. | OPEN |
+| MR-M8-13 | **LOW** | tests/ | **No test for `UntilEndOfTurn` replacement effect expiration.** Tests verify that `UntilEndOfTurn` effects are "always active" but do not test that they are removed during cleanup. This gap is directly related to MR-M8-03 (they are NOT removed). | CLOSED — fix session 1 (covered by MR-M8-03 tests) |
+| MR-M8-14 | **LOW** | `definitions.rs:1407` | **Darksteel Colossus "shuffle into library" simplified to `RedirectToZone(Library)`.** The oracle text says "shuffle it into its owner's library instead" but the implementation just moves it to the library top without shuffling. Documented simplification. **Fix:** Add a shuffle step after the zone move, or add a `ShuffleIntoLibrary` replacement modification variant. | OPEN |
+| MR-M8-15 | **LOW** | tests/ | **No test for multiple ETB replacements interacting.** Tests cover single global ETB, single self-ETB, and filter mismatch. No test with both a self-ETB (e.g., enters tapped) and a global ETB (e.g., enters with counters) on the same permanent to verify ordering per CR 614.15. | OPEN |
+| MR-M8-16 | **LOW** | `replacement.rs:803-877` | **`register_permanent_replacement_abilities` does not clean up stale effects when permanent leaves.** Effects are registered with `WhileSourceOnBattlefield` duration so `is_effect_active` will return false, but the effect objects remain in `state.replacement_effects` permanently (until the game ends). Over a long game with many ETB permanents, this grows unbounded. **Fix:** Add cleanup in `move_object_to_zone` or SBA checks to remove effects whose source has left the battlefield, or add periodic GC. | OPEN |
+| MR-M8-17 | **INFO** | `replacement.rs` | **Well-structured replacement effect architecture.** The separation of concerns between `find_applicable` (matching), `determine_action` (decision), and `check_zone_change_replacement` (interception site integration) is clean and extensible. The `already_applied` HashSet for CR 614.5 loop prevention is correct. The self-replacement priority partition in `find_applicable` correctly implements CR 614.15. The `ZoneChangeAction` enum provides a clear protocol for interception sites. |
+| MR-M8-18 | **INFO** | `state/replacement_effect.rs` | **Type definitions are well-designed.** `ReplacementTrigger`, `ReplacementModification`, `ObjectFilter`, `PlayerFilter`, and `DamageTargetFilter` enums are comprehensive for M8 scope. `PendingZoneChange` correctly tracks all state needed for deferred choices. All types derive `Clone, Debug, PartialEq, Eq, Serialize, Deserialize`. |
+| MR-M8-19 | **INFO** | `tests/replacement_effects.rs` | **Thorough test coverage for core framework.** 50+ tests organized by session. Covers serde round-trip for all modification types, find_applicable with zone/trigger/duration/filter matching, determine_action decision logic, loop prevention (CR 614.5), self-replacement ordering (CR 614.15), OrderReplacements command validation, zone-change interception (SBA + effects), commander replacement with choice, draw replacement, ETB replacement with filter validation, and prevention shields (partial, exhaustion, prevent-all, sequential). All tests cite CR rules. |
+| MR-M8-20 | **INFO** | `state/hash.rs` | **Hash coverage complete for M8 types.** All new M8 types have `HashInto` implementations: `ReplacementId`, `ObjectFilter` (7 variants), `PlayerFilter` (3 variants), `DamageTargetFilter` (4 variants), `ZoneType` (7 variants), `ReplacementTrigger` (5 variants), `ReplacementModification` (6 variants), `ReplacementEffect` (all 7 fields), `PendingZoneChange` (4 fields). New `GameEvent` variants (discriminants 53-55) are hashed. `public_state_hash` includes `replacement_effects`, `pending_zone_changes`, `prevention_counters`, and `next_replacement_id`. Exception: MR-M8-10 (`cleanup_sba_rounds` omission is a pre-M8 gap surfaced during this review). |
+| MR-M8-21 | **INFO** | `rules/sba.rs` | **SBA zone-change interception is well-integrated.** Both creature and planeswalker SBA paths correctly call `check_zone_change_replacement` before moving objects, handle all three `ZoneChangeAction` variants (Proceed, Redirect, ChoiceRequired), and skip objects with pending zone changes in subsequent SBA passes. |
+| MR-M8-22 | **INFO** | CR 903.9 | **Commander zone replacement implemented as replacement effects, not as SBAs.** The current CR 903.9a specifies that commanders returning to the command zone from graveyard/exile is a state-based action, while CR 903.9b says library/hand redirects are replacement effects. The M8 implementation models both graveyard and exile redirects as replacement effects (via `register_commander_zone_replacements`). This produces equivalent gameplay for the common case (commander dies/exiled -> player chooses command zone), but the mechanism differs from the current CR. The SBA-based approach for graveyard/exile and replacement-based approach for library/hand should be reconciled in M9 when commander rules are formalized. |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| ReplacementEffect serde round-trip | Full | 7 tests covering all 6 modification types + WouldGainLife |
+| Builder wiring | Full | 4 tests: single/multiple effects, ID counter, default state |
+| find_applicable matching | Full | 10 tests: no effects, single match, trigger mismatch, zone mismatch, wildcard from, duration (active/inactive), already_applied (CR 614.5), self-replacement priority (CR 614.15), creature/enchantment filter, opponent filter |
+| determine_action decisions | Full | 5 tests: 0 applicable, single auto-apply, 1 self among many, multiple self, multiple non-self |
+| OrderReplacements command | Full | 4 tests: valid ordering, empty IDs error, nonexistent ID error, wrong player error |
+| Zone-change interception (SBA) | Full | 5 tests: baseline no-replacement, exile redirect, commander auto-redirect, commander+RiP choice, pending skip |
+| Zone-change interception (effects) | Good | 2 tests: ExileObject + commander redirect, DestroyPermanent + RiP redirect. **Gap:** no test for ChoiceRequired in effect paths (MR-M8-02) |
+| OrderReplacements choice resolution | Good | 1 test: commander+RiP player chooses command zone. Tests both the pending creation and resolution paths. |
+| Draw replacement (WouldDraw) | Full | 3 tests: baseline draw, SkipDraw fires, SkipDraw only affects target player |
+| ETB replacement (WouldEnterBattlefield) | Good | 4 tests: global EntersTapped via PlayLand, EntersWithCounters, filter mismatch, self-ETB from card definition (Dimir Guildgate). **Gap:** no multi-ETB interaction test (MR-M8-15) |
+| Prevention shield (PreventDamage) | Full | 3 tests: partial reduce, depletion/removal, sequential two-shield |
+| Prevention (PreventAllDamage) | Full | 1 test: zeroes damage, not consumed, persists for second event |
+| Game scripts | Good | 6 scripts covering: RiP simple redirect, multiple ordered, self-first priority, commander die, ETB tapped, Kalitas-style exile-on-death |
+| UntilEndOfTurn replacement expiration | **None** | No test verifies cleanup removes UntilEndOfTurn replacement effects (MR-M8-03/13) |
+| WouldGainLife interception | **None** | Trigger type defined and serializable but no interception site exists; no card uses it yet |
+| Damage prevention in combat | Indirect | Prevention is tested via `apply_damage_prevention` unit tests; combat integration tested via the combat damage pipeline in `apply_combat_damage` but no dedicated replacement+combat test |
+
+### Notes
+
+- **MR-M8-01, MR-M8-02, and MR-M8-03 are the most impactful findings.** MR-M8-01 (hardcoded `from` zone) would cause incorrect re-checks for any non-battlefield zone change replacement. MR-M8-02 (ignored ChoiceRequired in effects) silently bypasses player choice when multiple replacements compete in effect-driven zone moves. MR-M8-03 (UntilEndOfTurn replacement effects never expire) means prevention shields persist across turns.
+- **The replacement effect architecture is well-designed.** The `ReplacementTrigger` / `ReplacementModification` / `ReplacementResult` / `ZoneChangeAction` type hierarchy provides clean separation between what to watch for, what to do, and how interception sites integrate. The `PendingZoneChange` system for deferred player choices is a good solution for the async nature of CR 616.1.
+- **CR 903.9 implementation note:** The current Comprehensive Rules split commander zone replacement into two mechanisms: SBA-based for graveyard/exile (CR 903.9a) and replacement-effect-based for hand/library (CR 903.9b). M8 models all four as replacement effects, which is functionally equivalent for graveyard/exile but differs from the CR mechanism. M9 should reconcile this.
+- **Cross-milestone context:** MR-M4-06 (CR 704.5b empty library not SBA) remains open and is tangentially related to draw replacement. MR-M8-10 (cleanup_sba_rounds hash omission) is a pre-M8 gap surfaced during this review. MR-M7-13 and MR-M7-14 (equipment/hand-size) remain open as expected.
 
 ---
 
@@ -1162,6 +1237,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M7-03 | M7 | Doom Blade "non-black" filter semantically inverted — `colors` field is inclusion-only | CLOSED — fix session 4 |
 | MR-M7-04 | M7 | `resolve_zone_target` ignores `owner` field — always uses spell controller | CLOSED — fix session 3 |
 | MR-M7-05 | M7 | `i32→u32` cast wraps negative values in DealDamage/GainLife/LoseLife/DrawCards | CLOSED — fix session 3 |
+| MR-M8-01 | M8 | `resolve_pending_zone_change` hardcodes `ZoneType::Battlefield` as "from" zone in re-check | CLOSED — fix session 1 |
+| MR-M8-02 | M8 | `DestroyPermanent` and `ExileObject` ignore `ChoiceRequired` — bypass player choice | CLOSED — fix session 1 |
+| MR-M8-03 | M8 | `UntilEndOfTurn` replacement effects never expire — prevention shields persist across turns | CLOSED — fix session 1 |
 
 ### MEDIUM
 
@@ -1202,6 +1280,13 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M7-10 | M7 | `dest_tapped` takes ZoneId not ZoneTarget — ignores "enters tapped" flag | CLOSED — fix session 3 |
 | MR-M7-11 | M7 | Brainstorm only draws 3 — does not put 2 cards back on library | CLOSED — fix session 8 |
 | MR-M7-12 | M7 | Path to Exile's search unconditional — should be "may" | OPEN → M9 |
+| MR-M8-04 | M8 | `zone_change_events` uses hardcoded `PlayerId(0)` for `ObjectExiled` events | CLOSED — fix session 1 |
+| MR-M8-05 | M8 | `ReplacementId(u64::MAX)` sentinel for commander redirect events | CLOSED — fix session 1 |
+| MR-M8-06 | M8 | `zone_change_events` always emits `CreatureDied` for graveyard destinations | CLOSED — fix session 1 |
+| MR-M8-07 | M8 | Duplicated WouldDraw replacement logic in `draw_card` and `draw_one_card` | CLOSED — fix session 2 |
+| MR-M8-08 | M8 | `NeedsChoice` for WouldDraw replacements silently falls through to normal draw | CLOSED — fix session 2 |
+| MR-M8-09 | M8 | Leyline of the Void uses `ObjectFilter::Any` instead of opponent-only filter | CLOSED — fix session 2 |
+| MR-M8-10 | M8 | `TurnState::cleanup_sba_rounds` field not included in hash | CLOSED — fix session 2 |
 
 ### LOW
 
@@ -1252,6 +1337,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M7-16 | M7 | Test gap: no combat game script in replay harness | OPEN |
 | MR-M7-17 | M7 | Shuffle in effects uses `from_entropy()` — non-deterministic across replays | CLOSED — fix session 3 |
 | MR-M7-18 | M7 | `try_as_tap_mana_ability` doesn't convert multi-mana abilities (Sol Ring) | CLOSED — fix session 8 |
+| MR-M8-11 | M8 | `apply_damage_prevention` applies shields in registration order, not player choice | OPEN |
+| MR-M8-12 | M8 | Self-ETB replacements bypass the replacement effect framework (CR 616.1f) | OPEN |
+| MR-M8-13 | M8 | No test for `UntilEndOfTurn` replacement effect expiration | OPEN |
+| MR-M8-14 | M8 | Darksteel Colossus "shuffle into library" simplified to RedirectToZone(Library) | OPEN |
+| MR-M8-15 | M8 | No test for multiple ETB replacements interacting (CR 614.15) | OPEN |
+| MR-M8-16 | M8 | Stale replacement effects grow unbounded when source leaves battlefield | OPEN |
 
 ### INFO
 
@@ -1295,6 +1386,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M6-15 | M6 | Blocked status persistence design correct per CR 509.1h | — |
 | MR-M6-16 | M6 | Two-phase collect+apply prevents use-after-free; simultaneous damage per CR 510.2 | — |
 | MR-M6-17 | M6 | Combat state lifecycle correct — init at BeginningOfCombat, cleared at EndOfCombat | — (but see MR-M2-15: concede during combat leaks stale state) |
+| MR-M8-17 | M8 | Well-structured replacement effect architecture (find/determine/intercept separation) | — |
+| MR-M8-18 | M8 | Type definitions well-designed: comprehensive enums, all derive Serialize/Deserialize | — |
+| MR-M8-19 | M8 | Thorough test coverage: 50+ tests across 5 sessions with CR citations | — |
+| MR-M8-20 | M8 | Hash coverage complete for all M8 types (except pre-M8 gap MR-M8-10) | — |
+| MR-M8-21 | M8 | SBA zone-change interception well-integrated (all 3 ZoneChangeAction variants) | — |
+| MR-M8-22 | M8 | CR 903.9 implementation note: replacement effects vs SBAs for commander zone changes | — |
 
 ---
 
@@ -1302,22 +1399,22 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 146 (129 original + 12 M1 re-review + 5 M2 re-review) |
+| Total unique issue IDs | 168 (146 M0-M7 + 22 M8) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
-| HIGH (CLOSED) | 25 (1 false positive + 23 closed by fix sessions 1–7 + 1 closed by fix session 9 MR-M0-02) |
-| HIGH (DEFERRED) | 1 (MR-M2-05 → M9) |
-| MEDIUM (OPEN) | 4 (MR-M0-08 schema LOW-medium, MR-M0-15/16, etc.; see LOWs) |
-| MEDIUM (CLOSED) | 27 (closed by fix sessions 1–9) |
-| MEDIUM (DEFERRED) | 4 (MR-M4-06 → M8, MR-M5-04 → M8+, MR-M7-09 → M9, MR-M7-12 → M9) |
-| LOW (OPEN) | 36 |
-| LOW (CLOSED) | 3 (MR-M3-09, MR-M3-10 — fix session 7; MR-M7-17 — fix session 3) |
+| HIGH (CLOSED) | 28 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1) |
+| HIGH (DEFERRED) | 1 (MR-M2-05 -> M9) |
+| MEDIUM (OPEN) | 4 (4 pre-M8: MR-M4-06, MR-M5-04, MR-M7-09, MR-M7-12) |
+| MEDIUM (CLOSED) | 34 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2) |
+| MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M9, MR-M7-12 -> M9) |
+| LOW (OPEN) | 42 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16) |
+| LOW (CLOSED) | 3 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3) |
 | LOW (DEFERRED) | 5 |
-| INFO | 43 (+3 M1 re-review: MR-M1-21–MR-M1-23, +1 M2 re-review: MR-M2-18) |
-| Milestones reviewed | 8 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7) |
-| Milestones not started | 2 (M8, M9) |
-| Fix phase progress | Sessions 1–7 complete (sessions 8–9 pending) |
+| INFO | 49 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22) |
+| Milestones reviewed | 9 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8) |
+| Milestones not started | 1 (M9) |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed) |
 
-**Engine source LOC (M0-M7)**: ~12,500 lines
-**Engine test LOC (M1-M7)**: ~14,600 lines
-**Total test count**: 327 (all passing, as of fix session 7)
+**Engine source LOC (M0-M8)**: ~13,700 lines (+1,200 M8)
+**Engine test LOC (M1-M8)**: ~17,000 lines (+2,400 M8)
+**Total test count**: 395 (all passing, as of M8 completion)

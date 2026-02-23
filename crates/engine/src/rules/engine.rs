@@ -69,7 +69,15 @@ pub fn process_command(
             targets,
         } => {
             validate_player_active(&state, player)?;
-            let events = casting::handle_cast_spell(&mut state, player, card, targets)?;
+            let mut events = casting::handle_cast_spell(&mut state, player, card, targets)?;
+            // CR 603.3: Check for triggered abilities arising from casting this spell
+            // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
             all_events.extend(events);
         }
         Command::ActivateAbility {

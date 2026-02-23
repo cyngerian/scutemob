@@ -339,6 +339,7 @@ fn check_creature_sbas(
                 // Multiple replacements — defer until player chooses.
                 state.pending_zone_changes.push_back(PendingZoneChange {
                     object_id: id,
+                    original_from: ZoneType::Battlefield,
                     original_destination: ZoneType::Graveyard,
                     affected_player: player,
                     already_applied: Vec::new(),
@@ -460,6 +461,7 @@ fn check_planeswalker_sbas(
             } => {
                 state.pending_zone_changes.push_back(PendingZoneChange {
                     object_id: id,
+                    original_from: ZoneType::Battlefield,
                     original_destination: ZoneType::Graveyard,
                     affected_player: player,
                     already_applied: Vec::new(),

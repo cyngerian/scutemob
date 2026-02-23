@@ -484,10 +484,16 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
     }
 }
 
-/// Remove all "until end of turn" continuous effects during the Cleanup step (CR 514.2).
+/// Remove all "until end of turn" continuous effects and replacement effects
+/// during the Cleanup step (CR 514.2).
 ///
 /// Called by `turn_actions::cleanup_actions` immediately after clearing damage.
+/// Also removes corresponding `prevention_counters` entries so that depleted
+/// `PreventDamage` shields don't persist across turns.
 pub fn expire_end_of_turn_effects(state: &mut GameState) {
+    use crate::state::replacement_effect::ReplacementId;
+
+    // Expire UntilEndOfTurn continuous effects (CR 514.2).
     let keep: im::Vector<ContinuousEffect> = state
         .continuous_effects
         .iter()
@@ -495,4 +501,28 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         .cloned()
         .collect();
     state.continuous_effects = keep;
+
+    // Expire UntilEndOfTurn replacement effects (CR 514.2).
+    // Collect IDs to remove first so we can also clean up prevention_counters.
+    let expired_ids: Vec<ReplacementId> = state
+        .replacement_effects
+        .iter()
+        .filter(|e| e.duration == EffectDuration::UntilEndOfTurn)
+        .map(|e| e.id)
+        .collect();
+
+    if !expired_ids.is_empty() {
+        let keep_replacements: im::Vector<_> = state
+            .replacement_effects
+            .iter()
+            .filter(|e| e.duration != EffectDuration::UntilEndOfTurn)
+            .cloned()
+            .collect();
+        state.replacement_effects = keep_replacements;
+
+        // Also remove any prevention shield counters for the expired effects.
+        for id in &expired_ids {
+            state.prevention_counters.remove(id);
+        }
+    }
 }

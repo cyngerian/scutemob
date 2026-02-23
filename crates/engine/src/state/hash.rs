@@ -412,6 +412,7 @@ impl HashInto for TurnState {
         self.in_extra_combat.hash_into(hasher);
         self.is_first_turn_of_game.hash_into(hasher);
         self.last_regular_active.hash_into(hasher);
+        self.cleanup_sba_rounds.hash_into(hasher);
     }
 }
 
@@ -607,6 +608,10 @@ impl HashInto for ObjectFilter {
                 6u8.hash_into(hasher);
                 card_id.hash_into(hasher);
             }
+            ObjectFilter::OwnedByOpponentsOf(player) => {
+                7u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -728,6 +733,7 @@ impl HashInto for ReplacementEffect {
 impl HashInto for PendingZoneChange {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.object_id.hash_into(hasher);
+        self.original_from.hash_into(hasher);
         self.original_destination.hash_into(hasher);
         self.affected_player.hash_into(hasher);
         (self.already_applied.len() as u64).hash_into(hasher);
@@ -1322,6 +1328,17 @@ impl HashInto for GameEvent {
                 target.hash_into(hasher);
                 prevented.hash_into(hasher);
                 remaining.hash_into(hasher);
+            }
+            // MR-M8-05: CommanderZoneRedirect variant (discriminant 56)
+            GameEvent::CommanderZoneRedirect {
+                object_id,
+                new_command_id,
+                owner,
+            } => {
+                56u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_command_id.hash_into(hasher);
+                owner.hash_into(hasher);
             }
         }
     }
@@ -1935,6 +1952,10 @@ impl GameState {
         self.delayed_triggers.hash_into(&mut hasher);
         self.replacement_effects.hash_into(&mut hasher);
         self.pending_zone_changes.hash_into(&mut hasher);
+        for (id, n) in self.prevention_counters.iter() {
+            id.hash_into(&mut hasher);
+            n.hash_into(&mut hasher);
+        }
         self.pending_triggers.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
 
