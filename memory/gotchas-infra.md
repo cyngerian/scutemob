@@ -46,6 +46,15 @@
   the action to the wrong player.
 - **Mana abilities do NOT reset `players_passed`** (CR 605.3a — mana abilities don't use
   the stack, no priority). Only `CastSpell` and similar stack actions reset `players_passed`.
+- **`pay_cost` generic mana order: colorless → green → red → black → blue → white.** When
+  writing game scripts with multiple sequential casts, provide enough mana of specific colors
+  so that generic pips don't consume the color you need next. E.g., casting Rest in Peace
+  {1W} then Lightning Bolt {R}: pool `{ white: 2, red: 2 }` works; `{ white: 3, red: 1 }`
+  fails because the engine's generic pip eats the single red before Bolt is cast.
+- **Commander registration in replay harness**: `build_initial_state` now reads
+  `initial_state.players[*].commander` and calls `register_commander_zone_replacements`.
+  If you add a new initial_state field that affects pre-game setup, add it to `build_initial_state`
+  in `tests/script_replay.rs`.
 
 ## Testing Gotchas
 
