@@ -1,13 +1,13 @@
-//! Protection keyword targeting tests (CR 702.16a-b).
+//! Protection keyword tests (CR 702.16a-f).
 //!
 //! Session 5 of M9.4: data model and targeting enforcement for the protection
 //! keyword. Protection blocks Damage, Enchanting, Blocking, and Targeting (DEBT).
-//! This session covers only the Targeting (T) aspect; Damage, Enchanting, and
-//! Blocking are covered in Session 6.
+//! Session 5 covers Targeting (T); Session 6 covers Damage (D), Enchanting (E), Blocking (B).
 
 use mtg_engine::{
-    process_command, CardType, Color, Command, GameEvent, GameStateBuilder, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, ProtectionQuality, Step, Target, ZoneId,
+    process_command, start_game, AttackTarget, CardType, Color, Command, GameEvent,
+    GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId,
+    ProtectionQuality, Step, SubType, Target, ZoneId,
 };
 
 // ── Helper: find object by name ───────────────────────────────────────────────
@@ -283,5 +283,284 @@ fn test_protection_from_all_blocks_all_targeting() {
         err_msg.contains("protection"),
         "Error should mention protection, got: {}",
         err_msg
+    );
+}
+
+// ── Session 6: Damage (D), Blocking (B), Aura/Equipment SBAs (E) ─────────────
+
+#[test]
+/// CR 702.16e — A creature with protection from red takes 0 damage from a red source.
+/// Source: CR 702.16e ("all damage that would be dealt ... is prevented")
+fn test_protection_from_red_prevents_red_damage() {
+    let p1 = PlayerId(1);
+
+    let target_spec = ObjectSpec::creature(p1, "White Knight", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(PlayerId(2))
+        .object(target_spec)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let target_id = find_object(&state, "White Knight");
+    let target_chars = mtg_engine::calculate_characteristics(&state, target_id).unwrap();
+
+    // Verify: protection from red prevents damage from a red source.
+    let red_source = mtg_engine::state::game_object::Characteristics {
+        colors: [Color::Red].iter().cloned().collect(),
+        ..Default::default()
+    };
+    let prevents = mtg_engine::rules::protection::protection_prevents_damage(
+        &target_chars.keywords,
+        &red_source,
+    );
+    assert!(
+        prevents,
+        "CR 702.16e: protection from red should prevent all damage from a red source"
+    );
+
+    // Verify: protection from red does NOT prevent damage from a green source.
+    let green_source = mtg_engine::state::game_object::Characteristics {
+        colors: [Color::Green].iter().cloned().collect(),
+        ..Default::default()
+    };
+    let prevents_green = mtg_engine::rules::protection::protection_prevents_damage(
+        &target_chars.keywords,
+        &green_source,
+    );
+    assert!(
+        !prevents_green,
+        "CR 702.16e: protection from red should NOT prevent damage from a green source"
+    );
+}
+
+#[test]
+/// CR 702.16f — A red creature cannot block a creature with protection from red.
+/// Source: CR 702.16f ("can't be blocked by [sources with the quality]")
+fn test_protection_from_red_blocks_red_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Attacker: creature with protection from red.
+    let attacker_spec = ObjectSpec::creature(p1, "White Knight", 2, 2).with_keyword(
+        KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+    );
+    // Blocker: p2's red creature.
+    let blocker_spec =
+        ObjectSpec::creature(p2, "Goblin Warrior", 2, 2).with_colors(vec![Color::Red]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(attacker_spec)
+        .object(blocker_spec)
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let mut state = state;
+    state.turn.priority_holder = Some(p1);
+
+    let attacker_id = find_object(&state, "White Knight");
+    let blocker_id = find_object(&state, "Goblin Warrior");
+
+    // Declare attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .expect("DeclareAttackers should succeed");
+
+    // Pass priority to reach DeclareBlockers step.
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    assert_eq!(state.turn.step, Step::DeclareBlockers);
+
+    // p2 attempts to block with the red creature — should fail.
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "CR 702.16f: a red creature should not block a creature with protection from red"
+    );
+    let err_msg = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_msg.contains("protection"),
+        "Error should mention protection, got: {}",
+        err_msg
+    );
+}
+
+#[test]
+/// CR 702.16c — An Aura on a creature with protection from the aura's color falls off (SBA 704.5m).
+/// Source: CR 702.16c ("can't be enchanted by [sources with the quality]")
+fn test_protection_from_red_aura_falls_off() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "White Knight", 2, 2).with_keyword(
+            KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+        ))
+        .object(
+            // A red Aura.
+            ObjectSpec::enchantment(p1, "Burning Anger")
+                .with_subtypes(vec![SubType("Aura".to_string())])
+                .with_colors(vec![Color::Red]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let knight_id = find_object(&state, "White Knight");
+    let aura_id = find_object(&state, "Burning Anger");
+
+    // Manually attach the aura to the knight (simulating an illegal attachment state).
+    state.objects.get_mut(&aura_id).unwrap().attached_to = Some(knight_id);
+    state
+        .objects
+        .get_mut(&knight_id)
+        .unwrap()
+        .attachments
+        .push_back(aura_id);
+
+    let (_, events) = start_game(state).unwrap();
+
+    let aura_fell_off = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { object_id, .. } if *object_id == aura_id));
+    assert!(
+        aura_fell_off,
+        "CR 702.16c + CR 704.5m: a red aura on a creature with protection from red \
+         should fall off via SBA; events: {:?}",
+        events
+    );
+}
+
+#[test]
+/// CR 702.16d — Equipment attached to a creature with protection from the equipment detaches (SBA 704.5n).
+/// Source: CR 702.16d ("can't be equipped by [sources with the quality]")
+fn test_protection_from_red_equipment_detaches() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "White Knight", 2, 2).with_keyword(
+            KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(Color::Red)),
+        ))
+        .object(
+            // A red Equipment.
+            ObjectSpec::artifact(p1, "Blazing Sword")
+                .with_subtypes(vec![SubType("Equipment".to_string())])
+                .with_colors(vec![Color::Red]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let knight_id = find_object(&state, "White Knight");
+    let equip_id = find_object(&state, "Blazing Sword");
+
+    // Manually attach the equipment to the knight (simulating an illegal attachment state).
+    state.objects.get_mut(&equip_id).unwrap().attached_to = Some(knight_id);
+    state
+        .objects
+        .get_mut(&knight_id)
+        .unwrap()
+        .attachments
+        .push_back(equip_id);
+
+    let (_, events) = start_game(state).unwrap();
+
+    let unattached = events.iter().any(
+        |e| matches!(e, GameEvent::EquipmentUnattached { object_id } if *object_id == equip_id),
+    );
+    assert!(
+        unattached,
+        "CR 702.16d + CR 704.5n: red equipment on a creature with protection from red \
+         should detach via SBA; events: {:?}",
+        events
+    );
+}
+
+#[test]
+/// CR 702.16 — Protection does NOT block non-targeted global effects.
+///
+/// A global destroy effect (Wrath of God) affects all creatures regardless of
+/// protection. Protection only blocks Damage, Enchanting, Blocking, and Targeting
+/// (DEBT). A non-targeted effect bypasses all four restrictions.
+///
+/// Source: CR 702.16a note ("the 'T' part requires a targeting relationship")
+fn test_protection_global_effect_still_works() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Progenitus", 10, 10)
+                .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromAll)),
+        )
+        .object(ObjectSpec::creature(p2, "Goblin Token", 1, 1))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let progenitus_id = find_object(&state, "Progenitus");
+    let goblin_id = find_object(&state, "Goblin Token");
+
+    // Use execute_effect directly to simulate a global destroy (non-targeted).
+    use mtg_engine::cards::EffectTarget as CardEffectTarget;
+    use mtg_engine::Effect;
+    let global_destroy = Effect::DestroyPermanent {
+        target: CardEffectTarget::AllCreatures,
+    };
+
+    let mut ctx = mtg_engine::effects::EffectContext::new(p1, progenitus_id, vec![]);
+    let mut state_mut = state;
+    let events = mtg_engine::effects::execute_effect(&mut state_mut, &global_destroy, &mut ctx);
+
+    // DestroyPermanent on a creature emits CreatureDied (it moves to graveyard).
+    let progenitus_destroyed = events.iter().any(
+        |e| matches!(e, GameEvent::CreatureDied { object_id, .. } if *object_id == progenitus_id),
+    );
+    let goblin_destroyed = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { object_id, .. } if *object_id == goblin_id));
+
+    assert!(
+        progenitus_destroyed,
+        "CR 702.16: protection from everything does NOT block global non-targeted effects; \
+         Progenitus should be destroyed by a destroy-all-creatures effect; events: {:?}",
+        events
+    );
+    assert!(
+        goblin_destroyed,
+        "Goblin Token should also be destroyed by the global effect; events: {:?}",
+        events
     );
 }

@@ -1132,15 +1132,19 @@ pub fn register_static_continuous_effects(
 
 // ── Damage prevention interception (Session 5) ────────────────────────────
 
-/// CR 615: Check and apply damage prevention effects to a damage event.
+/// CR 615 + CR 702.16e: Check and apply damage prevention effects to a damage event.
 ///
 /// Called by damage interception sites (`DealDamage` effect, `apply_combat_damage`)
-/// before applying damage to a target. Finds all applicable `DamageWouldBeDealt`
-/// replacement effects, applies `PreventDamage` and `PreventAllDamage` modifications
-/// in registration order (CR 615.7), decrements shields, removes exhausted shields,
-/// and emits `DamagePrevented` and `ReplacementEffectApplied` events.
+/// before applying damage to a target.
 ///
-/// Multiple applicable effects are applied in registration order (CR 615.7).
+/// Step 1 (CR 702.16e): check protection — if the target is a permanent with
+/// protection from a quality the source matches, all damage is prevented immediately
+/// (no events emitted, amount returns 0).
+///
+/// Step 2 (CR 615.7): apply dynamic prevention shields in registration order.
+/// Decrements shields, removes exhausted shields, emits `DamagePrevented` and
+/// `ReplacementEffectApplied` events.
+///
 /// Returns `(final_amount, events)`. If `final_amount == 0`, all damage was prevented.
 pub fn apply_damage_prevention(
     state: &mut GameState,
@@ -1148,6 +1152,21 @@ pub fn apply_damage_prevention(
     target: &CombatDamageTarget,
     amount: u32,
 ) -> (u32, Vec<GameEvent>) {
+    // CR 702.16e: protection is a static prevention — checked BEFORE dynamic shields.
+    if let CombatDamageTarget::Creature(target_id) | CombatDamageTarget::Planeswalker(target_id) =
+        target
+    {
+        let target_keywords = crate::rules::layers::calculate_characteristics(state, *target_id)
+            .map(|c| c.keywords)
+            .unwrap_or_default();
+        let source_chars = crate::rules::protection::source_characteristics(state, source);
+        if let Some(sc) = &source_chars {
+            if crate::rules::protection::protection_prevents_damage(&target_keywords, sc) {
+                return (0, Vec::new());
+            }
+        }
+    }
+
     // Build the event trigger for this specific damage target.
     let target_filter = match target {
         CombatDamageTarget::Player(p) => DamageTargetFilter::Player(*p),

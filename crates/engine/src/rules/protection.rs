@@ -139,6 +139,18 @@ pub fn check_full_targeting_protection(
     Ok(())
 }
 
+/// CR 702.16f: Check whether a potential blocker is prevented from blocking by protection.
+///
+/// Returns `true` if the attacker has protection from a quality that the blocker matches
+/// (i.e., the blocker cannot block the attacker). The blocker is the "source" being checked
+/// against the attacker's protection.
+pub fn can_block(
+    attacker_keywords: &OrdSet<KeywordAbility>,
+    blocker_chars: &Characteristics,
+) -> bool {
+    !protection_prevents_blocking(attacker_keywords, blocker_chars)
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------

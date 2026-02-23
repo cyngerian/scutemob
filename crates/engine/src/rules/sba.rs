@@ -557,16 +557,18 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
 /// CR 704.5m: If an Aura is attached to an object or player it can't legally
 /// be attached to, put it into its owner's graveyard.
 ///
-/// For M4: an aura is illegal if its `attached_to` references an object that
-/// is no longer on the battlefield (the object moved zones). Full legality
-/// checking (protection, shroud, color requirements) is M7+.
+/// Checks:
+/// 1. Aura is not attached to anything → always illegal (CR 704.5m).
+/// 2. Target object has left the battlefield → illegal (CR 704.5m).
+/// 3. "Enchant creature" aura: target is no longer a creature → illegal (CR 704.5m).
+/// 4. CR 702.16c: target has protection from a quality the aura matches → illegal.
 fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
     let illegal_auras: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(aura_id, obj)| {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
@@ -598,10 +600,25 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                         let is_creature = target_chars
                             .map(|c| c.card_types.contains(&CardType::Creature))
                             .unwrap_or(false);
-                        !is_creature
-                    } else {
-                        false
+                        if !is_creature {
+                            return true;
+                        }
                     }
+                    // CR 702.16c: the aura is illegal if the target has protection from
+                    // a quality that the aura's characteristics match.
+                    let target_keywords = calculate_characteristics(state, target_id)
+                        .map(|c| c.keywords)
+                        .unwrap_or_default();
+                    let aura_chars = calculate_characteristics(state, **aura_id);
+                    if let Some(ac) = &aura_chars {
+                        if super::protection::attachment_is_illegal_due_to_protection(
+                            &target_keywords,
+                            ac,
+                        ) {
+                            return true;
+                        }
+                    }
+                    false
                 }
             }
         })
@@ -676,11 +693,28 @@ fn check_equipment_sbas(
                                 Some(tc) => {
                                     if is_equipment {
                                         // Equipment must be on a creature.
-                                        !tc.card_types.contains(&CardType::Creature)
+                                        if !tc.card_types.contains(&CardType::Creature) {
+                                            return true;
+                                        }
                                     } else {
                                         // Fortification must be on a land.
-                                        !tc.card_types.contains(&CardType::Land)
+                                        if !tc.card_types.contains(&CardType::Land) {
+                                            return true;
+                                        }
                                     }
+                                    // CR 702.16d: equipment is illegal if the equipped
+                                    // permanent has protection from a quality the equipment
+                                    // matches.
+                                    let equipment_chars = chars_map.get(id);
+                                    if let Some(ec) = equipment_chars {
+                                        if super::protection::attachment_is_illegal_due_to_protection(
+                                            &tc.keywords,
+                                            ec,
+                                        ) {
+                                            return true;
+                                        }
+                                    }
+                                    false
                                 }
                             }
                         }

@@ -156,7 +156,8 @@ fn execute_effect_inner(
                             CombatDamageTarget::Creature(id)
                         };
 
-                        // CR 615: check prevention before applying damage.
+                        // CR 702.16e + CR 615: apply_damage_prevention checks protection
+                        // (static) then dynamic prevention shields in order.
                         let (final_dmg, prev_events) =
                             crate::rules::replacement::apply_damage_prevention(
                                 state,

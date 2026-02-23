@@ -358,6 +358,15 @@ pub fn handle_declare_blockers(
                 attacker_id
             )));
         }
+
+        // CR 702.16f: protection from blocking. A creature with protection from a quality
+        // cannot be blocked by creatures that match that quality. The blocker is the source.
+        if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has protection from the blocker)",
+                blocker_id, attacker_id
+            )));
+        }
     }
 
     // CR 702.110a: A creature with menace can't be blocked except by two or more creatures.
@@ -736,8 +745,8 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         })
         .collect();
 
-    // --- CR 615: Apply damage prevention for each assignment ---
-    // Mutates prevention shields in state; must happen before damage application.
+    // --- CR 702.16e + CR 615: Apply protection then dynamic prevention ---
+    // apply_damage_prevention checks protection (static) first, then dynamic shields.
     let mut prevention_events: Vec<GameEvent> = Vec::new();
     let final_amounts: Vec<u32> = assignments
         .iter()
