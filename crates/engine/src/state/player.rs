@@ -101,4 +101,11 @@ pub struct PlayerState {
     /// player's control (e.g. Thought Vessel, Reliquary Tower).
     #[serde(default)]
     pub no_max_hand_size: bool,
+    /// Number of cards drawn by this player this turn (CR 121.1).
+    ///
+    /// Incremented each time `draw_one_card` completes successfully. Reset to 0
+    /// at the start of this player's turn in `reset_turn_state`. Used by Sylvan
+    /// Library (CC#33) and other effects that track how many cards have been drawn.
+    #[serde(default)]
+    pub cards_drawn_this_turn: u32,
 }

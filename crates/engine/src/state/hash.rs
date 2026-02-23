@@ -378,6 +378,7 @@ impl HashInto for GameObject {
         self.is_token.hash_into(hasher);
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
+        self.enchants_creatures.hash_into(hasher);
     }
 }
 
@@ -399,6 +400,7 @@ impl HashInto for PlayerState {
         self.companion_used.hash_into(hasher);
         self.mulligan_count.hash_into(hasher);
         self.no_max_hand_size.hash_into(hasher);
+        self.cards_drawn_this_turn.hash_into(hasher);
     }
 }
 

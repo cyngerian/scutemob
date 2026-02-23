@@ -252,6 +252,7 @@ impl GameState {
             // CR 302.6: a permanent entering the battlefield has summoning sickness
             // until the beginning of its controller's next untap step.
             has_summoning_sickness: to == ZoneId::Battlefield,
+            enchants_creatures: old_object.enchants_creatures,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.

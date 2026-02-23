@@ -578,15 +578,30 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 return false;
             }
             // Aura is illegal if it's not attached to anything on the battlefield.
+            let enchants_creatures = obj.enchants_creatures;
             match obj.attached_to {
                 None => true, // Unattached aura — always illegal on battlefield.
                 Some(target_id) => {
                     // Illegal if the target is gone or not on the battlefield.
-                    state
+                    let target_gone = state
                         .objects
                         .get(&target_id)
                         .map(|t| t.zone != ZoneId::Battlefield)
-                        .unwrap_or(true)
+                        .unwrap_or(true);
+                    if target_gone {
+                        return true;
+                    }
+                    // CR 704.5m: if this is an "Enchant creature" aura, also check
+                    // that the target is currently a creature (layer-computed).
+                    if enchants_creatures {
+                        let target_chars = calculate_characteristics(state, target_id);
+                        let is_creature = target_chars
+                            .map(|c| c.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false);
+                        !is_creature
+                    } else {
+                        false
+                    }
                 }
             }
         })

@@ -1386,3 +1386,151 @@ fn test_509_redeclare_blockers_rejected() {
         "re-declaring blockers should be rejected"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CC#20: First strike + double strike combined blocking
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CC#20 / CR 702.7 + CR 702.4 — A first-strike creature blocks a double-strike creature.
+///
+/// Scenario: p1 attacks with a 3/1 DoubleStrike creature. p2 blocks with a 2/2 FirstStrike
+/// creature. In the first-strike combat damage step, both creatures deal their damage
+/// simultaneously (both have first-strike or double-strike):
+///   - Attacker (3/1 DoubleStrike) deals 3 to the blocker (lethal on 2 toughness).
+///   - Blocker (2/2 FirstStrike) deals 2 to the attacker (lethal on 1 toughness).
+///
+/// Both creatures die in the first-strike step. In the regular combat damage step,
+/// neither creature deals damage (both are dead — they never reach the regular step alive).
+///
+/// CR 702.7b: "A creature with first strike deals combat damage before creatures without
+/// first strike." CR 702.4b: "A creature with double strike deals both first-strike and
+/// regular combat damage."
+fn test_cc20_first_strike_blocks_double_strike() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Attacker: 3/1 DoubleStrike (deals first-strike AND regular damage).
+    // Blocker: 2/2 FirstStrike (deals first-strike damage only).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "DoubleStriker", 3, 1)
+                .with_keyword(KeywordAbility::DoubleStrike),
+        )
+        .object(
+            ObjectSpec::creature(p2, "FirstStriker", 2, 2)
+                .with_keyword(KeywordAbility::FirstStrike),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "DoubleStriker")
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "FirstStriker")
+        .unwrap()
+        .id;
+
+    // Declare attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 blocks with the FirstStriker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Pass through DeclareBlockers → FirstStrikeDamage step.
+    // Both creatures deal first-strike damage simultaneously in this step.
+    let (state, fs_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn.step,
+        Step::FirstStrikeDamage,
+        "should enter FirstStrikeDamage step"
+    );
+
+    // Both creatures should have died from first-strike damage:
+    // - DoubleStriker (3 power) kills FirstStriker (2 toughness).
+    // - FirstStriker (2 power) kills DoubleStriker (1 toughness).
+    let deaths_in_fs_step = fs_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CreatureDied { .. }))
+        .count();
+    assert_eq!(
+        deaths_in_fs_step, 2,
+        "both creatures should die in the first-strike step \
+         (DoubleStriker kills FirstStriker, FirstStriker kills DoubleStriker); \
+         deaths: {}",
+        deaths_in_fs_step
+    );
+
+    // Both should be off the battlefield.
+    let attacker_alive = state.objects.values().any(|o| o.id == attacker_id);
+    let blocker_alive = state.objects.values().any(|o| o.id == blocker_id);
+    assert!(
+        !attacker_alive,
+        "DoubleStriker (3/1) should be dead (took 2 from first-striker, lethal on 1 toughness)"
+    );
+    assert!(
+        !blocker_alive,
+        "FirstStriker (2/2) should be dead (took 3 from double-striker, lethal on 2 toughness)"
+    );
+
+    // Pass through FirstStrikeDamage → CombatDamage step.
+    // Both creatures are dead; no regular combat damage is dealt.
+    let (state, regular_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn.step, Step::CombatDamage);
+
+    let damage_in_regular_step: u32 = regular_events
+        .iter()
+        .filter_map(|e| {
+            if let GameEvent::CombatDamageDealt { assignments } = e {
+                Some(assignments.iter().map(|a| a.amount).sum::<u32>())
+            } else {
+                None
+            }
+        })
+        .sum();
+
+    // CR 702.4: DoubleStriker deals regular damage too — but it's dead, so no damage in step 2.
+    assert_eq!(
+        damage_in_regular_step, 0,
+        "no creature deals regular damage (both are dead after first-strike step); \
+         damage in regular step: {}",
+        damage_in_regular_step
+    );
+
+    // p2's life total: should be unchanged (DoubleStriker never reached regular damage step alive).
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        40,
+        "p2 should not have taken damage (DoubleStriker was blocked and killed before regular step)"
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().life_total,
+        40,
+        "p1 should not have taken damage (all damage was between creatures)"
+    );
+}

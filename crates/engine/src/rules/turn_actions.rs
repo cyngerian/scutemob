@@ -132,9 +132,11 @@ pub fn draw_card(
     let hand_zone = ZoneId::Hand(player);
     let (new_id, _old_obj) = state.move_object_to_zone(top_id, hand_zone)?;
 
-    // Mark that this player has drawn for the turn
+    // Mark that this player has drawn for the turn and increment draw counter.
     if let Some(p) = state.players.get_mut(&player) {
         p.has_drawn_for_turn = true;
+        // CR 121.1: track draws-per-turn for Sylvan Library and similar effects (CC#33).
+        p.cards_drawn_this_turn += 1;
     }
 
     Ok(vec![GameEvent::CardDrawn {
@@ -275,6 +277,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     if let Some(p) = state.players.get_mut(&player) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
+        // CR 121.1: per-turn draw count resets at the start of each turn.
+        // Used by Sylvan Library (CC#33) and similar draw-tracking effects.
+        p.cards_drawn_this_turn = 0;
     }
 }
 

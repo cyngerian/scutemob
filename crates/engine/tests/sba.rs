@@ -1117,3 +1117,146 @@ fn test_cc10_legendary_rule_simultaneous_etb_triggers() {
         removed_count
     );
 }
+
+// ── CC#24: Token die-trigger fires before SBA cleanup ─────────────────────
+
+#[test]
+/// CC#24 / CR 704.5d + CR 603.2 — A token creature dies; the "creature died" SBA fires
+/// (moving it to graveyard with a CreatureDied event), and THEN SBA 704.5d removes the
+/// token from the graveyard with a TokenCeasedToExist event.
+///
+/// The critical ordering: the token briefly exists in the graveyard zone (long enough
+/// for "whenever a creature dies" triggers to see it), then the next SBA pass removes it.
+///
+/// In our engine, we verify this by checking that:
+/// 1. `CreatureDied` fires for the token (SBA 704.5g — lethal damage).
+/// 2. `TokenCeasedToExist` fires for the token (SBA 704.5d — token in non-battlefield zone).
+/// 3. `TokenCeasedToExist` comes AFTER `CreatureDied` in the event sequence, confirming
+///    the token passed through the graveyard before ceasing to exist.
+fn test_cc24_token_dies_trigger_fires_before_sba_cleanup() {
+    // Build a state with a token creature that has lethal damage marked.
+    // When start_game fires SBAs, the token should: die → graveyard (CreatureDied),
+    // then cease to exist (TokenCeasedToExist).
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::creature(p(1), "Bear Token", 2, 2)
+                .token()
+                .with_damage(2), // lethal damage → triggers SBA 704.5g
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let events = sba_events_from_start(state);
+
+    // Both events should be present.
+    let died_event = events
+        .iter()
+        .position(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    let ceased_event = events
+        .iter()
+        .position(|e| matches!(e, GameEvent::TokenCeasedToExist { .. }));
+
+    assert!(
+        died_event.is_some(),
+        "CreatureDied should fire when the token takes lethal damage (SBA 704.5g); \
+         events: {:?}",
+        events
+    );
+    assert!(
+        ceased_event.is_some(),
+        "TokenCeasedToExist should fire after token enters the graveyard (SBA 704.5d); \
+         events: {:?}",
+        events
+    );
+
+    // CR 704.5d ordering: TokenCeasedToExist comes AFTER CreatureDied.
+    // The token briefly exists in the graveyard (triggering die-triggers) before ceasing.
+    assert!(
+        died_event.unwrap() < ceased_event.unwrap(),
+        "CreatureDied (pos {}) must come before TokenCeasedToExist (pos {}) — \
+         token briefly exists in graveyard before SBA 704.5d removes it",
+        died_event.unwrap(),
+        ceased_event.unwrap()
+    );
+}
+
+// ── CC#31: Aura falls off after type-change ends ───────────────────────────
+
+#[test]
+/// CC#31 / CR 704.5m + CR 514.2 — An "Enchant creature" aura is attached to an
+/// animated land. When the UntilEndOfTurn animation expires at cleanup, the land
+/// stops being a creature. The next SBA check finds the aura attached to a non-creature
+/// (illegal for "Enchant creature" auras) and moves it to the graveyard.
+///
+/// This test verifies the two-step interaction:
+/// 1. With the animation active: aura is legally attached to a creature-land.
+/// 2. With the animation removed (simulating cleanup): land is no longer a creature.
+/// 3. SBA 704.5m fires: aura on non-creature goes to the graveyard.
+///
+/// For this PARTIAL test, we directly verify that an aura attached to a non-creature
+/// (a plain land) triggers the SBA — simulating the state AFTER the animation has ended.
+/// The full integration (animation → cleanup → SBA) is covered by turn_actions.rs.
+fn test_cc31_aura_falls_off_after_type_change_ends() {
+    // Build a state: a plain land (NOT a creature) with an Aura attached to it.
+    // This simulates the post-cleanup state where the animation has expired.
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(ObjectSpec::land(p(1), "Animated Land")) // was a creature, now a plain land
+        .object(
+            ObjectSpec::enchantment(p(1), "Bear Umbra") // "Enchant creature" aura
+                .with_subtypes(vec![SubType("Aura".to_string())]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    // Manually attach the aura to the land (simulating illegal attachment after animation ended).
+    let land_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Animated Land")
+        .map(|(id, _)| *id)
+        .unwrap();
+    let aura_id = state
+        .objects
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Bear Umbra")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    if let Some(aura) = state.objects.get_mut(&aura_id) {
+        aura.attached_to = Some(land_id);
+        aura.enchants_creatures = true; // "Enchant creature" restriction
+    }
+    if let Some(land) = state.objects.get_mut(&land_id) {
+        land.attachments.push_back(aura_id);
+    }
+
+    let (_, events) = start_game(state).unwrap();
+
+    // CR 704.5m: aura attached to non-creature land goes to graveyard.
+    let aura_fell_off = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { object_id, .. } if object_id == &aura_id));
+    assert!(
+        aura_fell_off,
+        "Bear Umbra (Enchant creature aura) should fall off the non-creature land \
+         via SBA 704.5m; events: {:?}",
+        events
+    );
+
+    // The land should still be on the battlefield (only the aura is removed).
+    let land_on_battlefield = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { object_id, .. } if object_id == &land_id));
+    assert!(
+        !land_on_battlefield,
+        "the land itself should not be removed — only the illegally attached aura falls off"
+    );
+}

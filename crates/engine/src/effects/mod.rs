@@ -1352,6 +1352,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_token: true,
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
+        enchants_creatures: false,
     }
 }
 
@@ -1389,6 +1390,10 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
         }
         Some(card_id) => {
             if let Ok((new_id, _)) = state.move_object_to_zone(card_id, ZoneId::Hand(player)) {
+                // CR 121.1: increment per-turn draw counter for Sylvan Library and similar effects.
+                if let Some(ps) = state.players.get_mut(&player) {
+                    ps.cards_drawn_this_turn += 1;
+                }
                 vec![GameEvent::CardDrawn {
                     player,
                     new_object_id: new_id,

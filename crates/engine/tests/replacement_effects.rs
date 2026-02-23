@@ -3091,3 +3091,80 @@ fn test_hash_cleanup_sba_rounds_affects_hash() {
         "states differing only in cleanup_sba_rounds must have different hashes (MR-M8-10)"
     );
 }
+
+// ── CC#33: Sylvan Library draw tracking ──────────────────────────────────────
+
+#[test]
+/// CC#33 / CR 121.1 — `cards_drawn_this_turn` counter increments on each draw
+/// and resets to 0 at the start of the player's turn.
+///
+/// Sylvan Library's upkeep ability asks "how many cards have you drawn this turn
+/// so far?" and uses this count to determine whether the player must pay life or
+/// put cards back. Accurate draw tracking is required for Sylvan Library to
+/// function correctly.
+///
+/// This test verifies:
+/// 1. `cards_drawn_this_turn` starts at 0.
+/// 2. Each successful draw increments the counter.
+/// 3. `reset_turn_state` resets the counter back to 0.
+fn test_cc33_sylvan_library_draw_tracking() {
+    use mtg_engine::rules::turn_actions::{draw_card, reset_turn_state};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Forest").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Swamp").in_zone(ZoneId::Library(p1)))
+        .build()
+        .unwrap();
+
+    // Initial state: no cards drawn yet.
+    assert_eq!(
+        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        0,
+        "cards_drawn_this_turn should start at 0"
+    );
+
+    // Draw first card: counter increments to 1.
+    draw_card(&mut state, p1).unwrap();
+    assert_eq!(
+        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        1,
+        "after first draw, cards_drawn_this_turn should be 1"
+    );
+
+    // Draw second card: counter increments to 2.
+    draw_card(&mut state, p1).unwrap();
+    assert_eq!(
+        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        2,
+        "after second draw, cards_drawn_this_turn should be 2"
+    );
+
+    // Draw third card: counter increments to 3.
+    draw_card(&mut state, p1).unwrap();
+    assert_eq!(
+        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        3,
+        "after third draw, cards_drawn_this_turn should be 3"
+    );
+
+    // p2 drawing does NOT affect p1's counter.
+    assert_eq!(
+        state.players.get(&p2).unwrap().cards_drawn_this_turn,
+        0,
+        "p2's cards_drawn_this_turn should still be 0 (only p1 drew cards)"
+    );
+
+    // Simulate turn start: reset_turn_state resets the counter to 0.
+    reset_turn_state(&mut state, p1);
+    assert_eq!(
+        state.players.get(&p1).unwrap().cards_drawn_this_turn,
+        0,
+        "after reset_turn_state, cards_drawn_this_turn should reset to 0"
+    );
+}

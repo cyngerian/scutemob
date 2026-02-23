@@ -249,6 +249,7 @@ impl GameStateBuilder {
                 companion_used: false,
                 mulligan_count: 0,
                 no_max_hand_size: false,
+                cards_drawn_this_turn: 0,
             };
             players.insert(config.id, player_state);
         }
@@ -377,6 +378,7 @@ impl GameStateBuilder {
                 // test-placed permanents on the battlefield are treated as having
                 // been there since the beginning of their controller's turn.
                 has_summoning_sickness: false,
+                enchants_creatures: false,
             };
 
             state.add_object(object, zone)?;

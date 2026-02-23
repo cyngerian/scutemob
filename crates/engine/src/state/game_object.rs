@@ -218,4 +218,14 @@ pub struct GameObject {
     /// A creature with summoning sickness cannot attack or have its activated
     /// abilities with {T} in the cost used, unless it has Haste (CR 702.10).
     pub has_summoning_sickness: bool,
+    /// True if this Aura has an "Enchant creature" restriction (CR 702.5b, 704.5m).
+    ///
+    /// When set, the SBA for Aura legality (CR 704.5m) additionally checks that the
+    /// attached permanent is a creature using the layer-computed characteristics. If
+    /// the target stops being a creature (e.g., a type-change animation expires), the
+    /// aura falls off.
+    ///
+    /// Default is `false` (no type restriction on attachment target beyond "on battlefield").
+    #[serde(default)]
+    pub enchants_creatures: bool,
 }

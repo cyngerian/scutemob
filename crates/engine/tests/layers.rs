@@ -1564,3 +1564,234 @@ fn test_cc6_humility_magus_of_moon_nondependency() {
         land_chars.card_types
     );
 }
+
+// ---------------------------------------------------------------------------
+// CC#7: Opalescence + Parallax Wave zone-change
+// ---------------------------------------------------------------------------
+
+/// CC#7 / CR 613.1d + CR 603.2 — Opalescence makes Parallax Wave a creature (layer 4).
+///
+/// When Parallax Wave is type-changed to be a creature (Enchantment Creature — Wave),
+/// removing it from the battlefield triggers "creature leaves the battlefield" effects.
+/// This test verifies:
+/// 1. Under Opalescence (layer 4), Parallax Wave has CardType::Creature in calculated chars.
+/// 2. The type-change is what enables creature-specific removal (destroying it or similar).
+/// 3. Once the type-change enables creature status, zone-change triggers for "creature dies"
+///    would fire. (Here we verify the characteristic calculation side — the type change is
+///    visible via `calculate_characteristics`.)
+///
+/// The full trigger dispatch (zone-change triggers) is deferred to a later integration test;
+/// this test covers the layer system enabling creature removal of an animated enchantment.
+#[test]
+fn test_cc7_opalescence_parallax_wave_zone_change() {
+    use mtg_engine::ManaCost;
+
+    let p = PlayerId(1);
+
+    // Parallax Wave: normally a 4-mana enchantment (non-Aura).
+    let parallax_wave_spec = ObjectSpec::enchantment(p, "Parallax Wave").with_mana_cost(ManaCost {
+        generic: 3,
+        white: 1,
+        ..ManaCost::default()
+    });
+
+    // Opalescence is on the battlefield (layer 4): non-Aura enchantments become creatures.
+    // This also sets P/T to the card's mana value (layer 7b).
+    let state = GameStateBuilder::new()
+        .add_player(p)
+        .object(parallax_wave_spec)
+        // Opalescence layer 4 effect: non-Aura enchantments become creatures.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(1),
+            source: None,
+            timestamp: 5,
+            layer: EffectLayer::TypeChange,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::AllNonAuraEnchantments,
+            modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
+            is_cda: false,
+        })
+        // Opalescence layer 7b effect: P/T = mana value.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(2),
+            source: None,
+            timestamp: 5,
+            layer: EffectLayer::PtSet,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::AllNonAuraEnchantments,
+            modification: LayerModification::SetPtToManaValue,
+            is_cda: false,
+        })
+        .build()
+        .unwrap();
+
+    let wave_id = *state
+        .zones
+        .get(&mtg_engine::ZoneId::Battlefield)
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    // CR 613.1d: Opalescence (layer 4) grants Parallax Wave the Creature card type.
+    let chars = calculate_characteristics(&state, wave_id).unwrap();
+    assert!(
+        chars.card_types.contains(&CardType::Creature),
+        "Parallax Wave should be a Creature under Opalescence (layer 4); \
+         types: {:?}",
+        chars.card_types
+    );
+    assert!(
+        chars.card_types.contains(&CardType::Enchantment),
+        "Parallax Wave should still be an Enchantment; types: {:?}",
+        chars.card_types
+    );
+
+    // Mana value of {3W} = 4; Opalescence sets P/T to 4/4 (layer 7b).
+    assert_eq!(
+        chars.power,
+        Some(4),
+        "Parallax Wave should have P/T = mana value (4) under Opalescence; \
+         power: {:?}",
+        chars.power
+    );
+    assert_eq!(chars.toughness, Some(4));
+
+    // Consequence: Parallax Wave with Creature type can now be destroyed by creature-removal
+    // effects. When it leaves the battlefield, zone-change triggers for "creature leaves the
+    // battlefield" fire. (Integration behavior verified by SBA + trigger dispatch tests.)
+    //
+    // We simulate zone-change and verify the object becomes a new object (CR 400.7),
+    // which is the identity change that "kills" the animated enchantment as a creature.
+    let mut state = state;
+    let (new_id, old_snapshot) = state
+        .move_object_to_zone(wave_id, mtg_engine::ZoneId::Graveyard(p))
+        .unwrap();
+
+    // Old ObjectId is no longer valid (zone change = new identity per CR 400.7).
+    assert_ne!(
+        wave_id, new_id,
+        "zone change produces a new ObjectId (CR 400.7)"
+    );
+    assert_eq!(
+        old_snapshot.zone,
+        mtg_engine::ZoneId::Battlefield,
+        "old snapshot was on the battlefield (where it was a Creature under Opalescence)"
+    );
+    assert_eq!(old_snapshot.characteristics.name, "Parallax Wave");
+}
+
+// ---------------------------------------------------------------------------
+// CC#4: Yixlid Jailer + Anger (graveyard ability removal)
+// ---------------------------------------------------------------------------
+
+/// CC#4 / CR 613.1f + CR 613.7 — Yixlid Jailer removes abilities from cards in
+/// graveyards (layer 6, `AllCardsInGraveyards` filter).
+///
+/// Anger is a creature card that says: "As long as Anger is in your graveyard
+/// and you control a Mountain, creatures you control have haste." This is a static
+/// ability that applies from the graveyard. Yixlid Jailer says "Cards in graveyards
+/// lose all abilities."
+///
+/// When Yixlid Jailer is on the battlefield:
+/// - `calculate_characteristics` for Anger (in graveyard) should show NO keyword abilities.
+/// - Anger's static "grant haste" effect is suppressed because its source loses its ability.
+///
+/// This test verifies the layer system handles the `AllCardsInGraveyards` filter correctly.
+#[test]
+fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
+    let p = PlayerId(1);
+
+    // Build state with Anger in p's graveyard.
+    // Anger has Haste (representing its self-characteristic) and we model it as having
+    // an "ability" keyword that should be stripped by Yixlid Jailer's layer 6 effect.
+    let state = GameStateBuilder::new()
+        .add_player(p)
+        // Anger: in graveyard with Haste keyword (the ability Jailer should strip).
+        .object(
+            ObjectSpec::creature(p, "Anger", 2, 1)
+                .with_keyword(KeywordAbility::Haste)
+                .in_zone(mtg_engine::ZoneId::Graveyard(p)),
+        )
+        // A creature on the battlefield (would normally benefit from Anger's grant).
+        .object(ObjectSpec::creature(p, "Hill Giant", 3, 3))
+        // Yixlid Jailer continuous effect (layer 6): all cards in graveyards lose all abilities.
+        // CR 613.1f: ability-removing effects apply in layer 6.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(1),
+            source: None,
+            timestamp: 10,
+            layer: EffectLayer::Ability,
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            filter: EffectFilter::AllCardsInGraveyards,
+            modification: LayerModification::RemoveAllAbilities,
+            is_cda: false,
+        })
+        .build()
+        .unwrap();
+
+    // Find Anger in the graveyard.
+    let anger_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Anger")
+        .map(|(id, _)| *id)
+        .expect("Anger not found");
+
+    // CR 613.1f: Yixlid Jailer (layer 6) strips Anger's Haste ability from the graveyard.
+    let anger_chars = calculate_characteristics(&state, anger_id).unwrap();
+    assert!(
+        !anger_chars.keywords.contains(&KeywordAbility::Haste),
+        "Anger (in graveyard) should lose Haste from Yixlid Jailer (layer 6, AllCardsInGraveyards); \
+         keywords: {:?}",
+        anger_chars.keywords
+    );
+    assert!(
+        anger_chars.keywords.is_empty(),
+        "Anger should have NO keyword abilities under Yixlid Jailer (layer 6); \
+         keywords: {:?}",
+        anger_chars.keywords
+    );
+
+    // The battlefield creature (Hill Giant) is NOT affected by Yixlid Jailer.
+    // Jailer only affects graveyards (AllCardsInGraveyards filter).
+    let giant_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Hill Giant")
+        .map(|(id, _)| *id)
+        .expect("Hill Giant not found");
+
+    let giant_chars = calculate_characteristics(&state, giant_id).unwrap();
+    // Hill Giant has no keywords printed, but confirm it's not incorrectly affected.
+    assert_eq!(
+        giant_chars.power,
+        Some(3),
+        "Hill Giant's P/T should be unaffected by Yixlid Jailer (battlefield, not graveyard)"
+    );
+
+    // Without Yixlid Jailer, Anger keeps its Haste.
+    let state_no_jailer = GameStateBuilder::new()
+        .add_player(p)
+        .object(
+            ObjectSpec::creature(p, "Anger", 2, 1)
+                .with_keyword(KeywordAbility::Haste)
+                .in_zone(mtg_engine::ZoneId::Graveyard(p)),
+        )
+        .build()
+        .unwrap();
+
+    let anger_id_2 = state_no_jailer
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Anger")
+        .map(|(id, _)| *id)
+        .expect("Anger (no Jailer) not found");
+
+    let anger_chars_2 = calculate_characteristics(&state_no_jailer, anger_id_2).unwrap();
+    assert!(
+        anger_chars_2.keywords.contains(&KeywordAbility::Haste),
+        "Without Yixlid Jailer, Anger retains Haste; keywords: {:?}",
+        anger_chars_2.keywords
+    );
+}

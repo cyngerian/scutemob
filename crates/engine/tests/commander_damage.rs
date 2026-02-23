@@ -412,6 +412,7 @@ fn test_commander_damage_survives_zone_change() {
                 is_token: false,
                 timestamp: 0,
                 has_summoning_sickness: false,
+                enchants_creatures: false,
             },
             ZoneId::Battlefield,
         )
