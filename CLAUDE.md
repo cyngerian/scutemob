@@ -12,19 +12,19 @@
 ## Current State
 
 - **Active Milestone**: M9 — (next to plan; run `/start-milestone 9`)
-- **Status**: M8 COMPLETE — all 6 sessions done; 395 tests passing; ready for M8 code review
-- **Last Updated**: 2026-02-22
+- **Status**: M8 COMPLETE — code review + fix phase done; 404 tests passing; ready for M9
+- **Last Updated**: 2026-02-23
 
 ### What Exists (M8 complete, includes M0-M7)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (incl. Rest in Peace, Leyline of the Void, Darksteel Colossus), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration
-- `testing/`: Script replay harness (with commander registration), 10 approved game scripts (3 replacement + 4 commander), 395 tests
+- `testing/`: Script replay harness (with commander registration), 10 approved game scripts (3 replacement + 4 commander), 404 tests
 
 ### Known Issue Summary (from code reviews)
-- **HIGH open**: 0 — all resolved in fix phase sessions 1-9
-- **MEDIUM open**: 0 — all resolved in fix phase sessions 1-9
-- **~28 LOW open**: schema improvements, partial name matching, FTS trigger gaps — deferred, address opportunistically
+- **HIGH open**: 0 — all resolved through M8
+- **MEDIUM open**: 0 — all resolved through M8
+- **~34 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup — deferred, address opportunistically
 - **Full details**: `docs/mtg-engine-milestone-reviews.md`
 
 ---
@@ -141,12 +141,13 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Six project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
+Seven project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
 
 | Agent | Model | Trigger | Purpose |
 |-------|-------|---------|---------|
-| `milestone-reviewer` | Opus | "review milestone M8" | Structured code review with HIGH/MEDIUM/LOW findings |
-| `rules-implementation-planner` | Opus | "plan M8 implementation" | Session plan with architecture, CR refs, session breakdown |
+| `rules-implementation-planner` | Opus | "plan M9 implementation" | Session plan with architecture, CR refs, session breakdown |
+| `session-runner` | Sonnet | "run session 1" / "next session" | Execute one implementation session from the plan |
+| `milestone-reviewer` | Opus | "review milestone M9" | Structured code review with HIGH/MEDIUM/LOW findings; creates fix-session-plan |
 | `fix-session-runner` | Sonnet | "run fix session 3" | Execute 5-8 fixes, run tests, close issues |
 | `card-definition-author` | Sonnet | "add card definition for X" | Translate oracle text to CardDefinition DSL |
 | `cr-coverage-auditor` | Sonnet | "check CR coverage for 614" | Audit test/script coverage for CR sections |
@@ -184,10 +185,9 @@ When completing a milestone:
   - Update the cross-milestone issue index and statistics
 - [ ] Commit: `M<N>: milestone complete — <summary>`
 - [ ] **Code review → fix phase** (if any HIGH or MEDIUM findings):
-  - Run the `milestone-reviewer` agent (Opus) or invoke manually
-  - Run the `rules-implementation-planner` agent (Opus) to author `memory/m<N>-session-plan.md`
-    grouping issues into sessions of 5-8 fixes each
+  - Run the `milestone-reviewer` agent (Opus) — writes findings to `docs/mtg-engine-milestone-reviews.md`
+    and creates `memory/m<N>-fix-session-plan.md` grouping issues into sessions of 5-8 fixes each
   - Work through fix sessions with the `fix-session-runner` agent (Sonnet):
-    tests → `cargo test --all` → `cargo clippy -- -D warnings` → close issues in reviews doc → commit
+    reads `memory/m<N>-fix-session-plan.md` → applies fixes → `cargo test --all` → `cargo clippy -- -D warnings` → closes issues in reviews doc → commit
   - When all sessions complete, update "Current State" and advance to the next milestone
   - LOW-only findings do not require a fix phase; collect them in the reviews doc and address opportunistically

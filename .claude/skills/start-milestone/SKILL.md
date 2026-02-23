@@ -18,7 +18,7 @@ Check if `memory/m<N>-session-plan.md` exists (where `<N>` is the milestone numb
 - Skip to Step 4 after reading the plan.
 
 **If no session plan exists:**
-- Continue to Step 2.
+- Continue to Step 2. After Step 4, automatically invoke the `rules-implementation-planner` agent to create one (see Step 5).
 
 ## Step 2: Find the milestone section in the roadmap
 
@@ -51,6 +51,19 @@ Present a concise summary:
 If a session plan was used (Step 1), also note:
 - How many sessions are planned
 - Which session to start with (first unchecked session)
+
+## Step 5: Create session plan (only when no plan existed)
+
+If Step 1 found no session plan, use the Task tool to invoke the `rules-implementation-planner`
+agent with subagent_type `rules-implementation-planner`. Pass a prompt like:
+
+> "Create a session plan for M<N>. The milestone roadmap section has just been summarized above.
+> Research the relevant CR rules, design the implementation architecture, and write the plan to
+> `memory/m<N>-session-plan.md`."
+
+The agent will do deep CR research (Opus), produce a sequenced session breakdown with architecture
+notes and CR citations, and write the file. When it finishes, report the plan file path and the
+first session to work on.
 
 ## Important
 

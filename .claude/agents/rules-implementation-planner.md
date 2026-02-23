@@ -88,89 +88,93 @@ Document every rule that the milestone must implement. Note:
 
 ## Output Format
 
-Write the plan to `memory/m<N>-session-plan.md` using this structure:
-
-```markdown
-# M<N> Session Plan: <Title>
-
-**Generated**: <date>
-**Milestone**: M<N> — <Title>
-**Sessions**: <count>
-**Estimated new tests**: <count>
+Write the plan to `memory/m<N>-session-plan.md` using this structure
+(do not use nested fenced code blocks — use indented code or inline backticks instead):
 
 ---
 
-## What M<N> Delivers
+    # M<N> Session Plan: <Title>
 
-- Bullet point for each deliverable
-- Include new types, new files, modified files
-- Note any deferred items from previous milestones addressed here
+    **Generated**: <date>
+    **Milestone**: M<N> — <Title>
+    **Sessions**: <count>
+    **Estimated new tests**: <count>
 
-## Architecture Summary
+    ---
 
-### New Files
-- `crates/engine/src/<module>/<file>.rs` — purpose
+    ## What M<N> Delivers
 
-### Data Model
+    - Bullet point for each deliverable
+    - Include new types, new files, modified files
+    - Note any deferred items from previous milestones addressed here
 
-```rust
-// Key new types with field-level documentation
-pub struct NewType {
-    /// CR <rule>: explanation
-    pub field: Type,
-}
-```
+    ## Architecture Summary
 
-### State Changes
-- Fields added to existing structs (with which struct and why)
-- New enum variants (with which enum)
+    ### New Files
+    - `crates/engine/src/<module>/<file>.rs` — purpose
 
-### New Events
-- `GameEvent::NewVariant { ... }` — when emitted
+    ### Data Model
 
-### New Commands
-- `Command::NewVariant { ... }` — what it does
+    Key new types (pseudo-Rust, field-level documentation):
 
-### Interception Sites
-- `file.rs:function_name` — what changes and why
+        pub struct NewType {
+            // CR <rule>: explanation
+            pub field: Type,
+        }
 
-## Session Breakdown
+    ### State Changes
+    - Fields added to existing structs (with which struct and why)
+    - New enum variants (with which enum)
 
-### Session 1: <Title> (N items)
+    ### New Events
+    - `GameEvent::NewVariant { ... }` — when emitted
 
-**Files**: `path/to/file1.rs`, `path/to/file2.rs`
+    ### New Commands
+    - `Command::NewVariant { ... }` — what it does
 
-1. Add `NewStruct` to `state/stubs.rs` with fields X, Y, Z (CR <rule>)
-2. Implement `new_function()` in `module.rs` (CR <rule>)
-3. Add `GameEvent::NewVariant` to event enum
-4. Add hash support for new types in `state/hash.rs`
-5. Tests: `test_new_struct_basic`, `test_new_function_edge_case`
+    ### Interception Sites
+    - `file.rs:function_name` — what changes and why
 
-### Session 2: <Title> (N items)
-...
+    ## Session Breakdown
 
-## Acceptance Criteria Checklist
+    ### Session 1: <Title> (N items)
 
-- [ ] Criterion 1 (from roadmap)
-- [ ] Criterion 2
-- [ ] All tests pass: `~/.cargo/bin/cargo test --all`
-- [ ] Zero clippy warnings: `~/.cargo/bin/cargo clippy -- -D warnings`
-- [ ] Formatted: `~/.cargo/bin/cargo fmt --check`
+    **Files**: `path/to/file1.rs`, `path/to/file2.rs`
 
-## Key CR References
+    1. Add `NewStruct` to `state/stubs.rs` with fields X, Y, Z (CR <rule>)
+    2. Implement `new_function()` in `module.rs` (CR <rule>)
+    3. Add `GameEvent::NewVariant` to event enum
+    4. Add hash support for new types in `state/hash.rs`
+    5. Tests: `test_new_struct_basic`, `test_new_function_edge_case`
+    6. Game scripts: invoke `game-script-generator` for any new mechanic introduced
+       this session (see `docs/mtg-engine-game-scripts.md` for schema)
 
-| CR Section | Summary | Session |
-|------------|---------|---------|
-| 614.1 | Replacement effect definition | 1, 2 |
-| 614.6 | Self-replacement priority | 3 |
+    ### Session 2: <Title> (N items)
+    ...
 
-## Corner Cases Addressed
+    ## Acceptance Criteria Checklist
 
-| Corner Case # | Description | Session |
-|---------------|-------------|---------|
-| #16 | Multiple replacement effects, player chooses | 3 |
-| #17 | Self-replacement effects apply first | 3 |
-```
+    - [ ] Criterion 1 (from roadmap)
+    - [ ] Criterion 2
+    - [ ] All tests pass: `~/.cargo/bin/cargo test --all`
+    - [ ] Zero clippy warnings: `~/.cargo/bin/cargo clippy -- -D warnings`
+    - [ ] Formatted: `~/.cargo/bin/cargo fmt --check`
+
+    ## Key CR References
+
+    | CR Section | Summary | Session |
+    |------------|---------|---------|
+    | 614.1 | Replacement effect definition | 1, 2 |
+    | 614.6 | Self-replacement priority | 3 |
+
+    ## Corner Cases Addressed
+
+    | Corner Case # | Description | Session |
+    |---------------|-------------|---------|
+    | #16 | Multiple replacement effects, player chooses | 3 |
+    | #17 | Self-replacement effects apply first | 3 |
+
+---
 
 ## Session Design Principles
 
@@ -182,9 +186,16 @@ pub struct NewType {
    beyond 8 items, split it.
 4. **Tests validate the session**: The last 1-2 items in every session are tests that
    exercise what was built in that session.
-5. **Progressive complexity**: Start with the simplest cases. Build scaffolding first,
+5. **Game scripts for new mechanics**: If a session introduces a new mechanic or
+   interaction, include a `game-script-generator` invocation as the final item to
+   produce a golden test script in `test-data/generated-scripts/`. See
+   `docs/mtg-engine-game-scripts.md` for the schema.
+6. **Use supporting agents**: Note in the plan when `card-definition-author` should
+   be used (for any new cards the milestone requires) and when `cr-coverage-auditor`
+   should be run (after all implementation sessions complete).
+7. **Progressive complexity**: Start with the simplest cases. Build scaffolding first,
    then add edge cases and corner cases in later sessions.
-6. **No forward references**: A session should never depend on work in a later session.
+8. **No forward references**: A session should never depend on work in a later session.
    If Session 3 needs types from Session 1, Session 1 must come first.
 
 ## Specificity Requirements
