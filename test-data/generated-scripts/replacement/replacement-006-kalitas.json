@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_replacement_006",
+    "name": "Commander dies with exile replacement — player chooses order (Case 28)",
+    "description": "p1 controls their commander on the battlefield. Rest in Peace (exile any card going to graveyard) is also active. The commander would die. Two replacements apply: commander zone-change (->command zone) and Rest in Peace (->exile). Per CR 616.1, p1 (the affected player) must choose the order. If p1 applies the commander replacement first, it goes to the command zone (then RiP no longer applies since it left a different way). If p1 applies RiP first, it goes to exile; then p1 may STILL apply the commander zone-change replacement from exile (CR 903.9 applies from exile as well). This is corner case #28 (analogous to Kalitas vs. commander).",
+    "cr_sections_tested": ["614.1a", "614.5", "616.1", "616.1f", "903.9"],
+    "corner_case_ref": 28,
+    "tags": ["replacement", "commander", "rest-in-peace", "exile", "multiple-replacements", "player-choice"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Pending harness support for Command::OrderReplacements. The scenario involves two non-self replacement effects competing on the same zone-change event. Per CR 616.1e, affected player chooses order. The test validates both orderings. Also pending: verify that after RiP fires (exile), the commander replacement can re-apply from exile per CR 903.9. See corner case #28.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 4,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The 'order_replacements' player action is not yet supported by the replay harness. Pending harness enhancement to translate Command::OrderReplacements from script actions.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 0
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": true,
+            "subtypes": null,
+            "is_basic": null
+          },
+          {
+            "card": "Rest in Peace",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": false,
+            "subtypes": null,
+            "is_basic": null
+          }
+        ]
+      },
+      "hand": {
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p2 kills p1's commander while Rest in Peace is active — two competing replacements",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: commander + Rest in Peace on p1's battlefield",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Rest in Peace" }
+              ]
+            }
+          },
+          "note": "Note: Rest in Peace is pre-placed (not cast), so its replacement effect may not be registered until harness supports replacement_effects in initial_state. This script is pending_review."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "creature", "card": "Llanowar Elves", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "p2 casts Lightning Bolt targeting p1's commander."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "Lightning Bolt resolves; 3 damage to the 1/1 commander."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "creature", "card": "Llanowar Elves" },
+              "amount": 3,
+              "cr_ref": "120.3",
+              "note": "3 damage to 1/1 — lethal."
+            }
+          ],
+          "note": "Commander takes lethal damage."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Commander would die. Two replacements apply: commander zone-change (->command zone) and Rest in Peace (->exile). p1 chooses order via OrderReplacements.",
+              "object": "Llanowar Elves",
+              "controller": "p1",
+              "result": "choice_required",
+              "cr_ref": "616.1"
+            }
+          ],
+          "triggered_abilities": [],
+          "note": "CR 616.1e: No self-replacements; affected player chooses among all applicable effects."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "order_replacements",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "616.1",
+          "note": "p1 chooses commander zone-change first -> commander goes to command zone. RiP no longer applies."
+        },
+        {
+          "type": "assert_state",
+          "description": "Commander in command zone (negative evidence: not in graveyard/battlefield/exile)",
+          "assertions": {
+            "zones.battlefield.p1": { "excludes": ["Llanowar Elves"] },
+            "zones.graveyard.p1": { "excludes": ["Llanowar Elves"] }
+          },
+          "note": "Commander went to command zone via ordered replacement. RiP didn't apply."
+        }
+      ]
+    }
+  ]
+}

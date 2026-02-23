@@ -28,6 +28,7 @@ use super::card_definition::{
     TargetFilter, TargetRequirement, TriggerCondition, TypeLine,
 };
 use crate::state::replacement_effect::{ObjectFilter, ReplacementModification, ReplacementTrigger};
+use crate::state::zone::ZoneType;
 
 // ── Helper macros & functions ─────────────────────────────────────────────────
 
@@ -1319,6 +1320,160 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         count: EffectAmount::Fixed(1),
                     },
                     intervening_if: None,
+                },
+            ],
+        },
+
+        // ── Replacement-effect cards (M8 Session 6) ──────────────────────────
+
+        // 52. Rest in Peace — {1W}, Enchantment.
+        //     "When Rest in Peace enters the battlefield, exile all cards from all
+        //      graveyards. If a card would be put into a graveyard from anywhere,
+        //      exile it instead."
+        //
+        //     Simplification: The ETB "exile all graveyard cards" effect is deferred
+        //     (requires targeting non-battlefield objects, not yet modelled). The
+        //     ongoing replacement — all cards to graveyard → exile instead — is fully
+        //     implemented. Registered via register_permanent_replacement_abilities when
+        //     Rest in Peace enters the battlefield.
+        CardDefinition {
+            card_id: cid("rest-in-peace"),
+            name: "Rest in Peace".to_string(),
+            mana_cost: Some(ManaCost { white: 1, generic: 1, ..Default::default() }),
+            types: types(&[CardType::Enchantment]),
+            oracle_text:
+                "When Rest in Peace enters the battlefield, exile all cards from all graveyards.\n\
+                 If a card would be put into a graveyard from anywhere, exile it instead."
+                    .to_string(),
+            abilities: vec![
+                // CR 614.1a: Replacement — any card going to any graveyard → exile instead.
+                // is_self: false — global effect, not tied to Rest in Peace itself.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldChangeZone {
+                        from: None,
+                        to: ZoneType::Graveyard,
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+                    is_self: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 53. Leyline of the Void — {2BB}, Enchantment.
+        //     "If Leyline of the Void is in your opening hand, you may begin the game
+        //      with it on the battlefield. If a card an opponent owns would be put into
+        //      that player's graveyard from anywhere, exile it instead."
+        //
+        //     Simplification: The "opening hand" leyline rule is not modelled — Leyline
+        //     enters play normally when cast. The opponent-only filter is simplified to
+        //     ObjectFilter::Any (affects all cards going to graveyard, including the
+        //     controller's own). A proper opponent-ownership filter would require a new
+        //     ObjectFilter variant. Registered via register_permanent_replacement_abilities.
+        CardDefinition {
+            card_id: cid("leyline-of-the-void"),
+            name: "Leyline of the Void".to_string(),
+            mana_cost: Some(ManaCost { black: 2, generic: 2, ..Default::default() }),
+            types: types(&[CardType::Enchantment]),
+            oracle_text:
+                "If Leyline of the Void is in your opening hand, you may begin the game with it on the battlefield.\n\
+                 If a card an opponent owns would be put into that player's graveyard from anywhere, exile it instead."
+                    .to_string(),
+            abilities: vec![
+                // CR 614.1a: Replacement — cards going to graveyard → exile instead.
+                // Note: ideally opponent-only; simplified to ObjectFilter::Any for M8.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldChangeZone {
+                        from: None,
+                        to: ZoneType::Graveyard,
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+                    is_self: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
+        //     Flying. Whenever you cast your first spell during each opponent's turn, create
+        //     a 1/1 black Faerie Rogue creature token with flying. Whenever one or more
+        //     Faeries you control deal combat damage to a player, goad target creature that
+        //     player controls.
+        CardDefinition {
+            card_id: cid("alela-cunning-conqueror"),
+            name: "Alela, Cunning Conqueror".to_string(),
+            mana_cost: Some(ManaCost { blue: 1, black: 1, generic: 2, ..Default::default() }),
+            types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Faerie", "Warlock"]),
+            oracle_text: "Flying\nWhenever you cast your first spell during each opponent's turn, create a 1/1 black Faerie Rogue creature token with flying.\nWhenever one or more Faeries you control deal combat damage to a player, goad target creature that player controls.".to_string(),
+            power: Some(2),
+            toughness: Some(4),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Flying),
+                // TODO: TriggerCondition::WheneverYouCastSpell does not distinguish "first spell
+                // during each opponent's turn" — needs a new variant that tracks per-opponent-turn
+                // cast count and fires only on the first cast. Using WheneverYouCastSpell as a
+                // placeholder (will fire on every spell, not just the first per opponent's turn).
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WheneverYouCastSpell,
+                    effect: Effect::CreateToken {
+                        spec: super::card_definition::TokenSpec {
+                            name: "Faerie Rogue".to_string(),
+                            power: 1,
+                            toughness: 1,
+                            colors: [Color::Black].into_iter().collect(),
+                            card_types: [CardType::Creature].into_iter().collect(),
+                            subtypes: [SubType("Faerie".to_string()), SubType("Rogue".to_string())].into_iter().collect(),
+                            keywords: [KeywordAbility::Flying].into_iter().collect(),
+                            count: 1,
+                            tapped: false,
+                            mana_color: None,
+                        },
+                    },
+                    intervening_if: None,
+                },
+                // TODO: No TriggerCondition for "whenever Faeries you control deal combat damage
+                // to a player" (requires creature-type filter on combat damage trigger). No Effect
+                // for Goad. Both need new DSL variants. Omitting this ability for now.
+            ],
+        },
+
+        // 54. Darksteel Colossus — {11}, Artifact Creature — Golem 11/11.
+        //     Trample, indestructible. If Darksteel Colossus would be put into a
+        //     graveyard from anywhere, reveal it and shuffle it into its owner's library
+        //     instead.
+        //
+        //     The self-replacement trigger uses ObjectFilter::Any as a placeholder;
+        //     register_permanent_replacement_abilities substitutes SpecificObject(new_id)
+        //     at registration time so the effect only fires for this specific Colossus.
+        //     "Shuffle into library" is simplified to RedirectToZone(Library) (no shuffle).
+        CardDefinition {
+            card_id: cid("darksteel-colossus"),
+            name: "Darksteel Colossus".to_string(),
+            mana_cost: Some(ManaCost { generic: 11, ..Default::default() }),
+            types: types_sub(&[CardType::Artifact, CardType::Creature], &["Golem"]),
+            oracle_text:
+                "Trample, indestructible.\n\
+                 If Darksteel Colossus would be put into a graveyard from anywhere, reveal it \
+                 and shuffle it into its owner's library instead."
+                    .to_string(),
+            power: Some(11),
+            toughness: Some(11),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Trample),
+                AbilityDefinition::Keyword(KeywordAbility::Indestructible),
+                // CR 614.1a / 614.15: Self-replacement effect — if this specific Colossus
+                // would go to a graveyard, send it to the library instead.
+                // ObjectFilter::Any is replaced with SpecificObject at registration time.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldChangeZone {
+                        from: None,
+                        to: ZoneType::Graveyard,
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::RedirectToZone(ZoneType::Library),
+                    is_self: true,
                 },
             ],
         },

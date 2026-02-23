@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_replacement_005",
+    "name": "Dimir Guildgate enters the battlefield tapped (ETB self-replacement)",
+    "description": "p1 plays Dimir Guildgate from hand. The land's self-ETB replacement (AbilityDefinition::Replacement with WouldEnterBattlefield+is_self:true) fires during the ETB path, causing the land to enter tapped. The permanent was never untapped — CR 614.1c: this is a replacement, not a trigger. Asserts Dimir Guildgate is on the battlefield and is tapped.",
+    "cr_sections_tested": ["614.1c", "614.15", "305.1"],
+    "corner_case_ref": 19,
+    "tags": ["replacement", "etb", "tapped", "land", "dimir-guildgate", "self-replacement"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-22",
+    "generation_notes": "Tests the ETB self-replacement path (apply_self_etb_from_definition in lands.rs). Dimir Guildgate has AbilityDefinition::Replacement{trigger:WouldEnterBattlefield,modification:EntersTapped,is_self:true}. This is applied inline — the permanent was never in an untapped state on the battlefield. Corner case 19: 'enters tapped' is a replacement, not a trigger.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Dimir Guildgate", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 plays Dimir Guildgate; ETB self-replacement causes it to enter tapped",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Dimir Guildgate in p1 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "play_land",
+          "card": "Dimir Guildgate",
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "305.1",
+          "note": "CR 305.1: p1 plays Dimir Guildgate as a special action. ETB self-replacement fires: enters tapped."
+        },
+        {
+          "type": "assert_state",
+          "description": "After playing: Dimir Guildgate on battlefield TAPPED (CR 614.1c: enters tapped, never untapped)",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Dimir Guildgate" }] },
+            "permanent.Dimir Guildgate.tapped": true
+          },
+          "note": "CR 614.1c: 'enters the battlefield tapped' is a replacement effect, not a trigger. The land was NEVER untapped on the battlefield — it arrived already tapped."
+        }
+      ]
+    }
+  ]
+}

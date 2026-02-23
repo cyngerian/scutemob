@@ -32,9 +32,9 @@ use im::OrdMap;
 use mtg_engine::state::{CounterType, ObjectId};
 use mtg_engine::testing::script_schema::{GameScript, InitialState, ScriptAction};
 use mtg_engine::{
-    all_cards, process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command,
-    Cost, Effect, GameState, GameStateBuilder, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step,
-    ZoneId,
+    all_cards, process_command, register_commander_zone_replacements, AbilityDefinition,
+    CardDefinition, CardId, CardRegistry, Command, Cost, Effect, GameState, GameStateBuilder,
+    ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -345,6 +345,26 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
                 ps.land_plays_remaining = pstate.land_plays_remaining;
             }
         }
+    }
+
+    // Register commanders: populate PlayerState::commander_ids from the script's
+    // commander fields, then register zone-change replacement effects (CR 903.9).
+    let mut any_commanders = false;
+    for (name, pstate) in &init.players {
+        if let Some(&pid) = player_map.get(name) {
+            for cmdr_opt in [&pstate.commander, &pstate.partner_commander] {
+                if let Some(cmdr) = cmdr_opt {
+                    let cid = card_name_to_id(&cmdr.card);
+                    if let Some(ps) = state.players.get_mut(&pid) {
+                        ps.commander_ids.push_back(cid);
+                    }
+                    any_commanders = true;
+                }
+            }
+        }
+    }
+    if any_commanders {
+        register_commander_zone_replacements(&mut state);
     }
 
     (state, player_map)

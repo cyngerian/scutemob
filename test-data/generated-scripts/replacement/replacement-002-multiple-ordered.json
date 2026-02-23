@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_replacement_002",
+    "name": "Multiple replacement effects — player chooses order (CR 616.1)",
+    "description": "p1 controls a commander and Rest in Peace is active. The commander would die (via SBA). Two replacements apply: the commander zone-change replacement (die -> command zone) and Rest in Peace (die -> exile). The affected player (p1, the commander's owner) must order them via Command::OrderReplacements. Choosing the command-zone replacement first sends the commander to command zone; choosing RiP first sends it to exile and then the commander replacement optionally applies again from exile.",
+    "cr_sections_tested": ["614.1a", "614.5", "616.1", "616.1a", "616.1f", "903.9"],
+    "corner_case_ref": 18,
+    "tags": ["replacement", "zone-change", "commander", "rest-in-peace", "multiple-replacements", "player-choice"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Pending harness support for Command::OrderReplacements. The harness currently skips unknown player actions. When harness support is added, this script tests CR 616.1 player choice between two competing replacements. See corner case #18.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 6,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The 'order_replacements' player action is not yet supported by the replay harness. This script is pending_review until Command::OrderReplacements handling is added to translate_player_action.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 0
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": true,
+            "subtypes": null,
+            "is_basic": null
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Rest in Peace", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Rest in Peace, then their commander would die — two replacements compete",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Rest in Peace",
+          "targets": [],
+          "mana_paid": { "white": 1, "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "p1 casts Rest in Peace. Both commander zone-change replacement and RiP will compete."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Rest in Peace resolves, enters battlefield, registers its replacement effect."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rest in Peace",
+          "resolution": [],
+          "note": "Rest in Peace enters battlefield, registering global graveyard->exile replacement."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Commander (Llanowar Elves) would die. Two replacements apply: commander zone-change (->command zone) and RiP (->exile). p1 must choose order via OrderReplacements.",
+              "object": "Llanowar Elves",
+              "controller": "p1",
+              "result": "choice_required",
+              "cr_ref": "616.1"
+            }
+          ],
+          "triggered_abilities": [],
+          "note": "CR 616.1: Multiple replacements apply; affected player chooses order. Engine emits ReplacementChoiceRequired."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "order_replacements",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "616.1",
+          "note": "p1 chooses commander zone-change replacement first -> commander goes to command zone. RiP no longer applies (modified destination is no longer graveyard)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Commander in command zone after player ordered commander replacement first",
+          "assertions": {
+            "zones.battlefield.p1": { "excludes": ["Llanowar Elves"] },
+            "zones.graveyard.p1": { "excludes": ["Llanowar Elves"] }
+          },
+          "note": "Commander went to command zone; not in graveyard (RiP didn't apply). Note: harness currently skips order_replacements action — this script is pending_review."
+        }
+      ]
+    }
+  ]
+}

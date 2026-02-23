@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_replacement_004",
+    "name": "Commander dies — auto-redirected to command zone (CR 903.9)",
+    "description": "p1's commander (Llanowar Elves, 1/1) is on the battlefield. p2 casts Lightning Bolt targeting the commander, dealing 3 damage. SBA triggers: commander has lethal damage and would go to graveyard. The commander zone-change replacement (pre-registered by the builder at game start) auto-applies (single applicable replacement), redirecting the commander to p1's command zone. Asserts the commander is NOT in p1's graveyard and NOT on the battlefield.",
+    "cr_sections_tested": ["614.1a", "616.1", "903.9", "704.5g"],
+    "corner_case_ref": 18,
+    "tags": ["replacement", "commander", "command-zone", "zone-change", "auto-apply"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-22",
+    "generation_notes": "The commander zone-change replacement is pre-registered by register_commander_zone_replacements in the builder (not through ETB). Only one replacement applies (commander->graveyard), so it auto-applies per CR 616.1. No OrderReplacements needed. The assert checks negative evidence (not in graveyard, not on battlefield) since the harness does not have a zones.command_zone assertion path.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": {
+          "card": "Llanowar Elves",
+          "zone": "battlefield",
+          "times_cast_from_command_zone": 0
+        },
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Llanowar Elves",
+            "tapped": false,
+            "summoning_sick": false,
+            "counters": {},
+            "attached": [],
+            "damage_marked": 0,
+            "is_commander": true,
+            "subtypes": null,
+            "is_basic": null
+          }
+        ]
+      },
+      "hand": {
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p2 casts Lightning Bolt to kill p1's commander; commander zone-change replacement auto-applies",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves (commander) on p1's battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "Commander is on the battlefield. Commander zone-change replacement is pre-registered by the builder."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "creature", "card": "Llanowar Elves", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Lightning Bolt targeting p1's commander (Llanowar Elves, 1/1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "creature", "card": "Llanowar Elves" },
+              "amount": 3,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Llanowar Elves (1/1 commander). 3 ≥ 1 toughness — lethal."
+            }
+          ],
+          "note": "Lightning Bolt resolves; commander takes lethal damage."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Llanowar Elves (commander) has marked damage 3 ≥ toughness 1 — would die. Commander zone-change replacement (pre-registered at game start) auto-applies (single applicable effect). Commander redirected to p1's command zone instead of graveyard.",
+              "object": "Llanowar Elves",
+              "controller": "p1",
+              "result": "sent_to_command_zone",
+              "cr_ref": "903.9"
+            }
+          ],
+          "triggered_abilities": [],
+          "note": "CR 903.9 + 616.1: Single replacement auto-applied; commander goes to command zone."
+        },
+        {
+          "type": "assert_state",
+          "description": "After SBA: commander NOT in graveyard and NOT on battlefield (went to command zone)",
+          "assertions": {
+            "zones.battlefield.p1": { "excludes": ["Llanowar Elves"] },
+            "zones.graveyard.p1": { "excludes": ["Llanowar Elves"] }
+          },
+          "note": "CR 903.9: Commander replacement fired; Elves in command zone (not graveyard). Harness has no zones.command_zone assertion, verified by negative evidence."
+        }
+      ]
+    }
+  ]
+}

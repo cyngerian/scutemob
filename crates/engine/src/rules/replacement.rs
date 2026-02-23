@@ -16,14 +16,14 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementId,
-    ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use crate::state::types::CardType;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
-use super::events::GameEvent;
+use super::events::{CombatDamageTarget, GameEvent};
 
 /// The result of checking for applicable replacement effects.
 #[derive(Debug)]
@@ -654,7 +654,12 @@ pub fn apply_self_etb_from_definition(
             is_self: true,
         } = ability
         {
-            evts.extend(apply_self_etb_modification(state, new_id, controller, modification));
+            evts.extend(apply_self_etb_modification(
+                state,
+                new_id,
+                controller,
+                modification,
+            ));
         }
     }
     evts
@@ -788,4 +793,199 @@ fn zone_change_events(old_id: ObjectId, new_id: ObjectId, dest: ZoneId) -> Vec<G
         }],
         _ => vec![],
     }
+}
+
+// ── Global replacement registration (Session 6) ───────────────────────────
+
+/// Register global replacement abilities from a card definition when a permanent
+/// enters the battlefield (CR 614, 615).
+///
+/// Called at every ETB site (resolution.rs, lands.rs) immediately after
+/// `apply_etb_replacements`. Reads each `AbilityDefinition::Replacement` ability
+/// from the card definition and creates a `ReplacementEffect` entry in
+/// `state.replacement_effects` with:
+///
+/// - `source: Some(new_id)` — `is_effect_active` deactivates it when source leaves.
+/// - `duration: WhileSourceOnBattlefield`.
+/// - `is_self_replacement`, `trigger`, and `modification` from the definition.
+///
+/// **Skips** `WouldEnterBattlefield + is_self: true` abilities — those are applied
+/// inline during ETB via `apply_self_etb_from_definition` and must not be
+/// registered in state (they would fire again on the next ETB event).
+pub fn register_permanent_replacement_abilities(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    card_id: Option<&crate::state::player::CardId>,
+    registry: &crate::cards::registry::CardRegistry,
+) {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::state::continuous_effect::EffectDuration;
+
+    let Some(cid) = card_id else {
+        return;
+    };
+    let Some(def) = registry.get(cid.clone()) else {
+        return;
+    };
+
+    for ability in &def.abilities {
+        if let AbilityDefinition::Replacement {
+            trigger,
+            modification,
+            is_self,
+        } = ability
+        {
+            // Self-ETB replacements are applied inline — do not register.
+            if *is_self {
+                if let ReplacementTrigger::WouldEnterBattlefield { .. } = trigger {
+                    continue;
+                }
+            }
+
+            // For self-replacement zone-change effects, bind the filter to this
+            // specific object at registration time. The card definition uses
+            // `ObjectFilter::Any` as a placeholder meaning "this object," but
+            // we must narrow it at runtime so the effect doesn't fire for other objects.
+            let resolved_trigger = if *is_self {
+                match trigger {
+                    ReplacementTrigger::WouldChangeZone { from, to, .. } => {
+                        ReplacementTrigger::WouldChangeZone {
+                            from: *from,
+                            to: *to,
+                            filter: ObjectFilter::SpecificObject(new_id),
+                        }
+                    }
+                    other => other.clone(),
+                }
+            } else {
+                trigger.clone()
+            };
+
+            let id = state.next_replacement_id();
+            state.replacement_effects.push_back(ReplacementEffect {
+                id,
+                source: Some(new_id),
+                controller,
+                duration: EffectDuration::WhileSourceOnBattlefield,
+                is_self_replacement: *is_self,
+                trigger: resolved_trigger,
+                modification: modification.clone(),
+            });
+        }
+    }
+}
+
+// ── Damage prevention interception (Session 5) ────────────────────────────
+
+/// CR 615: Check and apply damage prevention effects to a damage event.
+///
+/// Called by damage interception sites (`DealDamage` effect, `apply_combat_damage`)
+/// before applying damage to a target. Finds all applicable `DamageWouldBeDealt`
+/// replacement effects, applies `PreventDamage` and `PreventAllDamage` modifications
+/// in registration order (CR 615.7), decrements shields, removes exhausted shields,
+/// and emits `DamagePrevented` and `ReplacementEffectApplied` events.
+///
+/// Multiple applicable effects are applied in registration order (CR 615.7).
+/// Returns `(final_amount, events)`. If `final_amount == 0`, all damage was prevented.
+pub fn apply_damage_prevention(
+    state: &mut GameState,
+    source: ObjectId,
+    target: &CombatDamageTarget,
+    amount: u32,
+) -> (u32, Vec<GameEvent>) {
+    // Build the event trigger for this specific damage target.
+    let target_filter = match target {
+        CombatDamageTarget::Player(p) => DamageTargetFilter::Player(*p),
+        CombatDamageTarget::Creature(id) | CombatDamageTarget::Planeswalker(id) => {
+            DamageTargetFilter::Permanent(*id)
+        }
+    };
+    let trigger = ReplacementTrigger::DamageWouldBeDealt { target_filter };
+
+    let applicable = find_applicable(state, &trigger, &HashSet::new());
+    if applicable.is_empty() {
+        return (amount, Vec::new());
+    }
+
+    let mut remaining = amount;
+    let mut events = Vec::new();
+    let mut exhausted: Vec<ReplacementId> = Vec::new();
+
+    for id in applicable {
+        if remaining == 0 {
+            break;
+        }
+
+        let modification = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| e.modification.clone());
+
+        match modification {
+            Some(ReplacementModification::PreventDamage(shield_max)) => {
+                // Use the live counter if present; initialise from the modification otherwise.
+                let counter = state
+                    .prevention_counters
+                    .get(&id)
+                    .copied()
+                    .unwrap_or(shield_max);
+                let prevented = counter.min(remaining);
+                let new_counter = counter - prevented;
+                remaining -= prevented;
+
+                events.push(GameEvent::DamagePrevented {
+                    source,
+                    target: target.clone(),
+                    prevented,
+                    remaining,
+                });
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!(
+                        "prevented {} damage ({} remaining on shield)",
+                        prevented, new_counter
+                    ),
+                });
+
+                if new_counter == 0 {
+                    // Shield exhausted — remove the counter and queue the effect for removal.
+                    state.prevention_counters.remove(&id);
+                    exhausted.push(id);
+                } else {
+                    state.prevention_counters.insert(id, new_counter);
+                }
+            }
+            Some(ReplacementModification::PreventAllDamage) => {
+                let prevented = remaining;
+                remaining = 0;
+
+                events.push(GameEvent::DamagePrevented {
+                    source,
+                    target: target.clone(),
+                    prevented,
+                    remaining: 0,
+                });
+                events.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "prevented all damage".to_string(),
+                });
+                // PreventAllDamage is not consumed — it lasts until its duration expires.
+            }
+            _ => {
+                // Other modifications on a DamageWouldBeDealt trigger (future use) are
+                // not handled here. Zone redirects and other replacements are separate.
+            }
+        }
+    }
+
+    // Remove exhausted prevention shields.
+    for id in exhausted {
+        if let Some(pos) = state.replacement_effects.iter().position(|e| e.id == id) {
+            state.replacement_effects.remove(pos);
+        }
+    }
+
+    (remaining, events)
 }

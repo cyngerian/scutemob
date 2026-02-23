@@ -111,6 +111,15 @@ pub fn handle_play_land(
         player,
     ));
 
+    // CR 614: Register global replacement abilities from this land's card definition.
+    super::replacement::register_permanent_replacement_abilities(
+        state,
+        new_land_id,
+        player,
+        card_id.as_ref(),
+        &registry,
+    );
+
     // 10. Decrement land plays for this turn.
     {
         let player_state = state.player_mut(player)?;

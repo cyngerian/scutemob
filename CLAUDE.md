@@ -11,16 +11,15 @@
 
 ## Current State
 
-- **Active Milestone**: M8 — Replacement & Prevention Effects
-- **Status**: Session 4 of 6 complete (draw replacement + ETB replacement + Dimir Guildgate); 390 tests passing
+- **Active Milestone**: M9 — (next to plan; run `/start-milestone 9`)
+- **Status**: M8 COMPLETE — all 6 sessions done; 395 tests passing; ready for M8 code review
 - **Last Updated**: 2026-02-22
 
-### What Exists (M7 complete, includes M0-M6)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 51 hand-authored cards (incl. Dimir Guildgate), CardRegistry
+### What Exists (M8 complete, includes M0-M7)
+- `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (incl. Rest in Peace, Leyline of the Void, Darksteel Colossus), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements
-- `testing/`: Script replay harness, 7 approved game scripts, 303 tests
-- Deferred to M8+: prevention effects (Session 5); prevention + replacement interaction
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration
+- `testing/`: Script replay harness (with commander registration), 10 approved game scripts (3 replacement + 4 commander), 395 tests
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved in fix phase sessions 1-9

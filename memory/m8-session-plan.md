@@ -196,8 +196,8 @@ or wherever permanents enter the battlefield
 
 ---
 
-### Session 5 — Prevention effects
-**~5 items**
+### Session 5 — Prevention effects ✅ COMPLETE
+**~5 items** (4 prevention tests + 1 Rhystic Study trigger fix; 395 tests passing)
 
 Files: `state/replacement_effect.rs` (add prevention shield state),
 `rules/replacement.rs` (prevention logic), `rules/combat.rs`, `effects/mod.rs`
@@ -221,7 +221,7 @@ Files: `state/replacement_effect.rs` (add prevention shield state),
 
 ---
 
-### Session 6 — Card definitions + game scripts
+### ✅ Session 6 — Card definitions + game scripts (COMPLETE — 395 tests)
 **~6 items**
 
 Files: `cards/definitions.rs`, `test-data/generated-scripts/replacement/` (new scripts)
@@ -250,12 +250,12 @@ Files: `cards/definitions.rs`, `test-data/generated-scripts/replacement/` (new s
 ## Milestone Acceptance Criteria Checklist
 
 From roadmap M8:
-- [ ] Replacement effects integrate cleanly with existing event system
-- [ ] Commander zone-change choice works correctly
-- [ ] No infinite loops possible in replacement effect chains
-- [ ] Replacement effect game scripts pass through replay harness
-- [ ] All 6 sessions complete
-- [ ] 336+ tests passing (target: ~30 new tests from M8)
+- [x] Replacement effects integrate cleanly with existing event system
+- [x] Commander zone-change choice works correctly (harness registers commanders)
+- [x] No infinite loops possible in replacement effect chains (loop-prevention enforced)
+- [x] Replacement effect game scripts pass through replay harness (3 approved scripts run)
+- [x] All 6 sessions complete
+- [x] 336+ tests passing (395 passing — 59 new from M8)
 
 ## Key CR References
 

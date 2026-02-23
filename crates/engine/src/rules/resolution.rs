@@ -168,6 +168,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     super::replacement::apply_etb_replacements(state, new_id, controller);
                 events.extend(etb_evts);
 
+                // CR 614: Register global replacement abilities from this permanent's
+                // card definition. Must happen after ETB replacements are applied so
+                // the permanent is fully settled. The new effects activate immediately
+                // (in time to intercept events from the same resolution batch if any).
+                super::replacement::register_permanent_replacement_abilities(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
