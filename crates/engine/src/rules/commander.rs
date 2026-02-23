@@ -4,6 +4,7 @@
 //! See architecture doc Section 3.x and CR 903 for design rationale.
 
 use crate::cards::{CardDefinition, CardRegistry};
+use crate::rules::casting;
 use crate::rules::events::GameEvent;
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
@@ -602,7 +603,7 @@ pub fn handle_keep_hand(
     // saturating_sub handles 0 mulligans (keep without mulligan) and 1 mulligan (free).
     let required_bottom = mulligans_taken.saturating_sub(1);
 
-    if cards_to_bottom.len() as u32 != required_bottom {
+    if cards_to_bottom.len() != required_bottom as usize {
         return Err(GameStateError::InvalidCommand(format!(
             "player {} must put {} cards on bottom (took {} mulligans), got {}",
             player.0,
@@ -705,41 +706,14 @@ pub fn handle_bring_companion(
         }
     }
 
-    // Deduct 3 generic mana from pool (colorless first, then any color)
+    // Deduct 3 generic mana from pool via shared pay_cost logic.
     {
+        let companion_cost = ManaCost {
+            generic: 3,
+            ..Default::default()
+        };
         let ps = state.player_mut(player)?;
-        let mut remaining = 3u32;
-        // Deduct colorless first
-        let colorless_used = remaining.min(ps.mana_pool.colorless);
-        ps.mana_pool.colorless -= colorless_used;
-        remaining -= colorless_used;
-        if remaining > 0 {
-            let green_used = remaining.min(ps.mana_pool.green);
-            ps.mana_pool.green -= green_used;
-            remaining -= green_used;
-        }
-        if remaining > 0 {
-            let red_used = remaining.min(ps.mana_pool.red);
-            ps.mana_pool.red -= red_used;
-            remaining -= red_used;
-        }
-        if remaining > 0 {
-            let black_used = remaining.min(ps.mana_pool.black);
-            ps.mana_pool.black -= black_used;
-            remaining -= black_used;
-        }
-        if remaining > 0 {
-            let blue_used = remaining.min(ps.mana_pool.blue);
-            ps.mana_pool.blue -= blue_used;
-            remaining -= blue_used;
-        }
-        if remaining > 0 {
-            let white_used = remaining.min(ps.mana_pool.white);
-            ps.mana_pool.white -= white_used;
-            remaining -= white_used;
-        }
-        // remaining should be 0 now (we checked total_mana >= 3 above)
-        debug_assert_eq!(remaining, 0);
+        casting::pay_cost(&mut ps.mana_pool, &companion_cost);
     }
 
     // Emit mana cost paid event

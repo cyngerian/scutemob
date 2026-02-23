@@ -12,9 +12,9 @@
 
 ## Session 2 -- Casting, companion, and type checks
 
-- [ ] MR-M9-04 (MEDIUM) -- `cards_to_bottom.len() as u32` truncates on 64-bit platforms
-- [ ] MR-M9-06 (MEDIUM) -- Companion mana deduction duplicates `pay_cost` logic with fixed priority order
-- [ ] MR-M9-08 (MEDIUM) -- Command zone casting uses raw characteristics for type checks
+- [x] MR-M9-04 (MEDIUM) -- `cards_to_bottom.len() as u32` truncates on 64-bit platforms
+- [x] MR-M9-06 (MEDIUM) -- Companion mana deduction duplicates `pay_cost` logic with fixed priority order
+- [x] MR-M9-08 (MEDIUM) -- Command zone casting uses raw characteristics for type checks
 
 ## Notes
 
@@ -37,3 +37,13 @@ All 5 Session 1 fixes applied; all tests pass; clippy clean; fmt clean.
 **MR-M9-05** — Direct zone move loop with `break` on empty library; `CardDrawn` events still emitted for each draw. Removed now-unused `use crate::rules::turn_actions;` import.
 
 **MR-M9-07** — Added `DeckViolation::UnknownCard { card_id: String }` variant; exported from `lib.rs` via existing `DeckViolation` re-export. Added test `test_unknown_card_produces_violation` in deck_validation.rs.
+
+## Session 2 Completion Notes (2026-02-23)
+
+All 3 Session 2 fixes applied; 448 tests pass; clippy clean; fmt clean.
+
+**MR-M9-04** — Changed `cards_to_bottom.len() as u32 != required_bottom` to `cards_to_bottom.len() != required_bottom as usize`. Minimal one-line change; no behavior change in practice since library sizes never reach u32::MAX.
+
+**MR-M9-06** — Added `use crate::rules::casting;` import to `commander.rs` and replaced the 18-line hand-rolled mana deduction loop with a call to `casting::pay_cost(&mut ps.mana_pool, &companion_cost)`. Intra-crate circular `use` between `commander` and `casting` is fine in Rust (single-crate modules compile together). The pre-validation `total_mana >= 3` check is preserved; `pay_cost` now handles the deduction.
+
+**MR-M9-08** — Restructured the early section of `handle_cast_spell` in `casting.rs`. Extracted `casting_from_command_zone`, `card_id`, and `base_mana_cost` from `card_obj` inside a scoped block so the borrow ends before calling `calculate_characteristics`. The land-type check and instant-speed check now use the computed characteristics (with fallback to raw on `None`). No behavioral change for current tests (command zone objects don't participate in layer calculations), but pattern is now consistent with `validate_object_satisfies_requirement`.

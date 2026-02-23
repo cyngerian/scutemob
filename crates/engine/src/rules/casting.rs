@@ -57,19 +57,25 @@ pub fn handle_cast_spell(
 
     // Fetch the card and validate it is in the player's hand OR command zone.
     // CR 903.8: A player may cast their commander from the command zone.
-    let card_obj = state.object(card)?;
-    let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
-    if card_obj.zone != ZoneId::Hand(player) && !casting_from_command_zone {
-        return Err(GameStateError::InvalidCommand(
-            "card is not in your hand".into(),
-        ));
-    }
+    let (casting_from_command_zone, card_id, base_mana_cost) = {
+        let card_obj = state.object(card)?;
+        let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
+        if card_obj.zone != ZoneId::Hand(player) && !casting_from_command_zone {
+            return Err(GameStateError::InvalidCommand(
+                "card is not in your hand".into(),
+            ));
+        }
+        (
+            casting_from_command_zone,
+            card_obj.card_id.clone(),
+            card_obj.characteristics.mana_cost.clone(),
+        )
+    };
 
     // CR 903.8: Only a player's own commander may be cast from the command zone.
     if casting_from_command_zone {
-        let card_id_opt = card_obj.card_id.clone();
         let player_state = state.player(player)?;
-        let is_commander = card_id_opt
+        let is_commander = card_id
             .as_ref()
             .map(|cid| player_state.commander_ids.contains(cid))
             .unwrap_or(false);
@@ -80,30 +86,26 @@ pub fn handle_cast_spell(
         }
     }
 
+    // Use calculate_characteristics for type/keyword checks to respect continuous effects
+    // (CR 613). Falls back to raw characteristics if the object is not found (command zone
+    // objects may not participate in layer calculations).
+    let chars = calculate_characteristics(state, card).unwrap_or_else(|| {
+        state
+            .object(card)
+            .map(|o| o.characteristics.clone())
+            .unwrap_or_default()
+    });
+
     // Lands are not cast — they are played as a special action (CR 305.1).
-    if card_obj
-        .characteristics
-        .card_types
-        .contains(&CardType::Land)
-    {
+    if chars.card_types.contains(&CardType::Land) {
         return Err(GameStateError::InvalidCommand(
             "lands are played with PlayLand, not cast".into(),
         ));
     }
 
     // Determine casting speed (CR 601.3).
-    let is_instant_speed = card_obj
-        .characteristics
-        .card_types
-        .contains(&CardType::Instant)
-        || card_obj
-            .characteristics
-            .keywords
-            .contains(&KeywordAbility::Flash);
-
-    // Extract the card's target requirements and mana cost while card_obj borrow is alive.
-    let card_id = card_obj.card_id.clone();
-    let base_mana_cost = card_obj.characteristics.mana_cost.clone();
+    let is_instant_speed = chars.card_types.contains(&CardType::Instant)
+        || chars.keywords.contains(&KeywordAbility::Flash);
 
     // CR 903.8: Apply commander tax if casting from command zone.
     // Additional cost: {2} * times_previously_cast.
