@@ -729,7 +729,7 @@ fn enrich_spec_from_def(
     // Apply keyword abilities (Haste, Vigilance, Hexproof, etc.)
     for ability in &def.abilities {
         if let AbilityDefinition::Keyword(kw) = ability {
-            spec = spec.with_keyword(*kw);
+            spec = spec.with_keyword(kw.clone());
         }
     }
 

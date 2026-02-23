@@ -57,6 +57,22 @@ pub enum CardType {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SubType(pub String);
 
+/// Protection quality: what a permanent is protected from (CR 702.16a).
+///
+/// Used in `KeywordAbility::ProtectionFrom(ProtectionQuality)` to specify
+/// which sources are blocked by protection (DEBT: Damage, Enchanting, Blocking, Targeting).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum ProtectionQuality {
+    /// Protection from a specific color (e.g., "protection from red").
+    FromColor(Color),
+    /// Protection from a card type (e.g., "protection from artifacts").
+    FromCardType(CardType),
+    /// Protection from a subtype (e.g., "protection from Goblins").
+    FromSubType(SubType),
+    /// Protection from everything (e.g., "protection from everything").
+    FromAll,
+}
+
 /// Counter types that can be placed on objects or players (CR 122).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum CounterType {
@@ -78,7 +94,11 @@ pub enum CounterType {
 }
 
 /// Keyword abilities (CR 702). Common keywords used in rules processing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+///
+/// Note: `Copy` is not derived because `ProtectionFrom(ProtectionQuality)` contains
+/// `ProtectionQuality` which can hold a `SubType(String)` (not `Copy`).
+/// Use `.clone()` where a copy was previously implicit.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum KeywordAbility {
     Deathtouch,
     Defender,
@@ -95,7 +115,11 @@ pub enum KeywordAbility {
     Landwalk,
     Lifelink,
     Menace,
-    Protection,
+    /// CR 702.16a: Protection from a quality (DEBT: Damage, Enchanting, Blocking, Targeting).
+    ///
+    /// Replaces the former bare `Protection` variant. Use `ProtectionFrom(ProtectionQuality)`
+    /// to specify what the permanent is protected from (e.g., `ProtectionFrom(FromColor(Red))`).
+    ProtectionFrom(ProtectionQuality),
     Prowess,
     Reach,
     Shroud,

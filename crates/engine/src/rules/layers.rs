@@ -303,12 +303,12 @@ fn apply_layer_modification(
 
         // Layer 6: Ability-adding/removing
         LayerModification::AddKeyword(kw) => {
-            chars.keywords.insert(*kw);
+            chars.keywords.insert(kw.clone());
         }
 
         LayerModification::AddKeywords(kws) => {
             for kw in kws {
-                chars.keywords.insert(*kw);
+                chars.keywords.insert(kw.clone());
             }
         }
 

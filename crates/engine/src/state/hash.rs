@@ -29,7 +29,9 @@ use super::stack::{StackObject, StackObjectKind};
 use super::stubs::{DelayedTrigger, PendingTrigger};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
-use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
+use super::types::{
+    CardType, Color, CounterType, KeywordAbility, ManaColor, ProtectionQuality, SubType, SuperType,
+};
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::{
@@ -235,9 +237,58 @@ impl HashInto for CounterType {
     }
 }
 
+impl HashInto for ProtectionQuality {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ProtectionQuality::FromColor(c) => {
+                0u8.hash_into(hasher);
+                c.hash_into(hasher);
+            }
+            ProtectionQuality::FromCardType(ct) => {
+                1u8.hash_into(hasher);
+                ct.hash_into(hasher);
+            }
+            ProtectionQuality::FromSubType(st) => {
+                2u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            ProtectionQuality::FromAll => 3u8.hash_into(hasher),
+        }
+    }
+}
+
 impl HashInto for KeywordAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
-        (*self as u8).hash_into(hasher);
+        match self {
+            KeywordAbility::Deathtouch => 0u8.hash_into(hasher),
+            KeywordAbility::Defender => 1u8.hash_into(hasher),
+            KeywordAbility::DoubleStrike => 2u8.hash_into(hasher),
+            KeywordAbility::Enchant => 3u8.hash_into(hasher),
+            KeywordAbility::Equip => 4u8.hash_into(hasher),
+            KeywordAbility::FirstStrike => 5u8.hash_into(hasher),
+            KeywordAbility::Flash => 6u8.hash_into(hasher),
+            KeywordAbility::Flying => 7u8.hash_into(hasher),
+            KeywordAbility::Haste => 8u8.hash_into(hasher),
+            KeywordAbility::Hexproof => 9u8.hash_into(hasher),
+            KeywordAbility::Indestructible => 10u8.hash_into(hasher),
+            KeywordAbility::Intimidate => 11u8.hash_into(hasher),
+            KeywordAbility::Landwalk => 12u8.hash_into(hasher),
+            KeywordAbility::Lifelink => 13u8.hash_into(hasher),
+            KeywordAbility::Menace => 14u8.hash_into(hasher),
+            KeywordAbility::ProtectionFrom(q) => {
+                15u8.hash_into(hasher);
+                q.hash_into(hasher);
+            }
+            KeywordAbility::Prowess => 16u8.hash_into(hasher),
+            KeywordAbility::Reach => 17u8.hash_into(hasher),
+            KeywordAbility::Shroud => 18u8.hash_into(hasher),
+            KeywordAbility::Trample => 19u8.hash_into(hasher),
+            KeywordAbility::Vigilance => 20u8.hash_into(hasher),
+            KeywordAbility::Ward => 21u8.hash_into(hasher),
+            KeywordAbility::Partner => 22u8.hash_into(hasher),
+            KeywordAbility::NoMaxHandSize => 23u8.hash_into(hasher),
+            KeywordAbility::CantBeBlocked => 24u8.hash_into(hasher),
+        }
     }
 }
 

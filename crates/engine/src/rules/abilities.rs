@@ -142,7 +142,15 @@ pub fn handle_activate_ability(
         }
     }
 
-    // CR 602.2c: Validate targets for existence, hexproof, and shroud.
+    // CR 602.2c: Validate targets for existence, hexproof, shroud, and protection.
+    // Fetch source characteristics once for protection-from checks (CR 702.16b).
+    let source_chars =
+        crate::rules::layers::calculate_characteristics(state, source).or_else(|| {
+            state
+                .objects
+                .get(&source)
+                .map(|o| o.characteristics.clone())
+        });
     for t in &targets {
         if let Target::Object(id) = t {
             // MR-M3-04: Non-existent object must be rejected, not silently skipped.
@@ -150,11 +158,12 @@ pub fn handle_activate_ability(
                 .objects
                 .get(id)
                 .ok_or(GameStateError::ObjectNotFound(*id))?;
-            // CR 702.11a / CR 702.18a: Hexproof and shroud.
+            // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
             super::validate_target_protection(
                 &obj.characteristics.keywords,
                 obj.controller,
                 player,
+                source_chars.as_ref(),
             )?;
         }
     }

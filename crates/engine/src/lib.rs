@@ -20,9 +20,9 @@ pub use state::{
     EffectLayer, GameObject, GameState, GameStateBuilder, GameStateError, KeywordAbility,
     LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool, ObjectFilter, ObjectId,
     ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId,
-    PlayerState, ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
-    SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType, Target, TriggerEvent,
-    TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
+    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
+    ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
+    Target, TriggerEvent, TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
 };
 
 pub use rules::commander::{

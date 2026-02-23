@@ -40,7 +40,9 @@ pub use stack::{StackObject, StackObjectKind};
 pub use stubs::{DelayedTrigger, PendingTrigger};
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
-pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
+pub use types::{
+    CardType, Color, CounterType, KeywordAbility, ManaColor, ProtectionQuality, SubType, SuperType,
+};
 pub use zone::{Zone, ZoneId, ZoneType};
 
 use std::sync::Arc;

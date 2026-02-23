@@ -162,7 +162,8 @@ pub fn handle_cast_spell(
     };
 
     // CR 601.2c: Validate and record targets at cast time.
-    let spell_targets = validate_targets(state, &targets, &requirements, player)?;
+    // Pass source characteristics for protection-from checks (CR 702.16b).
+    let spell_targets = validate_targets(state, &targets, &requirements, player, Some(&chars))?;
 
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
@@ -247,17 +248,21 @@ pub fn handle_cast_spell(
 ///
 /// For each target:
 /// - Player: must be an active (non-eliminated) player matching the requirement
-/// - Object: must exist, pass hexproof/shroud checks, and satisfy the TargetRequirement
+/// - Object: must exist, pass hexproof/shroud/protection checks, and satisfy the TargetRequirement
 ///
 /// `requirements` is indexed in parallel with `targets` (requirements[i] applies to
 /// targets[i]). If there are fewer requirements than targets, extra targets are
 /// existence-only validated (no type restriction). This handles cards without
 /// definitions registered at cast time.
+///
+/// `source_chars` is the characteristics of the spell being cast, used for protection-from
+/// checks (CR 702.16b). Pass `None` when unavailable (protection check is skipped).
 fn validate_targets(
     state: &GameState,
     targets: &[Target],
     requirements: &[TargetRequirement],
     caster: PlayerId,
+    source_chars: Option<&Characteristics>,
 ) -> Result<Vec<SpellTarget>, GameStateError> {
     let mut spell_targets = Vec::with_capacity(targets.len());
 
@@ -295,11 +300,12 @@ fn validate_targets(
                     .get(id)
                     .ok_or(GameStateError::ObjectNotFound(*id))?;
 
-                // CR 702.11a / CR 702.18a: Hexproof and shroud.
+                // CR 702.11a / CR 702.18a / CR 702.16b: Hexproof, shroud, and protection.
                 super::validate_target_protection(
                     &obj.characteristics.keywords,
                     obj.controller,
                     caster,
+                    source_chars,
                 )?;
 
                 // CR 601.2c: Validate the target satisfies the declared requirement.

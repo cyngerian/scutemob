@@ -1307,7 +1307,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
 
     let mut keywords = OrdSet::new();
     for kw in &spec.keywords {
-        keywords.insert(*kw);
+        keywords.insert(kw.clone());
     }
 
     let mut subtypes = im::OrdSet::new();
