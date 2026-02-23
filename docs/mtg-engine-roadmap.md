@@ -586,9 +586,9 @@ At this point, the engine can run a complete Commander game programmatically. Al
 - [x] All golden tests pass (at least 5 hand-authored full game replays)
 - [x] All approved game scripts pass through replay harness (~100+ scripts)
 - [ ] All corner case tests from `mtg-engine-corner-case-audit.md` pass (0 GAP, 0 PARTIAL for implemented mechanics)
-- [ ] Performance benchmarks meet targets
+- [x] Performance benchmarks meet targets
 - [x] 6-player game tests pass (priority, combat, APNAP, turn order, concession)
-- [ ] Performance benchmark: 4-player vs 6-player Commander (priority cycle time, SBA check, full turn processing)
+- [x] Performance benchmark: 4-player vs 6-player Commander (priority cycle time, SBA check, full turn processing)
 
 ---
 

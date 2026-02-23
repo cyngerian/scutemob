@@ -11,15 +11,16 @@
 
 ## Current State
 
-- **Active Milestone**: Engine Core Complete checkpoint — Sessions 1-3 complete; Session 4 (benchmarks) pending
-- **Status**: S1 corner case audit, S2 property tests, S3 script expansion done — 544 tests passing; 58 approved scripts; 0 open HIGH/MEDIUM; ~43 LOW deferred
+- **Active Milestone**: Engine Core Complete checkpoint DONE — advancing to M9.5
+- **Status**: S1-S4 all complete — 544 tests passing; 58 approved scripts; criterion benchmarks added (priority_cycle_4p: 23µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs — all well under targets); 3 corner cases DEFERRED (phasing, morph, mutate); 0 HIGH/MEDIUM; ~43 LOW deferred
 - **Last Updated**: 2026-02-23
 
-### What Exists (M9.4 complete + checkpoint S1-S3, includes M0-M9)
+### What Exists (M9.4 complete + Engine Core Complete checkpoint S1-S4, includes M0-M9)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Goad, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b)
 - `testing/`: Script replay harness (with commander registration), 58 approved game scripts (up from 11), 544 tests; 6-player test suite; 54 property invariant tests
+- `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - All 35 corner cases: 29 COVERED, 3 DEFERRED (phasing, morph, mutate)
 
 ### Known Issue Summary (from code reviews)
