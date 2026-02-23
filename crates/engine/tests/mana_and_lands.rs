@@ -256,6 +256,7 @@ fn test_play_land_stack_nonempty_fails() {
         },
         targets: vec![],
         cant_be_countered: false,
+        is_copy: false,
     });
 
     let result = mtg_engine::process_command(

@@ -108,4 +108,12 @@ pub struct PlayerState {
     /// Library (CC#33) and other effects that track how many cards have been drawn.
     #[serde(default)]
     pub cards_drawn_this_turn: u32,
+    /// Number of spells cast by this player this turn (CR 702.40a).
+    ///
+    /// Incremented by `casting::handle_cast_spell` on each successful cast.
+    /// Reset to 0 at the start of this player's turn in `reset_turn_state`.
+    /// Used by the storm keyword to count copies (storm count = spells cast before
+    /// the storm spell this turn, i.e., `spells_cast_this_turn - 1` at trigger time).
+    #[serde(default)]
+    pub spells_cast_this_turn: u32,
 }

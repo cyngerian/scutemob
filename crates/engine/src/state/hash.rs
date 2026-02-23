@@ -288,6 +288,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Partner => 22u8.hash_into(hasher),
             KeywordAbility::NoMaxHandSize => 23u8.hash_into(hasher),
             KeywordAbility::CantBeBlocked => 24u8.hash_into(hasher),
+            // M9.4: Storm (discriminant 25) — CR 702.40
+            KeywordAbility::Storm => 25u8.hash_into(hasher),
         }
     }
 }
@@ -452,6 +454,8 @@ impl HashInto for PlayerState {
         self.mulligan_count.hash_into(hasher);
         self.no_max_hand_size.hash_into(hasher);
         self.cards_drawn_this_turn.hash_into(hasher);
+        // M9.4: spells_cast_this_turn (CR 702.40a)
+        self.spells_cast_this_turn.hash_into(hasher);
     }
 }
 
@@ -960,6 +964,8 @@ impl HashInto for StackObject {
         self.kind.hash_into(hasher);
         self.targets.hash_into(hasher);
         self.cant_be_countered.hash_into(hasher);
+        // M9.4: is_copy (CR 707.10) — copies don't move cards on resolution
+        self.is_copy.hash_into(hasher);
     }
 }
 
@@ -1463,6 +1469,17 @@ impl HashInto for GameEvent {
                 card_id.hash_into(hasher);
                 object_id.hash_into(hasher);
                 from_zone.hash_into(hasher);
+            }
+            // M9.4: SpellCopied (discriminant 65)
+            GameEvent::SpellCopied {
+                original_stack_id,
+                copy_stack_id,
+                controller,
+            } => {
+                65u8.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+                copy_stack_id.hash_into(hasher);
+                controller.hash_into(hasher);
             }
             // M9.4: Scried (discriminant 63)
             GameEvent::Scried { player, count } => {

@@ -250,6 +250,7 @@ impl GameStateBuilder {
                 mulligan_count: 0,
                 no_max_hand_size: false,
                 cards_drawn_this_turn: 0,
+                spells_cast_this_turn: 0,
             };
             players.insert(config.id, player_state);
         }

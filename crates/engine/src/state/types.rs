@@ -141,4 +141,11 @@ pub enum KeywordAbility {
     /// Checked in `rules/combat.rs:handle_declare_blockers`. Any blocker assignment
     /// targeting a creature with this keyword is rejected.
     CantBeBlocked,
+    /// CR 702.40: Storm — when you cast this spell, copy it for each other spell
+    /// cast before it this turn. You may choose new targets for each copy.
+    ///
+    /// Checked in `rules/resolution.rs` at cast time: when a spell with Storm is
+    /// put on the stack, the storm trigger is queued. On resolution, copies equal
+    /// to `spells_cast_this_turn - 1` are pushed above the original.
+    Storm,
 }

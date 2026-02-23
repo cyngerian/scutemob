@@ -12,11 +12,14 @@
 
 use crate::state::{
     continuous_effect::{ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer},
+    error::GameStateError,
     game_object::{Characteristics, ObjectId},
     player::PlayerId,
+    stack::StackObject,
     GameState,
 };
 
+use crate::rules::events::GameEvent;
 use crate::state::continuous_effect::LayerModification;
 
 // Maximum recursion depth for clone-chain resolution (CR 707.3).
@@ -119,6 +122,101 @@ fn copy_effect_applies_to(
         // Copy effects should use SingleObject; other filters are not applicable.
         _ => false,
     }
+}
+
+/// CR 707.10: Create a copy of a spell on the stack.
+///
+/// A copy of a spell on the stack has the same characteristics as the original:
+/// same kind, same controller, same targets. The copy is NOT cast — no "whenever
+/// you cast a spell" triggers fire for the copy (CR 707.10c).
+///
+/// The copy is pushed onto the stack above the original (above = later index in
+/// `state.stack_objects`, since LIFO means the last entry resolves first).
+///
+/// Returns the new `StackObject` ID (as `ObjectId`) or an error if the source
+/// stack object is not found.
+///
+/// `choose_new_targets` is reserved for future interactive use. In M9.4,
+/// the deterministic fallback keeps the same targets as the original.
+pub fn copy_spell_on_stack(
+    state: &mut GameState,
+    stack_object_id: ObjectId,
+    controller: PlayerId,
+    _choose_new_targets: bool,
+) -> Result<(ObjectId, GameEvent), GameStateError> {
+    // Find the stack object to copy.
+    let original = state
+        .stack_objects
+        .iter()
+        .find(|s| s.id == stack_object_id)
+        .ok_or(GameStateError::ObjectNotFound(stack_object_id))?
+        .clone();
+
+    // CR 707.10: The copy has the same characteristics as the original.
+    // Assign a new unique ID for the copy stack object.
+    let copy_id = state.next_object_id();
+
+    // CR 707.10: Copies have no physical card — is_copy = true signals resolution
+    // to skip the zone-move of the source card. The copy still executes the same
+    // effect as the original.
+    let copy = StackObject {
+        id: copy_id,
+        controller,
+        kind: original.kind.clone(),
+        targets: original.targets.clone(),
+        cant_be_countered: original.cant_be_countered,
+        is_copy: true,
+    };
+
+    // Push the copy onto the stack (above the original).
+    state.stack_objects.push_back(copy);
+
+    let event = GameEvent::SpellCopied {
+        original_stack_id: stack_object_id,
+        copy_stack_id: copy_id,
+        controller,
+    };
+
+    Ok((copy_id, event))
+}
+
+/// CR 702.40a: Create N copies of a storm spell on the stack.
+///
+/// Called when a spell with the Storm keyword resolves its storm trigger.
+/// N = the caster's `spells_cast_this_turn - 1` (copies for each OTHER spell
+/// cast before the storm spell this turn). If N ≤ 0, no copies are created.
+///
+/// Each copy is pushed onto the stack above the original in sequence. All copies
+/// resolve before the original (LIFO).
+///
+/// Returns the events generated (one `SpellCopied` per copy).
+pub fn create_storm_copies(
+    state: &mut GameState,
+    stack_object_id: ObjectId,
+    controller: PlayerId,
+    storm_count: u32,
+) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+    for _ in 0..storm_count {
+        match copy_spell_on_stack(state, stack_object_id, controller, false) {
+            Ok((_, evt)) => events.push(evt),
+            Err(_) => break, // stack object disappeared; abort
+        }
+    }
+    events
+}
+
+/// CR 702.40a: Compute the storm count for the current caster.
+///
+/// Storm count = number of OTHER spells cast before the storm spell this turn.
+/// This is `spells_cast_this_turn - 1` (the storm spell itself is already counted).
+/// Returns 0 if no other spells were cast or if player state is unavailable.
+pub fn storm_count(state: &GameState, caster: PlayerId) -> u32 {
+    state
+        .players
+        .get(&caster)
+        .map(|p| p.spells_cast_this_turn.saturating_sub(1))
+        .unwrap_or(0)
 }
 
 /// Create a Layer 1 copy continuous effect: `copier_id` copies `source_id`.

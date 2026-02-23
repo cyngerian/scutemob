@@ -34,6 +34,14 @@ pub struct StackObject {
     /// Set from the card definition at cast time.
     #[serde(default)]
     pub cant_be_countered: bool,
+    /// CR 707.10: If true, this is a copy of a spell — it has no physical card
+    /// object to move when it resolves. Copies execute the spell's effect but do
+    /// NOT move a source card to graveyard or battlefield at resolution.
+    ///
+    /// Copies are NOT cast (no "cast" triggers), are not affected by effects that
+    /// care about casting, and do not go to graveyard when they finish resolving.
+    #[serde(default)]
+    pub is_copy: bool,
 }
 
 /// The kind of object on the stack.

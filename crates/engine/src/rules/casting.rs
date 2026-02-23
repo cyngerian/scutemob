@@ -197,6 +197,7 @@ pub fn handle_cast_spell(
         },
         targets: spell_targets,
         cant_be_countered,
+        is_copy: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -225,6 +226,22 @@ pub fn handle_cast_spell(
         stack_object_id: stack_entry_id,
         source_object_id: new_card_id,
     });
+
+    // CR 702.40a: Track spells cast this turn for storm count.
+    // Increment after the spell enters the stack (it is now a spell cast this turn).
+    if let Some(ps) = state.players.get_mut(&player) {
+        ps.spells_cast_this_turn += 1;
+    }
+
+    // CR 702.40a: Storm — when you cast a spell with storm, copy it for each
+    // other spell cast before it this turn. Copies are NOT cast; they go directly
+    // onto the stack above the original and each may choose new targets (deferred).
+    if chars.keywords.contains(&KeywordAbility::Storm) {
+        let count = crate::rules::copy::storm_count(state, player);
+        let copy_events =
+            crate::rules::copy::create_storm_copies(state, stack_entry_id, player, count);
+        events.extend(copy_events);
+    }
 
     // CR 903.8: Emit commander-specific event when casting from command zone.
     if casting_from_command_zone {

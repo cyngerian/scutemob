@@ -54,14 +54,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 608.2b: All targets illegal — fizzle.
                     // Card goes to graveyard without effect (same zone move as normal
                     // instant/sorcery resolution, but emits SpellFizzled, not SpellResolved).
-                    let owner = state.object(source_object)?.owner;
-                    let (new_id, _old) =
-                        state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+                    //
+                    // CR 707.10: Copies have no physical card to move — skip zone move.
+                    let fizzle_source_id = if stack_obj.is_copy {
+                        source_object
+                    } else {
+                        let owner = state.object(source_object)?.owner;
+                        let (new_id, _old) =
+                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+                        new_id
+                    };
 
                     events.push(GameEvent::SpellFizzled {
                         player: controller,
                         stack_object_id: stack_obj.id,
-                        source_object_id: new_id,
+                        source_object_id: fizzle_source_id,
                     });
 
                     // CR 704.3: Check SBAs before granting priority.
@@ -140,7 +147,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
 
-            if is_permanent {
+            // CR 707.10: Copies of spells are not real cards — they don't move to
+            // a destination zone when they resolve.  The source_object belongs to
+            // the original spell and must not be moved by a copy's resolution.
+            if stack_obj.is_copy {
+                // Copy resolves: execute the effect, then emit SpellResolved.
+                // source_object is the original card (still in Stack zone for now).
+                events.push(GameEvent::SpellResolved {
+                    player: controller,
+                    stack_object_id: stack_obj.id,
+                    source_object_id: source_object,
+                });
+            } else if is_permanent {
                 // CR 608.3a: Permanent spell — card enters the battlefield under
                 // the spell's controller's control.
                 let (new_id, _old) =

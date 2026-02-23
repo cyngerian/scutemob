@@ -969,6 +969,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         },
         targets: vec![],
         cant_be_countered: false,
+        is_copy: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.

@@ -280,6 +280,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
         // CR 121.1: per-turn draw count resets at the start of each turn.
         // Used by Sylvan Library (CC#33) and similar draw-tracking effects.
         p.cards_drawn_this_turn = 0;
+        // CR 702.40a: per-turn spell cast count resets at the start of each turn.
+        // Used by storm to count copies.
+        p.spells_cast_this_turn = 0;
     }
 }
 

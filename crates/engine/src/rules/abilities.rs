@@ -197,6 +197,7 @@ pub fn handle_activate_ability(
         },
         targets: spell_targets,
         cant_be_countered: false,
+        is_copy: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -403,6 +404,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             },
             targets: vec![],
             cant_be_countered: false,
+            is_copy: false,
         };
         state.stack_objects.push_back(stack_obj);
 

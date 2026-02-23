@@ -557,6 +557,21 @@ pub enum GameEvent {
     /// action. The companion card is now in the player's hand.
     CompanionBroughtToHand { player: PlayerId, card_id: CardId },
 
+    // ── M9.4: Storm / spell copy events ──────────────────────────────────
+    /// A spell was copied on the stack (CR 707.10, CR 702.40a).
+    ///
+    /// Emitted by `copy::copy_spell_on_stack` when storm creates copies or when
+    /// any other copy-spell effect creates a stack copy. The copy is NOT cast —
+    /// it does not trigger "whenever you cast a spell" abilities (CR 707.10c).
+    SpellCopied {
+        /// The original stack object that was copied.
+        original_stack_id: ObjectId,
+        /// The ID of the new copy on the stack.
+        copy_stack_id: ObjectId,
+        /// The controller of the copy (usually the storm spell's caster).
+        controller: PlayerId,
+    },
+
     // ── M9.4: Scry event ──────────────────────────────────────────────────
     /// A player performed a scry action (CR 701.18).
     ///
