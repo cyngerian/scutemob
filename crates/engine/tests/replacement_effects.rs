@@ -1694,3 +1694,403 @@ fn test_pending_zone_change_skipped_in_sba() {
         "should not produce another ReplacementChoiceRequired in second pass"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Session 4 — Draw replacement + ETB replacement
+// ═══════════════════════════════════════════════════════════════════════════
+
+use mtg_engine::rules::turn_actions::draw_card;
+use mtg_engine::{all_cards, CardRegistry, Step};
+
+// ── Draw replacement: baseline ───────────────────────────────────────────
+
+#[test]
+/// CR 614.11 — draw with no replacement draws normally and emits CardDrawn
+/// Source: M8 Session 4 draw baseline
+fn test_draw_no_replacement_draws_normally() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
+        .build()
+        .unwrap();
+
+    let events = draw_card(&mut state, p1).unwrap();
+
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        1,
+        "hand should have one card after draw"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        0,
+        "library should be empty after draw"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1)),
+        "should emit CardDrawn for the drawing player"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
+        "no replacement effect should fire"
+    );
+}
+
+// ── Draw replacement: SkipDraw via draw_card ──────────────────────────────
+
+#[test]
+/// CR 614.10 — SkipDraw replacement suppresses the draw; no CardDrawn emitted
+/// Source: M8 Session 4 SkipDraw via draw_card
+fn test_draw_skip_draw_replacement_fires_no_card_drawn() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let skip_effect = ReplacementEffect {
+        id: ReplacementId(1),
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_effect)
+        .build()
+        .unwrap();
+
+    let events = draw_card(&mut state, p1).unwrap();
+
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "library should still have 1 card — SkipDraw prevented the draw"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        0,
+        "hand should still be empty"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CardDrawn should NOT be emitted when SkipDraw applies"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(1))
+        ),
+        "ReplacementEffectApplied should be emitted for SkipDraw"
+    );
+}
+
+// ── Draw replacement: SkipDraw only affects target player ─────────────────
+
+#[test]
+/// CR 614.10 / PlayerFilter — SkipDraw targeting P1 does not affect P2's draw
+/// Source: M8 Session 4 player filter validation
+fn test_draw_skip_draw_only_affects_target_player() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let skip_effect = ReplacementEffect {
+        id: ReplacementId(2),
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1), // only P1's draws
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p2, "Plains").in_zone(ZoneId::Library(p2)))
+        .with_replacement_effect(skip_effect)
+        .build()
+        .unwrap();
+
+    // P2 draws — should not be affected by P1's SkipDraw.
+    let events = draw_card(&mut state, p2).unwrap();
+
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p2)).unwrap().len(),
+        1,
+        "P2 should draw normally — replacement targets P1 only"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p2)),
+        "P2 should get CardDrawn"
+    );
+    assert!(
+        !events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(2))
+        ),
+        "P1's SkipDraw should not fire for P2's draw"
+    );
+}
+
+// ── ETB replacement: global EntersTapped via PlayLand ────────────────────
+
+#[test]
+/// CR 614.12 / 614.1c — EntersTapped replacement fires via PlayLand
+/// Source: M8 Session 4 ETB tapped (Corner Case 19)
+fn test_etb_land_enters_tapped_replacement() {
+    use mtg_engine::Command;
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Global "all permanents enter tapped" effect.
+    let enters_tapped = ReplacementEffect {
+        id: ReplacementId(10),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldEnterBattlefield {
+            filter: ObjectFilter::Any,
+        },
+        modification: ReplacementModification::EntersTapped,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::land(p1, "Forest").in_zone(ZoneId::Hand(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_replacement_effect(enters_tapped)
+        .build()
+        .unwrap();
+    state.turn.priority_holder = Some(p1);
+
+    let land_id = state
+        .objects_in_zone(&ZoneId::Hand(p1))
+        .first()
+        .unwrap()
+        .id;
+
+    let (new_state, events) = mtg_engine::process_command(
+        state,
+        Command::PlayLand {
+            player: p1,
+            card: land_id,
+        },
+    )
+    .unwrap();
+
+    let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
+    assert_eq!(bf_objects.len(), 1, "land should be on the battlefield");
+    assert!(
+        bf_objects[0].status.tapped,
+        "land should be tapped (EntersTapped replacement fired)"
+    );
+
+    // CR 614.1c: entered tapped, not untap-then-tap.
+    assert!(
+        events.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        "PermanentTapped event should be emitted"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(10))
+        ),
+        "ReplacementEffectApplied should be emitted for global effect"
+    );
+}
+
+// ── ETB replacement: EntersWithCounters ───────────────────────────────────
+
+#[test]
+/// CR 614.12 — EntersWithCounters replacement adds counters when permanent ETBs
+/// Source: M8 Session 4 ETB with counters
+fn test_etb_permanent_enters_with_counters() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Global "all creatures enter with a +1/+1 counter" effect.
+    let enters_with_counter = ReplacementEffect {
+        id: ReplacementId(11),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldEnterBattlefield {
+            filter: ObjectFilter::AnyCreature,
+        },
+        modification: ReplacementModification::EntersWithCounters {
+            counter: CounterType::PlusOnePlusOne,
+            count: 1,
+        },
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Bear", 2, 2))
+        .with_replacement_effect(enters_with_counter)
+        .build()
+        .unwrap();
+
+    let bear_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    // Apply ETB replacements directly to simulate the ETB path.
+    let events = mtg_engine::rules::replacement::apply_etb_replacements(&mut state, bear_id, p1);
+
+    let bear = state.objects.get(&bear_id).unwrap();
+    assert_eq!(
+        bear.counters
+            .get(&CounterType::PlusOnePlusOne)
+            .copied()
+            .unwrap_or(0),
+        1,
+        "bear should have 1 +1/+1 counter from EntersWithCounters"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::CounterAdded { object_id, .. } if *object_id == bear_id)
+        ),
+        "CounterAdded event should be emitted"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(11))
+        ),
+        "ReplacementEffectApplied should be emitted for global effect"
+    );
+}
+
+// ── ETB replacement: filter mismatch ──────────────────────────────────────
+
+#[test]
+/// CR 614.12 — ETB replacement with AnyCreature filter does not fire for lands
+/// Source: M8 Session 4 filter validation
+fn test_etb_replacement_does_not_fire_for_non_matching_filter() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Effect that only applies to creatures.
+    let creature_only = ReplacementEffect {
+        id: ReplacementId(12),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldEnterBattlefield {
+            filter: ObjectFilter::AnyCreature,
+        },
+        modification: ReplacementModification::EntersTapped,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::land(p1, "Forest"))
+        .with_replacement_effect(creature_only)
+        .build()
+        .unwrap();
+
+    let land_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+
+    let events = mtg_engine::rules::replacement::apply_etb_replacements(&mut state, land_id, p1);
+
+    let land = state.objects.get(&land_id).unwrap();
+    assert!(
+        !land.status.tapped,
+        "land should not be tapped — AnyCreature filter doesn't match lands"
+    );
+    assert!(
+        events.is_empty(),
+        "no events should be emitted when filter doesn't match"
+    );
+}
+
+// ── ETB self-replacement: Dimir Guildgate enters tapped ───────────────────
+
+#[test]
+/// CR 614.1c / 614.15 — Dimir Guildgate's self-ETB replacement causes it to enter tapped
+/// Source: M8 Session 4 self-ETB from card definition (Corner Case 19)
+fn test_dimir_guildgate_enters_tapped_via_card_definition() {
+    use mtg_engine::Command;
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let guildgate_card_id = CardId("dimir-guildgate".to_string());
+    let registry = CardRegistry::new(all_cards());
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::land(p1, "Dimir Guildgate")
+                .with_card_id(guildgate_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+    state.turn.priority_holder = Some(p1);
+
+    let gate_id = state
+        .objects_in_zone(&ZoneId::Hand(p1))
+        .first()
+        .unwrap()
+        .id;
+
+    let (new_state, events) = mtg_engine::process_command(
+        state,
+        Command::PlayLand {
+            player: p1,
+            card: gate_id,
+        },
+    )
+    .unwrap();
+
+    let bf_objects = new_state.objects_in_zone(&ZoneId::Battlefield);
+    assert_eq!(bf_objects.len(), 1, "Dimir Guildgate should be on the battlefield");
+    assert!(
+        bf_objects[0].status.tapped,
+        "Dimir Guildgate should enter tapped (self-ETB replacement from card definition)"
+    );
+    // CR 614.1c: entered tapped — PermanentTapped fires.
+    assert!(
+        events.iter().any(|e| matches!(e, GameEvent::PermanentTapped { .. })),
+        "PermanentTapped event should be emitted for Dimir Guildgate's ETB replacement"
+    );
+    // Self-ETB replacements do NOT emit ReplacementEffectApplied (no registered ID).
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::ReplacementEffectApplied { .. })),
+        "self-ETB from card definition should NOT emit ReplacementEffectApplied"
+    );
+}

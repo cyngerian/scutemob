@@ -1,4 +1,4 @@
-//! First 50 hand-authored card definitions for M7.
+//! Hand-authored card definitions (51 cards as of M8).
 //!
 //! These are Commander staples covering a range of effects that the engine
 //! can execute. Each definition encodes the card's behavior using the Effect DSL
@@ -27,6 +27,7 @@ use super::card_definition::{
     AbilityDefinition, CardDefinition, Cost, Effect, EffectAmount, EffectTarget, PlayerTarget,
     TargetFilter, TargetRequirement, TriggerCondition, TypeLine,
 };
+use crate::state::replacement_effect::{ObjectFilter, ReplacementModification, ReplacementTrigger};
 
 // ── Helper macros & functions ─────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ fn basic_land_filter() -> TargetFilter {
 
 // ── Card list ─────────────────────────────────────────────────────────────────
 
-/// Return all 50 hand-authored card definitions.
+/// Return all hand-authored card definitions.
 pub fn all_cards() -> Vec<CardDefinition> {
     vec![
         // ── Mana rocks ──────────────────────────────────────────────────────
@@ -474,6 +475,39 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
                 timing_restriction: None,
             }],
+            ..Default::default()
+        },
+
+        // ── ETB-tapped dual lands (M8 Session 4) ────────────────────────────
+
+        // 19a. Dimir Guildgate — Land — Gate; enters the battlefield tapped.
+        //      {T}: Add {U} or {B}.
+        CardDefinition {
+            card_id: cid("dimir-guildgate"),
+            name: "Dimir Guildgate".to_string(),
+            mana_cost: None,
+            types: types_sub(&[CardType::Land], &["Gate"]),
+            oracle_text: "Dimir Guildgate enters the battlefield tapped.\n{T}: Add {U} or {B}."
+                .to_string(),
+            abilities: vec![
+                // CR 614.1c: self-replacement effect — this permanent enters tapped.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldEnterBattlefield {
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::EntersTapped,
+                    is_self: true,
+                },
+                // {T}: Add {U} or {B} (simplified as colorless for M8; full modal
+                // color choice is M9+ interactive).
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddManaAnyColor {
+                        player: PlayerTarget::Controller,
+                    },
+                    timing_restriction: None,
+                },
+            ],
             ..Default::default()
         },
 
@@ -993,9 +1027,35 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
+        // 40. Rhystic Study — {2U}, Enchantment; whenever an opponent casts a spell,
+        //     you may draw a card unless that player pays {1}.
+        //     MayPayOrElse: opponent is the payer (EachOpponent); or_else draws for controller.
+        //     In M7 the payment is never made — the draw always fires. Interactive
+        //     payment choice is deferred to M9+ (interactive priority pass).
+        CardDefinition {
+            card_id: cid("rhystic-study"),
+            name: "Rhystic Study".to_string(),
+            mana_cost: Some(ManaCost { blue: 1, generic: 2, ..Default::default() }),
+            types: types(&[CardType::Enchantment]),
+            oracle_text: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".to_string(),
+            abilities: vec![AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
+                effect: Effect::MayPayOrElse {
+                    cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                    payer: PlayerTarget::EachOpponent,
+                    or_else: Box::new(Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    }),
+                },
+                intervening_if: None,
+            }],
+            ..Default::default()
+        },
+
         // ── Ramp spells ──────────────────────────────────────────────────────
 
-        // 40. Cultivate — {2G}, Sorcery; search for 2 basic lands, one to battlefield
+        // 41. Cultivate — {2G}, Sorcery; search for 2 basic lands, one to battlefield
         //     tapped, one to hand, then shuffle.
         CardDefinition {
             card_id: cid("cultivate"),
@@ -1026,7 +1086,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 41. Kodama's Reach — {2G}, Sorcery; same as Cultivate.
+        // 42. Kodama's Reach — {2G}, Sorcery; same as Cultivate.
         CardDefinition {
             card_id: cid("kodamas-reach"),
             name: "Kodama's Reach".to_string(),
@@ -1056,7 +1116,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 42. Rampant Growth — {1G}, Sorcery; search for a basic land, put it onto
+        // 43. Rampant Growth — {1G}, Sorcery; search for a basic land, put it onto
         //     battlefield tapped, then shuffle.
         CardDefinition {
             card_id: cid("rampant-growth"),
@@ -1081,7 +1141,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 43. Explosive Vegetation — {3G}, Sorcery; search for up to two basic lands,
+        // 44. Explosive Vegetation — {3G}, Sorcery; search for up to two basic lands,
         //     put them onto battlefield tapped, then shuffle.
         CardDefinition {
             card_id: cid("explosive-vegetation"),
@@ -1114,7 +1174,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
 
         // ── Equipment ────────────────────────────────────────────────────────
 
-        // 44. Lightning Greaves — {2}, Artifact — Equipment; Equipped creature has
+        // 45. Lightning Greaves — {2}, Artifact — Equipment; Equipped creature has
         //     haste and shroud. Equip {0}.
         CardDefinition {
             card_id: cid("lightning-greaves"),
@@ -1129,7 +1189,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 45. Swiftfoot Boots — {2}, Artifact — Equipment; Equipped creature has
+        // 46. Swiftfoot Boots — {2}, Artifact — Equipment; Equipped creature has
         //     haste and hexproof. Equip {1}.
         CardDefinition {
             card_id: cid("swiftfoot-boots"),
@@ -1145,7 +1205,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
 
         // ── Utility creatures ────────────────────────────────────────────────
 
-        // 46. Llanowar Elves — {G}, Creature — Elf Druid 1/1; {T}: add {G}.
+        // 47. Llanowar Elves — {G}, Creature — Elf Druid 1/1; {T}: add {G}.
         CardDefinition {
             card_id: cid("llanowar-elves"),
             name: "Llanowar Elves".to_string(),
@@ -1164,7 +1224,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             }],
         },
 
-        // 47. Elvish Mystic — {G}, Creature — Elf Druid 1/1; same as Llanowar Elves.
+        // 48. Elvish Mystic — {G}, Creature — Elf Druid 1/1; same as Llanowar Elves.
         CardDefinition {
             card_id: cid("elvish-mystic"),
             name: "Elvish Mystic".to_string(),
@@ -1183,7 +1243,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             }],
         },
 
-        // 48. Birds of Paradise — {G}, Creature — Bird 0/1; Flying; {T}: add one mana
+        // 49. Birds of Paradise — {G}, Creature — Bird 0/1; Flying; {T}: add one mana
         //     of any color.
         CardDefinition {
             card_id: cid("birds-of-paradise"),
@@ -1203,7 +1263,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
-        // 49. Wall of Omens — {1W}, Creature — Wall 0/4; Defender; When Wall of Omens
+        // 50. Wall of Omens — {1W}, Creature — Wall 0/4; Defender; When Wall of Omens
         //     enters the battlefield, draw a card.
         CardDefinition {
             card_id: cid("wall-of-omens"),
@@ -1227,7 +1287,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
-        // 50. Solemn Simulacrum — {4}, Artifact Creature — Golem 2/2;
+        // 51. Solemn Simulacrum — {4}, Artifact Creature — Golem 2/2;
         //     When ~ enters the battlefield, search for a basic land, put it onto the
         //     battlefield tapped. When ~ dies, you may draw a card.
         CardDefinition {

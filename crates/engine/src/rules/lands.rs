@@ -90,6 +90,27 @@ pub fn handle_play_land(
     // 9. Move the land from Hand to Battlefield (CR 305.1, CR 400.7).
     let (new_land_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Battlefield)?;
 
+    // CR 614.12 / 614.15: Apply ETB replacement effects before emitting LandPlayed.
+    // Self-ETB replacements from the card definition apply first (CR 614.15).
+    let card_id = state
+        .objects
+        .get(&new_land_id)
+        .and_then(|obj| obj.card_id.clone());
+    let registry = state.card_registry.clone();
+    let mut events: Vec<GameEvent> = Vec::new();
+    events.extend(super::replacement::apply_self_etb_from_definition(
+        state,
+        new_land_id,
+        player,
+        card_id.as_ref(),
+        &registry,
+    ));
+    events.extend(super::replacement::apply_etb_replacements(
+        state,
+        new_land_id,
+        player,
+    ));
+
     // 10. Decrement land plays for this turn.
     {
         let player_state = state.player_mut(player)?;
@@ -100,8 +121,9 @@ pub fn handle_play_land(
     //     starts fresh. The active player retains priority (CR 117.3b).
     state.turn.players_passed = im::OrdSet::new();
 
-    Ok(vec![GameEvent::LandPlayed {
+    events.push(GameEvent::LandPlayed {
         player,
         new_land_id,
-    }])
+    });
+    Ok(events)
 }

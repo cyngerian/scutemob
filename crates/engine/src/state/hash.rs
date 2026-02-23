@@ -1852,6 +1852,16 @@ impl HashInto for AbilityDefinition {
                 modes.hash_into(hasher);
                 cant_be_countered.hash_into(hasher);
             }
+            AbilityDefinition::Replacement {
+                trigger,
+                modification,
+                is_self,
+            } => {
+                5u8.hash_into(hasher);
+                trigger.hash_into(hasher);
+                modification.hash_into(hasher);
+                is_self.hash_into(hasher);
+            }
         }
     }
 }

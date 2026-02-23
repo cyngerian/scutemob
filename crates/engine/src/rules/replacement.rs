@@ -618,6 +618,158 @@ pub fn resolve_pending_zone_change(
     Ok(events)
 }
 
+// ── ETB replacement interception (Session 4) ──────────────────────────────
+
+/// CR 614.12 / 614.15: Apply self-ETB replacement abilities from a card definition.
+///
+/// Called immediately after a permanent enters the battlefield (before emitting
+/// the ETB event). Looks up the card definition and applies any
+/// `AbilityDefinition::Replacement` abilities with a `WouldEnterBattlefield` trigger
+/// and `is_self: true`. Self-replacements apply before global replacement effects (CR 614.15).
+///
+/// Unlike global ETB replacements, self-ETB replacements are not registered in
+/// `state.replacement_effects` — they are applied inline from the card definition.
+/// No `ReplacementEffectApplied` event is emitted.
+pub fn apply_self_etb_from_definition(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    card_id: Option<&crate::state::player::CardId>,
+    registry: &crate::cards::registry::CardRegistry,
+) -> Vec<GameEvent> {
+    use crate::cards::card_definition::AbilityDefinition;
+
+    let Some(cid) = card_id else {
+        return Vec::new();
+    };
+    let Some(def) = registry.get(cid.clone()) else {
+        return Vec::new();
+    };
+
+    let mut evts = Vec::new();
+    for ability in &def.abilities {
+        if let AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
+            modification,
+            is_self: true,
+        } = ability
+        {
+            evts.extend(apply_self_etb_modification(state, new_id, controller, modification));
+        }
+    }
+    evts
+}
+
+/// CR 614.12: Apply global ETB replacement effects to a just-entered permanent.
+///
+/// Called in resolution.rs and lands.rs immediately after a permanent enters the
+/// battlefield (before emitting the ETB event). Checks `state.replacement_effects` for
+/// `WouldEnterBattlefield` effects matching `new_id` and applies `EntersTapped` and
+/// `EntersWithCounters` modifications.
+///
+/// Self-ETB replacements from card definitions must be applied BEFORE calling this
+/// function via `apply_self_etb_from_definition` (CR 614.15: self-replacement first).
+pub fn apply_etb_replacements(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+) -> Vec<GameEvent> {
+    let trigger = ReplacementTrigger::WouldEnterBattlefield {
+        filter: ObjectFilter::SpecificObject(new_id),
+    };
+    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
+    if applicable.is_empty() {
+        return Vec::new();
+    }
+
+    let mut etb_events = Vec::new();
+    for id in applicable {
+        let modification = state
+            .replacement_effects
+            .iter()
+            .find(|e| e.id == id)
+            .map(|e| e.modification.clone());
+
+        etb_events.extend(emit_etb_modification(
+            state,
+            new_id,
+            controller,
+            Some(id),
+            modification,
+        ));
+    }
+    etb_events
+}
+
+/// Apply a single ETB modification directly (used for self-ETB replacements from card
+/// definitions, which are not registered in `state.replacement_effects`).
+///
+/// Does not emit `ReplacementEffectApplied` since there is no registered effect ID.
+pub fn apply_self_etb_modification(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    modification: &ReplacementModification,
+) -> Vec<GameEvent> {
+    emit_etb_modification(state, new_id, controller, None, Some(modification.clone()))
+}
+
+/// Internal: set state and produce events for one ETB modification.
+///
+/// If `effect_id` is Some, emits `ReplacementEffectApplied` (for global effects with a
+/// registered ID). If None, skips that event (for inline self-ETB replacements).
+fn emit_etb_modification(
+    state: &mut GameState,
+    new_id: ObjectId,
+    controller: PlayerId,
+    effect_id: Option<ReplacementId>,
+    modification: Option<ReplacementModification>,
+) -> Vec<GameEvent> {
+    let mut evts: Vec<GameEvent> = Vec::new();
+    match modification {
+        Some(ReplacementModification::EntersTapped) => {
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                obj.status.tapped = true;
+            }
+            if let Some(id) = effect_id {
+                evts.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "enters the battlefield tapped".to_string(),
+                });
+            }
+            // CR 614.1c: permanent was never untapped — emit PermanentTapped, not an
+            // untap-then-tap sequence. Corner case 19.
+            evts.push(GameEvent::PermanentTapped {
+                player: controller,
+                object_id: new_id,
+            });
+        }
+        Some(ReplacementModification::EntersWithCounters { counter, count }) => {
+            if let Some(obj) = state.objects.get_mut(&new_id) {
+                let cur = obj.counters.get(&counter).copied().unwrap_or(0);
+                obj.counters.insert(counter.clone(), cur + count);
+            }
+            if let Some(id) = effect_id {
+                evts.push(GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: format!("enters with {} {:?} counters", count, counter),
+                });
+            }
+            evts.push(GameEvent::CounterAdded {
+                object_id: new_id,
+                counter,
+                count,
+            });
+        }
+        _ => {
+            // RedirectToZone and other modifications are not applicable to ETB
+            // modification interception. Zone redirections are handled at zone-change
+            // interception sites in sba.rs and effects/mod.rs.
+        }
+    }
+    evts
+}
+
 /// Produce appropriate GameEvents for a zone change based on the destination.
 fn zone_change_events(old_id: ObjectId, new_id: ObjectId, dest: ZoneId) -> Vec<GameEvent> {
     match dest {

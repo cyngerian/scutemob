@@ -103,9 +103,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
             // CR 608.2: Execute the card's effect before it moves to its final zone.
             // Look up the CardDefinition from the registry (if available) and run its Spell effect.
+            // registry is also used below for self-ETB replacements (CR 614.15).
+            let registry = state.card_registry.clone();
             {
-                let registry = state.card_registry.clone();
-                if let Some(cid) = card_id {
+                if let Some(cid) = card_id.clone() {
                     if let Some(def) = registry.get(cid) {
                         // Find the Spell ability variant.
                         let spell_effect = def.abilities.iter().find_map(|a| {
@@ -150,6 +151,22 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
                 }
+
+                // CR 614.12 / 614.15: Apply ETB replacement effects before emitting
+                // PermanentEnteredBattlefield. Self-ETB replacements from the card's
+                // own definition apply first (CR 614.15: self-replacement first), then
+                // global replacement effects from state.replacement_effects.
+                let self_evts = super::replacement::apply_self_etb_from_definition(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(self_evts);
+                let etb_evts =
+                    super::replacement::apply_etb_replacements(state, new_id, controller);
+                events.extend(etb_evts);
 
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,

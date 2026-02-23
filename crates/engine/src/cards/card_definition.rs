@@ -14,6 +14,7 @@ use crate::state::{
     CardId, CardType, Color, CounterType, KeywordAbility, ManaColor, ManaCost, ManaPool, SubType,
     SuperType,
 };
+use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 
 // ── Card Definition ───────────────────────────────────────────────────────────
 
@@ -98,6 +99,20 @@ pub enum AbilityDefinition {
         /// CR 101.6: If true, this spell can't be countered by spells or abilities.
         #[serde(default)]
         cant_be_countered: bool,
+    },
+    /// A replacement/prevention static ability (CR 614-615).
+    ///
+    /// The effect modifies an event before it occurs. Unlike triggers, replacement
+    /// effects don't use the stack — they happen inline.
+    ///
+    /// When `is_self` is true (CR 614.15), this effect applies to the object itself
+    /// and is applied before non-self replacements on the same event.
+    Replacement {
+        trigger: ReplacementTrigger,
+        modification: ReplacementModification,
+        /// CR 614.15: if true, this is a self-replacement (applies before global effects).
+        #[serde(default)]
+        is_self: bool,
     },
 }
 

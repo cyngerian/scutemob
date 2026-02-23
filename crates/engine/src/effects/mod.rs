@@ -1210,6 +1210,34 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
 
 /// Draw one card for a player (CR 121.1). Returns events.
 fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
+    // CR 614.11: Check WouldDraw replacement effects before performing the draw.
+    {
+        use crate::rules::replacement::{self, ReplacementResult};
+        use crate::state::replacement_effect::{
+            PlayerFilter, ReplacementModification, ReplacementTrigger,
+        };
+        let trigger = ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(player),
+        };
+        let applicable =
+            replacement::find_applicable(state, &trigger, &std::collections::HashSet::new());
+        let action = replacement::determine_action(state, &applicable, player, "draw a card");
+        if let ReplacementResult::AutoApply(id) = action {
+            let modification = state
+                .replacement_effects
+                .iter()
+                .find(|e| e.id == id)
+                .map(|e| e.modification.clone());
+            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
+                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
+                return vec![GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "skip that draw".to_string(),
+                }];
+            }
+        }
+    }
+
     let lib_id = ZoneId::Library(player);
     let top = state.zones.get(&lib_id).and_then(|z| z.top());
 

@@ -169,8 +169,8 @@ commander-specific logic lives)
 
 ---
 
-### Session 4 — Draw replacement + ETB replacement
-**~5 items**
+### Session 4 — Draw replacement + ETB replacement ✅ COMPLETE
+**~5 items** (8 tests added, 390 total passing)
 
 Files: `rules/turn_actions.rs`, `effects/mod.rs` (DrawCards effect), `rules/resolution.rs`
 or wherever permanents enter the battlefield
