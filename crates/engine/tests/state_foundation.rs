@@ -101,7 +101,8 @@ fn test_custom_player_life() {
     let state = GameStateBuilder::new()
         .add_player_with(PlayerId(1), |p| p.life(20))
         .add_player_with(PlayerId(2), |p| p.life(30))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(state.player(PlayerId(1)).unwrap().life_total, 20);
     assert_eq!(state.player(PlayerId(2)).unwrap().life_total, 30);
@@ -165,6 +166,9 @@ fn test_active_players_excludes_lost() {
 
 #[test]
 fn test_turn_number_configurable() {
-    let state = GameStateBuilder::four_player().turn_number(5).build().unwrap();
+    let state = GameStateBuilder::four_player()
+        .turn_number(5)
+        .build()
+        .unwrap();
     assert_eq!(state.turn.turn_number, 5);
 }

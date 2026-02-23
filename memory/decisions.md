@@ -1,4 +1,4 @@
-# Design Decisions — Last verified: M7
+# Design Decisions — Last verified: M8
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
@@ -23,3 +23,5 @@
 | 2026-02-22 | Card definition pipeline is scripted-first, LLM-assisted second | Scryfall provides structured mana cost, P/T, types, keywords; pattern library handles ~70-80% deterministically; no LLM at game runtime |
 | 2026-02-22 | `enrich_spec_from_def` populates ObjectSpec from definitions in scripts | `ObjectSpec::card()` creates naked objects; enrichment ensures scripts work without bespoke per-card setup |
 | 2026-02-22 | M9.5 Game State Stepper: web-based (axum + Svelte), placed after engine core | Visual validation before networking; Svelte components reused in M11 Tauri app (props-based, data source is the only difference) |
+| 2026-02-22 | `HasCardId(CardId)` filter for commander replacement scope | ObjectId changes on zone change (CR 400.7) but CardId persists; replacement effects scoped to specific commanders need CardId matching |
+| 2026-02-22 | Two replacement effects per commander (graveyard + exile) | Trigger model `WouldChangeZone` matches a single destination; separate effects for each redirect-able zone type |

@@ -20,19 +20,23 @@ use super::game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
     ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
+use super::player::{CardId, ManaPool, PlayerId, PlayerState};
+use super::replacement_effect::{
+    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger,
+};
+use super::stack::{StackObject, StackObjectKind};
+use super::stubs::{DelayedTrigger, PendingTrigger};
+use super::targeting::{SpellTarget, Target};
+use super::turn::{Phase, Step, TurnState};
+use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
+use super::zone::{Zone, ZoneId, ZoneType};
+use super::GameState;
 use crate::cards::card_definition::{
     AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
     ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, TargetController, TargetFilter,
     TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
-use super::player::{CardId, ManaPool, PlayerId, PlayerState};
-use super::stack::{StackObject, StackObjectKind};
-use super::stubs::{DelayedTrigger, PendingTrigger, ReplacementEffect};
-use super::targeting::{SpellTarget, Target};
-use super::turn::{Phase, Step, TurnState};
-use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
-use super::zone::{Zone, ZoneId};
-use super::GameState;
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 
 /// Feeds data into a `blake3::Hasher` in a deterministic, canonical order.
@@ -573,9 +577,163 @@ impl HashInto for DelayedTrigger {
     }
 }
 
+// --- Replacement effect type implementations (M8) ---
+
+impl HashInto for ReplacementId {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.0.hash_into(hasher);
+    }
+}
+
+impl HashInto for ObjectFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ObjectFilter::Any => 0u8.hash_into(hasher),
+            ObjectFilter::SpecificObject(id) => {
+                1u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            ObjectFilter::ControlledBy(player) => {
+                2u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            ObjectFilter::AnyCreature => 3u8.hash_into(hasher),
+            ObjectFilter::HasCardType(ct) => {
+                4u8.hash_into(hasher);
+                ct.hash_into(hasher);
+            }
+            ObjectFilter::Commander => 5u8.hash_into(hasher),
+            ObjectFilter::HasCardId(card_id) => {
+                6u8.hash_into(hasher);
+                card_id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for PlayerFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            PlayerFilter::Any => 0u8.hash_into(hasher),
+            PlayerFilter::Specific(id) => {
+                1u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            PlayerFilter::OpponentsOf(id) => {
+                2u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for DamageTargetFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            DamageTargetFilter::Any => 0u8.hash_into(hasher),
+            DamageTargetFilter::Player(id) => {
+                1u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            DamageTargetFilter::Permanent(id) => {
+                2u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+            DamageTargetFilter::FromSource(id) => {
+                3u8.hash_into(hasher);
+                id.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for ZoneType {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ZoneType::Library => 0u8.hash_into(hasher),
+            ZoneType::Hand => 1u8.hash_into(hasher),
+            ZoneType::Battlefield => 2u8.hash_into(hasher),
+            ZoneType::Graveyard => 3u8.hash_into(hasher),
+            ZoneType::Stack => 4u8.hash_into(hasher),
+            ZoneType::Exile => 5u8.hash_into(hasher),
+            ZoneType::Command => 6u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ReplacementTrigger {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ReplacementTrigger::WouldChangeZone { from, to, filter } => {
+                0u8.hash_into(hasher);
+                from.hash_into(hasher);
+                to.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            ReplacementTrigger::WouldDraw { player_filter } => {
+                1u8.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
+            ReplacementTrigger::WouldEnterBattlefield { filter } => {
+                2u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
+            ReplacementTrigger::WouldGainLife { player_filter } => {
+                3u8.hash_into(hasher);
+                player_filter.hash_into(hasher);
+            }
+            ReplacementTrigger::DamageWouldBeDealt { target_filter } => {
+                4u8.hash_into(hasher);
+                target_filter.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for ReplacementModification {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ReplacementModification::RedirectToZone(zone) => {
+                0u8.hash_into(hasher);
+                zone.hash_into(hasher);
+            }
+            ReplacementModification::EntersTapped => 1u8.hash_into(hasher),
+            ReplacementModification::EntersWithCounters { counter, count } => {
+                2u8.hash_into(hasher);
+                counter.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            ReplacementModification::SkipDraw => 3u8.hash_into(hasher),
+            ReplacementModification::PreventDamage(n) => {
+                4u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            ReplacementModification::PreventAllDamage => 5u8.hash_into(hasher),
+        }
+    }
+}
+
 impl HashInto for ReplacementEffect {
     fn hash_into(&self, hasher: &mut Hasher) {
+        self.id.hash_into(hasher);
         self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.duration.hash_into(hasher);
+        self.is_self_replacement.hash_into(hasher);
+        self.trigger.hash_into(hasher);
+        self.modification.hash_into(hasher);
+    }
+}
+
+impl HashInto for PendingZoneChange {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.object_id.hash_into(hasher);
+        self.original_destination.hash_into(hasher);
+        self.affected_player.hash_into(hasher);
+        (self.already_applied.len() as u64).hash_into(hasher);
+        for id in &self.already_applied {
+            id.hash_into(hasher);
+        }
     }
 }
 
@@ -1131,6 +1289,40 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 new_lib_id.hash_into(hasher);
             }
+            // ── M8 replacement/prevention events (discriminants 53-55) ──
+            GameEvent::ReplacementEffectApplied {
+                effect_id,
+                description,
+            } => {
+                53u8.hash_into(hasher);
+                effect_id.hash_into(hasher);
+                description.hash_into(hasher);
+            }
+            GameEvent::ReplacementChoiceRequired {
+                player,
+                event_description,
+                choices,
+            } => {
+                54u8.hash_into(hasher);
+                player.hash_into(hasher);
+                event_description.hash_into(hasher);
+                (choices.len() as u64).hash_into(hasher);
+                for id in choices {
+                    id.hash_into(hasher);
+                }
+            }
+            GameEvent::DamagePrevented {
+                source,
+                target,
+                prevented,
+                remaining,
+            } => {
+                55u8.hash_into(hasher);
+                source.hash_into(hasher);
+                target.hash_into(hasher);
+                prevented.hash_into(hasher);
+                remaining.hash_into(hasher);
+            }
         }
     }
 }
@@ -1311,7 +1503,11 @@ impl HashInto for EffectAmount {
                 4u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
-            EffectAmount::CardCount { zone, player, filter } => {
+            EffectAmount::CardCount {
+                zone,
+                player,
+                filter,
+            } => {
                 5u8.hash_into(hasher);
                 zone.hash_into(hasher);
                 player.hash_into(hasher);
@@ -1599,7 +1795,11 @@ impl HashInto for Effect {
                 or_else.hash_into(hasher);
             }
             Effect::Nothing => 26u8.hash_into(hasher),
-            Effect::PutOnLibrary { player, count, from } => {
+            Effect::PutOnLibrary {
+                player,
+                count,
+                from,
+            } => {
                 27u8.hash_into(hasher);
                 player.hash_into(hasher);
                 count.hash_into(hasher);
@@ -1677,8 +1877,9 @@ impl GameState {
         // 1. Turn state
         self.turn.hash_into(&mut hasher);
 
-        // 2. Timestamp counter
+        // 2. Timestamp counter and replacement ID counter
         self.timestamp_counter.hash_into(&mut hasher);
+        self.next_replacement_id.hash_into(&mut hasher);
 
         // 3. Player public state (via OrdMap iteration — deterministic order)
         (self.players.len() as u64).hash_into(&mut hasher);
@@ -1723,6 +1924,7 @@ impl GameState {
         self.continuous_effects.hash_into(&mut hasher);
         self.delayed_triggers.hash_into(&mut hasher);
         self.replacement_effects.hash_into(&mut hasher);
+        self.pending_zone_changes.hash_into(&mut hasher);
         self.pending_triggers.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
 

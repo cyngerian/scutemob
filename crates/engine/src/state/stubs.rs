@@ -16,11 +16,7 @@ pub struct DelayedTrigger {
     pub source: ObjectId,
 }
 
-/// A replacement effect that modifies events (CR 614). Implemented in M8.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ReplacementEffect {
-    pub source: ObjectId,
-}
+// ReplacementEffect has moved to `state/replacement_effect.rs` (M8).
 
 /// A triggered ability queued to go on the stack (CR 603.3).
 ///

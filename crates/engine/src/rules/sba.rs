@@ -30,12 +30,14 @@ use im::OrdMap;
 
 use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
+use crate::state::replacement_effect::PendingZoneChange;
 use crate::state::types::{CardType, CounterType, KeywordAbility, SubType, SuperType};
-use crate::state::zone::ZoneId;
+use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
 use super::events::{GameEvent, LossReason};
 use super::layers::calculate_characteristics;
+use super::replacement;
 
 // ── Public interface ────────────────────────────────────────────────────────
 
@@ -254,9 +256,7 @@ fn check_creature_sbas(
             // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
             // MR-M4-04: compare in u32 space to avoid u32→i32 wrapping on large damage values.
             // toughness > 0 is guaranteed by the check above, so the cast is safe.
-            if !is_indestructible
-                && obj.damage_marked > 0
-                && obj.damage_marked >= toughness as u32
+            if !is_indestructible && obj.damage_marked > 0 && obj.damage_marked >= toughness as u32
             {
                 return true;
             }
@@ -273,16 +273,82 @@ fn check_creature_sbas(
         .collect();
 
     for id in dying {
+        // Skip objects that already have a pending replacement choice.
+        if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
+            continue;
+        }
+
         let owner = match state.objects.get(&id) {
             Some(obj) => obj.owner,
             None => continue, // Already removed in a previous SBA this pass.
         };
 
-        if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
-            events.push(GameEvent::CreatureDied {
-                object_id: id,
-                new_grave_id: new_id,
-            });
+        // CR 614: Check replacement effects before moving to graveyard.
+        let action = replacement::check_zone_change_replacement(
+            state,
+            id,
+            ZoneType::Battlefield,
+            ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            replacement::ZoneChangeAction::Proceed => {
+                // No replacement — move to graveyard normally.
+                if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: id,
+                        new_grave_id: new_id,
+                    });
+                }
+            }
+            replacement::ZoneChangeAction::Redirect {
+                to,
+                events: repl_events,
+                ..
+            } => {
+                // Single replacement auto-applied — redirect zone.
+                events.extend(repl_events);
+                if let Ok((new_id, _)) = state.move_object_to_zone(id, to) {
+                    match to {
+                        ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: owner,
+                                object_id: id,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        ZoneId::Command(_) => {
+                            // Commander redirected to command zone — no CreatureDied.
+                        }
+                        _ => {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: id,
+                                new_grave_id: new_id,
+                            });
+                        }
+                    }
+                }
+            }
+            replacement::ZoneChangeAction::ChoiceRequired {
+                player,
+                choices,
+                event_description,
+            } => {
+                // Multiple replacements — defer until player chooses.
+                state.pending_zone_changes.push_back(PendingZoneChange {
+                    object_id: id,
+                    original_destination: ZoneType::Graveyard,
+                    affected_player: player,
+                    already_applied: Vec::new(),
+                });
+                events.push(GameEvent::ReplacementChoiceRequired {
+                    player,
+                    event_description,
+                    choices,
+                });
+            }
         }
     }
 
@@ -333,16 +399,77 @@ fn check_planeswalker_sbas(
         .collect();
 
     for id in dying {
+        // Skip objects that already have a pending replacement choice.
+        if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
+            continue;
+        }
+
         let owner = match state.objects.get(&id) {
             Some(obj) => obj.owner,
             None => continue,
         };
 
-        if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
-            events.push(GameEvent::PlaneswalkerDied {
-                object_id: id,
-                new_grave_id: new_id,
-            });
+        // CR 614: Check replacement effects before moving to graveyard.
+        let action = replacement::check_zone_change_replacement(
+            state,
+            id,
+            ZoneType::Battlefield,
+            ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            replacement::ZoneChangeAction::Proceed => {
+                if let Ok((new_id, _)) = state.move_object_to_zone(id, ZoneId::Graveyard(owner)) {
+                    events.push(GameEvent::PlaneswalkerDied {
+                        object_id: id,
+                        new_grave_id: new_id,
+                    });
+                }
+            }
+            replacement::ZoneChangeAction::Redirect {
+                to,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _)) = state.move_object_to_zone(id, to) {
+                    match to {
+                        ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: owner,
+                                object_id: id,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        ZoneId::Command(_) => {}
+                        _ => {
+                            events.push(GameEvent::PlaneswalkerDied {
+                                object_id: id,
+                                new_grave_id: new_id,
+                            });
+                        }
+                    }
+                }
+            }
+            replacement::ZoneChangeAction::ChoiceRequired {
+                player,
+                choices,
+                event_description,
+            } => {
+                state.pending_zone_changes.push_back(PendingZoneChange {
+                    object_id: id,
+                    original_destination: ZoneType::Graveyard,
+                    affected_player: player,
+                    already_applied: Vec::new(),
+                });
+                events.push(GameEvent::ReplacementChoiceRequired {
+                    player,
+                    event_description,
+                    choices,
+                });
+            }
         }
     }
 
@@ -503,9 +630,7 @@ fn check_equipment_sbas(
             let Some(chars) = chars_map.get(id) else {
                 return false;
             };
-            let is_equipment = chars
-                .subtypes
-                .contains(&SubType("Equipment".to_string()));
+            let is_equipment = chars.subtypes.contains(&SubType("Equipment".to_string()));
             let is_fortification = chars
                 .subtypes
                 .contains(&SubType("Fortification".to_string()));

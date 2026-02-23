@@ -11,15 +11,18 @@ use im::{OrdMap, OrdSet, Vector};
 use crate::cards::CardRegistry;
 
 use super::continuous_effect::ContinuousEffect;
+use super::error::GameStateError;
 use super::game_object::{
     ActivatedAbility, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
     TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
+use super::replacement_effect::{
+    ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
+};
 use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
-use super::error::GameStateError;
 use super::GameState;
 
 /// Builder for constructing `GameState` values in tests.
@@ -27,6 +30,7 @@ pub struct GameStateBuilder {
     players: Vec<PlayerConfig>,
     objects: Vec<ObjectSpec>,
     continuous_effects: Vec<ContinuousEffect>,
+    replacement_effects: Vec<ReplacementEffect>,
     turn_number: u32,
     step: Option<Step>,
     active_player: Option<PlayerId>,
@@ -50,6 +54,7 @@ impl GameStateBuilder {
             players: Vec::new(),
             objects: Vec::new(),
             continuous_effects: Vec::new(),
+            replacement_effects: Vec::new(),
             turn_number: 1,
             step: None,
             active_player: None,
@@ -177,6 +182,16 @@ impl GameStateBuilder {
         self
     }
 
+    /// Add a replacement effect to the game state (for M8+ replacement/prevention tests).
+    ///
+    /// Effects added via this method are placed directly into `state.replacement_effects`
+    /// with their `id` taken as-is from the provided effect. The `next_replacement_id`
+    /// counter is advanced past any pre-set IDs.
+    pub fn with_replacement_effect(mut self, effect: ReplacementEffect) -> Self {
+        self.replacement_effects.push(effect);
+        self
+    }
+
     /// Build the `GameState`. Returns `Err` if configuration is invalid (e.g. no players).
     pub fn build(self) -> Result<GameState, GameStateError> {
         if self.players.is_empty() {
@@ -249,6 +264,8 @@ impl GameStateBuilder {
             continuous_effects: Vector::new(),
             delayed_triggers: Vector::new(),
             replacement_effects: Vector::new(),
+            next_replacement_id: 0,
+            pending_zone_changes: Vector::new(),
             pending_triggers: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
@@ -260,6 +277,14 @@ impl GameStateBuilder {
         // Add continuous effects
         for effect in self.continuous_effects {
             state.continuous_effects.push_back(effect);
+        }
+
+        // Add replacement effects and advance the ID counter past any pre-set IDs
+        for effect in self.replacement_effects {
+            if effect.id.0 >= state.next_replacement_id {
+                state.next_replacement_id = effect.id.0 + 1;
+            }
+            state.replacement_effects.push_back(effect);
         }
 
         // Add objects
@@ -323,6 +348,58 @@ impl GameStateBuilder {
         }
 
         Ok(state)
+    }
+}
+
+/// Register replacement effects for commander zone changes (CR 903.9).
+///
+/// For each player's commander (identified by `CardId`), registers two
+/// replacement effects: one for graveyard and one for exile. Each redirects
+/// the commander to the command zone. These are `Indefinite` duration effects
+/// with `is_self_replacement: false` — they compete with other replacements
+/// like Rest in Peace and the affected player chooses the order (CR 616.1).
+pub fn register_commander_zone_replacements(state: &mut GameState) {
+    use super::continuous_effect::EffectDuration;
+    use super::zone::ZoneType;
+
+    let commanders: Vec<(PlayerId, CardId)> = state
+        .players
+        .iter()
+        .flat_map(|(&pid, ps)| ps.commander_ids.iter().map(move |cid| (pid, cid.clone())))
+        .collect();
+
+    for (owner, card_id) in commanders {
+        // CR 903.9: commander would go to graveyard → may go to command zone.
+        let id_grave = state.next_replacement_id();
+        state.replacement_effects.push_back(ReplacementEffect {
+            id: id_grave,
+            source: None,
+            controller: owner,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldChangeZone {
+                from: None,
+                to: ZoneType::Graveyard,
+                filter: ObjectFilter::HasCardId(card_id.clone()),
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Command),
+        });
+
+        // CR 903.9: commander would go to exile → may go to command zone.
+        let id_exile = state.next_replacement_id();
+        state.replacement_effects.push_back(ReplacementEffect {
+            id: id_exile,
+            source: None,
+            controller: owner,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldChangeZone {
+                from: None,
+                to: ZoneType::Exile,
+                filter: ObjectFilter::HasCardId(card_id),
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Command),
+        });
     }
 }
 

@@ -83,7 +83,10 @@ pub enum GameStateError {
     IncompleteBlockerOrder { provided: usize, required: usize },
 
     #[error("creature {blocker:?} cannot block attacker {attacker:?}: attacker is not targeting this player")]
-    CrossPlayerBlock { blocker: ObjectId, attacker: ObjectId },
+    CrossPlayerBlock {
+        blocker: ObjectId,
+        attacker: ObjectId,
+    },
 
     #[error("player {0:?} has already declared blockers this combat phase")]
     AlreadyDeclaredBlockers(PlayerId),

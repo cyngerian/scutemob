@@ -35,7 +35,8 @@ fn test_sba_704_5a_player_at_zero_life_loses() {
         .player_life(p(1), 0)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -55,7 +56,8 @@ fn test_sba_704_5a_player_at_negative_life_loses() {
         .player_life(p(1), -3)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -75,7 +77,8 @@ fn test_sba_704_5a_player_at_one_life_survives() {
         .player_life(p(1), 1)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -97,7 +100,8 @@ fn test_sba_704_5a_multiple_players_lose_simultaneously() {
         .player_life(p(3), 40)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -129,7 +133,8 @@ fn test_sba_704_5c_ten_poison_loses() {
         .player_poison(p(1), 10)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -149,7 +154,8 @@ fn test_sba_704_5c_nine_poison_survives() {
         .player_poison(p(1), 9)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -174,7 +180,8 @@ fn test_sba_704_5d_token_in_graveyard_ceases_to_exist() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -193,7 +200,8 @@ fn test_sba_704_5d_token_on_battlefield_stays() {
         .object(ObjectSpec::creature(p(1), "Bear Token", 2, 2).token())
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -214,7 +222,8 @@ fn test_sba_704_5f_zero_toughness_creature_dies() {
         .object(ObjectSpec::creature(p(1), "Dying Creature", 2, 0))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -233,7 +242,8 @@ fn test_sba_704_5f_negative_toughness_creature_dies() {
         .object(ObjectSpec::creature(p(1), "Dying Creature", 5, -1))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -252,7 +262,8 @@ fn test_sba_704_5f_positive_toughness_creature_survives() {
         .object(ObjectSpec::creature(p(1), "Survivor", 1, 1))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -273,7 +284,8 @@ fn test_sba_704_5g_lethal_damage_destroys_creature() {
         .object(ObjectSpec::creature(p(1), "Damaged Bear", 2, 2).with_damage(2))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -292,7 +304,8 @@ fn test_sba_704_5g_nonlethal_damage_survives() {
         .object(ObjectSpec::creature(p(1), "Wounded Bear", 2, 3).with_damage(2))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -320,7 +333,8 @@ fn test_sba_704_5h_deathtouch_damage_destroys_creature() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -341,7 +355,8 @@ fn test_sba_704_5i_planeswalker_zero_loyalty_dies() {
         .object(ObjectSpec::planeswalker(p(1), "Dying Walker", 0))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -360,7 +375,8 @@ fn test_sba_704_5i_planeswalker_nonzero_loyalty_survives() {
         .object(ObjectSpec::planeswalker(p(1), "Jace", 3))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -386,7 +402,8 @@ fn test_sba_704_5j_legendary_rule_removes_duplicate() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -415,7 +432,8 @@ fn test_sba_704_5j_different_name_legendaries_no_sba() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -442,7 +460,8 @@ fn test_sba_704_5j_same_name_different_controllers_no_sba() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -469,7 +488,8 @@ fn test_sba_704_5m_unattached_aura_goes_to_graveyard() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = sba_events_from_start(state);
 
@@ -498,7 +518,8 @@ fn test_sba_704_5n_equipment_on_non_creature_unattaches() {
         .object(ObjectSpec::land(p(1), "Forest"))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Manually attach sword to the land (simulating illegal attachment).
     let sword_id = state
@@ -547,7 +568,8 @@ fn test_sba_704_5q_equal_counters_annihilate() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (new_state, events) = start_game(state).unwrap();
 
@@ -579,7 +601,8 @@ fn test_sba_704_5q_unequal_counters_partial_annihilation() {
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (new_state, events) = start_game(state).unwrap();
 
@@ -616,7 +639,8 @@ fn test_sba_704_5u_commander_damage_21_loses() {
             .player_commander(p(2), commander_card.clone())
             .at_step(Step::PreCombatMain)
             .active_player(p(1))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Set player 1's commander damage received from player 2's commander to 21.
         if let Some(player1) = b.players.get_mut(&p(1)) {
@@ -650,7 +674,8 @@ fn test_sba_704_5u_commander_damage_20_survives() {
             .player_commander(p(2), commander_card.clone())
             .at_step(Step::PreCombatMain)
             .active_player(p(1))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         if let Some(player1) = b.players.get_mut(&p(1)) {
             let mut inner: OrdMap<CardId, u32> = OrdMap::new();
@@ -682,7 +707,8 @@ fn test_sba_convergence_only_applicable_sbas_fire() {
         .object(ObjectSpec::creature(p(1), "Healthy", 3, 3))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (new_state, events) = start_game(state).unwrap();
 
@@ -714,7 +740,8 @@ fn test_sba_no_infinite_loop_on_repeated_sba() {
         .object(ObjectSpec::creature(p(1), "Doomed", 1, 0))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // This should complete without hanging.
     let (_, events) = start_game(state).unwrap();
@@ -738,7 +765,8 @@ fn test_sba_fire_before_first_priority_grant() {
         .object(ObjectSpec::creature(p(1), "Pre-dead", 1, 0))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (_, events) = start_game(state).unwrap();
 
@@ -785,7 +813,8 @@ fn test_sba_704_5f_continuous_effect_reduces_toughness_to_zero_dies() {
         .add_continuous_effect(minus3_effect)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (_, events) = start_game(state).unwrap();
 
@@ -829,7 +858,8 @@ fn test_sba_704_5g_indestructible_removed_by_effect_lethal_damage_dies() {
         .add_continuous_effect(remove_indestructible)
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (_, events) = start_game(state).unwrap();
 
@@ -855,10 +885,7 @@ fn test_sba_704_5i_planeswalker_loyalty_counter_zero_dies() {
         .add_player(p(1))
         .add_player(p(2))
         // loyalty field left as None; loyalty tracked via counter (as M7+ gameplay does)
-        .object(
-            ObjectSpec::planeswalker(p(1), "Jace", 3)
-                .with_counter(CounterType::Loyalty, 0),
-        )
+        .object(ObjectSpec::planeswalker(p(1), "Jace", 3).with_counter(CounterType::Loyalty, 0))
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
         .build()
@@ -915,16 +942,13 @@ fn test_sba_704_5j_three_legendary_copies_all_but_one_removed() {
         .add_player(p(1))
         .add_player(p(2))
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .object(
-            ObjectSpec::creature(p(1), "Thalia", 2, 1)
-                .with_supertypes(vec![SuperType::Legendary]),
+            ObjectSpec::creature(p(1), "Thalia", 2, 1).with_supertypes(vec![SuperType::Legendary]),
         )
         .at_step(Step::PreCombatMain)
         .active_player(p(1))
@@ -938,7 +962,10 @@ fn test_sba_704_5j_three_legendary_copies_all_but_one_removed() {
     let removed_count = events
         .iter()
         .filter_map(|e| {
-            if let GameEvent::LegendaryRuleApplied { put_to_graveyard, .. } = e {
+            if let GameEvent::LegendaryRuleApplied {
+                put_to_graveyard, ..
+            } = e
+            {
                 Some(put_to_graveyard.len())
             } else {
                 None

@@ -10,6 +10,7 @@ pub mod error;
 pub mod game_object;
 pub mod hash;
 pub mod player;
+pub mod replacement_effect;
 pub mod stack;
 pub mod stubs;
 pub mod targeting;
@@ -18,7 +19,9 @@ pub mod types;
 pub mod zone;
 
 // Re-export primary types for convenient access via `use mtg_engine::state::*`
-pub use builder::{GameStateBuilder, ObjectSpec, PlayerBuilder};
+pub use builder::{
+    register_commander_zone_replacements, GameStateBuilder, ObjectSpec, PlayerBuilder,
+};
 pub use combat::{AttackTarget, CombatState};
 pub use continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -29,8 +32,12 @@ pub use game_object::{
     ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
+pub use replacement_effect::{
+    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger,
+};
 pub use stack::{StackObject, StackObjectKind};
-pub use stubs::{DelayedTrigger, PendingTrigger, ReplacementEffect};
+pub use stubs::{DelayedTrigger, PendingTrigger};
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
@@ -67,6 +74,11 @@ pub struct GameState {
     pub delayed_triggers: Vector<DelayedTrigger>,
     /// Active replacement effects (CR 614).
     pub replacement_effects: Vector<ReplacementEffect>,
+    /// Monotonic counter for generating ReplacementIds.
+    pub next_replacement_id: u64,
+    /// Zone changes waiting for player choice among replacement effects (CR 616.1).
+    /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
+    pub pending_zone_changes: Vector<PendingZoneChange>,
     /// Triggered abilities waiting to be put on the stack.
     pub pending_triggers: Vector<PendingTrigger>,
     /// Stack objects (spells and abilities on the stack).
@@ -96,6 +108,13 @@ impl GameState {
     /// Returns the current timestamp value (for continuous effect ordering).
     pub fn current_timestamp(&self) -> u64 {
         self.timestamp_counter
+    }
+
+    /// Generates the next unique ReplacementId, incrementing the counter.
+    pub fn next_replacement_id(&mut self) -> ReplacementId {
+        let id = ReplacementId(self.next_replacement_id);
+        self.next_replacement_id += 1;
+        id
     }
 
     /// Look up a player by ID.

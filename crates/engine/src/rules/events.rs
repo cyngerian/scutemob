@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::PlayerId;
+use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
 use crate::state::types::ManaColor;
 use crate::state::zone::ZoneId;
@@ -431,5 +432,39 @@ pub enum GameEvent {
         object_id: ObjectId,
         /// New ObjectId in the library (CR 400.7).
         new_lib_id: ObjectId,
+    },
+
+    // ── M8: Replacement/prevention effect events ────────────────────────
+    /// A replacement effect was applied to an event (CR 614).
+    ///
+    /// Emitted whenever a replacement effect intercepts and modifies an event
+    /// before it occurs. The `description` field provides a human-readable
+    /// summary of what was replaced.
+    ReplacementEffectApplied {
+        effect_id: ReplacementId,
+        description: String,
+    },
+
+    /// Multiple replacement effects apply to the same event and the affected
+    /// player must choose the order (CR 616.1).
+    ///
+    /// The engine pauses until a `Command::OrderReplacements` is received from
+    /// the choosing player. `choices` lists the applicable replacement effect
+    /// IDs in no particular order.
+    ReplacementChoiceRequired {
+        player: PlayerId,
+        event_description: String,
+        choices: Vec<ReplacementId>,
+    },
+
+    /// Damage was prevented by a prevention effect (CR 615).
+    ///
+    /// `prevented` is the amount actually prevented; `remaining` is the damage
+    /// that still gets through (original − prevented).
+    DamagePrevented {
+        source: ObjectId,
+        target: CombatDamageTarget,
+        prevented: u32,
+        remaining: u32,
     },
 }

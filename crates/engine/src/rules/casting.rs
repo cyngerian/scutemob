@@ -307,8 +307,8 @@ fn validate_object_satisfies_requirement(
         }
         // For TargetSpellWithFilter, also check the filter against the spell's characteristics.
         if let TargetRequirement::TargetSpellWithFilter(filter) = req {
-            let chars: Characteristics = calculate_characteristics(state, id)
-                .unwrap_or_else(|| obj.characteristics.clone());
+            let chars: Characteristics =
+                calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
             if !crate::effects::matches_filter(&chars, filter) {
                 return Err(GameStateError::InvalidTarget(format!(
                     "spell {:?} does not match the filter for {:?}",
@@ -320,8 +320,8 @@ fn validate_object_satisfies_requirement(
     }
 
     // Use calculate_characteristics to respect continuous effects (CR 613).
-    let chars: Characteristics = calculate_characteristics(state, id)
-        .unwrap_or_else(|| obj.characteristics.clone());
+    let chars: Characteristics =
+        calculate_characteristics(state, id).unwrap_or_else(|| obj.characteristics.clone());
 
     let on_battlefield = obj.zone == ZoneId::Battlefield;
     let is_creature = chars.card_types.contains(&CardType::Creature);

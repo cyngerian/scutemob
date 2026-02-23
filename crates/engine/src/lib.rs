@@ -16,11 +16,13 @@ pub use cards::{
 // Convenience re-exports of primary types
 pub use state::{
     AbilityInstance, AttackTarget, CardId, CardType, Characteristics, Color, CombatState,
-    ContinuousEffect, CounterType, EffectDuration, EffectFilter, EffectId, EffectLayer, GameObject,
-    GameState, GameStateBuilder, GameStateError, KeywordAbility, LayerModification, ManaAbility,
-    ManaColor, ManaCost, ManaPool, ObjectId, ObjectSpec, ObjectStatus, Phase, PlayerBuilder,
-    PlayerId, PlayerState, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
-    Target, TriggerEvent, TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
+    ContinuousEffect, CounterType, DamageTargetFilter, EffectDuration, EffectFilter, EffectId,
+    EffectLayer, GameObject, GameState, GameStateBuilder, GameStateError, KeywordAbility,
+    LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool, ObjectFilter, ObjectId,
+    ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId,
+    PlayerState, ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
+    SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType, Target, TriggerEvent,
+    TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
 };
 
 pub use rules::engine::{process_command, start_game};
@@ -28,3 +30,4 @@ pub use rules::events::{CombatDamageAssignment, CombatDamageTarget};
 pub use rules::layers::calculate_characteristics;
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{Command, GameEvent, LossReason};
+pub use state::builder::register_commander_zone_replacements;

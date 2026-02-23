@@ -31,7 +31,8 @@ fn test_untap_step_untaps_active_player_permanents() {
         .object(ObjectSpec::creature(p1, "Grizzly Bears", 2, 2).tapped())
         .object(ObjectSpec::artifact(p1, "Sol Ring").tapped())
         .object(ObjectSpec::land(p1, "Forest").tapped())
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (state, events) = start_game(state).unwrap();
 
@@ -65,7 +66,8 @@ fn test_untap_step_doesnt_affect_other_players() {
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Bears", 2, 2).tapped())
         .object(ObjectSpec::creature(p2, "Other Bears", 2, 2).tapped())
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (state, _) = start_game(state).unwrap();
 
@@ -92,7 +94,8 @@ fn test_draw_step_draws_card() {
         .at_step(Step::Upkeep)
         .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
         .object(ObjectSpec::card(p1, "Lightning Bolt").in_zone(ZoneId::Library(p1)))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Advance from Upkeep to Draw (pass all 4 players in Upkeep)
     let (state, events) = advance_to_step(state, Step::Draw);
@@ -120,7 +123,8 @@ fn test_first_player_skips_first_draw() {
     let p1 = PlayerId(1);
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (state, _) = start_game(state).unwrap();
 
@@ -187,7 +191,8 @@ fn test_cleanup_clears_damage() {
     let state = GameStateBuilder::four_player()
         .at_step(Step::End)
         .object(ObjectSpec::creature(p1, "Bears", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Mark damage on the creature
     let mut state = state;
@@ -229,7 +234,8 @@ fn test_mana_pools_empty_between_steps() {
                 colorless: 0,
             },
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Verify mana exists
     assert_eq!(state.player(p1).unwrap().mana_pool.total(), 3);
@@ -259,7 +265,8 @@ fn test_draw_card_skips_eliminated_player() {
         .add_player(p2)
         .at_step(Step::Draw)
         .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Mark P1 as conceded
     let mut state = state;
@@ -291,8 +298,13 @@ fn test_cleanup_discard_event_uses_hand_id() {
     let state = builder.build().unwrap();
 
     // Snapshot hand object IDs before cleanup
-    let hand_ids_before: std::collections::HashSet<_> =
-        state.zone(&ZoneId::Hand(p1)).unwrap().object_ids().iter().copied().collect();
+    let hand_ids_before: std::collections::HashSet<_> = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .iter()
+        .copied()
+        .collect();
 
     // Pass through End step to trigger cleanup
     let (state, events) = pass(state, PlayerId(1));
@@ -342,7 +354,8 @@ fn test_cleanup_sba_grants_priority_and_repeats() {
         .add_player(p2)
         .at_step(Step::End) // start at End; transition to Cleanup after passing
         .object(ObjectSpec::creature(p1, "Deathtouched", 1, 0)) // 0 toughness
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Pass through End step (all players pass → reach Cleanup, which auto-fires)
     let (state, events1) = pass(state, p1);
@@ -382,7 +395,10 @@ fn test_cleanup_sba_grants_priority_and_repeats() {
     // everyone passes through the cleanup priority window.
     if priority_given {
         // Allow the cleanup priority window to resolve (everyone passes)
-        let holder = state.turn.priority_holder.expect("should have priority holder");
+        let holder = state
+            .turn
+            .priority_holder
+            .expect("should have priority holder");
         let (state, _) = pass(state, holder);
         // After cleanup priority window, turn should advance or another cleanup fires
         // Either way, we just verify no panic / no infinite loop.

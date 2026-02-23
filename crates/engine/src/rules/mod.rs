@@ -12,6 +12,7 @@ pub mod lands;
 pub mod layers;
 pub mod mana;
 pub mod priority;
+pub mod replacement;
 pub mod resolution;
 pub mod sba;
 pub mod turn_actions;

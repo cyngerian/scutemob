@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
+use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
 
 /// A player action submitted to the engine.
@@ -109,5 +110,16 @@ pub enum Command {
         player: PlayerId,
         attacker: ObjectId,
         order: Vec<ObjectId>,
+    },
+
+    // ── M8: Replacement effect commands ─────────────────────────────────
+    /// Choose the order in which multiple replacement effects apply (CR 616.1).
+    ///
+    /// When multiple replacement effects would apply to the same event, the
+    /// affected player chooses the order. `ids` must be a permutation of the
+    /// IDs from the corresponding `ReplacementChoiceRequired` event.
+    OrderReplacements {
+        player: PlayerId,
+        ids: Vec<ReplacementId>,
     },
 }

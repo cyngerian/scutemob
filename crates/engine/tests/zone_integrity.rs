@@ -66,7 +66,8 @@ fn test_zone_integrity_with_objects() {
         .object(ObjectSpec::creature(p2, "Bird", 1, 1))
         .object(ObjectSpec::card(p1, "Lightning Bolt"))
         .object(ObjectSpec::land(p1, "Mountain").in_zone(ZoneId::Library(p1)))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_zone_integrity(&state);
     assert_eq!(state.total_objects(), 4);
@@ -201,7 +202,8 @@ fn test_objects_in_zone_query() {
         .object(ObjectSpec::creature(p1, "Bear", 2, 2))
         .object(ObjectSpec::creature(p1, "Bird", 1, 1))
         .object(ObjectSpec::card(p1, "Bolt").in_zone(ZoneId::Hand(p1)))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let battlefield_objects = state.objects_in_zone(&ZoneId::Battlefield);
     assert_eq!(battlefield_objects.len(), 2);

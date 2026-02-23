@@ -92,7 +92,8 @@ fn test_concede_last_player_wins() {
         .add_player(PlayerId(1))
         .add_player(PlayerId(2))
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (_state, events) = concede(state, PlayerId(2));
 
@@ -180,9 +181,9 @@ fn test_concede_active_player_with_all_others_passed_no_double_advance() {
     );
 
     // P2's new turn should be announced.
-    let turn_started = events.iter().any(|e| {
-        matches!(e, GameEvent::TurnStarted { player, .. } if *player == PlayerId(2))
-    });
+    let turn_started = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::TurnStarted { player, .. } if *player == PlayerId(2)));
     assert!(turn_started, "P2's turn should have started");
 }
 

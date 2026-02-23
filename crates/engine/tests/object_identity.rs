@@ -11,7 +11,8 @@ fn test_400_7_zone_change_new_object_id() {
     let p1 = PlayerId(1);
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Grizzly Bears", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Find the bear on the battlefield
     let battlefield_objs = state.objects_in_zone(&ZoneId::Battlefield);
@@ -45,7 +46,8 @@ fn test_400_7_old_snapshot_preserved() {
                 .tapped()
                 .with_counter(CounterType::PlusOnePlusOne, 3),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let battlefield_objs = state.objects_in_zone(&ZoneId::Battlefield);
     let old_id = battlefield_objs[0].id;
@@ -81,7 +83,8 @@ fn test_400_7_characteristics_preserved() {
                     ..ManaCost::default()
                 }),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let battlefield_objs = state.objects_in_zone(&ZoneId::Battlefield);
     let old_id = battlefield_objs[0].id;
@@ -120,7 +123,8 @@ fn test_400_7_status_counters_attachments_reset() {
                 .tapped()
                 .with_counter(CounterType::PlusOnePlusOne, 5),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -156,7 +160,8 @@ fn test_400_7_controller_resets_to_owner() {
 
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Stolen Bear", 2, 2).controlled_by(p2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -182,7 +187,8 @@ fn test_400_7_card_id_persists() {
 
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::artifact(p1, "Sol Ring").with_card_id(card_id.clone()))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -204,7 +210,8 @@ fn test_400_7_token_status_preserved() {
     let p1 = PlayerId(1);
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Saproling", 1, 1).token())
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 
@@ -222,7 +229,8 @@ fn test_400_7_new_timestamp() {
     let p1 = PlayerId(1);
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Bear", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
     let old_timestamp = state.object(old_id).unwrap().timestamp;
@@ -252,7 +260,8 @@ fn test_multiple_zone_transitions() {
     let p1 = PlayerId(1);
     let mut state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(p1, "Phoenix", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let id1 = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
 

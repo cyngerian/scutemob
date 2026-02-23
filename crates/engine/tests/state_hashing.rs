@@ -18,11 +18,13 @@ use mtg_engine::{
 fn test_hash_determinism_identical_states() {
     let state1 = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -46,7 +48,8 @@ fn test_hash_determinism_private_identical_states() {
 fn test_hash_determinism_repeated_calls() {
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let h1 = state.public_state_hash();
     let h2 = state.public_state_hash();
@@ -65,7 +68,8 @@ fn test_hash_sensitivity_life_total() {
     let state1 = GameStateBuilder::four_player().build().unwrap();
     let state2 = GameStateBuilder::four_player()
         .player_life(PlayerId(1), 39)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -76,12 +80,14 @@ fn test_hash_sensitivity_active_player() {
     let state1 = GameStateBuilder::four_player()
         .active_player(PlayerId(1))
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .active_player(PlayerId(2))
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -91,11 +97,13 @@ fn test_hash_sensitivity_active_player() {
 fn test_hash_sensitivity_step() {
     let state1 = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .at_step(Step::Upkeep)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -106,7 +114,8 @@ fn test_hash_sensitivity_battlefield_object() {
     let state1 = GameStateBuilder::four_player().build().unwrap();
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -116,11 +125,13 @@ fn test_hash_sensitivity_battlefield_object() {
 fn test_hash_sensitivity_creature_stats() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 2, 2))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 3, 3))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -131,7 +142,8 @@ fn test_hash_sensitivity_poison_counters() {
     let state1 = GameStateBuilder::four_player().build().unwrap();
     let state2 = GameStateBuilder::four_player()
         .player_poison(PlayerId(1), 3)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -141,11 +153,13 @@ fn test_hash_sensitivity_poison_counters() {
 fn test_hash_sensitivity_tapped_status() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::land(PlayerId(1), "Forest"))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::land(PlayerId(1), "Forest").tapped())
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -155,14 +169,16 @@ fn test_hash_sensitivity_tapped_status() {
 fn test_hash_sensitivity_counters() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Hydra", 0, 0))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(
             ObjectSpec::creature(PlayerId(1), "Hydra", 0, 0)
                 .with_counter(CounterType::PlusOnePlusOne, 3),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -172,11 +188,13 @@ fn test_hash_sensitivity_counters() {
 fn test_hash_sensitivity_colors() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 2, 2).with_colors(vec![Color::Green]))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::creature(PlayerId(1), "Bear", 2, 2).with_colors(vec![Color::Red]))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
 }
@@ -201,7 +219,8 @@ fn test_hash_public_excludes_library_order() {
                 .with_types(vec![CardType::Sorcery])
                 .in_zone(ZoneId::Library(PlayerId(1))),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // State 2: cards in library in reverse order
     let state2 = GameStateBuilder::four_player()
@@ -215,7 +234,8 @@ fn test_hash_public_excludes_library_order() {
                 .with_types(vec![CardType::Instant])
                 .in_zone(ZoneId::Library(PlayerId(1))),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Both have 2 cards in library → same public hash
     assert_eq!(state1.public_state_hash(), state2.public_state_hash());
@@ -233,11 +253,13 @@ fn test_hash_public_excludes_library_order() {
 fn test_hash_public_excludes_hand_contents() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::card(PlayerId(1), "Lightning Bolt").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::card(PlayerId(1), "Counterspell").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Both have 1 card in hand → same public hash
     assert_eq!(state1.public_state_hash(), state2.public_state_hash());
@@ -255,7 +277,8 @@ fn test_hash_private_player_specific() {
     let state = GameStateBuilder::four_player()
         .object(ObjectSpec::card(PlayerId(1), "Card A").in_zone(ZoneId::Hand(PlayerId(1))))
         .object(ObjectSpec::card(PlayerId(2), "Card B").in_zone(ZoneId::Hand(PlayerId(2))))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_ne!(
         state.private_state_hash(PlayerId(1)),
@@ -268,12 +291,14 @@ fn test_hash_private_player_specific() {
 fn test_hash_public_includes_hand_size() {
     let state1 = GameStateBuilder::four_player()
         .object(ObjectSpec::card(PlayerId(1), "Card A").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let state2 = GameStateBuilder::four_player()
         .object(ObjectSpec::card(PlayerId(1), "Card A").in_zone(ZoneId::Hand(PlayerId(1))))
         .object(ObjectSpec::card(PlayerId(1), "Card B").in_zone(ZoneId::Hand(PlayerId(1))))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Different hand sizes → different public hash
     assert_ne!(state1.public_state_hash(), state2.public_state_hash());
@@ -299,7 +324,8 @@ mod property_tests {
             .object(ObjectSpec::card(PlayerId(2), "Card B").in_zone(ZoneId::Library(PlayerId(2))))
             .object(ObjectSpec::card(PlayerId(3), "Card C").in_zone(ZoneId::Library(PlayerId(3))))
             .object(ObjectSpec::card(PlayerId(4), "Card D").in_zone(ZoneId::Library(PlayerId(4))))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let state2 = GameStateBuilder::four_player()
             .at_step(Step::Upkeep)
@@ -308,7 +334,8 @@ mod property_tests {
             .object(ObjectSpec::card(PlayerId(2), "Card B").in_zone(ZoneId::Library(PlayerId(2))))
             .object(ObjectSpec::card(PlayerId(3), "Card C").in_zone(ZoneId::Library(PlayerId(3))))
             .object(ObjectSpec::card(PlayerId(4), "Card D").in_zone(ZoneId::Library(PlayerId(4))))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         // Verify initial hashes match
         assert_eq!(
@@ -348,13 +375,15 @@ mod property_tests {
             .at_step(Step::Upkeep)
             .first_turn_of_game()
             .object(ObjectSpec::card(PlayerId(1), "Card A").in_zone(ZoneId::Library(PlayerId(1))))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let state2 = GameStateBuilder::four_player()
             .at_step(Step::Upkeep)
             .first_turn_of_game()
             .object(ObjectSpec::card(PlayerId(1), "Card A").in_zone(ZoneId::Library(PlayerId(1))))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let mut s1 = state1;
         let mut s2 = state2;

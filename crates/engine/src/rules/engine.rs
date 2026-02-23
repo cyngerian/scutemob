@@ -16,6 +16,7 @@ use super::events::GameEvent;
 use super::lands;
 use super::mana;
 use super::priority::{self, PriorityResult};
+use super::replacement;
 use super::resolution;
 use super::sba;
 use super::turn_actions;
@@ -104,6 +105,11 @@ pub fn process_command(
         } => {
             validate_player_active(&state, player)?;
             let events = combat::handle_order_blockers(&mut state, player, attacker, order)?;
+            all_events.extend(events);
+        }
+        Command::OrderReplacements { player, ids } => {
+            validate_player_active(&state, player)?;
+            let events = replacement::handle_order_replacements(&mut state, player, ids)?;
             all_events.extend(events);
         }
     }

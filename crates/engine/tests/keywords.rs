@@ -61,7 +61,8 @@ fn test_702_3_defender_cannot_attack() {
         )
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let wall_id = find_object(&state, "Wall of Stone");
 
@@ -97,7 +98,8 @@ fn test_302_6_summoning_sickness_prevents_attack() {
         .object(ObjectSpec::creature(p1, "Fresh Bear", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
     let creature_id = find_object(&state, "Fresh Bear");
     state
         .objects
@@ -137,7 +139,8 @@ fn test_702_10_haste_bypasses_summoning_sickness() {
         .object(ObjectSpec::creature(p1, "Goblin Guide", 2, 2).with_keyword(KeywordAbility::Haste))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let goblin_id = find_object(&state, "Goblin Guide");
     // Set summoning sickness — haste should bypass it.
@@ -177,7 +180,8 @@ fn test_302_6_summoning_sickness_cleared_after_untap() {
         .object(ObjectSpec::creature(p1, "Grizzly Bears", 2, 2))
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let bear_id = find_object(&state, "Grizzly Bears");
     state
@@ -244,7 +248,8 @@ fn test_702_9_flying_cannot_be_blocked_by_ground() {
         .object(ObjectSpec::creature(p2, "Grizzly Bears", 2, 2))
         .at_step(Step::DeclareBlockers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let pegasus_id = find_object(&state, "Pegasus");
     let bear_id = find_object(&state, "Grizzly Bears");
@@ -286,7 +291,8 @@ fn test_702_17_reach_can_block_flying() {
         .object(ObjectSpec::creature(p2, "Giant Spider", 2, 4).with_keyword(KeywordAbility::Reach))
         .at_step(Step::DeclareBlockers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let air_id = find_object(&state, "Air Elemental");
     let spider_id = find_object(&state, "Giant Spider");
@@ -326,7 +332,8 @@ fn test_702_9_flying_can_block_flying() {
         .object(ObjectSpec::creature(p2, "Eagle", 2, 2).with_keyword(KeywordAbility::Flying))
         .at_step(Step::DeclareBlockers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let dragon_id = find_object(&state, "Dragon");
     let eagle_id = find_object(&state, "Eagle");
@@ -382,7 +389,8 @@ fn test_702_18_shroud_prevents_targeting() {
         .object(bolt_spec.in_zone(mtg_engine::ZoneId::Hand(p1)))
         .at_step(Step::PreCombatMain)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Give p1 red mana
     let mut state = state;
@@ -437,7 +445,8 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
         .object(bolt_spec.in_zone(mtg_engine::ZoneId::Hand(p2)))
         .at_step(Step::PreCombatMain)
         .active_player(p2)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let mut state = state;
     state
@@ -482,7 +491,8 @@ fn test_702_12_indestructible_survives_lethal_damage() {
                 .with_keyword(KeywordAbility::Indestructible)
                 .with_damage(11), // lethal damage
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -514,7 +524,8 @@ fn test_702_12_indestructible_dies_to_zero_toughness() {
             ObjectSpec::creature(p1, "Zero Creature", 1, 0) // toughness 0
                 .with_keyword(KeywordAbility::Indestructible),
         )
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let events = check_and_apply_sbas(&mut state);
 
@@ -545,7 +556,8 @@ fn test_702_110_menace_requires_two_blockers() {
         .object(ObjectSpec::creature(p2, "Single Blocker", 2, 2))
         .at_step(Step::DeclareBlockers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let menace_id = find_object(&state, "Menace Creature");
     let blocker_id = find_object(&state, "Single Blocker");
@@ -587,7 +599,8 @@ fn test_702_110_menace_allows_two_blockers() {
         .object(ObjectSpec::creature(p2, "Blocker B", 1, 1))
         .at_step(Step::DeclareBlockers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let menace_id = find_object(&state, "Menace Creature");
     let blocker_a = find_object(&state, "Blocker A");
@@ -632,7 +645,8 @@ fn test_702_15_lifelink_grants_life_on_combat_damage() {
         )
         .at_step(Step::DeclareAttackers)
         .active_player(p1)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let lifelink_id = find_object(&state, "Lifelink Creature");
     let initial_life = state.players[&p1].life_total;

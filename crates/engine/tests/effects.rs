@@ -162,7 +162,8 @@ fn test_effect_deal_damage_to_player() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let initial_p2_life = state.players[&p2].life_total;
     let mut state = state;
@@ -235,7 +236,8 @@ fn test_effect_deal_damage_to_creature() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let mut state = state;
     state
@@ -309,7 +311,8 @@ fn test_effect_exile_and_gain_life() {
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .with_registry(registry)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let initial_p2_life = state.players[&p2].life_total;
     let mut state = state;
@@ -481,7 +484,8 @@ fn test_effect_sequence() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .build().unwrap();
+        .build()
+        .unwrap();
     let source = ObjectId(0);
 
     // Sequence: gain 5 life then lose 2 life → net +3.
@@ -560,11 +564,9 @@ fn test_move_zone_to_graveyard_emits_correct_event() {
     let p1 = p(1);
     let mut state = GameStateBuilder::new()
         .add_player(p1)
-        .object(
-            ObjectSpec::creature(p1, "Goblin", 1, 1)
-                .in_zone(ZoneId::Battlefield),
-        )
-        .build().unwrap();
+        .object(ObjectSpec::creature(p1, "Goblin", 1, 1).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
 
     let goblin_id = find_object(&state, "Goblin");
     let source = ObjectId(0);
@@ -599,7 +601,9 @@ fn test_move_zone_to_graveyard_emits_correct_event() {
         has_put_in_graveyard,
         "MoveZone to Graveyard should emit ObjectPutInGraveyard, not ObjectExiled"
     );
-    let has_exiled = events.iter().any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
+    let has_exiled = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
     assert!(
         !has_exiled,
         "MoveZone to Graveyard must NOT emit ObjectExiled"
@@ -619,11 +623,9 @@ fn test_move_zone_to_hand_emits_correct_event() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .object(
-            ObjectSpec::creature(p2, "Dragon", 5, 5)
-                .in_zone(ZoneId::Battlefield),
-        )
-        .build().unwrap();
+        .object(ObjectSpec::creature(p2, "Dragon", 5, 5).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
 
     let dragon_id = find_object(&state, "Dragon");
     let source = ObjectId(0);
@@ -653,7 +655,9 @@ fn test_move_zone_to_hand_emits_correct_event() {
         has_returned,
         "MoveZone to Hand should emit ObjectReturnedToHand"
     );
-    let has_exiled = events.iter().any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
+    let has_exiled = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::ObjectExiled { .. }));
     assert!(!has_exiled, "MoveZone to Hand must NOT emit ObjectExiled");
 }
 
@@ -671,10 +675,9 @@ fn test_move_zone_uses_owner_player_target() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .object(
-            ObjectSpec::card(p1, "Token").in_zone(ZoneId::Battlefield),
-        )
-        .build().unwrap();
+        .object(ObjectSpec::card(p1, "Token").in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
 
     let token_id = find_object(&state, "Token");
     let source = ObjectId(0);
@@ -721,7 +724,8 @@ fn test_deal_damage_negative_amount_clamped_to_zero() {
     let mut state = GameStateBuilder::new()
         .add_player(p1)
         .add_player(p2)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let initial_life = state.players[&p2].life_total;
     let source = ObjectId(0);
@@ -737,8 +741,7 @@ fn test_deal_damage_negative_amount_clamped_to_zero() {
     execute_effect(&mut state, &effect, &mut ctx2);
 
     assert_eq!(
-        state.players[&p2].life_total,
-        initial_life,
+        state.players[&p2].life_total, initial_life,
         "Negative damage amount must be clamped to 0, causing no life loss"
     );
 }
@@ -755,7 +758,8 @@ fn test_foreach_each_opponent_applies_to_all_opponents() {
         .add_player(p1)
         .add_player(p2)
         .add_player(p3)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let p2_initial = state.players[&p2].life_total;
     let p3_initial = state.players[&p3].life_total;
@@ -786,8 +790,7 @@ fn test_foreach_each_opponent_applies_to_all_opponents() {
         "Opponent p3 should lose 2 life"
     );
     assert_eq!(
-        state.players[&p1].life_total,
-        p1_initial,
+        state.players[&p1].life_total, p1_initial,
         "Controller p1 should NOT lose life"
     );
 }
@@ -802,11 +805,9 @@ fn test_search_library_enters_battlefield_tapped() {
     let p1 = p(1);
     let mut state = GameStateBuilder::new()
         .add_player(p1)
-        .object(
-            ObjectSpec::creature(p1, "Forest Bear", 2, 2)
-                .in_zone(ZoneId::Library(p1)),
-        )
-        .build().unwrap();
+        .object(ObjectSpec::creature(p1, "Forest Bear", 2, 2).in_zone(ZoneId::Library(p1)))
+        .build()
+        .unwrap();
 
     let source = ObjectId(0);
 
@@ -991,11 +992,13 @@ fn test_effect_counter_spell_removes_from_stack() {
     );
 
     // Spell card moved to graveyard.
-    let in_graveyard = state
-        .objects
-        .iter()
-        .any(|(_, obj)| obj.zone == ZoneId::Graveyard(p2) && obj.characteristics.name == "Lightning Bolt");
-    assert!(in_graveyard, "countered spell card should go to owner's graveyard");
+    let in_graveyard = state.objects.iter().any(|(_, obj)| {
+        obj.zone == ZoneId::Graveyard(p2) && obj.characteristics.name == "Lightning Bolt"
+    });
+    assert!(
+        in_graveyard,
+        "countered spell card should go to owner's graveyard"
+    );
 
     // SpellCountered event emitted.
     assert!(

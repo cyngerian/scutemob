@@ -33,7 +33,7 @@ use crate::state::game_object::{Characteristics, GameObject, ObjectId, ObjectSta
 use crate::state::player::PlayerId;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
-use crate::state::zone::ZoneId;
+use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
 // ── Effect execution context ──────────────────────────────────────────────────
@@ -286,19 +286,53 @@ fn execute_effect_inner(
                         .map(|o| o.owner)
                         .unwrap_or(ctx.controller);
 
-                    if let Ok((new_id, _old)) =
-                        state.move_object_to_zone(id, ZoneId::Graveyard(owner))
-                    {
-                        if card_types.contains(&CardType::Creature) {
-                            events.push(GameEvent::CreatureDied {
-                                object_id: id,
-                                new_grave_id: new_id,
-                            });
-                        } else {
-                            events.push(GameEvent::PermanentDestroyed {
-                                object_id: id,
-                                new_grave_id: new_id,
-                            });
+                    // CR 614: Check replacement effects before moving to graveyard.
+                    let action = crate::rules::replacement::check_zone_change_replacement(
+                        state,
+                        id,
+                        ZoneType::Battlefield,
+                        ZoneType::Graveyard,
+                        owner,
+                        &std::collections::HashSet::new(),
+                    );
+
+                    let dest = match &action {
+                        crate::rules::replacement::ZoneChangeAction::Redirect {
+                            to,
+                            events: repl_events,
+                            ..
+                        } => {
+                            events.extend(repl_events.clone());
+                            *to
+                        }
+                        _ => ZoneId::Graveyard(owner),
+                    };
+
+                    if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                        match dest {
+                            ZoneId::Exile => {
+                                events.push(GameEvent::ObjectExiled {
+                                    player: owner,
+                                    object_id: id,
+                                    new_exile_id: new_id,
+                                });
+                            }
+                            ZoneId::Command(_) => {
+                                // Commander redirected — no destruction event.
+                            }
+                            _ => {
+                                if card_types.contains(&CardType::Creature) {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: id,
+                                        new_grave_id: new_id,
+                                    });
+                                } else {
+                                    events.push(GameEvent::PermanentDestroyed {
+                                        object_id: id,
+                                        new_grave_id: new_id,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -310,17 +344,71 @@ fn execute_effect_inner(
             for (idx_opt, resolved) in targets {
                 match resolved {
                     ResolvedTarget::Object(id) => {
-                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, ZoneId::Exile) {
-                            // Update remap so subsequent effects (e.g. GainLife with
-                            // PowerOf(DeclaredTarget)) can find the new ObjectId.
+                        let owner = state
+                            .objects
+                            .get(&id)
+                            .map(|o| o.owner)
+                            .unwrap_or(ctx.controller);
+
+                        // CR 614: Check replacement effects before exiling.
+                        let from_zone_type = state
+                            .objects
+                            .get(&id)
+                            .map(|o| match o.zone {
+                                ZoneId::Battlefield => ZoneType::Battlefield,
+                                ZoneId::Graveyard(_) => ZoneType::Graveyard,
+                                ZoneId::Hand(_) => ZoneType::Hand,
+                                ZoneId::Library(_) => ZoneType::Library,
+                                ZoneId::Stack => ZoneType::Stack,
+                                ZoneId::Exile => ZoneType::Exile,
+                                ZoneId::Command(_) => ZoneType::Command,
+                            })
+                            .unwrap_or(ZoneType::Battlefield);
+
+                        let action = crate::rules::replacement::check_zone_change_replacement(
+                            state,
+                            id,
+                            from_zone_type,
+                            ZoneType::Exile,
+                            owner,
+                            &std::collections::HashSet::new(),
+                        );
+
+                        let dest = match &action {
+                            crate::rules::replacement::ZoneChangeAction::Redirect {
+                                to,
+                                events: repl_events,
+                                ..
+                            } => {
+                                events.extend(repl_events.clone());
+                                *to
+                            }
+                            _ => ZoneId::Exile,
+                        };
+
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
                             if let Some(idx) = idx_opt {
                                 ctx.target_remaps.insert(idx, new_id);
                             }
-                            events.push(GameEvent::ObjectExiled {
-                                player: ctx.controller,
-                                object_id: id,
-                                new_exile_id: new_id,
-                            });
+                            match dest {
+                                ZoneId::Command(_) => {
+                                    // Commander redirected — no exile event.
+                                }
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: ctx.controller,
+                                        object_id: id,
+                                        new_exile_id: new_id,
+                                    });
+                                }
+                                _ => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: ctx.controller,
+                                        object_id: id,
+                                        new_exile_id: new_id,
+                                    });
+                                }
+                            }
                         }
                     }
                     ResolvedTarget::Player(_) => {
@@ -556,7 +644,11 @@ fn execute_effect_inner(
         }
 
         // ── Library ───────────────────────────────────────────────────────
-        Effect::PutOnLibrary { player, count, from } => {
+        Effect::PutOnLibrary {
+            player,
+            count,
+            from,
+        } => {
             // CR 701.20: Put N cards from the source zone onto the top of a library.
             // M7 deterministic: takes the first N objects (by ObjectId ascending).
             let n = resolve_amount(state, count, ctx).max(0) as usize;
@@ -998,7 +1090,11 @@ fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext)
                 .next()
                 .unwrap_or(0)
         }
-        EffectAmount::CardCount { zone, player: _, filter } => {
+        EffectAmount::CardCount {
+            zone,
+            player: _,
+            filter,
+        } => {
             // MR-M7-07: count objects in the specified zone matching the filter.
             // Resolve the zone target using the current controller context.
             let zone_id = resolve_zone_target(zone, state, ctx);

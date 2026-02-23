@@ -13,7 +13,8 @@ fn test_priority_active_player_gets_priority_first() {
     let state = GameStateBuilder::four_player()
         .active_player(PlayerId(2))
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(state.turn.priority_holder, Some(PlayerId(2)));
 }
@@ -23,7 +24,8 @@ fn test_priority_active_player_gets_priority_first() {
 fn test_priority_apnap_order() {
     let state = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Player 1 (active) has priority
     assert_eq!(state.turn.priority_holder, Some(PlayerId(1)));
@@ -49,7 +51,8 @@ fn test_priority_apnap_order() {
 fn test_priority_all_pass_step_advances() {
     let state = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let (state, _) = pass(state, PlayerId(1)).unwrap();
     let (state, _) = pass(state, PlayerId(2)).unwrap();
@@ -70,7 +73,8 @@ fn test_priority_all_pass_step_advances() {
 fn test_priority_wrong_player_error() {
     let state = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Player 1 has priority, but player 2 tries to pass
     let result = pass(state, PlayerId(2));
@@ -89,7 +93,8 @@ fn test_priority_wrong_player_error() {
 fn test_priority_eliminated_player_skipped() {
     let state = GameStateBuilder::four_player()
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Concede player 2
     let (state, _) = process_command(
@@ -136,7 +141,10 @@ fn test_priority_no_priority_during_untap() {
 #[test]
 /// CR 514.3 — no priority during Cleanup step (normally)
 fn test_priority_no_priority_during_cleanup() {
-    let state = GameStateBuilder::four_player().at_step(Step::End).build().unwrap();
+    let state = GameStateBuilder::four_player()
+        .at_step(Step::End)
+        .build()
+        .unwrap();
 
     // Pass through End step — all 4 players pass
     let (state, _) = pass(state, PlayerId(1)).unwrap();

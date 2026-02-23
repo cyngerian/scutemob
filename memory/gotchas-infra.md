@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M7
+# Infra & Testing Gotchas — Last verified: M8
 
 ## Rust / im-rs Gotchas
 
@@ -35,6 +35,8 @@
   filters must resolve against the stack object ID.
 - **`TargetFilter` uses `colors` for required colors, `exclude_colors` for forbidden colors.**
   Using the wrong field silently passes all targets or rejects all targets.
+- **`CardEffectTarget` is the re-exported name** for `cards::EffectTarget` in `lib.rs`. Tests must
+  use `mtg_engine::CardEffectTarget`, not `mtg_engine::EffectTarget` (which doesn't exist at root).
 
 ## Script Harness Gotchas
 

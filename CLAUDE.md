@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M8 — Replacement & Prevention Effects
-- **Status**: Fix phase complete (all 9 sessions done); 336 tests passing; ready to start M8
+- **Status**: Session 3 of 6 complete (zone-change interception + commander die replacement); 383 tests passing
 - **Last Updated**: 2026-02-22
 
 ### What Exists (M7 complete, includes M0-M6)
@@ -140,6 +140,21 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ---
 
+## Agents
+
+Six project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
+
+| Agent | Model | Trigger | Purpose |
+|-------|-------|---------|---------|
+| `milestone-reviewer` | Opus | "review milestone M8" | Structured code review with HIGH/MEDIUM/LOW findings |
+| `rules-implementation-planner` | Opus | "plan M8 implementation" | Session plan with architecture, CR refs, session breakdown |
+| `fix-session-runner` | Sonnet | "run fix session 3" | Execute 5-8 fixes, run tests, close issues |
+| `card-definition-author` | Sonnet | "add card definition for X" | Translate oracle text to CardDefinition DSL |
+| `cr-coverage-auditor` | Sonnet | "check CR coverage for 614" | Audit test/script coverage for CR sections |
+| `game-script-generator` | Sonnet | "generate script for X interaction" | JSON game scripts for replay harness |
+
+---
+
 ## Session Startup
 
 - Use `/start-session` for orientation — it runs only `git log --oneline -5`
@@ -170,10 +185,10 @@ When completing a milestone:
   - Update the cross-milestone issue index and statistics
 - [ ] Commit: `M<N>: milestone complete — <summary>`
 - [ ] **Code review → fix phase** (if any HIGH or MEDIUM findings):
-  - Run the code review with **Opus 4.6** (`/model opus` or start a new Opus session)
-  - Opus authors a new `memory/m<N>-session-plan.md` grouping issues into sessions of 5-8 fixes each,
-    ordered by subsystem, with exact file:line locations and fix descriptions
-  - Work through fix sessions with **Sonnet 4.6** using the same per-session workflow:
+  - Run the `milestone-reviewer` agent (Opus) or invoke manually
+  - Run the `rules-implementation-planner` agent (Opus) to author `memory/m<N>-session-plan.md`
+    grouping issues into sessions of 5-8 fixes each
+  - Work through fix sessions with the `fix-session-runner` agent (Sonnet):
     tests → `cargo test --all` → `cargo clippy -- -D warnings` → close issues in reviews doc → commit
   - When all sessions complete, update "Current State" and advance to the next milestone
   - LOW-only findings do not require a fix phase; collect them in the reviews doc and address opportunistically

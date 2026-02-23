@@ -76,7 +76,8 @@ fn test_activate_ability_tap_places_on_stack() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -143,7 +144,8 @@ fn test_activate_ability_tap_cost_taps_source() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -186,7 +188,8 @@ fn test_activate_ability_pays_mana_cost() {
         .add_player_with(p1, |pb| pb.mana(pool))
         .object(creature)
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -236,7 +239,8 @@ fn test_activate_ability_not_priority_holder_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -275,7 +279,8 @@ fn test_activate_ability_wrong_controller_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
     // Give priority to p2.
     state.turn.priority_holder = Some(p2);
 
@@ -311,7 +316,8 @@ fn test_activate_ability_invalid_index_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -349,7 +355,8 @@ fn test_activate_ability_already_tapped_fails() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -393,7 +400,8 @@ fn test_activate_ability_insufficient_mana_fails() {
         .add_player_with(p1, |pb| pb.mana(pool))
         .object(creature)
         .at_step(Step::PreCombatMain)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -435,7 +443,8 @@ fn test_activated_ability_resolves_after_all_pass() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let source_id = *state
         .zones
@@ -494,7 +503,8 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature_card)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let card_id = *state
         .zones
@@ -553,7 +563,8 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
         .at_step(Step::PreCombatMain)
         .object(watcher)
         .object(creature_card)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     // Give p2 priority.
     let mut state = state;
@@ -624,7 +635,8 @@ fn test_triggered_ability_apnap_ordering() {
         .object(watcher_p1)
         .object(watcher_p2)
         .object(creature_card)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let card_id = *state
         .zones
@@ -694,7 +706,8 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(conditional_creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let card_id = *state
         .zones
@@ -747,7 +760,8 @@ fn test_triggered_ability_intervening_if_true_triggers() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(conditional_creature)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let card_id = *state
         .zones
@@ -801,7 +815,8 @@ fn test_triggered_ability_resolves_after_all_pass() {
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(creature_card)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let card_id = *state
         .zones

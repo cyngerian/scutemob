@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M7
+# Rules Gotchas — Last verified: M8
 
 ## MTG Rules Gotchas
 

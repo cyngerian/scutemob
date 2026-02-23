@@ -125,8 +125,10 @@ pub fn handle_declare_attackers(
                         "a player cannot attack themselves".into(),
                     ));
                 }
-                let target_player =
-                    state.players.get(pid).ok_or(GameStateError::PlayerNotFound(*pid))?;
+                let target_player = state
+                    .players
+                    .get(pid)
+                    .ok_or(GameStateError::PlayerNotFound(*pid))?;
                 if target_player.has_lost || target_player.has_conceded {
                     return Err(GameStateError::InvalidAttackTarget(format!(
                         "player {pid:?} is eliminated"
@@ -315,8 +317,7 @@ pub fn handle_declare_blockers(
             }
             Some(AttackTarget::Planeswalker(pw_id)) => {
                 // Valid only if the planeswalker is controlled by the declaring player.
-                let pw_controller =
-                    state.objects.get(&pw_id).map(|o| o.controller);
+                let pw_controller = state.objects.get(&pw_id).map(|o| o.controller);
                 if pw_controller != Some(player) {
                     return Err(GameStateError::CrossPlayerBlock {
                         blocker: *blocker_id,

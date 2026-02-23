@@ -130,11 +130,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .filter(|t| is_target_legal(state, t))
                                 .cloned()
                                 .collect();
-                            let mut ctx = EffectContext::new(
-                                controller,
-                                source_object,
-                                legal_targets,
-                            );
+                            let mut ctx =
+                                EffectContext::new(controller, source_object, legal_targets);
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
