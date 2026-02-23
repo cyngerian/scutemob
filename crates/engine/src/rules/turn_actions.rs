@@ -50,6 +50,11 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         if let Some(obj) = state.objects.get_mut(id) {
             // CR 302.6: Clear summoning sickness for permanents the player now controls.
             obj.has_summoning_sickness = false;
+            // CR 701.15a: Goad expires at the start of the goaded creature's controller's
+            // next turn (the untap step). Clear the goaded_by list now.
+            if !obj.goaded_by.is_empty() {
+                obj.goaded_by = im::Vector::new();
+            }
             // CR 502.2: Untap tapped permanents.
             if obj.status.tapped {
                 obj.status.tapped = false;

@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9
+# Rules Gotchas — Last verified: M9.4
 
 ## MTG Rules Gotchas
 
@@ -7,6 +7,13 @@
   object. This is the #1 source of bugs in MTG engines.
 - **Replacement effects are NOT triggers.** They modify events as they happen. They don't
   use the stack. Getting this wrong breaks the entire event system.
+- **Storm copies are NOT cast** (CR 702.40c). "Whenever you cast" triggers do NOT fire for
+  storm copies. Storm copies also cannot themselves trigger storm. Cascade works the same way —
+  the free cast from cascade IS cast (triggers fire), but copies made by storm are not.
+- **Protection prevents DEBT from matching sources** (CR 702.16): Damage, Enchanting/Equipping,
+  Blocking, Targeting. It does NOT stop non-targeted effects ("destroy all creatures" hits
+  protected creatures). The single interception point in the engine is `apply_damage_prevention`
+  as the first check.
 - **SBAs are checked as a batch, not individually.** All applicable SBAs happen simultaneously.
   Then triggers from all of them go on the stack together (in APNAP order).
 - **Layer dependency check must handle circular dependencies.** CR 613.8k says fall back to

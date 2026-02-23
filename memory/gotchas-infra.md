@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9
+# Infra & Testing Gotchas — Last verified: M9.4
 
 ## Rust / im-rs Gotchas
 
@@ -29,6 +29,26 @@
 - **`EffectAmount::PowerOf(target)` returns 0 if `target.power == None`.** Creatures built
   with `ObjectSpec::card()` have `power: None`; `enrich_spec_from_def` must propagate
   `def.power`/`def.toughness` to fix spells like Swords to Plowshares.
+
+## ETB Site Gotchas (M9.4)
+
+- **Two ETB sites exist: `resolution.rs` and `lands.rs`.** Any new hook that fires on
+  "permanent enters battlefield" must be added to BOTH. Currently: `apply_self_etb_from_definition`,
+  `apply_global_etb_replacements`, `register_static_continuous_effects`,
+  `fire_when_enters_triggered_effects`. Forgetting `lands.rs` means lands don't benefit.
+- **`EffectFilter::AttachedCreature` resolves at characteristic-calc time** via `source.attached_to`.
+  The equipment source must be on the battlefield with `attached_to` set; if unattached, filter
+  matches nothing. Do NOT pass an `ObjectId` — the source reference is implicit.
+- **`EffectFilter::DeclaredTarget { index }` is a placeholder** — it must be resolved to
+  `SingleObject` at `ApplyContinuousEffect` execution time in `effects/mod.rs`. Storing it
+  unresolved in `state.continuous_effects` is a bug (the layer loop treats it as non-matching).
+- **`is_copy: bool` on `StackObject`** — spell copies skip the zone-move step in `resolution.rs`.
+  Without this flag, copies try to move the source card (which is on the battlefield/graveyard,
+  not the stack), causing a panic or incorrect state.
+- **`loop_detection_hashes` is NOT part of the public state hash.** It's bookkeeping state, not
+  game state. Hashing it would cause distributed peers to disagree on the public hash mid-game.
+- **`cards_drawn_this_turn` and `spells_cast_this_turn` on `PlayerState`** — both reset in
+  `reset_turn_state`. If you add a new per-turn counter, add it to `reset_turn_state` too.
 
 ## Targeting API Gotchas
 

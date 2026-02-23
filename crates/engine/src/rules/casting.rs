@@ -229,34 +229,72 @@ pub fn handle_cast_spell(
 
     // CR 702.40a: Track spells cast this turn for storm count.
     // Increment after the spell enters the stack (it is now a spell cast this turn).
+    // NOTE: The increment happens here, before the storm trigger is queued, so that
+    // `storm_count()` (which uses `spells_cast_this_turn - 1`) yields the correct
+    // count of OTHER spells cast before this one. If this ordering changes, storm
+    // count would be wrong.
     if let Some(ps) = state.players.get_mut(&player) {
         ps.spells_cast_this_turn += 1;
     }
 
-    // CR 702.40a: Storm — when you cast a spell with storm, copy it for each
-    // other spell cast before it this turn. Copies are NOT cast; they go directly
-    // onto the stack above the original and each may choose new targets (deferred).
+    // CR 702.40a: Storm — "When you cast this spell, copy it for each other spell
+    // cast before it this turn." Storm is a triggered ability (CR 702.40a). It goes
+    // on the stack above the original spell and resolves through normal priority.
+    // The storm count is captured now (at trigger time) because spells_cast_this_turn
+    // could change before the trigger resolves (e.g., cascade casting another spell).
     if chars.keywords.contains(&KeywordAbility::Storm) {
         let count = crate::rules::copy::storm_count(state, player);
-        let copy_events =
-            crate::rules::copy::create_storm_copies(state, stack_entry_id, player, count);
-        events.extend(copy_events);
+        let trigger_id = state.next_object_id();
+        let trigger_obj = StackObject {
+            id: trigger_id,
+            controller: player,
+            kind: StackObjectKind::StormTrigger {
+                source_object: new_card_id,
+                original_stack_id: stack_entry_id,
+                storm_count: count,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+        };
+        state.stack_objects.push_back(trigger_obj);
+        events.push(GameEvent::AbilityTriggered {
+            controller: player,
+            source_object_id: new_card_id,
+            stack_object_id: trigger_id,
+        });
     }
 
-    // CR 702.85: Cascade — when you cast a spell with cascade, exile cards from
-    // the top of your library until you exile a nonland card with mana value
-    // strictly less than this spell's mana value. You may cast that card without
-    // paying its mana cost. Put the rest on the bottom of your library in a
-    // random order. Cascade is a triggered ability that triggers on cast.
+    // CR 702.85a: Cascade — "When you cast this spell, exile cards from the top of
+    // your library until you exile a nonland card whose mana value is less than this
+    // spell's mana value. You may cast that card without paying its mana cost."
+    // Cascade is a triggered ability (CR 702.85a). It goes on the stack above the
+    // original spell and resolves through normal priority. The mana value is captured
+    // now (at trigger time) per CR 702.85a.
     if chars.keywords.contains(&KeywordAbility::Cascade) {
         let spell_mv = chars
             .mana_cost
             .as_ref()
             .map(|mc| mc.mana_value())
             .unwrap_or(0);
-        let (cascade_events, _cast_card) =
-            crate::rules::copy::resolve_cascade(state, player, spell_mv);
-        events.extend(cascade_events);
+        let trigger_id = state.next_object_id();
+        let trigger_obj = StackObject {
+            id: trigger_id,
+            controller: player,
+            kind: StackObjectKind::CascadeTrigger {
+                source_object: new_card_id,
+                spell_mana_value: spell_mv,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+        };
+        state.stack_objects.push_back(trigger_obj);
+        events.push(GameEvent::AbilityTriggered {
+            controller: player,
+            source_object_id: new_card_id,
+            stack_object_id: trigger_id,
+        });
     }
 
     // CR 903.8: Emit commander-specific event when casting from command zone.

@@ -12,8 +12,8 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameStateBuilder, KeywordAbility, ManaCost, ObjectSpec,
-    PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
+    Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost,
+    ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -21,6 +21,19 @@ fn p1() -> PlayerId {
 }
 fn p2() -> PlayerId {
     PlayerId(2)
+}
+
+/// Pass priority for all listed players once.
+fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut current = state;
+    for &p in players {
+        let (s, ev) = process_command(current, Command::PassPriority { player: p })
+            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", p, e));
+        current = s;
+        all_events.extend(ev);
+    }
+    (current, all_events)
 }
 
 /// Build a cascade sorcery definition.
@@ -207,7 +220,7 @@ fn test_cascade_exiles_until_hit() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    let (state, events) = process_command(
+    let (state, cast_events) = process_command(
         state,
         Command::CastSpell {
             player: p1,
@@ -217,37 +230,68 @@ fn test_cascade_exiles_until_hit() {
     )
     .unwrap();
 
-    // CR 702.85b: After cascade, the qualifying card (Small Spell) should be on the stack.
-    // The cascade spell itself is also on the stack.
-    // Stack should have: cascade spell + cascaded spell = 2 entries.
-    assert!(
-        state.stack_objects.len() >= 2,
-        "Cascade spell + cascaded spell should both be on stack; got {} stack objects",
+    // CR 702.85a: After cast, the cascade trigger is on the stack above the spell.
+    // Stack has: [cascade spell (bottom), cascade trigger (top)] = 2 entries.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: cascade spell + cascade trigger on stack; got {} stack objects",
         state.stack_objects.len()
     );
 
-    // A CascadeCast event should have fired.
-    let cascade_cast_count = events
+    // At cast time: 1 SpellCast (cascade spell) + 1 AbilityTriggered (cascade trigger).
+    // No CascadeCast yet — that fires when the trigger resolves.
+    let spell_cast_count = cast_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
+        .count();
+    assert_eq!(
+        spell_cast_count, 1,
+        "1 SpellCast event at cast time (the cascade spell itself); got {}",
+        spell_cast_count
+    );
+    let cascade_cast_at_cast = cast_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CascadeCast { .. }))
+        .count();
+    assert_eq!(
+        cascade_cast_at_cast, 0,
+        "No CascadeCast event at cast time (trigger hasn't resolved); got {}",
+        cascade_cast_at_cast
+    );
+
+    // Resolve the cascade trigger (pass priority for both players).
+    let (state, resolve_events) = pass_all(state, &[p1, p2]);
+
+    // CR 702.85b: After trigger resolves, the qualifying card (Small Spell) is on the stack.
+    // Stack: [cascade spell (bottom), cascaded spell (top)] = 2 entries.
+    assert!(
+        state.stack_objects.len() >= 2,
+        "Cascade spell + cascaded spell should both be on stack after trigger resolves; got {}",
+        state.stack_objects.len()
+    );
+
+    // CascadeCast fires during trigger resolution.
+    let cascade_cast_count = resolve_events
         .iter()
         .filter(|e| matches!(e, GameEvent::CascadeCast { .. }))
         .count();
     assert_eq!(
         cascade_cast_count, 1,
-        "Exactly 1 CascadeCast event should fire; got {}",
+        "Exactly 1 CascadeCast event when trigger resolves; got {}",
         cascade_cast_count
     );
 
-    // A SpellCast event for the cascaded spell should be present.
+    // SpellCast for the cascaded spell fires during trigger resolution.
     // (cascade IS a cast per CR 702.85c)
-    let spell_cast_count = events
+    let spell_cast_on_resolve = resolve_events
         .iter()
         .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
         .count();
-    // 1 for the cascade spell itself + 1 for the cascaded spell
     assert_eq!(
-        spell_cast_count, 2,
-        "2 SpellCast events (cascade spell + cascaded spell); got {}",
-        spell_cast_count
+        spell_cast_on_resolve, 1,
+        "1 SpellCast event when trigger resolves (cascaded spell); got {}",
+        spell_cast_on_resolve
     );
 }
 
@@ -328,7 +372,7 @@ fn test_cascade_skips_lands() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    let (state, events) = process_command(
+    let (state, cast_events) = process_command(
         state,
         Command::CastSpell {
             player: p1,
@@ -338,31 +382,53 @@ fn test_cascade_skips_lands() {
     )
     .unwrap();
 
-    // CascadeCast should have fired (the Small Spell was found after skipping the land).
-    let cascade_cast = events
+    // CR 702.85a: After cast, the cascade trigger is on the stack above the spell.
+    // Stack has: [cascade spell, cascade trigger] = 2 entries.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: cascade spell + cascade trigger on stack; got {}",
+        state.stack_objects.len()
+    );
+
+    // At cast time: no CascadeCast yet (trigger hasn't resolved).
+    let cascade_cast_at_cast = cast_events
+        .iter()
+        .find(|e| matches!(e, GameEvent::CascadeCast { .. }));
+    assert!(
+        cascade_cast_at_cast.is_none(),
+        "No CascadeCast at cast time (trigger hasn't resolved); events: {:?}",
+        cast_events
+    );
+
+    // Resolve the cascade trigger.
+    let (state, resolve_events) = pass_all(state, &[p1, p2]);
+
+    // CascadeCast should fire when the trigger resolves (Small Spell found after skipping land).
+    let cascade_cast = resolve_events
         .iter()
         .find(|e| matches!(e, GameEvent::CascadeCast { .. }));
     assert!(
         cascade_cast.is_some(),
-        "CascadeCast should fire after skipping the land; events: {:?}",
-        events
+        "CascadeCast should fire when trigger resolves; events: {:?}",
+        resolve_events
     );
 
-    // The land should have been exiled (it was in CascadeExiled).
-    let exiled_event = events
+    // The land should have been exiled (CascadeExiled fires during trigger resolution).
+    let exiled_event = resolve_events
         .iter()
         .find(|e| matches!(e, GameEvent::CascadeExiled { .. }));
     assert!(
         exiled_event.is_some(),
-        "CascadeExiled event should fire for the exiled land; events: {:?}",
-        events
+        "CascadeExiled event should fire during trigger resolution; events: {:?}",
+        resolve_events
     );
 
-    // The stack should have 2 entries (cascade spell + cascaded sorcery).
+    // After trigger resolves: [cascade spell (bottom), cascaded sorcery (top)] = 2 entries.
     assert_eq!(
         state.stack_objects.len(),
         2,
-        "Cascade spell + cascaded sorcery should be on stack"
+        "After trigger resolves: cascade spell + cascaded sorcery on stack"
     );
 }
 
@@ -460,7 +526,7 @@ fn test_cascade_combined_mana_value_skip() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    let (state, events) = process_command(
+    let (state, cast_events) = process_command(
         state,
         Command::CastSpell {
             player: p1,
@@ -470,20 +536,42 @@ fn test_cascade_combined_mana_value_skip() {
     )
     .unwrap();
 
+    // CR 702.85a: After cast, cascade trigger is on the stack above the spell.
+    // Stack has [cascade spell, cascade trigger] = 2 entries.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: cascade spell + cascade trigger; got {}",
+        state.stack_objects.len()
+    );
+
+    // No CascadeCast at cast time.
+    let cascade_cast_at_cast = cast_events
+        .iter()
+        .find(|e| matches!(e, GameEvent::CascadeCast { .. }));
+    assert!(
+        cascade_cast_at_cast.is_none(),
+        "No CascadeCast at cast time; events: {:?}",
+        cast_events
+    );
+
+    // Resolve the cascade trigger.
+    let (state, resolve_events) = pass_all(state, &[p1, p2]);
+
     // CascadeCast should fire (found Qualifying MV3 after skipping SplitSim MV4).
-    let cascade_cast = events
+    let cascade_cast = resolve_events
         .iter()
         .find(|e| matches!(e, GameEvent::CascadeCast { .. }));
     assert!(
         cascade_cast.is_some(),
-        "CascadeCast should fire for Qualifying MV3; events: {:?}",
-        events
+        "CascadeCast should fire when trigger resolves; events: {:?}",
+        resolve_events
     );
 
     // Both cascade spell and cascaded spell are on stack.
     assert!(
         state.stack_objects.len() >= 2,
-        "Cascade spell + cascaded spell should be on stack"
+        "Cascade spell + cascaded spell should be on stack after trigger resolves"
     );
 
     // CR 708.4 note: when split cards are implemented, add a test here that

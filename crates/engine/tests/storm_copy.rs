@@ -72,7 +72,9 @@ fn storm_sorcery_def() -> CardDefinition {
 /// CR 702.40a — Storm with storm count 3: casting a storm spell when 3 other
 /// spells have been cast this turn creates 3 copies on the stack.
 ///
-/// After casting: stack should have the original + 3 copies = 4 stack objects.
+/// CR 702.40a: Storm is a triggered ability. After cast, the storm trigger goes
+/// on the stack above the original spell. When the trigger resolves, 3 copies
+/// are created. Final stack: 1 original + 3 copies = 4 stack objects.
 /// Each copy emits a SpellCopied event, NOT a SpellCast event.
 #[test]
 fn test_storm_creates_copies() {
@@ -120,7 +122,7 @@ fn test_storm_creates_copies() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    let (state, events) = process_command(
+    let (state, cast_events) = process_command(
         state,
         Command::CastSpell {
             player: p1,
@@ -130,33 +132,47 @@ fn test_storm_creates_copies() {
     )
     .unwrap();
 
-    // CR 702.40a: 3 prior spells → 3 copies.
+    // CR 702.40a: After casting, the storm trigger is on the stack above the spell.
+    // Stack has: [storm spell (bottom), storm trigger (top)] = 2 objects.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: storm spell + storm trigger on stack; got {}",
+        state.stack_objects.len()
+    );
+
+    // CastSpell events: 1 SpellCast + 1 AbilityTriggered (storm trigger), 0 SpellCopied.
+    let spell_cast_count = cast_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
+        .count();
+    assert_eq!(
+        spell_cast_count, 1,
+        "Exactly 1 SpellCast event at cast time; got {}",
+        spell_cast_count
+    );
+
+    // Resolve the storm trigger (passes priority for both players).
+    // The trigger is on top; all players passing resolves it.
+    let (state, resolve_events) = pass_all(state, &[p1, p2]);
+
+    // CR 702.40a: 3 prior spells → 3 copies created when trigger resolves.
     // Stack should have: 1 original + 3 copies = 4 stack objects.
     assert_eq!(
         state.stack_objects.len(),
         4,
-        "Storm with 3 prior spells should create 3 copies (4 total on stack); got {}",
+        "After trigger resolves: storm spell + 3 copies = 4 total; got {}",
         state.stack_objects.len()
     );
 
-    // Exactly 3 SpellCopied events and 1 SpellCast event.
-    let spell_cast_count = events
-        .iter()
-        .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
-        .count();
-    let spell_copied_count = events
+    // Exactly 3 SpellCopied events emitted when the trigger resolved.
+    let spell_copied_count = resolve_events
         .iter()
         .filter(|e| matches!(e, GameEvent::SpellCopied { .. }))
         .count();
-
-    assert_eq!(
-        spell_cast_count, 1,
-        "Exactly 1 SpellCast event (the storm spell itself); got {}",
-        spell_cast_count
-    );
     assert_eq!(
         spell_copied_count, 3,
-        "Exactly 3 SpellCopied events (storm copies); got {}",
+        "Exactly 3 SpellCopied events (storm copies) when trigger resolves; got {}",
         spell_copied_count
     );
 }
@@ -222,8 +238,21 @@ fn test_storm_copies_resolve_independently() {
     )
     .unwrap();
 
-    // Stack has original + 2 copies = 3 entries.
-    assert_eq!(state.stack_objects.len(), 3, "Should be 3 stack objects");
+    // CR 702.40a: After cast, stack has [storm spell, storm trigger] = 2 entries.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: storm spell + storm trigger = 2 stack objects"
+    );
+
+    // Resolve the storm trigger: 2 prior spells → 2 copies created.
+    // Stack becomes [storm spell, copy1, copy2] = 3 entries.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.stack_objects.len(),
+        3,
+        "After trigger resolves: 3 stack objects"
+    );
 
     // All 3 should have distinct IDs.
     let ids: Vec<ObjectId> = state.stack_objects.iter().map(|s| s.id).collect();
@@ -237,7 +266,7 @@ fn test_storm_copies_resolve_independently() {
         ids
     );
 
-    // Resolve all 3 stack objects (pass priority twice per player to resolve each).
+    // Resolve all 3 remaining stack objects (pass priority for both players each time).
     // After each resolve: stack shrinks by 1.
     let (state, _) = pass_all(state, &[p1, p2]);
     let first_resolve_size = state.stack_objects.len();
@@ -313,7 +342,8 @@ fn test_storm_count_resets_each_turn() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    // Cast with 0 prior spells → 0 copies → stack has only 1 entry.
+    // Cast with 0 prior spells → 0 copies. After cast, stack has:
+    // [storm spell (bottom), storm trigger (top)] = 2 objects.
     let (state, _events) = process_command(
         state,
         Command::CastSpell {
@@ -324,10 +354,12 @@ fn test_storm_count_resets_each_turn() {
     )
     .unwrap();
 
+    // CR 702.40a: Storm trigger goes on the stack even with 0 prior spells.
+    // When it resolves, it creates 0 copies (no-op).
     assert_eq!(
         state.stack_objects.len(),
-        1,
-        "Storm with 0 prior spells → 0 copies → 1 stack object; got {}",
+        2,
+        "After cast: storm spell + storm trigger = 2 stack objects; got {}",
         state.stack_objects.len()
     );
 
@@ -335,6 +367,15 @@ fn test_storm_count_resets_each_turn() {
     assert_eq!(
         state.players[&p1].spells_cast_this_turn, 1,
         "spells_cast_this_turn should be 1 after casting the storm spell"
+    );
+
+    // Resolve the storm trigger: 0 prior spells → 0 copies → stack has 1 object.
+    let (state, _resolve_events) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "After trigger resolves with 0 copies: 1 stack object remains; got {}",
+        state.stack_objects.len()
     );
 }
 
@@ -391,7 +432,7 @@ fn test_spell_copy_is_not_cast() {
         .map(|(id, _)| *id)
         .unwrap();
 
-    let (state, events) = process_command(
+    let (state, cast_events) = process_command(
         state,
         Command::CastSpell {
             player: p1,
@@ -401,29 +442,27 @@ fn test_spell_copy_is_not_cast() {
     )
     .unwrap();
 
-    // CR 707.10c: Copies are NOT cast — exactly 1 SpellCast event.
-    let cast_events: Vec<_> = events
+    // CR 707.10c: Copies are NOT cast — exactly 1 SpellCast event at cast time.
+    // The storm trigger goes on the stack; copies appear when the trigger resolves.
+    let spell_cast_count = cast_events
         .iter()
         .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
-        .collect();
+        .count();
     assert_eq!(
-        cast_events.len(),
-        1,
+        spell_cast_count, 1,
         "Only 1 SpellCast event (the original cast); got {} SpellCast events.\nEvents: {:?}",
-        cast_events.len(),
-        events
+        spell_cast_count, cast_events
     );
 
-    // SpellCopied events for the 2 copies.
-    let copied_events: Vec<_> = events
+    // No SpellCopied at cast time — copies only appear when the storm trigger resolves.
+    let copied_at_cast = cast_events
         .iter()
         .filter(|e| matches!(e, GameEvent::SpellCopied { .. }))
-        .collect();
+        .count();
     assert_eq!(
-        copied_events.len(),
-        2,
-        "2 SpellCopied events for the 2 storm copies; got {}",
-        copied_events.len()
+        copied_at_cast, 0,
+        "No SpellCopied events at cast time (trigger hasn't resolved yet); got {}",
+        copied_at_cast
     );
 
     // spells_cast_this_turn is incremented for the cast, NOT for copies.
@@ -433,10 +472,44 @@ fn test_spell_copy_is_not_cast() {
         "spells_cast_this_turn should be 3 (2 prior + 1 this cast); copies don't increment"
     );
 
+    // Stack has: [storm spell (bottom), storm trigger (top)] = 2.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "After cast: storm spell + storm trigger = 2 stack objects"
+    );
+
+    // Resolve the storm trigger: creates 2 copies.
+    let (state, resolve_events) = pass_all(state, &[p1, p2]);
+
+    // CR 707.10c: 2 SpellCopied events (copies are NOT cast — no SpellCast for copies).
+    let copied_events: Vec<_> = resolve_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::SpellCopied { .. }))
+        .collect();
+    assert_eq!(
+        copied_events.len(),
+        2,
+        "2 SpellCopied events for the 2 storm copies when trigger resolves; got {}",
+        copied_events.len()
+    );
+
+    // No additional SpellCast events from the copies.
+    let new_cast_events: Vec<_> = resolve_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::SpellCast { .. }))
+        .collect();
+    assert_eq!(
+        new_cast_events.len(),
+        0,
+        "No SpellCast events when storm trigger resolves (copies are not cast); got {}",
+        new_cast_events.len()
+    );
+
     // Stack should have 3 entries: original + 2 copies.
     assert_eq!(
         state.stack_objects.len(),
         3,
-        "Stack: original + 2 copies = 3"
+        "After trigger resolves: original + 2 copies = 3 stack objects"
     );
 }

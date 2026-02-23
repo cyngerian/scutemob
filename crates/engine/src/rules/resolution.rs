@@ -324,6 +324,43 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.85a: Cascade trigger resolves — run the cascade procedure.
+        StackObjectKind::CascadeTrigger {
+            source_object: _,
+            spell_mana_value,
+        } => {
+            let controller = stack_obj.controller;
+            let (cascade_events, _cast_id) =
+                crate::rules::copy::resolve_cascade(state, controller, spell_mana_value);
+            events.extend(cascade_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.40a: Storm trigger resolves — create copies of the original spell.
+        StackObjectKind::StormTrigger {
+            source_object: _,
+            original_stack_id,
+            storm_count,
+        } => {
+            let controller = stack_obj.controller;
+            let copy_events = crate::rules::copy::create_storm_copies(
+                state,
+                original_stack_id,
+                controller,
+                storm_count,
+            );
+            events.extend(copy_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -412,7 +449,10 @@ pub fn counter_stack_object(
                 source_object_id: new_id,
             });
         }
-        StackObjectKind::ActivatedAbility { .. } | StackObjectKind::TriggeredAbility { .. } => {
+        StackObjectKind::ActivatedAbility { .. }
+        | StackObjectKind::TriggeredAbility { .. }
+        | StackObjectKind::CascadeTrigger { .. }
+        | StackObjectKind::StormTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

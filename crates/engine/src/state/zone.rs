@@ -182,4 +182,19 @@ impl Zone {
             Zone::Unordered(_) => None,
         }
     }
+
+    /// Insert an object at the front (position 0) of an ordered zone.
+    ///
+    /// For ordered zones this places the object at the "bottom" (the end
+    /// furthest from the top, which is the last element). Used by cascade
+    /// to put exiled cards on the bottom of the library (CR 702.85a).
+    /// For unordered zones, behaves identically to `insert`.
+    pub fn push_front(&mut self, id: ObjectId) {
+        match self {
+            Zone::Ordered(v) => v.insert(0, id),
+            Zone::Unordered(s) => {
+                s.insert(id);
+            }
+        }
+    }
 }

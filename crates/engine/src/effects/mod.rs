@@ -963,15 +963,19 @@ fn execute_effect_inner(
             execute_effect_inner(state, or_else, ctx, events);
         }
 
-        // CR 701.38: Goad — mark the target creature as goaded. The goaded creature
-        // must attack each combat if able and must attack a player other than the
-        // goading player if able. M9.4: mark via a continuous effect on the object.
-        // Enforcement of attack restrictions is deferred to a future session.
+        // CR 701.15a: Goad — mark the target creature as goaded until the start of
+        // the goaded creature controller's next turn. The goaded creature must attack
+        // each combat if able (CR 701.15b) and must attack a player other than the
+        // goading player if able (CR 701.15b). The goading player is stored in
+        // `goaded_by` on the GameObject for combat enforcement.
         Effect::Goad { target } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    if state.objects.contains_key(&id) {
+                    if let Some(obj) = state.objects.get_mut(&id) {
+                        if !obj.goaded_by.contains(&ctx.controller) {
+                            obj.goaded_by.push_back(ctx.controller);
+                        }
                         events.push(GameEvent::Goaded {
                             object_id: id,
                             goading_player: ctx.controller,
@@ -1354,6 +1358,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
         enchants_creatures: false,
+        goaded_by: im::Vector::new(),
     }
 }
 

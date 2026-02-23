@@ -434,6 +434,7 @@ impl HashInto for GameObject {
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
         self.enchants_creatures.hash_into(hasher);
+        self.goaded_by.hash_into(hasher);
     }
 }
 
@@ -951,6 +952,24 @@ impl HashInto for StackObjectKind {
                 2u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
+            }
+            StackObjectKind::CascadeTrigger {
+                source_object,
+                spell_mana_value,
+            } => {
+                3u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                spell_mana_value.hash_into(hasher);
+            }
+            StackObjectKind::StormTrigger {
+                source_object,
+                original_stack_id,
+                storm_count,
+            } => {
+                4u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+                storm_count.hash_into(hasher);
             }
         }
     }

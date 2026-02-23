@@ -73,4 +73,34 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         ability_index: usize,
     },
+
+    /// CR 702.85a: Cascade triggered ability on the stack.
+    ///
+    /// Cascade is a triggered ability that triggers when the cascade spell is
+    /// cast. When this trigger resolves, the cascade procedure runs: exile
+    /// cards until a qualifying nonland card with mana value strictly less than
+    /// `spell_mana_value` is found, cast it for free, put the rest on the
+    /// bottom of the library.
+    ///
+    /// `spell_mana_value` is captured at trigger time (when the cascade spell
+    /// is cast) because continuous effects could change the mana value later.
+    CascadeTrigger {
+        source_object: ObjectId,
+        spell_mana_value: u32,
+    },
+
+    /// CR 702.40a: Storm triggered ability on the stack.
+    ///
+    /// Storm is a triggered ability that triggers when the storm spell is cast.
+    /// When this trigger resolves, `storm_count` copies of the original spell
+    /// are created on the stack. Storm copies are NOT cast (CR 702.40c) —
+    /// they do not trigger "whenever you cast a spell."
+    ///
+    /// `storm_count` and `original_stack_id` are captured at trigger time
+    /// (when the storm spell is cast).
+    StormTrigger {
+        source_object: ObjectId,
+        original_stack_id: ObjectId,
+        storm_count: u32,
+    },
 }

@@ -271,6 +271,8 @@ impl GameState {
             // until the beginning of its controller's next untap step.
             has_summoning_sickness: to == ZoneId::Battlefield,
             enchants_creatures: old_object.enchants_creatures,
+            // CR 400.7: goad state is not preserved across zone changes.
+            goaded_by: im::Vector::new(),
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -281,6 +283,75 @@ impl GameState {
         to_zone.insert(new_id);
 
         // Insert new object
+        self.objects.insert(new_id, new_object);
+
+        Ok((new_id, old_object))
+    }
+
+    /// Move an object to the bottom of an ordered zone (CR 702.85a).
+    ///
+    /// Identical to `move_object_to_zone` but inserts the new object at
+    /// position 0 (the bottom) instead of appending to the back (the top).
+    /// For unordered zones, behaves the same as `move_object_to_zone`.
+    pub fn move_object_to_bottom_of_zone(
+        &mut self,
+        object_id: ObjectId,
+        to: ZoneId,
+    ) -> Result<(ObjectId, GameObject), GameStateError> {
+        // Validate destination zone before mutating.
+        if !self.zones.contains_key(&to) {
+            return Err(GameStateError::ZoneNotFound(to));
+        }
+
+        let old_object = self
+            .objects
+            .get(&object_id)
+            .ok_or(GameStateError::ObjectNotFound(object_id))?
+            .clone();
+        let from = old_object.zone;
+
+        // Remove from old zone.
+        let from_zone = self
+            .zones
+            .get_mut(&from)
+            .ok_or(GameStateError::ZoneNotFound(from))?;
+        if !from_zone.remove(&object_id) {
+            return Err(GameStateError::ObjectNotInZone(object_id, from));
+        }
+
+        // Remove old object from objects map.
+        self.objects.remove(&object_id);
+
+        // Create new object with fresh ID (CR 400.7).
+        let new_id = self.next_object_id();
+        let new_object = GameObject {
+            id: new_id,
+            card_id: old_object.card_id.clone(),
+            characteristics: old_object.characteristics.clone(),
+            controller: old_object.owner,
+            owner: old_object.owner,
+            zone: to,
+            status: ObjectStatus::default(),
+            counters: OrdMap::new(),
+            attachments: Vector::new(),
+            attached_to: None,
+            damage_marked: 0,
+            deathtouch_damage: false,
+            is_token: old_object.is_token,
+            timestamp: self.timestamp_counter,
+            has_summoning_sickness: to == ZoneId::Battlefield,
+            enchants_creatures: old_object.enchants_creatures,
+            goaded_by: im::Vector::new(),
+        };
+
+        // Insert at the front (= bottom) of the destination zone.
+        let to_zone = self
+            .zones
+            .get_mut(&to)
+            .ok_or(GameStateError::ZoneNotFound(to))?;
+        to_zone.push_front(new_id);
+
+        // Insert new object.
         self.objects.insert(new_id, new_object);
 
         Ok((new_id, old_object))

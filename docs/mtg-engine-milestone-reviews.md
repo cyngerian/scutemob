@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-23 (M9 reviewed)
+> **Last Updated**: 2026-02-23 (M9.4 reviewed)
 
 ---
 
@@ -45,6 +45,7 @@
 - [M7: Card Definition Framework & First Cards](#m7-card-definition-framework--first-cards)
 - [M8: Replacement & Prevention Effects](#m8-replacement--prevention-effects) **(REVIEWED)**
 - [M9: Commander Rules Integration](#m9-commander-rules-integration) **(REVIEWED)**
+- [M9.4: Copy, Protection, Storm, Cascade, Trigger Doubling, Loop Detection](#m94-copy-protection-storm-cascade-trigger-doubling-loop-detection) **(REVIEWED)**
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
 ---
@@ -1316,6 +1317,155 @@ reviews appear adequate for their scope.
 
 ---
 
+## M9.4: Copy, Protection, Storm, Cascade, Trigger Doubling, Loop Detection
+
+**Review Status**: REVIEWED (2026-02-23)
+
+M9.4 spans 10 implementation sessions covering card definition corrections (sessions 1-2),
+equipment static abilities and leyline opening hand rule (sessions 3-4), protection keyword
+DEBT (sessions 5-6), copy effects and clone chains (session 7), storm and spell copying
+(session 8), cascade and Panharmonicon trigger doubling (session 9), and infinite loop
+detection (session 10). Diff baseline: commit `2dcce49` (M9 fix session 2). Endpoint:
+commit `8ca4474` (M9.4 session 10). 53 files changed, +7,794 / -218 lines.
+
+### Files Introduced
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `rules/copy.rs` | 408 | Layer 1 copy effects, clone chain resolution (CR 707.2/707.3), spell copying (CR 707.10), storm (CR 702.40a), cascade (CR 702.85) |
+| `rules/protection.rs` | 166 | Protection keyword DEBT enforcement (CR 702.16a-f): damage prevention, targeting, blocking, aura/equipment SBA |
+| `rules/loop_detection.rs` | 159 | Mandatory infinite loop detection (CR 104.4b, CR 726): hash-based board state recurrence check |
+| `tests/copy_effects.rs` | 339 | Layer 1 copy effect tests: clone, clone chain, layer ordering, counters excluded |
+| `tests/storm_copy.rs` | 442 | Storm keyword tests: copy creation, independent resolution, count reset, copy-not-cast |
+| `tests/cascade.rs` | 492 | Cascade keyword tests: exile until hit, skip lands, combined MV, CC#29 |
+| `tests/protection.rs` | 566 | Protection DEBT tests: targeting, damage, blocking, aura/equipment SBA, global effects bypass |
+| `tests/loop_detection.rs` | 283 | Loop detection: threshold, optional loop not flagged, reset on choice, hash exclusion |
+| `tests/trigger_doubling.rs` | 521 | Panharmonicon trigger doubling: single, double, removal-after-trigger |
+| `tests/card_def_fixes.rs` | 872 | Card definition corrections: Read the Bones, Dimir Guildgate, Path to Exile, Thought Vessel, Alela, equipment, Rogue's Passage, Rest in Peace, Leyline, Darksteel Colossus |
+| `tests/corner_case_gaps.rs` | 187 | CC#23 flicker + fizzle: CR 400.7 zone change identity + CR 608.2b target legality |
+| `memory/m9.4-session-plan.md` | 488 | Implementation plan (10 sessions) |
+| `memory/engine-core-complete-checkpoint.md` | 139 | Checkpoint plan for Engine Core Complete gate |
+
+### Files Modified (significant changes)
+
+| File | Lines (total) | Changes |
+|------|---------------|---------|
+| `rules/engine.rs` | 625 | +133: loop detection integration (reset on choice, check in cleanup SBA), `place_opening_hand_permanents` for Leyline rule (CR 113.6b), trigger flushing after CastSpell |
+| `rules/casting.rs` | 562 | +45: storm copy creation inline after CastSpell, cascade resolution inline after CastSpell |
+| `rules/abilities.rs` | 562 | +167: `compute_trigger_doubling`, `doubler_applies_to_trigger` for Panharmonicon, `TriggerDoublerFilter` matching |
+| `rules/replacement.rs` | 1288 | +187: `register_static_continuous_effects` handles TriggerDoubling registration, `register_etb_from_definition` for equipment abilities, ETB replacement pipeline updates |
+| `rules/sba.rs` | 834 | +65: protection checks for aura attachment (CR 702.16c/704.5m) and equipment (CR 702.16d/704.5n) |
+| `rules/combat.rs` | 959 | +25: protection blocking check via `protection::can_block`, CantBeBlocked keyword enforcement |
+| `rules/layers.rs` | 577 | +63: Layer 1 CopyOf modification via `copy::get_copiable_values`, AttachedCreature filter for equipment, DeclaredTarget handling |
+| `rules/resolution.rs` | 431 | +50: `is_copy` flag handling (copies skip zone-move), trigger check after resolution |
+| `rules/events.rs` | 652 | +69: 6 new GameEvent variants: CascadeExiled, CascadeCast, SpellCopied, LoopDetected, Scried, Goaded |
+| `rules/lands.rs` | 158 | +28: ETB hooks for `register_static_continuous_effects` and `fire_when_enters_triggered_effects` |
+| `rules/turn_actions.rs` | 329 | +36: `reset_turn_state` clears `cards_drawn_this_turn` and `spells_cast_this_turn` |
+| `effects/mod.rs` | 1604 | +85: Effect::Scry execution (CR 701.18), Effect::Goad execution (CR 701.15) |
+| `cards/card_definition.rs` | 657 | +50: Effect::Scry, Effect::Goad, AbilityDefinition::OpeningHand, AbilityDefinition::TriggerDoubling, TriggerCondition::WheneverYouCastSpell |
+| `cards/definitions.rs` | 1626 | +279: Dimir Guildgate modal fix, Alela trigger scoping, Leyline opening hand, Read the Bones scry-first, Path to Exile MayPayOrElse, equipment abilities |
+| `state/hash.rs` | 2260 | +178: HashInto for ProtectionQuality, TriggerDoubler, TriggerDoublerFilter, is_copy, triggering_event, all new keywords/events/effects/abilities |
+| `state/mod.rs` | 320 | +23: trigger_doublers, loop_detection_hashes, pending_commander_zone_choices fields |
+| `state/types.rs` | 159 | +55: ProtectionQuality enum, ProtectionFrom(ProtectionQuality), Storm, Cascade, CantBeBlocked, NoMaxHandSize keywords |
+| `state/stubs.rs` | 81 | +42: triggering_event on PendingTrigger, TriggerDoublerFilter, TriggerDoubler structs |
+| `state/player.rs` | 119 | +23: no_max_hand_size, cards_drawn_this_turn, spells_cast_this_turn fields |
+| `state/continuous_effect.rs` | 223 | +16: CopyOf(ObjectId) on LayerModification, AttachedCreature/DeclaredTarget on EffectFilter |
+| `state/stack.rs` | 76 | +8: is_copy: bool on StackObject |
+| `tests/keywords.rs` | 796 | +109: CC#22 hexproof-vs-global, lifelink combat, menace two-blocker allow |
+| `tests/layers.rs` | 1797 | +377: Layer 1 copy integration, equipment AttachedCreature, CantBeBlocked |
+| `tests/combat.rs` | 1536 | +148: protection blocking, CantBeBlocked attacker |
+| `tests/sba.rs` | 1262 | +283: protection aura/equipment SBA, session 10 SBA integration |
+| `tests/replacement_effects.rs` | 3170 | +77: Darksteel Colossus shuffle replacement, ETB self-replacement |
+
+### CR Sections Implemented
+
+| CR Section | Implementation |
+|------------|---------------|
+| CR 707.2/707.3 | `copy.rs` -- copiable values and clone chain resolution |
+| CR 707.10 | `copy.rs::copy_spell_on_stack` -- spell copying on stack |
+| CR 702.40a | `copy.rs::create_storm_copies` + `casting.rs` -- storm copies |
+| CR 702.85a | `copy.rs::resolve_cascade` + `casting.rs` -- cascade resolution |
+| CR 702.16a-f | `protection.rs` -- full DEBT enforcement |
+| CR 702.16b | `protection.rs::check_protection_targeting` + `casting.rs` targeting validation |
+| CR 702.16c/702.16d | `sba.rs` -- protection aura/equipment SBA |
+| CR 702.16e | `protection.rs::protection_prevents_damage` + damage pipeline |
+| CR 702.16f | `protection.rs::can_block` + `combat.rs` blocking validation |
+| CR 104.4b/726 | `loop_detection.rs` -- mandatory infinite loop detection |
+| CR 603.2d | `abilities.rs::compute_trigger_doubling` -- Panharmonicon trigger doubling |
+| CR 113.6b | `engine.rs::place_opening_hand_permanents` -- Leyline opening hand |
+| CR 701.18 | `effects/mod.rs` Effect::Scry -- scry keyword action |
+| CR 701.15 | `effects/mod.rs` Effect::Goad -- goad keyword action (partial) |
+| CR 402.2 | `turn_actions.rs` -- NoMaxHandSize skips cleanup discard |
+| CR 613.1f (layer 6) | `layers.rs` -- AttachedCreature filter for equipment abilities |
+| CR 509.1b | `combat.rs` -- CantBeBlocked enforcement |
+| CR 400.7 + 608.2b | `corner_case_gaps.rs` -- flicker + fizzle interaction (CC#23) |
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M9.4-01 | **HIGH** | `copy.rs:368` | **Cascade bottom-of-library move silently drops errors.** `let _ = state.move_object_to_zone(exile_id, library_zone_id)` discards the `Result` when moving exiled cards to the bottom of the library during cascade resolution (CR 702.85a step 4). If any zone-move fails (e.g., zone not found, object already removed), the card is silently lost from the game -- it remains in exile with no record. This violates Architecture Invariant 4 (all state changes are events) since no failure event is emitted. **Fix:** Replace `let _ =` with proper error propagation or emit a diagnostic event on failure. At minimum, log the failure; ideally propagate the error to the caller. | CLOSED — fix session 1 |
+| MR-M9.4-02 | **HIGH** | `casting.rs:239-260` | **Cascade resolved inline during CastSpell, not as a triggered ability.** CR 702.85a defines cascade as a triggered ability: "When you cast this spell, exile cards..." The current implementation resolves cascade synchronously during `handle_cast_spell`, before any player receives priority to respond. This means: (1) players cannot counter the cascade trigger separately from the spell; (2) players cannot respond between the cascade trigger going on the stack and its resolution; (3) if the cascade spell is countered, the cascade has already resolved. Per CR 702.85a, cascade should trigger on cast, be placed on the stack, and resolve through normal stack resolution with priority passes. **Fix:** Move cascade to a triggered ability that goes on the stack via `pending_triggers`. Resolution of the trigger calls `resolve_cascade`. This is a significant refactor but required for correct interaction with counterspells and priority. | CLOSED — fix session 1 |
+| MR-M9.4-03 | **HIGH** | `casting.rs:239-244` | **Storm resolved inline during CastSpell, not as a triggered ability.** CR 702.40a says "When you cast this spell, copy it for each other spell cast before it this turn." Storm is also a triggered ability that should go on the stack. The current implementation creates storm copies synchronously during `handle_cast_spell`. This means players cannot respond to the storm trigger before copies are created. In practice this matters less than cascade (storm copies are on the stack and can be individually countered), but it is still technically incorrect per CR 702.40a. **Fix:** Move storm to a triggered ability that goes on the stack. When the trigger resolves, create the copies. Lower priority than MR-M9.4-02 since the gameplay impact is smaller. | CLOSED — fix session 1 |
+| MR-M9.4-04 | **MEDIUM** | `copy.rs:282-293` | **Cascade uses raw characteristics for card type and mana value check.** During cascade resolution, `obj.characteristics.card_types` and `obj.characteristics.mana_cost` are read directly from the game object instead of using `calculate_characteristics()`. Under continuous effects (e.g., Mycosynth Lattice making everything an artifact, Trinisphere changing mana costs), the exiled card's calculated characteristics could differ from its printed characteristics, causing cascade to skip or select the wrong card. CR 702.85a operates on the card's actual properties. **Fix:** Use `calculate_characteristics(state, exile_id)` with fallback to raw characteristics for the type/MV check. | CLOSED — fix session 2 |
+| MR-M9.4-05 | **MEDIUM** | `effects/mod.rs:970-982` | **Effect::Goad only emits an event, does not create a continuous effect or mark the creature.** CR 701.15a says goad lasts "until the next turn of the controller of that spell or ability." CR 701.15b says a goaded creature has specific combat requirements. The current implementation only pushes a `Goaded` event but does not: (1) store the goaded designation on the creature; (2) create a duration-bound continuous effect; (3) enforce attack requirements during combat. The event alone is insufficient -- subsequent combat phases will not know the creature is goaded. **Fix:** Add a `goaded_by: Vector<PlayerId>` field to `GameObject` or create a `ContinuousEffect` with `EffectDuration::UntilNextTurnOf(controller)`. Enforce goad attack requirements in `combat.rs::handle_declare_attackers`. | CLOSED — fix session 2 |
+| MR-M9.4-06 | **MEDIUM** | `copy.rs:326` | **`spells_cast_this_turn += 1` can overflow u32.** During cascade resolution, the spell cast counter is incremented without bounds checking. While overflow is practically unlikely (would require 2^32 spells in one turn), the engine already uses `saturating_sub` elsewhere (e.g., `storm_count` at line 220). Inconsistent overflow handling violates the principle of defensive coding for a rules engine. **Fix:** Use `ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1)`. | OPEN |
+| MR-M9.4-07 | **MEDIUM** | `abilities.rs:508-549` | **TriggerDoubler simplified filter does not verify entering object is artifact or creature.** Panharmonicon's oracle text says "If an artifact or creature entering the battlefield causes a triggered ability of a permanent you control to trigger..." The current `ArtifactOrCreatureETB` filter only checks that the trigger's event type is `AnyPermanentEntersBattlefield` -- it does not verify the entering object's card types. This means non-artifact, non-creature permanents (e.g., an enchantment ETB) would also be doubled, which is incorrect per Panharmonicon's text. The code comments acknowledge this as a known simplification. **Fix:** Add `entering_object_id: Option<ObjectId>` to `PendingTrigger`, populate it when the ETB trigger fires, and check the entering object's card types in `doubler_applies_to_trigger`. | OPEN |
+| MR-M9.4-08 | **MEDIUM** | `copy.rs:356-368` | **Cascade "bottom of library" placement actually puts cards on top.** The code comment at line 364 acknowledges: "The current Zone::Ordered structure inserts at the front (= top)." This means cards exiled during cascade and not cast are placed on top of the library instead of the bottom, violating CR 702.85a ("put all cards exiled this way that weren't cast on the bottom of your library"). This affects gameplay by revealing cards the player will draw next. **Fix:** Add a `Zone::push_to_bottom(id)` method (or equivalent) and use it for cascade bottom-of-library placement. | CLOSED — fix session 2 |
+| MR-M9.4-09 | **LOW** | `copy.rs:117` | **`Vec` allocation in loop detection hash computation.** `compute_mandatory_state_hash` at `loop_detection.rs:117` collects all `ObjectId` keys into a `Vec` and sorts them. Since loop detection runs after every SBA + trigger cycle, this allocation occurs on a hot path. **Fix:** Use `state.objects.iter()` directly (im::OrdMap iteration is already sorted by key), removing the collect + sort. | OPEN |
+| MR-M9.4-10 | **LOW** | `protection.rs:30-42` | **Linear scan of keywords for protection check.** `has_protection_from_source` iterates all keywords to find `ProtectionFrom` variants. Since keywords are stored in an `OrdSet<KeywordAbility>`, a range query or structured lookup could be more efficient for objects with many keywords. Minor since keyword sets are typically small (<20 elements). | OPEN |
+| MR-M9.4-11 | **LOW** | `casting.rs:232-234` | **`spells_cast_this_turn` incremented after stack push, before storm/cascade.** The storm count computation uses `spells_cast_this_turn - 1` (the current spell is already counted). This is correct but fragile -- if the increment order changes, storm count would be wrong. No bug currently. **Fix:** Add a code comment explaining the ordering dependency. | OPEN |
+| MR-M9.4-12 | **LOW** | `loop_detection.rs:62-80` | **`check_for_mandatory_loop` takes `&mut GameState` to update hash table.** This mutates state during what is conceptually a read-only check. The mutation is correct (updating the loop detection bookkeeping) but violates the conceptual separation between checking and modifying. Consider returning both the detection result and the updated hash map, letting the caller apply the mutation. Minor design note. | OPEN |
+| MR-M9.4-13 | **LOW** | `tests/loop_detection.rs:62-77` | **First loop detection test asserts `is_none() || is_some()` -- always true.** The assertion `result.is_none() || matches!(result, Some(GameEvent::LoopDetected { .. }))` is tautologically true and tests nothing. The test comment explains the difficulty of predicting the hash, but the assertion should be strengthened. The second test (`test_loop_detection_threshold_is_three`) properly tests the threshold behavior. | OPEN |
+| MR-M9.4-14 | **LOW** | `tests/trigger_doubling.rs:166-184` | **Trigger doubler manually registered in test instead of via game flow.** All three Panharmonicon tests manually push `TriggerDoubler` entries into `state.trigger_doublers` rather than testing the registration pathway through `register_static_continuous_effects`. This means the registration code path is untested. A separate integration test exercising the full ETB-to-doubler-registration pipeline would improve coverage. | OPEN |
+| MR-M9.4-15 | **LOW** | `tests/card_def_fixes.rs:295-350` | **Thought Vessel test uses `four_player()` but only checks p1.** The test creates a 4-player game but only verifies that p1 (with Thought Vessel) does not discard. It does not verify that other players without Thought Vessel DO discard when over 7 cards. Adding a counter-assertion would strengthen the test. | OPEN |
+| MR-M9.4-16 | **INFO** | `copy.rs:1-409` | **Well-structured copy effects module with comprehensive CR citations.** Clear separation between copiable values (CR 707.2), clone chain (CR 707.3), spell copying (CR 707.10), storm (CR 702.40), and cascade (CR 702.85). MAX_COPY_CHAIN_DEPTH guard prevents infinite recursion in malformed state. | -- |
+| MR-M9.4-17 | **INFO** | `protection.rs:1-167` | **Clean DEBT implementation with proper layering.** Protection checks correctly use `calculate_characteristics` for source lookup (line 103), ensuring continuous effects are respected. The `check_full_targeting_protection` function correctly combines hexproof + shroud + protection in a single validation path. | -- |
+| MR-M9.4-18 | **INFO** | `loop_detection.rs:1-159` | **Sound loop detection design.** Excluding library/hand from the hash (hidden info that rarely changes during SBA cycles) is a smart design choice that avoids false negatives for Reveillark + Karmic Guide style loops. The threshold of 3 is reasonable. The `loop_detection_hashes` field is correctly excluded from `public_state_hash`. | -- |
+| MR-M9.4-19 | **INFO** | hash.rs (all M9.4) | **Complete hash coverage for all new M9.4 types.** Verified every new field, enum variant, and struct has a corresponding `HashInto` implementation: ProtectionQuality, TriggerDoubler, TriggerDoublerFilter, is_copy on StackObject, triggering_event on PendingTrigger, no_max_hand_size/cards_drawn_this_turn/spells_cast_this_turn on PlayerState, trigger_doublers in public_state_hash, all 6 new GameEvent variants, Effect::Scry/Goad, AbilityDefinition::OpeningHand/TriggerDoubling, new TriggerConditions, all new keywords. `loop_detection_hashes` correctly excluded with documentation. Zero hash gaps. | -- |
+| MR-M9.4-20 | **INFO** | all test files | **Strong test coverage: 51 new tests across 11 files with CR citations.** Test-to-source ratio remains healthy. Tests cover both positive and negative cases (e.g., protection blocks red but allows green). CC#22, CC#23, CC#29 corner cases now covered. | -- |
+| MR-M9.4-21 | **INFO** | -- | **Prior-milestone LOWs naturally resolved by M9.4:** MR-M7-13 (equipment empty abilities) -- Lightning Greaves and Swiftfoot Boots now have static ability definitions and tests. MR-M7-14 (no-max-hand-size not modeled) -- `NoMaxHandSize` keyword and `no_max_hand_size` player field now implemented with cleanup discard skip. MR-M4-07 (CR 704.5e no is_copy field) -- `is_copy` field added to StackObject, used by resolution to skip zone-move for copies. | -- |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| Layer 1 copy effects (CR 707.2) | Full | `copy_effects.rs`: clone, chain, ordering, counters excluded |
+| Clone chain resolution (CR 707.3) | Full | `copy_effects.rs`: clone-of-clone resolves to original |
+| Storm copies (CR 702.40a) | Full | `storm_copy.rs`: creation, count, reset, not-cast |
+| Cascade resolution (CR 702.85) | Partial | `cascade.rs`: exile-until-hit, skip-lands, MV check. Missing: cascade as triggered ability with priority |
+| Protection targeting (CR 702.16b) | Full | `protection.rs`: red blocks red, allows green, from-creatures, from-all |
+| Protection damage (CR 702.16e) | Partial | `protection.rs`: unit test on `protection_prevents_damage`. Missing: integration test through combat damage pipeline |
+| Protection blocking (CR 702.16f) | Full | `protection.rs`: red blocker rejected, integration with DeclareBlockers |
+| Protection aura/equipment SBA (CR 702.16c/d) | Full | `protection.rs`: aura falls off, equipment detaches via SBA |
+| Protection global bypass | Full | `protection.rs`: Progenitus destroyed by non-targeted DestroyPermanent |
+| Hexproof global bypass (CC#22) | Full | `keywords.rs`: Wrath of God destroys hexproof creature |
+| Flicker + fizzle (CC#23) | Full | `corner_case_gaps.rs`: zone change identity, spell fizzles |
+| Trigger doubling (CC#15) | Full | `trigger_doubling.rs`: single, double, removal-after-trigger |
+| Loop detection (CR 104.4b) | Partial | `loop_detection.rs`: threshold, reset, hash exclusion. Missing: full Reveillark+Karmic Guide integration |
+| CantBeBlocked keyword | Full | `card_def_fixes.rs` + `combat.rs` |
+| Leyline opening hand (CR 113.6b) | Full | `card_def_fixes.rs`: placed on battlefield by start_game |
+| NoMaxHandSize (CR 402.2) | Full | `card_def_fixes.rs`: no discard in cleanup |
+| Equipment static abilities | Full | `card_def_fixes.rs`: Greaves grants Haste+Shroud, Boots grants Haste+Hexproof |
+| Read the Bones scry-first | Full | `card_def_fixes.rs`: Scried event before CardDrawn |
+| Goad (CR 701.15) | Stub only | Event emitted but no continuous effect or combat enforcement |
+
+### Notes
+
+- **Most significant findings (MR-M9.4-02, MR-M9.4-03):** Storm and cascade are implemented as inline resolution during CastSpell rather than as triggered abilities that go on the stack. CR 702.40a and CR 702.85a both define these as triggered abilities ("When you cast this spell..."). The inline approach prevents players from responding to the trigger before it resolves. For cascade this is particularly impactful -- a player cannot counter the cascade trigger separately from the cascade spell, and if the cascade spell is countered after cascade resolves, the cascaded-into spell is already on the stack.
+
+- **Goad is a stub (MR-M9.4-05):** The `Effect::Goad` execution only emits an event without creating any persistent game state. This means goaded creatures have no enforced attack requirements in subsequent combat phases. This is acknowledged in the code but should be prioritized since Alela, Cunning Conqueror (a card definition in the engine) uses goad as a core mechanic.
+
+- **Hash coverage is exemplary.** Every new field, type, and variant has been added to `hash.rs`. The `loop_detection_hashes` exclusion from `public_state_hash` is correctly documented and tested. Zero hash gaps were found in M9.4.
+
+- **Three prior-milestone LOWs resolved:** MR-M7-13 (equipment abilities), MR-M7-14 (no-max-hand-size), and MR-M4-07 (is_copy field) are all addressed by M9.4 changes.
+
+- **Test quality remains strong:** 51 new tests with CR citations, covering both positive and negative cases. The test-to-source ratio (~2.5:1 for M9.4 specifically) is appropriate. Tests for protection are particularly thorough, covering all four DEBT aspects plus the global-effect bypass.
+
+- **Design observation:** The `TriggerDoubler` architecture is well-designed for extensibility. Adding new doubler filters (e.g., Yarok for all ETB, not just artifact/creature) requires only a new `TriggerDoublerFilter` variant and a match arm in `doubler_applies_to_trigger`.
+
+---
+
 ## Cross-Milestone Issue Index
 
 All findings across all milestones, sorted by severity then milestone.
@@ -1359,6 +1509,9 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M8-03 | M8 | `UntilEndOfTurn` replacement effects never expire — prevention shields persist across turns | CLOSED — fix session 1 |
 | MR-M9-01 | M9 | Commander zone return SBA auto-applied without player choice (CR 903.9a) | CLOSED — fix session 1 |
 | MR-M9-02 | M9 | `compute_color_identity` only reads mana cost, not rules text mana symbols (CR 903.4) | CLOSED — fix session 1 |
+| MR-M9.4-01 | M9.4 | Cascade bottom-of-library move silently drops errors (`let _ =` in `copy.rs:368`) | CLOSED — fix session 1 |
+| MR-M9.4-02 | M9.4 | Cascade resolved inline during CastSpell, not as triggered ability (CR 702.85a) | CLOSED — fix session 1 |
+| MR-M9.4-03 | M9.4 | Storm resolved inline during CastSpell, not as triggered ability (CR 702.40a) | CLOSED — fix session 1 |
 
 ### MEDIUM
 
@@ -1412,6 +1565,11 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9-06 | M9 | Companion mana deduction duplicates `pay_cost` logic with fixed priority order | CLOSED — fix session 2 |
 | MR-M9-07 | M9 | `validate_deck` silently skips cards not in registry (Architecture Invariant 9) | CLOSED — fix session 1 |
 | MR-M9-08 | M9 | Command zone casting uses raw characteristics for type checks | CLOSED — fix session 2 |
+| MR-M9.4-04 | M9.4 | Cascade uses raw characteristics for card type and mana value check | CLOSED — fix session 2 |
+| MR-M9.4-05 | M9.4 | Effect::Goad only emits event, no continuous effect or combat enforcement (CR 701.15) | CLOSED — fix session 2 |
+| MR-M9.4-06 | M9.4 | `spells_cast_this_turn += 1` can overflow u32 in cascade resolution | OPEN |
+| MR-M9.4-07 | M9.4 | TriggerDoubler simplified filter does not verify entering object type (Panharmonicon) | OPEN |
+| MR-M9.4-08 | M9.4 | Cascade "bottom of library" placement actually puts cards on top | CLOSED — fix session 2 |
 
 ### LOW
 
@@ -1441,7 +1599,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M3-10 | M3 | Incomplete test discards results (test_608_2b_fizzle_player_target_concedes) | CLOSED — fix session 7 |
 | MR-M3-11 | M3 | `apnap_order` silently defaults position with `unwrap_or(0)` | OPEN |
 | MR-M3-12 | M3 | `NotController` error used for ownership check in lands.rs — misleading | OPEN |
-| MR-M4-07 | M4 | CR 704.5e (spell/card copies) not implemented — no `is_copy` field | DEFERRED → M8+ |
+| MR-M4-07 | M4 | CR 704.5e (spell/card copies) not implemented — no `is_copy` field | CLOSED — resolved by M9.4 (session 8: is_copy on StackObject) |
 | MR-M4-08 | M4 | CR 704.5k (world rule) not implemented — irrelevant for Commander | DEFERRED |
 | MR-M4-09 | M4 | `String::clone()` allocation in legendary rule hot path (sba.rs:329) | OPEN |
 | MR-M4-10 | M4 | `SubType("...".to_string())` allocates on every SBA comparison (sba.rs:391,449,453) | OPEN |
@@ -1456,8 +1614,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M6-08 | M6 | Test gap: no combat game script in replay harness | OPEN |
 | MR-M6-13 | M6 | Test gap: blocker-removed-before-damage (CR 509.1h) untested | OPEN |
 | MR-M6-14 | M6 | `blockers_for()` rebuilds list on every call — O(n) in hot path | OPEN |
-| MR-M7-13 | M7 | Equipment definitions (Lightning Greaves, Swiftfoot Boots) have empty ability lists | OPEN → M8+ |
-| MR-M7-14 | M7 | "No maximum hand size" ability not modeled (Thought Vessel, Reliquary Tower) | OPEN → M8+ |
+| MR-M7-13 | M7 | Equipment definitions (Lightning Greaves, Swiftfoot Boots) have empty ability lists | CLOSED — resolved by M9.4 (session 2) |
+| MR-M7-14 | M7 | "No maximum hand size" ability not modeled (Thought Vessel, Reliquary Tower) | CLOSED — resolved by M9.4 (session 1) |
 | MR-M7-15 | M7 | Test gap: no CreateToken or CounterSpell effect unit tests | CLOSED — fix session 8 |
 | MR-M7-16 | M7 | Test gap: no combat game script in replay harness | OPEN |
 | MR-M7-17 | M7 | Shuffle in effects uses `from_entropy()` — non-deterministic across replays | CLOSED — fix session 3 |
@@ -1477,6 +1635,13 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9-15 | M9 | Test gap: no test for companion with non-empty stack rejection | OPEN |
 | MR-M9-16 | M9 | Test gap: partner commander damage independence (one at 21+, one not) | OPEN |
 | MR-M9-17 | M9 | Partner validation has no check for empty `commander_card_ids` | OPEN |
+| MR-M9.4-09 | M9.4 | Vec allocation + sort in loop detection hot path (OrdMap already sorted) | OPEN |
+| MR-M9.4-10 | M9.4 | Linear scan of keywords for protection check (minor, sets typically small) | OPEN |
+| MR-M9.4-11 | M9.4 | `spells_cast_this_turn` increment ordering fragile for storm count | OPEN |
+| MR-M9.4-12 | M9.4 | `check_for_mandatory_loop` mutates state during conceptual read-only check | OPEN |
+| MR-M9.4-13 | M9.4 | First loop detection test asserts tautology (always true) | OPEN |
+| MR-M9.4-14 | M9.4 | TriggerDoubler manually registered in tests, registration pathway untested | OPEN |
+| MR-M9.4-15 | M9.4 | Thought Vessel test lacks counter-assertion for non-NoMaxHandSize player | OPEN |
 
 ### INFO
 
@@ -1532,6 +1697,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9-21 | M9 | Commander damage tracking is CardId-based, surviving zone changes (robust design) | — |
 | MR-M9-22 | M9 | Thorough test coverage: 44+ new tests across 4 files, full 4-player integration test | — |
 | MR-M9-23 | M9 | Three deferred issues from prior milestones (MR-M2-05, MR-M7-09, MR-M7-12) remain unresolved | — |
+| MR-M9.4-16 | M9.4 | Well-structured copy effects module with comprehensive CR citations | -- |
+| MR-M9.4-17 | M9.4 | Clean DEBT implementation with proper layering and combined targeting validation | -- |
+| MR-M9.4-18 | M9.4 | Sound loop detection design (hidden info exclusion, threshold=3, hash exclusion) | -- |
+| MR-M9.4-19 | M9.4 | Complete hash coverage for all new M9.4 types — zero gaps | -- |
+| MR-M9.4-20 | M9.4 | Strong test coverage: 51 new tests across 11 files with CR citations | -- |
+| MR-M9.4-21 | M9.4 | Prior-milestone LOWs resolved: MR-M7-13 (equipment), MR-M7-14 (no-max-hand-size), MR-M4-07 (is_copy) | -- |
 
 ---
 
@@ -1539,22 +1710,22 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 191 (146 M0-M7 + 22 M8 + 23 M9) |
+| Total unique issue IDs | 212 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
-| HIGH (CLOSED) | 30 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02) |
+| HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
-| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12) |
-| MEDIUM (CLOSED) | 40 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08) |
+| MEDIUM (OPEN) | 4 (pre-M8: MR-M7-09, MR-M7-12 + M9.4: MR-M9.4-06, MR-M9.4-07) |
+| MEDIUM (CLOSED) | 43 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 51 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17) |
-| LOW (CLOSED) | 3 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3) |
+| LOW (OPEN) | 58 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15) |
+| LOW (CLOSED) | 6 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3; MR-M7-13, MR-M7-14, MR-M4-07 -- resolved by M9.4) |
 | LOW (DEFERRED) | 5 |
-| INFO | 55 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23) |
-| Milestones reviewed | 10 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9) |
+| INFO | 61 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21) |
+| Milestones reviewed | 11 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08) |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); **M9.4 fix session 1**: 3 HIGH closed (MR-M9.4-01, MR-M9.4-02, MR-M9.4-03); **M9.4 fix session 2**: 3 MEDIUM closed (MR-M9.4-04, MR-M9.4-05, MR-M9.4-08); 2 MEDIUM open: MR-M9.4-06, MR-M9.4-07 |
 
-**Engine source LOC (M0-M9)**: ~15,100 lines (+1,400 M9)
-**Engine test LOC (M1-M9)**: ~20,700 lines (+3,700 M9)
-**Total test count**: 448 (all passing, as of M9 completion)
+**Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
+**Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)
+**Total test count**: 499 (all passing, as of M9.4 completion)

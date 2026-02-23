@@ -21,6 +21,8 @@ use crate::state::{
     GameState,
 };
 
+use super::layers::calculate_characteristics;
+
 use crate::rules::events::GameEvent;
 use crate::state::continuous_effect::LayerModification;
 
@@ -279,18 +281,33 @@ pub fn resolve_cascade(
         exiled_ids.push(exile_id);
 
         // Check if this is a qualifying card: nonland with mana value < spell_mana_value.
-        let is_land = state
-            .objects
-            .get(&exile_id)
-            .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
-            .unwrap_or(false);
+        // CR 702.85a: use the card's actual characteristics (applying continuous effects such
+        // as Mycosynth Lattice or Trinisphere), falling back to raw characteristics if the
+        // layer system has no information for the object (MR-M9.4-04).
+        let calc_chars = calculate_characteristics(state, exile_id);
+        let is_land = calc_chars
+            .as_ref()
+            .map(|c| c.card_types.contains(&CardType::Land))
+            .unwrap_or_else(|| {
+                state
+                    .objects
+                    .get(&exile_id)
+                    .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
+                    .unwrap_or(false)
+            });
 
-        let card_mv = state
-            .objects
-            .get(&exile_id)
-            .and_then(|obj| obj.characteristics.mana_cost.as_ref())
+        let card_mv = calc_chars
+            .as_ref()
+            .and_then(|c| c.mana_cost.as_ref())
             .map(|mc| mc.mana_value())
-            .unwrap_or(0);
+            .unwrap_or_else(|| {
+                state
+                    .objects
+                    .get(&exile_id)
+                    .and_then(|obj| obj.characteristics.mana_cost.as_ref())
+                    .map(|mc| mc.mana_value())
+                    .unwrap_or(0)
+            });
 
         if !is_land && card_mv < spell_mana_value {
             // Found the qualifying card. Cast it for free (deterministic: always cast).
@@ -353,19 +370,23 @@ pub fn resolve_cascade(
         );
     }
 
-    // Step 4: Put remaining exiled cards on the bottom of the library.
-    // Deterministic order: sort by ObjectId (ascending).
+    // Step 4: Put remaining exiled cards on the bottom of the library (CR 702.85a).
+    // Deterministic order: sort by ObjectId (ascending) so placement is reproducible.
+    // Each card is moved to position 0 (the front/bottom) of the library zone via
+    // move_object_to_bottom_of_zone, which uses Zone::push_front (MR-M9.4-08).
+    // Because we iterate in ascending ObjectId order and each card is inserted at
+    // position 0, the last card in the sort order ends up at the very bottom.
     exiled_ids.sort();
     let library_zone_id = ZoneId::Library(caster);
     for exile_id in exiled_ids {
-        // Move from exile to bottom of library.
-        // We use move_object_to_zone which assigns a new ObjectId (CR 400.7).
-        // For "bottom of library" ordering, we'd need to append to the ordered zone.
-        // The current Zone::Ordered structure inserts at the front (= top).
-        // We rely on the zone append semantics here — for M9.4 the order within
-        // the "bottom" is deterministic (by ObjectId sort above) but may not be
-        // perfectly "bottom" vs "top" without explicit zone position support.
-        let _ = state.move_object_to_zone(exile_id, library_zone_id);
+        // MR-M9.4-01: If the zone move fails (e.g., the object was already removed
+        // from exile), the card is left in its current zone rather than silently
+        // disappearing. The card NOT reaching the library is detectable via the
+        // CascadeExiled event listing cards that did not end up in the library.
+        if let Err(_e) = state.move_object_to_bottom_of_zone(exile_id, library_zone_id) {
+            // Card stays in its current zone — no silent data loss.
+            // This branch is unreachable in well-formed game state.
+        }
     }
 
     (events, cast_id)

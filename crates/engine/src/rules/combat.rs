@@ -168,6 +168,97 @@ pub fn handle_declare_attackers(
         attacker_vigilance.push((*attacker_id, has_vigilance));
     }
 
+    // CR 701.15b: A goaded creature must attack each combat if able.
+    // For each creature on the battlefield controlled by the active player
+    // that has at least one goading player in goaded_by: if the creature can
+    // attack (not tapped without vigilance, no summoning sickness without haste,
+    // no Defender), it must be in the attackers list.
+    let declared_attacker_ids: OrdSet<ObjectId> = attackers.iter().map(|(id, _)| *id).collect();
+    {
+        let goaded_ids: Vec<ObjectId> = state
+            .objects
+            .values()
+            .filter(|obj| {
+                obj.zone == ZoneId::Battlefield
+                    && obj.controller == player
+                    && !obj.goaded_by.is_empty()
+            })
+            .map(|obj| obj.id)
+            .collect();
+
+        for goaded_id in goaded_ids {
+            if declared_attacker_ids.contains(&goaded_id) {
+                continue;
+            }
+            // Check if the creature is able to attack.
+            let chars = match calculate_characteristics(state, goaded_id) {
+                Some(c) => c,
+                None => continue,
+            };
+            let obj = match state.objects.get(&goaded_id) {
+                Some(o) => o,
+                None => continue,
+            };
+            let has_vigilance = chars.keywords.contains(&KeywordAbility::Vigilance);
+            let has_haste = chars.keywords.contains(&KeywordAbility::Haste);
+            let has_defender = chars.keywords.contains(&KeywordAbility::Defender);
+            let is_tapped = obj.status.tapped;
+            let has_sickness = obj.has_summoning_sickness;
+            // Creature cannot attack if: tapped and no vigilance, or summoning sickness
+            // and no haste, or has Defender.
+            let cannot_attack =
+                (is_tapped && !has_vigilance) || (has_sickness && !has_haste) || has_defender;
+            if !cannot_attack {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Goaded creature {:?} must attack (CR 701.15b)",
+                    goaded_id
+                )));
+            }
+        }
+    }
+
+    // CR 701.15b: A goaded creature must attack a player other than the goading
+    // player if able. For each declared attacker that is goaded, if its target is
+    // one of the goading players, verify there is no other valid (non-goading) target.
+    {
+        let opponent_ids: Vec<PlayerId> = state
+            .players
+            .keys()
+            .filter(|pid| **pid != player)
+            .filter(|pid| {
+                state
+                    .players
+                    .get(*pid)
+                    .map(|p| !p.has_lost && !p.has_conceded)
+                    .unwrap_or(false)
+            })
+            .copied()
+            .collect();
+
+        for (attacker_id, target) in &attackers {
+            let obj = match state.objects.get(attacker_id) {
+                Some(o) => o,
+                None => continue,
+            };
+            if obj.goaded_by.is_empty() {
+                continue;
+            }
+            if let AttackTarget::Player(target_pid) = target {
+                if obj.goaded_by.contains(target_pid) {
+                    // Check if any non-goading opponent exists.
+                    let has_non_goading_target =
+                        opponent_ids.iter().any(|pid| !obj.goaded_by.contains(pid));
+                    if has_non_goading_target {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "Goaded creature {:?} must attack a player other than the goading player if able (CR 701.15b)",
+                            attacker_id
+                        )));
+                    }
+                }
+            }
+        }
+    }
+
     let mut events = Vec::new();
 
     // Tap non-Vigilance attackers (CR 508.1f).

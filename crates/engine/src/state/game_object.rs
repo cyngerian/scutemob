@@ -228,4 +228,12 @@ pub struct GameObject {
     /// Default is `false` (no type restriction on attachment target beyond "on battlefield").
     #[serde(default)]
     pub enchants_creatures: bool,
+    /// CR 701.15a: Players who have goaded this creature.
+    ///
+    /// Non-empty when a Goad effect has been applied to this permanent.
+    /// A goaded creature must attack each combat if able (CR 701.15b) and
+    /// must attack a player other than the goading player if able (CR 701.15b).
+    /// This list is cleared when the creature's controller's next turn begins.
+    #[serde(default)]
+    pub goaded_by: Vector<PlayerId>,
 }

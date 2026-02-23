@@ -413,6 +413,7 @@ fn test_commander_damage_survives_zone_change() {
                 timestamp: 0,
                 has_summoning_sickness: false,
                 enchants_creatures: false,
+                goaded_by: im::Vector::new(),
             },
             ZoneId::Battlefield,
         )
