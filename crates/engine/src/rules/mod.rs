@@ -7,6 +7,7 @@ pub mod casting;
 pub mod combat;
 pub mod command;
 pub mod commander;
+pub mod copy;
 pub mod engine;
 pub mod events;
 pub mod lands;

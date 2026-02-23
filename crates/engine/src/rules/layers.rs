@@ -83,7 +83,7 @@ pub fn calculate_characteristics(
             .unwrap_or(0);
 
         for effect in ordered {
-            apply_layer_modification(&mut chars, &effect.modification, mana_value);
+            apply_layer_modification(state, &mut chars, &effect.modification, mana_value);
         }
 
         // Layer 7c (PtModify): also apply counter P/T contributions (CR 613.4c).
@@ -241,16 +241,39 @@ fn effect_applies_to(
 
 /// Apply a single layer modification to the given characteristics.
 ///
-/// `mana_value` is the object's printed mana value, used for `SetPtToManaValue`.
+/// `state` is needed for Layer 1 copy effects to look up the target object's
+/// copiable values (CR 707.2).  `mana_value` is the object's printed mana value,
+/// used for `SetPtToManaValue`.
 fn apply_layer_modification(
+    state: &GameState,
     chars: &mut Characteristics,
     modification: &LayerModification,
     mana_value: u32,
 ) {
     match modification {
-        // Layer 1: Copy effects — full implementation in M7; placeholder here.
-        LayerModification::CopyOf(_target) => {
-            // TODO M7: Replace copiable values with those of the target object.
+        // Layer 1: Copy effects (CR 707.2).
+        // Replace all copiable values of `chars` with those of the target object,
+        // including any copy effects already applied to the target (CR 707.3 clone chain).
+        LayerModification::CopyOf(target) => {
+            if let Some(target_chars) = super::copy::get_copiable_values(state, *target) {
+                chars.name = target_chars.name;
+                chars.mana_cost = target_chars.mana_cost;
+                chars.colors = target_chars.colors;
+                chars.color_indicator = target_chars.color_indicator;
+                chars.supertypes = target_chars.supertypes;
+                chars.card_types = target_chars.card_types;
+                chars.subtypes = target_chars.subtypes;
+                chars.rules_text = target_chars.rules_text;
+                chars.abilities = target_chars.abilities;
+                chars.keywords = target_chars.keywords;
+                chars.mana_abilities = target_chars.mana_abilities;
+                chars.activated_abilities = target_chars.activated_abilities;
+                chars.triggered_abilities = target_chars.triggered_abilities;
+                chars.power = target_chars.power;
+                chars.toughness = target_chars.toughness;
+                chars.loyalty = target_chars.loyalty;
+                chars.defense = target_chars.defense;
+            }
         }
 
         // Layer 2: Control-changing — controller lives on GameObject, not Characteristics.
