@@ -572,6 +572,44 @@ fn translate_player_action(
 
         "concede" => Some(Command::Concede { player }),
 
+        "return_commander_to_command_zone" => {
+            // Find the commander by card name in graveyard or exile.
+            let card_name = card_name?;
+            let obj_id = state.objects.iter().find_map(|(&id, obj)| {
+                if obj.characteristics.name == card_name
+                    && obj.owner == player
+                    && (matches!(obj.zone, ZoneId::Graveyard(_)) || obj.zone == ZoneId::Exile)
+                {
+                    Some(id)
+                } else {
+                    None
+                }
+            })?;
+            Some(Command::ReturnCommanderToCommandZone {
+                player,
+                object_id: obj_id,
+            })
+        }
+
+        "leave_commander_in_zone" => {
+            // Find the commander by card name in graveyard or exile.
+            let card_name = card_name?;
+            let obj_id = state.objects.iter().find_map(|(&id, obj)| {
+                if obj.characteristics.name == card_name
+                    && obj.owner == player
+                    && (matches!(obj.zone, ZoneId::Graveyard(_)) || obj.zone == ZoneId::Exile)
+                {
+                    Some(id)
+                } else {
+                    None
+                }
+            })?;
+            Some(Command::LeaveCommanderInZone {
+                player,
+                object_id: obj_id,
+            })
+        }
+
         _ => {
             // Unrecognized action — skip without error.
             None

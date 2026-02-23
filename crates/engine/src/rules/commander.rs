@@ -39,6 +39,11 @@ pub enum DeckViolation {
     BannedCard { name: String },
     /// CR 903.3: Commander must be a legendary creature (or have "can be your commander").
     InvalidCommander { name: String, reason: String },
+    /// Architecture Invariant 9: every card must have a CardDefinition in the registry.
+    ///
+    /// A card_id present in the deck has no corresponding definition. This is
+    /// always an error — unknown cards silently pass all other validation checks.
+    UnknownCard { card_id: String },
 }
 
 /// Validate a Commander deck against the format rules.
@@ -129,7 +134,14 @@ pub fn validate_deck(
     for card_id in deck_card_ids {
         let def = match registry.get(card_id.clone()) {
             Some(d) => d,
-            None => continue, // Unknown card; skip (would be caught at deck-build time)
+            None => {
+                // Architecture Invariant 9: every card must have a definition.
+                // Silently skipping unknown cards permits illegal decks — return a violation.
+                violations.push(DeckViolation::UnknownCard {
+                    card_id: card_id.0.clone(),
+                });
+                continue;
+            }
         };
 
         // CR 903.5b: singleton rule — basic lands are exempt
@@ -178,8 +190,10 @@ pub fn validate_deck(
 /// CR 903.4: A card's color identity is determined by its mana cost, color indicator,
 /// and any mana symbols in its rules text. Reminder text and flavor text are excluded.
 ///
-/// For the purposes of this implementation, we extract colors from the mana cost.
-/// Rules-text mana symbols would require oracle text parsing (deferred to a future milestone).
+/// This implementation extracts colors from both the mana cost and from mana symbols
+/// appearing in the oracle text (e.g., `{W}`, `{U}`, `{B}`, `{R}`, `{G}`, and hybrid
+/// symbols such as `{W/B}` or `{2/W}`). This correctly handles commanders like
+/// Alesha, Who Smiles at Death ({W/B} in ability text → Mardu identity).
 pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
     let mut colors = Vec::new();
 
@@ -187,6 +201,10 @@ pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
     if let Some(ref cost) = def.mana_cost {
         add_colors_from_mana_cost(cost, &mut colors);
     }
+
+    // CR 903.4: also extract colors from mana symbols in oracle text.
+    // Scan for `{...}` symbols and add any colored mana they contain.
+    add_colors_from_oracle_text(&def.oracle_text, &mut colors);
 
     // Deduplicate and sort for determinism
     colors.sort();
@@ -204,9 +222,14 @@ pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
 ///
 /// `tax` is the number of times previously cast (from `commander_tax` in
 /// `PlayerState`). `tax * 2` generic mana is added to the generic component.
+///
+/// Uses saturating arithmetic to prevent overflow (MR-M9-03). In the impossible
+/// case that `tax * 2` or the resulting sum exceeds `u32::MAX`, the value
+/// saturates at `u32::MAX` rather than panicking or wrapping.
 pub fn apply_commander_tax(base_cost: &ManaCost, tax: u32) -> ManaCost {
+    let tax_mana = tax.saturating_mul(2);
     ManaCost {
-        generic: base_cost.generic + tax * 2,
+        generic: base_cost.generic.saturating_add(tax_mana),
         white: base_cost.white,
         blue: base_cost.blue,
         black: base_cost.black,
@@ -219,19 +242,25 @@ pub fn apply_commander_tax(base_cost: &ManaCost, tax: u32) -> ManaCost {
 // ── Commander Zone Return SBA (CR 903.9a / CR 704.6d) ────────────────────────
 
 /// CR 903.9a / CR 704.6d: Check if any commander is in graveyard or exile and,
-/// if so, automatically return it to its owner's command zone.
+/// if so, emit a `CommanderZoneReturnChoiceRequired` event for the owner.
 ///
-/// This is a state-based action (not a replacement effect). It fires each time
-/// SBAs are checked. In M9 the return is auto-applied (the player's option to
-/// leave the commander in graveyard/exile is deferred to M10+).
+/// CR 903.9a: The owner **may** put the commander into the command zone — it is
+/// optional. This SBA emits a choice event and records the pending choice;
+/// the actual move happens only when the owner responds with
+/// `ReturnCommanderToCommandZone`. If the owner prefers to leave the commander
+/// in graveyard or exile (e.g., for reanimation), they respond with
+/// `LeaveCommanderInZone` instead.
+///
+/// Commanders already in `pending_commander_zone_choices` are skipped so the
+/// choice event is not re-emitted on each SBA pass.
 ///
 /// Called from `sba::apply_sbas_once` after counter annihilation.
 pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
     // Collect (owner, card_id, object_id, from_zone_type) for all commanders
-    // found in graveyard or exile.
-    let mut to_return: Vec<(PlayerId, CardId, ObjectId, ZoneType)> = Vec::new();
+    // found in graveyard or exile that don't already have a pending choice.
+    let mut needs_choice: Vec<(PlayerId, CardId, ObjectId, ZoneType)> = Vec::new();
 
     for (&owner, player_state) in state.players.iter() {
         for card_id in player_state.commander_ids.iter() {
@@ -239,9 +268,22 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
             let graveyard_zone_id = ZoneId::Graveyard(owner);
             if let Some(zone) = state.zones.get(&graveyard_zone_id) {
                 for obj_id in zone.object_ids() {
+                    // Skip if already awaiting a choice for this object.
+                    if state
+                        .pending_commander_zone_choices
+                        .iter()
+                        .any(|(_, oid)| *oid == obj_id)
+                    {
+                        continue;
+                    }
                     if let Some(obj) = state.objects.get(&obj_id) {
                         if obj.card_id.as_ref() == Some(card_id) {
-                            to_return.push((owner, card_id.clone(), obj_id, ZoneType::Graveyard));
+                            needs_choice.push((
+                                owner,
+                                card_id.clone(),
+                                obj_id,
+                                ZoneType::Graveyard,
+                            ));
                         }
                     }
                 }
@@ -251,9 +293,17 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
             let exile_zone_id = ZoneId::Exile;
             if let Some(zone) = state.zones.get(&exile_zone_id) {
                 for obj_id in zone.object_ids() {
+                    // Skip if already awaiting a choice for this object.
+                    if state
+                        .pending_commander_zone_choices
+                        .iter()
+                        .any(|(_, oid)| *oid == obj_id)
+                    {
+                        continue;
+                    }
                     if let Some(obj) = state.objects.get(&obj_id) {
                         if obj.card_id.as_ref() == Some(card_id) && obj.owner == owner {
-                            to_return.push((owner, card_id.clone(), obj_id, ZoneType::Exile));
+                            needs_choice.push((owner, card_id.clone(), obj_id, ZoneType::Exile));
                         }
                     }
                 }
@@ -261,19 +311,60 @@ pub fn check_commander_zone_return_sba(state: &mut GameState) -> Vec<GameEvent> 
         }
     }
 
-    // Return each found commander to its owner's command zone.
-    for (owner, card_id, object_id, from_zone) in to_return {
-        let command_zone_id = ZoneId::Command(owner);
-        if let Ok((_, _)) = state.move_object_to_zone(object_id, command_zone_id) {
-            events.push(GameEvent::CommanderReturnedToCommandZone {
-                card_id,
-                owner,
-                from_zone,
-            });
-        }
+    // For each commander needing a choice, record the pending entry and emit the event.
+    for (owner, card_id, object_id, from_zone) in needs_choice {
+        state
+            .pending_commander_zone_choices
+            .push_back((owner, object_id));
+        events.push(GameEvent::CommanderZoneReturnChoiceRequired {
+            owner,
+            card_id,
+            object_id,
+            from_zone,
+        });
     }
 
     events
+}
+
+/// Handle a `LeaveCommanderInZone` command (CR 903.9a / CR 704.6d).
+///
+/// The owner has chosen to leave their commander in its current zone (graveyard
+/// or exile) rather than returning it to the command zone. Clears the pending
+/// choice recorded by `check_commander_zone_return_sba`.
+pub fn handle_leave_commander_in_zone(
+    state: &mut GameState,
+    player: PlayerId,
+    object_id: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // Validate the object exists and belongs to this player.
+    let obj = state
+        .objects
+        .get(&object_id)
+        .ok_or(GameStateError::ObjectNotFound(object_id))?;
+
+    if obj.owner != player {
+        return Err(GameStateError::InvalidCommand(
+            "can only decide zone for your own commander".to_string(),
+        ));
+    }
+
+    // Remove the pending choice entry.
+    let before = state.pending_commander_zone_choices.len();
+    state
+        .pending_commander_zone_choices
+        .retain(|(_, oid)| *oid != object_id);
+    let removed = before - state.pending_commander_zone_choices.len();
+
+    if removed == 0 {
+        return Err(GameStateError::InvalidCommand(
+            "no pending commander zone-return choice for this object".to_string(),
+        ));
+    }
+
+    // No zone move — commander stays where it is. No event emitted beyond
+    // confirming the pending choice is cleared.
+    Ok(vec![])
 }
 
 /// Handle a `ReturnCommanderToCommandZone` command (CR 903.9a / CR 704.6d).
@@ -329,6 +420,12 @@ pub fn handle_return_commander_to_command_zone(
             ));
         }
     };
+
+    // Clear any pending choice for this object (may not exist if command issued
+    // independently without a prior SBA choice event).
+    state
+        .pending_commander_zone_choices
+        .retain(|(_, oid)| *oid != object_id);
 
     let command_zone_id = ZoneId::Command(player);
     if let Ok((_, _)) = state.move_object_to_zone(object_id, command_zone_id) {
@@ -418,8 +515,6 @@ pub fn handle_take_mulligan(
     state: &mut GameState,
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use crate::rules::turn_actions;
-
     let mut events = Vec::new();
 
     // Increment mulligan count for this player
@@ -450,10 +545,29 @@ pub fn handle_take_mulligan(
     // Shuffle library (represented by event; order is not tracked in state)
     events.push(GameEvent::LibraryShuffled { player });
 
-    // Draw 7 cards
+    // Draw 7 cards for the new hand.
+    // MR-M9-05: Do not use draw_card here — it triggers PlayerLost on empty library.
+    // During the pregame mulligan procedure (CR 103.5) the game has not started yet;
+    // drawing from an empty library must not cause a game loss. Instead we move cards
+    // directly without the loss check.
     for _ in 0..7 {
-        let draw_events = turn_actions::draw_card(state, player)?;
-        events.extend(draw_events);
+        let lib_zone = ZoneId::Library(player);
+        let top = state.zones.get(&lib_zone).and_then(|z| z.top());
+        match top {
+            Some(top_id) => {
+                let hand_zone = ZoneId::Hand(player);
+                let (new_id, _) = state.move_object_to_zone(top_id, hand_zone)?;
+                events.push(GameEvent::CardDrawn {
+                    player,
+                    new_object_id: new_id,
+                });
+            }
+            None => {
+                // Library exhausted during pregame mulligan draw — stop drawing.
+                // No game loss is triggered (CR 103.5: mulligan is a pregame procedure).
+                break;
+            }
+        }
     }
 
     events.push(GameEvent::MulliganTaken {
@@ -687,5 +801,41 @@ fn add_colors_from_mana_cost(cost: &ManaCost, colors: &mut Vec<Color>) {
     }
     if cost.green > 0 && !colors.contains(&Color::Green) {
         colors.push(Color::Green);
+    }
+}
+
+/// CR 903.4: Scan oracle text for mana symbols and add any colored mana to the accumulator.
+///
+/// Handles simple colored symbols `{W}`, `{U}`, `{B}`, `{R}`, `{G}` and hybrid
+/// symbols such as `{W/B}`, `{W/U}`, `{2/W}`, `{R/G}` etc. Each character within
+/// a `{...}` symbol is checked for a color initial (W/U/B/R/G).
+fn add_colors_from_oracle_text(text: &str, colors: &mut Vec<Color>) {
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'{' {
+            // Find matching '}'
+            if let Some(close) = bytes[i..].iter().position(|&b| b == b'}') {
+                let symbol = &text[i + 1..i + close];
+                for ch in symbol.chars() {
+                    let color = match ch {
+                        'W' => Some(Color::White),
+                        'U' => Some(Color::Blue),
+                        'B' => Some(Color::Black),
+                        'R' => Some(Color::Red),
+                        'G' => Some(Color::Green),
+                        _ => None,
+                    };
+                    if let Some(c) = color {
+                        if !colors.contains(&c) {
+                            colors.push(c);
+                        }
+                    }
+                }
+                i += close + 1;
+                continue;
+            }
+        }
+        i += 1;
     }
 }

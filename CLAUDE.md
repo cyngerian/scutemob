@@ -11,15 +11,15 @@
 
 ## Current State
 
-- **Active Milestone**: M9 — (next to plan; run `/start-milestone 9`)
-- **Status**: M8 COMPLETE — code review + fix phase done; 404 tests passing; ready for M9
+- **Active Milestone**: M9 — implementation complete; run `review milestone M9` next
+- **Status**: M9 implementation done — 448 tests passing; code review pending
 - **Last Updated**: 2026-02-23
 
-### What Exists (M8 complete, includes M0-M7)
+### What Exists (M9 complete, includes M0-M8)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (incl. Rest in Peace, Leyline of the Void, Darksteel Colossus), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration
-- `testing/`: Script replay harness (with commander registration), 10 approved game scripts (3 replacement + 4 commander), 404 tests
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA, mulligan, companion)
+- `testing/`: Script replay harness (with commander registration), 11 approved game scripts, 448 tests; 6-player test suite
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved through M8

@@ -295,6 +295,7 @@ impl GameStateBuilder {
             replacement_effects: Vector::new(),
             next_replacement_id: 0,
             pending_zone_changes: Vector::new(),
+            pending_commander_zone_choices: Vector::new(),
             prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),
             stack_objects: Vector::new(),

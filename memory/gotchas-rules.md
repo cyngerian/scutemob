@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M8
+# Rules Gotchas — Last verified: M9
 
 ## MTG Rules Gotchas
 
@@ -33,22 +33,24 @@ An effect saying "if X would happen to [this object], instead..." has priority o
 replacements from other sources. Order among multiple self-replacements: affected
 player/controller chooses.
 
-### #18 — Commander zone-change replacement + Rest in Peace
-Commander would go to graveyard: owner may replace with command zone (CR 903.9a). If Rest
-in Peace also applies, owner chooses which replacement goes first. If commander goes to
-exile first (via RiP), owner can STILL apply the command zone replacement to the exile
-event — RiP doesn't prevent it from applying again.
+### #18 — Commander zone-change (SBA) + Rest in Peace (replacement)
+Commander graveyard/exile redirect is an **SBA** (CR 903.9a), not a replacement effect.
+After a commander dies or is exiled, the SBA check moves it to the command zone. If Rest
+in Peace also applies (exile replacement), both fire: RiP replaces the "dies → graveyard"
+with "exile"; then the SBA fires and moves it from exile to command zone. Hand/library
+redirects (CR 903.9b) ARE replacement effects (the rule says "instead").
 
 ### #19 — "Enters tapped" replacement (CR 614.1c)
 "Enters the battlefield tapped" is a replacement effect on the ETB event, not a triggered
 ability. The permanent was NEVER untapped on the battlefield — it didn't "enter untapped
 then tap." Matters for abilities that trigger on "entering untapped."
 
-### #28 — Commander dies + Kalitas (competing replacements)
-Kalitas replaces "creature dies" with "exile it and create a token." Commander replacement
-replaces "put into graveyard" with "put into command zone." Kalitas replaces before a zone
-is specified. Owner chooses: apply Kalitas first → exiled (commander replacement no longer
-applies); apply commander first → command zone (Kalitas no longer applies).
+### #28 — Commander dies + Kalitas (replacement vs SBA)
+Kalitas replaces "creature dies" with "exile it and create a token" (replacement effect).
+Commander graveyard redirect is an SBA (CR 903.9a), not a replacement. So: if Kalitas
+applies, commander is exiled; then the SBA fires and owner may move it from exile to
+command zone. If Kalitas does NOT apply (commander goes to graveyard), the SBA fires
+and moves it to command zone. No competing replacements — they operate at different times.
 
 ### #33 — Sylvan Library + replaced draws
 Sylvan Library tracks cards drawn in the draw step. If a draw is replaced by an effect

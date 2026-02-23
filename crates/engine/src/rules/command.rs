@@ -123,14 +123,23 @@ pub enum Command {
         ids: Vec<ReplacementId>,
     },
 
-    // ── M9: Commander zone return command ────────────────────────────────
+    // ── M9: Commander zone return commands ───────────────────────────────
     /// Return a commander from graveyard or exile to its owner's command zone
-    /// as a state-based action choice (CR 903.9a / CR 704.6d).
+    /// (CR 903.9a / CR 704.6d).
     ///
-    /// In M9 this command is handled automatically by the SBA (no explicit
-    /// player action required). The command variant is retained for future
-    /// M10+ player opt-out support.
+    /// Sent in response to a `CommanderZoneReturnChoiceRequired` event. The
+    /// commander is moved to the command zone and the pending choice is cleared.
     ReturnCommanderToCommandZone {
+        player: PlayerId,
+        object_id: ObjectId,
+    },
+
+    /// Leave a commander in its current zone (graveyard or exile) instead of
+    /// returning it to the command zone (CR 903.9a — owner "may" return).
+    ///
+    /// Sent in response to a `CommanderZoneReturnChoiceRequired` event. The
+    /// pending choice is cleared; the commander stays where it is.
+    LeaveCommanderInZone {
         player: PlayerId,
         object_id: ObjectId,
     },

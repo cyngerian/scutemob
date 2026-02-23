@@ -79,6 +79,13 @@ pub struct GameState {
     /// Zone changes waiting for player choice among replacement effects (CR 616.1).
     /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
     pub pending_zone_changes: Vector<PendingZoneChange>,
+    /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
+    ///
+    /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
+    /// this list so the choice event is not re-emitted every SBA pass.
+    /// Cleared when the owner sends `ReturnCommanderToCommandZone` or
+    /// `LeaveCommanderInZone`.
+    pub pending_commander_zone_choices: Vector<(PlayerId, ObjectId)>,
     /// Prevention shield counters: remaining capacity for `PreventDamage(n)` effects (CR 615.7).
     /// Keyed by ReplacementId. When a counter reaches 0 the corresponding ReplacementEffect
     /// is removed from `replacement_effects`. `PreventAllDamage` effects need no counter.

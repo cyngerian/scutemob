@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M8
+# Infra & Testing Gotchas — Last verified: M9
 
 ## Rust / im-rs Gotchas
 
@@ -58,9 +58,9 @@
 
 ## Testing Gotchas
 
-- **All existing tests use 1, 2, or 4 players.** 6-player scenarios untested. Priority
-  rotation with 6 passes, APNAP with 6, and combat with 5 defenders need tests in M9.
-  Add `GameStateBuilder::six_player()` alongside them.
+- **`GameStateBuilder::six_player()`** added in M9 alongside `four_player()`. 6-player tests
+  cover priority rotation, combat with 5 defenders, APNAP ordering, turn advancement skipping
+  eliminated players, concession mid-game — all in `crates/engine/tests/six_player.rs`.
 - **`ObjectSpec::card + .with_types([Creature])` creates a creature with `toughness: None`.**
   SBAs 704.5f/g/h skip `None` toughness to avoid false positives. Use
   `ObjectSpec::creature(owner, name, power, toughness)` for creatures SBAs should affect.

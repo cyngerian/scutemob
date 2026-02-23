@@ -481,10 +481,11 @@ fn commander_in_exile(owner: PlayerId, card_id: CardId) -> ObjectSpec {
 }
 
 #[test]
-/// CR 903.9a / CR 704.6d — Commander in graveyard: SBA auto-returns to command zone.
+/// CR 903.9a / CR 704.6d — Commander in graveyard: SBA emits choice, owner returns.
 ///
-/// When the SBA fires, a commander in the graveyard is immediately moved to the
-/// command zone. No player choice in M9 (auto-return, opt-out deferred to M10+).
+/// CR 903.9a says the owner *may* put the commander into the command zone.
+/// The SBA emits `CommanderZoneReturnChoiceRequired`; the owner then sends
+/// `ReturnCommanderToCommandZone` to complete the move.
 fn test_commander_dies_returns_to_command_zone_sba() {
     let p1 = p(1);
     let cmd_id = cid("cmdr-graveyard");
@@ -509,22 +510,49 @@ fn test_commander_dies_returns_to_command_zone_sba() {
         "command zone should be empty before SBA"
     );
 
-    let events = check_and_apply_sbas(&mut state);
-
-    // After SBA, commander should be in command zone.
+    // SBA emits CommanderZoneReturnChoiceRequired — commander stays in graveyard.
+    let sba_events = check_and_apply_sbas(&mut state);
     assert!(
-        state.objects_in_zone(&ZoneId::Graveyard(p1)).is_empty(),
-        "graveyard should be empty after SBA return"
+        sba_events.iter().any(|e| matches!(
+            e,
+            GameEvent::CommanderZoneReturnChoiceRequired {
+                owner,
+                card_id,
+                from_zone: ZoneType::Graveyard,
+                ..
+            }
+            if *card_id == cid("cmdr-graveyard") && *owner == p1
+        )),
+        "SBA should emit CommanderZoneReturnChoiceRequired from graveyard; events: {:?}",
+        sba_events
     );
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    // Commander still in graveyard — choice not yet resolved.
     assert_eq!(
-        cmd_objects.len(),
+        state.objects_in_zone(&ZoneId::Graveyard(p1)).len(),
         1,
-        "commander should be in command zone after SBA"
+        "commander should still be in graveyard before choice is resolved"
     );
+
+    // Owner resolves the choice: return to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, return_events) = process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
 
     // CommanderReturnedToCommandZone event should have been emitted.
-    let return_event = events.iter().find(|e| {
+    let return_event = return_events.iter().find(|e| {
         matches!(
             e,
             GameEvent::CommanderReturnedToCommandZone {
@@ -538,14 +566,28 @@ fn test_commander_dies_returns_to_command_zone_sba() {
     assert!(
         return_event.is_some(),
         "should emit CommanderReturnedToCommandZone from graveyard; events: {:?}",
-        events
+        return_events
+    );
+
+    // After choice resolved, commander should be in command zone.
+    assert!(
+        state.objects_in_zone(&ZoneId::Graveyard(p1)).is_empty(),
+        "graveyard should be empty after choice resolved"
+    );
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    assert_eq!(
+        cmd_objects.len(),
+        1,
+        "commander should be in command zone after choice resolved"
     );
 }
 
 #[test]
-/// CR 903.9a / CR 704.6d — Commander in exile: SBA auto-returns to command zone.
+/// CR 903.9a / CR 704.6d — Commander in exile: SBA emits choice, owner returns.
 ///
-/// When the SBA fires, a commander in exile is immediately moved to the command zone.
+/// CR 903.9a says the owner *may* put the commander into the command zone.
+/// The SBA emits `CommanderZoneReturnChoiceRequired`; the owner then sends
+/// `ReturnCommanderToCommandZone` to complete the move.
 fn test_commander_exiled_returns_to_command_zone_sba() {
     let p1 = p(1);
     let cmd_id = cid("cmdr-exiled");
@@ -566,18 +608,49 @@ fn test_commander_exiled_returns_to_command_zone_sba() {
         "commander should be in exile before SBA"
     );
 
-    let events = check_and_apply_sbas(&mut state);
-
-    // After SBA, commander should be in command zone, not exile.
+    // SBA emits CommanderZoneReturnChoiceRequired — commander stays in exile.
+    let sba_events = check_and_apply_sbas(&mut state);
     assert!(
-        state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile should be empty after SBA return"
+        sba_events.iter().any(|e| matches!(
+            e,
+            GameEvent::CommanderZoneReturnChoiceRequired {
+                owner,
+                card_id,
+                from_zone: ZoneType::Exile,
+                ..
+            }
+            if *card_id == cid("cmdr-exiled") && *owner == p1
+        )),
+        "SBA should emit CommanderZoneReturnChoiceRequired from exile; events: {:?}",
+        sba_events
     );
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
-    assert_eq!(cmd_objects.len(), 1, "commander should be in command zone");
+    // Commander still in exile — choice not yet resolved.
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Exile).len(),
+        1,
+        "commander should still be in exile before choice is resolved"
+    );
+
+    // Owner resolves the choice: return to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, return_events) = process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
 
     // CommanderReturnedToCommandZone event from exile.
-    let return_event = events.iter().find(|e| {
+    let return_event = return_events.iter().find(|e| {
         matches!(
             e,
             GameEvent::CommanderReturnedToCommandZone {
@@ -591,8 +664,16 @@ fn test_commander_exiled_returns_to_command_zone_sba() {
     assert!(
         return_event.is_some(),
         "should emit CommanderReturnedToCommandZone from exile; events: {:?}",
-        events
+        return_events
     );
+
+    // After choice resolved, commander should be in command zone.
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).is_empty(),
+        "exile should be empty after choice resolved"
+    );
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    assert_eq!(cmd_objects.len(), 1, "commander should be in command zone");
 }
 
 #[test]
@@ -722,9 +803,9 @@ fn test_commander_tucked_to_library_replacement_redirects() {
 #[test]
 /// CR 903.8 — Commander tax increments only on cast, not on zone change returns.
 ///
-/// When a commander is returned from the graveyard to the command zone by the SBA,
-/// the commander_tax counter must NOT increment. Only casting the commander from
-/// the command zone increments the tax.
+/// When a commander is returned from the graveyard to the command zone by the owner's
+/// choice following the SBA, the commander_tax counter must NOT increment. Only
+/// casting the commander from the command zone increments the tax.
 fn test_commander_tax_increments_on_cast_not_zone_change() {
     let p1 = p(1);
     let cmd_id = cid("cmdr-tax-check");
@@ -749,10 +830,39 @@ fn test_commander_tax_increments_on_cast_not_zone_change() {
         .unwrap_or(0);
     assert_eq!(initial_tax, 0, "tax should be 0 before any cast");
 
-    // Run SBA — commander returns to command zone.
-    let events = check_and_apply_sbas(&mut state);
+    // SBA emits choice — commander stays in graveyard pending owner's decision.
+    let sba_events = check_and_apply_sbas(&mut state);
 
-    // Tax should still be 0 after SBA zone return.
+    // Tax should still be 0 after SBA fires (no move yet).
+    let tax_after_sba = state
+        .players
+        .get(&p1)
+        .unwrap()
+        .commander_tax
+        .get(&cmd_id)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(tax_after_sba, 0, "tax should be 0 after SBA fires");
+
+    // Resolve choice: owner returns commander to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, return_events) = process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
+
+    // Tax should still be 0 after zone return — only casting increments tax.
     let tax_after_return = state
         .players
         .get(&p1)
@@ -763,19 +873,19 @@ fn test_commander_tax_increments_on_cast_not_zone_change() {
         .unwrap_or(0);
     assert_eq!(
         tax_after_return, 0,
-        "tax should still be 0 after SBA zone return"
+        "tax should still be 0 after zone return (not a cast)"
     );
 
-    // Commander should be in command zone.
+    // Commander should now be in command zone.
     assert_eq!(
         state.objects_in_zone(&ZoneId::Command(p1)).len(),
         1,
-        "commander should be in command zone after SBA"
+        "commander should be in command zone after choice resolved"
     );
 
     // Verify the return event was emitted.
     assert!(
-        events
+        return_events
             .iter()
             .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
         "should emit CommanderReturnedToCommandZone event"
@@ -1724,7 +1834,7 @@ fn test_full_four_player_commander_game() {
         );
     }
 
-    // ── Step 2: Simulate p2's commander dying and SBA returning it to command zone ──
+    // ── Step 2: Simulate p2's commander dying and owner returning it to command zone ──
     // Reset combat state for next action.
     let mut state = state;
     state.combat = None;
@@ -1756,17 +1866,36 @@ fn test_full_four_player_commander_game() {
         .move_object_to_zone(beta_on_battlefield, ZoneId::Graveyard(p2))
         .expect("moving beta commander to graveyard");
 
-    // SBA check: commander in graveyard → auto-return to command zone (CR 903.9a).
+    // SBA check: commander in graveyard → emits choice event (CR 903.9a).
     let sba_events = check_and_apply_sbas(&mut state);
 
     assert!(
         sba_events.iter().any(
-            |e| matches!(e, GameEvent::CommanderReturnedToCommandZone { card_id, owner, .. }
+            |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { card_id, owner, .. }
                 if *card_id == beta_id && *owner == p2)
         ),
-        "SBA should return p2's commander to command zone (CR 903.9a); events: {:?}",
+        "SBA should emit CommanderZoneReturnChoiceRequired for p2 (CR 903.9a); events: {:?}",
         sba_events
     );
+
+    // p2 chooses to return commander to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p2),
+    );
+    let beta_graveyard_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, _return_events) = process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p2,
+            object_id: beta_graveyard_id,
+        },
+    )
+    .expect("p2 returns commander to command zone");
+    let mut state = state;
 
     // Verify commander is now in command zone.
     let beta_in_command_zone = state
@@ -1775,7 +1904,7 @@ fn test_full_four_player_commander_game() {
         .any(|o| o.card_id.as_ref() == Some(&beta_id) && o.zone == ZoneId::Command(p2));
     assert!(
         beta_in_command_zone,
-        "p2's commander should be in command zone after SBA return"
+        "p2's commander should be in command zone after choosing to return"
     );
 
     // ── Step 3: p2 re-casts commander from command zone with +{2} tax ─────────

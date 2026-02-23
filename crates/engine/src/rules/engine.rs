@@ -122,12 +122,20 @@ pub fn process_command(
             all_events.extend(events);
         }
         Command::ReturnCommanderToCommandZone { player, object_id } => {
-            // CR 903.9a / CR 704.6d: commander owner returns commander from
-            // graveyard or exile to command zone. In M9 this is auto-applied
-            // by the SBA; this arm handles any explicit player-issued command.
+            // CR 903.9a / CR 704.6d: owner chooses to return their commander
+            // from graveyard or exile to the command zone. Clears the pending
+            // commander zone-return choice recorded by the SBA.
             validate_player_exists(&state, player)?;
             let events =
                 commander::handle_return_commander_to_command_zone(&mut state, player, object_id)?;
+            all_events.extend(events);
+        }
+
+        Command::LeaveCommanderInZone { player, object_id } => {
+            // CR 903.9a: owner chooses to leave their commander in graveyard or
+            // exile rather than returning it to the command zone.
+            validate_player_exists(&state, player)?;
+            let events = commander::handle_leave_commander_in_zone(&mut state, player, object_id)?;
             all_events.extend(events);
         }
 

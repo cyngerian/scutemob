@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-22 (M8 reviewed)
+> **Last Updated**: 2026-02-23 (M9 reviewed)
 
 ---
 
@@ -44,7 +44,7 @@
 - [M6: Combat](#m6-combat)
 - [M7: Card Definition Framework & First Cards](#m7-card-definition-framework--first-cards)
 - [M8: Replacement & Prevention Effects](#m8-replacement--prevention-effects) **(REVIEWED)**
-- [M9: Commander Rules Integration](#m9-commander-rules-integration)
+- [M9: Commander Rules Integration](#m9-commander-rules-integration) **(REVIEWED)**
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
 ---
@@ -1166,36 +1166,153 @@ reviews appear adequate for their scope.
 
 ## M9: Commander Rules Integration
 
-**Review Status**: NOT STARTED
+**Review Status**: REVIEWED (2026-02-23)
 
-### Files Expected
+### Files Introduced
 
-Per roadmap deliverables:
-- Commander format enforcement (deck validation, color identity, banned list)
-- Command zone mechanics (casting, commander tax)
-- Commander replacement effects (zone-change choice)
-- Commander damage SBA integration
-- Partner mechanics
-- Mulligan (Commander-specific)
-- `GameEvent::reveals_hidden_info()` method
+**Engine Source** (new/modified):
 
-### CR Sections to Implement
+| File | Lines | Purpose |
+|------|-------|---------|
+| `crates/engine/src/rules/commander.rs` | 691 | **NEW** — Deck validation, commander tax, zone return SBA, partner validation, mulligan, companion |
+| `crates/engine/src/rules/command.rs` | 164 | Added 4 new Command variants: ReturnCommanderToCommandZone, TakeMulligan, KeepHand, BringCompanion |
+| `crates/engine/src/rules/casting.rs` | 521 | Modified: command zone casting, commander tax integration (CR 903.8) |
+| `crates/engine/src/rules/engine.rs` | 486 | Modified: dispatch for 4 new Command variants |
+| `crates/engine/src/rules/events.rs` | 571 | Added 5 new GameEvent variants + `reveals_hidden_info()` method |
+| `crates/engine/src/rules/sba.rs` | 785 | Modified: integrated commander zone return SBA call (CR 903.9a / CR 704.6d) |
+| `crates/engine/src/rules/mod.rs` | 51 | Added `pub mod commander` |
+| `crates/engine/src/state/player.rs` | 96 | Added fields: companion, companion_used, mulligan_count |
+| `crates/engine/src/state/hash.rs` | 2075 | Added hashing for 3 new PlayerState fields + 5 new GameEvent variants |
+| `crates/engine/src/state/builder.rs` | 795 | Modified: PlayerState init for new fields, `register_commander_zone_replacements` refactored (M8 graveyard/exile replacements removed; hand/library only) |
+| `crates/engine/src/state/types.rs` | 108 | Added `KeywordAbility::Partner` variant |
+| `crates/engine/src/lib.rs` | 37 | Added public re-exports for commander module types |
 
-| CR Section | Description |
-|------------|-------------|
-| CR 903 | Commander format rules |
-| CR 903.3 | Color identity |
-| CR 903.5a | 100-card singleton |
-| CR 903.6 | Command zone |
-| CR 903.8 | Commander tax |
-| CR 903.10a | Commander damage |
-| CR 903.9 | Commander zone-change replacement |
-| CR 903.13 | Partner |
-| CR 103.5 | Mulligan (Commander variant) |
+**Engine Tests** (new/modified):
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `crates/engine/tests/commander.rs` | 1881 | **NEW** — Command zone casting, tax, zone return SBA, partner tax, mulligan, companion, full 4-player integration |
+| `crates/engine/tests/commander_damage.rs` | 432 | **NEW** — Commander damage SBA (21+), per-commander tracking, copy exclusion, zone-change persistence |
+| `crates/engine/tests/deck_validation.rs` | 522 | **NEW** — Deck size, singleton, color identity, banned list, commander type validation |
+| `crates/engine/tests/six_player.rs` | 479 | **NEW** — 6-player priority rotation, combat, APNAP, elimination, concession, `reveals_hidden_info()` |
+| `crates/engine/tests/replacement_effects.rs` | 3018 | Modified: M8 commander replacement tests updated to M9 SBA model |
+
+**Game Scripts** (new):
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `test-data/generated-scripts/commander/cc26_commander_copy_damage.json` | 116 | Draft: CC #26 — copy doesn't deal commander damage |
+| `test-data/generated-scripts/commander/cc27_partner_tax.json` | 161 | Draft: CC #27 — partner commander independent tax |
+| `test-data/generated-scripts/commander/cc28_commander_dies_exile_replacement.json` | 161 | Draft: CC #28 — commander dies + exile replacement |
+
+**Source total**: ~1,400 new/changed lines (src/) | **Test total**: ~3,700 new/changed lines (tests/) | **Scripts**: 438 lines
+
+### CR Sections Implemented
+
+| CR Section | Implementation |
+|------------|---------------|
+| CR 903.3 | `commander.rs:validate_deck()` — commander must be legendary creature |
+| CR 903.4 | `commander.rs:compute_color_identity()` — mana cost color extraction |
+| CR 903.5a | `commander.rs:validate_deck()` — 100-card deck size check |
+| CR 903.5b | `commander.rs:validate_deck()` — singleton rule with basic land exemption |
+| CR 903.5c | `commander.rs:validate_deck()` — color identity subset validation |
+| CR 903.6 | `builder.rs` — command zone created per player; objects placed via `ZoneId::Command` |
+| CR 903.8 | `casting.rs:handle_cast_spell()` + `commander.rs:apply_commander_tax()` — tax applied on cast |
+| CR 903.9a | `commander.rs:check_commander_zone_return_sba()` — SBA for graveyard/exile return |
+| CR 903.9b | `builder.rs:register_commander_zone_replacements()` — replacement for hand/library redirect |
+| CR 903.10a | `combat.rs:789-810` — per-commander per-opponent damage tracking |
+| CR 704.6c | `sba.rs:check_player_sbas()` — 21+ commander damage SBA loss check |
+| CR 702.124 | `commander.rs:validate_partner_commanders()` — partner keyword validation |
+| CR 702.124c | `commander.rs:validate_deck()` — combined partner color identity |
+| CR 702.124d | `casting.rs` + `commander.rs` — independent tax per partner commander |
+| CR 103.5 | `commander.rs:handle_take_mulligan()` — shuffle + draw 7 |
+| CR 103.5c | `commander.rs:handle_keep_hand()` — free first mulligan in multiplayer |
+| CR 702.139a | `commander.rs:handle_bring_companion()` — {3} special action |
+| M10 prep | `events.rs:reveals_hidden_info()` — hidden info classification for network layer |
 
 ### Findings
 
-(None yet — milestone not started)
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M9-01 | **HIGH** | `commander.rs:229` | **Commander zone return SBA is auto-applied without player choice.** CR 903.9a says the owner "**may** put it into the command zone" -- it is optional. The implementation in `check_commander_zone_return_sba` unconditionally moves every commander from graveyard/exile to the command zone with no player choice. This allows a player's commander to be force-returned even when they want it to remain in graveyard/exile (e.g., for reanimation, Flashback synergy, or exile-matters effects). The doc comment on line 225 acknowledges this simplification ("auto-applied... deferred to M10+"), but this is a functional correctness issue: the engine produces illegal game states when a player would prefer their commander to stay. **Fix:** Add a `ChoiceRequired` path analogous to the replacement effect framework. The SBA should emit a choice event; the player responds with `ReturnCommanderToCommandZone` or a new `LeaveCommanderInZone` command. Until then, document as KNOWN SIMPLIFICATION and track. | CLOSED — fix session 1 |
+| MR-M9-02 | **HIGH** | `commander.rs:183-195` | **`compute_color_identity` only extracts colors from mana cost, not rules text.** CR 903.4 explicitly states color identity includes "any mana symbols in that card's... rules text" (e.g., Alesha, Who Smiles at Death has {W/B} in its activated ability text, making it Mardu despite costing {2}{R}). The function ignores `oracle_text` entirely. This causes `validate_deck` to accept decks with cards that violate color identity when the commander or deck cards have rules-text-only mana symbols. The doc comment on line 182 acknowledges this as "deferred to a future milestone" but it silently permits illegal decks. **Fix:** Parse `CardDefinition.oracle_text` for mana symbols (regex: `\{[WUBRG]\}` patterns) and include those colors. Alternatively, add a `color_identity` field to `CardDefinition` populated from Scryfall data. | CLOSED — fix session 1 |
+| MR-M9-03 | **MEDIUM** | `commander.rs:209` | **Commander tax overflow: `base_cost.generic + tax * 2` can overflow u32.** If a commander is cast many times (theoretically, `tax >= u32::MAX / 2 + 1`), `tax * 2` overflows in debug mode (panic) or wraps in release mode (produces nonsensical cost). While unlikely in practice (would require 2 billion casts), this violates the no-panic invariant for engine library code. **Fix:** Use `tax.checked_mul(2).and_then(|t| base_cost.generic.checked_add(t))` and return a saturating result or an error. | CLOSED — fix session 1 |
+| MR-M9-04 | **MEDIUM** | `commander.rs:491` | **`cards_to_bottom.len() as u32` truncates on 64-bit platforms.** If `cards_to_bottom` has more than `u32::MAX` elements (impossible in practice but violates the project's safe-cast policy established in MR-M7-05), `len() as u32` silently truncates. The comparison `cards_to_bottom.len() as u32 != required_bottom` could succeed when it should fail. **Fix:** Compare as `usize`: `cards_to_bottom.len() != required_bottom as usize`. | OPEN |
+| MR-M9-05 | **MEDIUM** | `commander.rs:417-465` | **Mulligan draws from library via `draw_card` which can trigger library-empty loss during pregame.** `handle_take_mulligan` calls `turn_actions::draw_card` in a loop, which triggers `PlayerLost { reason: LibraryEmpty }` if the library is exhausted. During the pregame mulligan procedure, drawing from an empty library should not cause a game loss (the game hasn't started yet; CR 103.5 describes mulligan as a pregame procedure). A player mulliganing with fewer than 7 cards in their library would incorrectly lose. **Fix:** Either use a dedicated `draw_for_mulligan` helper that doesn't trigger the library-empty loss, or check library size before drawing and handle the edge case gracefully. | CLOSED — fix session 1 |
+| MR-M9-06 | **MEDIUM** | `commander.rs:586-628` | **Companion mana deduction uses fixed priority order, not player choice.** `handle_bring_companion` hardcodes the order of mana color consumption for the {3} generic cost (colorless first, then green, red, black, blue, white). In a real game, the player chooses which mana to spend for generic costs. This is the same pattern as `casting.rs:pay_cost()` (pre-existing), but the companion code duplicates the logic rather than calling the shared `pay_cost()` function. Both implementations produce deterministic but potentially suboptimal mana spending. **Fix:** Call `casting::pay_cost()` instead of duplicating the logic. The underlying "player doesn't choose mana spending order" issue is pre-existing (LOW) but the duplication is a MEDIUM code quality concern. | OPEN |
+| MR-M9-07 | **MEDIUM** | `commander.rs:53-173` | **`validate_deck` silently skips cards not in registry.** Line 131-132: `None => continue` when a card_id is not found in the registry. This means an unknown card silently passes all validation (size, singleton, color identity, banned list). If a deck contains a card_id typo or a card not loaded into the registry, `validate_deck` will report the deck as valid. Architecture Invariant 9 requires every card to have a definition; silently skipping unknown cards undermines this. **Fix:** Return a new `DeckViolation::UnknownCard { card_id }` instead of `continue`. | CLOSED — fix session 1 |
+| MR-M9-08 | **MEDIUM** | `casting.rs:61-81` | **Command zone casting validation uses raw `card_obj.characteristics` for type checks.** Lines 84-91 check `card_obj.characteristics.card_types` directly instead of using `calculate_characteristics()`. If a continuous effect changes the card's types (e.g., removing the Land type from a card), the raw characteristics would be stale. On the command zone, continuous effects rarely apply (objects in command zone are not on the battlefield), so this is low risk, but it's inconsistent with the convention established in MR-M5-02 for all type checks. **Fix:** Use `calculate_characteristics()` with fallback to raw characteristics for the type check on line 84-91. | OPEN |
+| MR-M9-09 | **LOW** | `events.rs:560-570` | **`reveals_hidden_info()` incomplete: `MulliganTaken` and `LibraryShuffled` reveal/commit hidden info.** Mulligan draws reveal cards (7 cards move from hidden library to hand). `LibraryShuffled` changes the library order (hidden information). `CompanionBroughtToHand` moves a card to hand. These events should arguably return `true` since they involve hidden information transitions. Currently the catch-all `_ => false` covers them. **Fix:** Add `MulliganTaken`, `LibraryShuffled`, and `CompanionBroughtToHand` to the `true` arm. Note: `CardDrawn` events are emitted for each draw during mulligan, so draws are partially covered — but the shuffle and companion events are not. | OPEN |
+| MR-M9-10 | **LOW** | `commander.rs:126-128` | **Duplicate counting uses `HashMap` in an engine library file.** `validate_deck` uses `std::collections::HashMap` (line 126) instead of `im::OrdMap` for the `name_counts` accumulator. While `validate_deck` operates on pre-game data (not `GameState`), using `HashMap` in the engine crate is inconsistent with the `im-rs` policy (Architecture Invariant 2). Additionally, `HashMap` iteration order is non-deterministic, meaning `DeckViolation::DuplicateCard` entries appear in random order across runs. **Fix:** Use `im::OrdMap` for deterministic violation ordering, or document `validate_deck` as exempt from the im-rs policy since it doesn't touch game state. | OPEN |
+| MR-M9-11 | **LOW** | `commander.rs:53-173` | **Deck validation reports multiple violations but no dedup.** If the same card has both a banned-list violation and a color identity violation, both are reported. This is arguably correct behavior (show all problems), but if the same color identity violation could be reported for the same card multiple times in edge cases (e.g., a card with color identity {R}{G} in a mono-white deck would trigger the break on line 158 but could theoretically be iterated multiple times if multiple card_ids map to the same name), it could produce confusing output. **Fix:** Minor — consider deduplicating violations by card name or documenting that multiple violations per card are expected. | OPEN |
+| MR-M9-12 | **LOW** | `commander.rs:447` | **Mulligan shuffles hand back to library via `move_object_to_zone` but ignores errors with `let _ =`.** Line 447: `let _ = state.move_object_to_zone(obj_id, lib_zone_id)` silently drops errors. If a card in hand can't be moved (e.g., zone mismatch from a concurrent state modification), the error is lost. In practice, this shouldn't happen during a pre-game mulligan, but the silent error suppression pattern invites bugs. **Fix:** Propagate the error with `?` or at minimum log/count failures. | OPEN |
+| MR-M9-13 | **LOW** | `commander.rs:655-659` | **Companion `BringCompanion` emits event even if companion was not in command zone.** Lines 655-668: if `companion_obj_id` is `None` (companion not found in command zone), the code still emits `CompanionBroughtToHand` and sets `companion_used = true`. This means a player could "use" the companion action without the card actually moving anywhere. The event would indicate a state change that didn't happen, violating Architecture Invariant 4 (events must describe what actually happened). **Fix:** Return an error if `companion_obj_id` is `None` — the companion card should always be in the command zone when `BringCompanion` is issued. | OPEN |
+| MR-M9-14 | **LOW** | tests | **Test gap: no test for 3+ mulligans (London mulligan escalation).** Tests cover 0, 1, and 2 mulligans. No test exercises taking 3+ mulligans to verify the escalating bottom-of-library count (3rd mulligan → 2 cards to bottom, 4th → 3, etc.). CR 103.5 allows mulligans until the opening hand would be 0 cards. **Fix:** Add a test with 3+ mulligans verifying correct `cards_to_bottom` counts. | OPEN |
+| MR-M9-15 | **LOW** | tests | **Test gap: no test for companion with non-empty stack (should be rejected).** The companion timing validation checks `!state.stack_objects.is_empty()` but no test exercises this path with items on the stack. **Fix:** Add a test placing a spell on the stack before `BringCompanion` and verify rejection. | OPEN |
+| MR-M9-16 | **LOW** | tests | **Test gap: commander damage from partner commanders tracked independently.** While `test_partner_commanders_separate_tax_tracking` tests tax independence and `test_commander_damage_10_from_a_plus_11_from_b_no_loss` tests per-commander damage thresholds, no test exercises a partner pair where one partner reaches 21+ damage and the other doesn't. **Fix:** Add a test with two partner commanders dealing damage to the same player, verifying only the one reaching 21 triggers loss. | OPEN |
+| MR-M9-17 | **LOW** | `commander.rs:63-78` | **Partner validation has no upper bound check on `commander_card_ids` length.** `validate_deck` rejects `> 2` commanders but the partner validation on lines 63-78 only fires for `len() == 2`. If someone passes 0 commander_card_ids, no commander validation occurs at all (no legendary creature check, no color identity computation). **Fix:** Add a check for `commander_card_ids.is_empty()` with an appropriate violation. | OPEN |
+| MR-M9-18 | **INFO** | — | **M8 INFO note MR-M8-22 reconciled.** MR-M8-22 noted that M8 modeled all four commander zone-change paths as replacement effects, while the CR splits them into SBA (graveyard/exile) and replacement (hand/library). M9 correctly reconciles this: `check_commander_zone_return_sba` handles graveyard/exile as SBAs (CR 903.9a), and `register_commander_zone_replacements` handles hand/library as replacement effects (CR 903.9b). | — |
+| MR-M9-19 | **INFO** | — | **Well-structured commander.rs module.** Clear section separation (deck validation, commander tax, zone return SBA, partner, mulligan, companion), consistent CR citations, and thorough doc comments. The 691-line single-file approach is appropriate given the cohesive domain. | — |
+| MR-M9-20 | **INFO** | — | **Comprehensive hash coverage for all M9 types.** All 3 new `PlayerState` fields (`companion`, `companion_used`, `mulligan_count`) and all 5 new `GameEvent` variants are included in `hash.rs`. Discriminant numbering (57-61) is sequential and collision-free. | — |
+| MR-M9-21 | **INFO** | — | **Commander damage tracking is CardId-based, surviving zone changes.** The `commander_damage_received: OrdMap<PlayerId, OrdMap<CardId, u32>>` design correctly tracks damage by physical card identity (CardId) rather than zone-ephemeral ObjectId. This means damage persists when a commander dies and is re-cast (new ObjectId, same CardId). Tested by `test_commander_damage_survives_zone_change`. | — |
+| MR-M9-22 | **INFO** | — | **Thorough test coverage for core paths.** 44 new tests across 4 test files (commander.rs, commander_damage.rs, deck_validation.rs, six_player.rs), plus replacement_effects.rs updates. The full 4-player integration test (`test_full_four_player_commander_game`) exercises casting, death, SBA return, re-cast with tax, and 21-damage elimination in a single scenario. | — |
+| MR-M9-23 | **INFO** | — | **Three deferred issues from previous milestones remain unresolved.** MR-M2-05 (HIGH: concede doesn't clean up owned objects, CR 800.4a), MR-M7-09 (MEDIUM: AddManaAnyColor/AddManaChoice default to colorless), and MR-M7-12 (MEDIUM: Path to Exile search unconditional) were tagged "OPEN -> M9" but were not addressed in this milestone. These should be re-tagged to M10+. | — |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| Cast from command zone (first time) | Full | `test_cast_commander_from_command_zone_first_time` |
+| Cast from command zone (2nd, 3rd) | Full | `test_cast_commander_from_command_zone_second_time`, `third_time` |
+| Cast with insufficient mana | Full | `test_cast_commander_from_command_zone_insufficient_mana` |
+| Non-commander from command zone | Full | `test_cast_non_commander_from_command_zone_rejected` |
+| Sorcery speed enforcement | Full | `test_cast_commander_sorcery_speed_enforced` |
+| Commander dies → SBA return | Full | `test_commander_dies_returns_to_command_zone_sba` |
+| Commander exiled → SBA return | Full | `test_commander_exiled_returns_to_command_zone_sba` |
+| Hand replacement registered | Full | `test_commander_bounced_to_hand_replacement_redirects` |
+| Library replacement registered | Full | `test_commander_tucked_to_library_replacement_redirects` |
+| Tax increments on cast only | Full | `test_commander_tax_increments_on_cast_not_zone_change` |
+| Partner independent tax | Full | `test_partner_commanders_separate_tax_tracking` |
+| Partner combined color identity | Full | `test_partner_commanders_combined_color_identity` |
+| 21 commander damage → loss | Full | `test_commander_damage_21_from_one_commander_kills` |
+| 20 damage → no loss | Full | `test_commander_damage_20_from_one_commander_no_loss` |
+| Per-commander damage tracking | Full | `test_commander_damage_10_from_a_plus_11_from_b_no_loss` |
+| Copy doesn't deal cmdr damage | Full | `test_commander_damage_from_copy_does_not_count` |
+| Damage survives zone change | Full | `test_commander_damage_survives_zone_change` |
+| Deck size validation | Full | `test_deck_validation_rejects_99_cards`, `101_cards` |
+| Singleton rule | Full | `test_deck_validation_rejects_duplicate_nonbasic` |
+| Basic land exemption | Full | `test_deck_validation_allows_basic_land_duplicates` |
+| Color identity violation | Full | `test_deck_validation_rejects_off_color_identity` |
+| Banned card | Full | `test_deck_validation_rejects_banned_card` |
+| Non-legendary commander | Full | `test_deck_validation_rejects_non_legendary_commander` |
+| Valid 100-card deck | Full | `test_deck_validation_accepts_valid_100_card_deck` |
+| Color identity computation | Full | 3 tests: colorless, single, multicolor |
+| Free mulligan (CR 103.5c) | Full | `test_free_mulligan_then_london_mulligan` |
+| London mulligan (2nd) | Full | Part of `test_free_mulligan_then_london_mulligan` |
+| Wrong bottom count rejected | Full | `test_mulligan_keep_wrong_count_rejected` |
+| 4-player independent mulligans | Full | `test_mulligan_sequence_four_players` |
+| Companion costs {3} | Full | `test_companion_special_action_costs_3_mana` |
+| Companion main phase only | Full | `test_companion_only_during_main_phase_stack_empty` |
+| Companion once per game | Full | `test_companion_only_once_per_game` |
+| 6-player priority rotation | Full | `test_six_player_priority_rotation` |
+| 6-player combat 5 defenders | Full | `test_six_player_combat_five_defenders` |
+| 6-player APNAP ordering | Full | `test_six_player_apnap_ordering` |
+| 6-player skip eliminated | Full | `test_six_player_turn_advancement_skips_eliminated` |
+| 6-player concession mid-game | Full | `test_six_player_concession_mid_game` |
+| 6-player commander game start | Full | `test_six_player_game_start_all_commanders_correct` |
+| `reveals_hidden_info()` | Partial | CardDrawn = true, PriorityGiven = false (see MR-M9-09 for gaps) |
+| 3+ mulligans | None | See MR-M9-14 |
+| Companion with non-empty stack | None | See MR-M9-15 |
+| Full integration test | Full | `test_full_four_player_commander_game` |
+
+### Notes
+
+- **Most significant finding (MR-M9-01):** The commander zone return SBA auto-applies without player choice, violating CR 903.9a ("owner **may** put it into the command zone"). This is documented as intentional simplification but produces incorrect game states when a player wants their commander to stay in graveyard/exile. Requires a choice mechanism.
+- **Color identity gap (MR-M9-02):** `compute_color_identity` only reads mana cost, missing rules text mana symbols. This means commanders like Alesha, Who Smiles at Death and Kenrith, the Returned King will have incorrect color identities, silently permitting illegal decks.
+- **Strong architecture:** The M9 implementation correctly splits CR 903.9 into SBA-based (graveyard/exile) and replacement-based (hand/library) paths, reconciling the M8 model with the actual CR. Commander damage tracking via `CardId` is robust and well-tested.
+- **Test quality is excellent:** 44+ new tests with CR citations, a comprehensive integration test, and 6-player scalability verification. The test-to-source ratio (~2.6:1) is appropriate for rules engine code.
+- **Three prior-milestone deferred issues (MR-M2-05, MR-M7-09, MR-M7-12) remain unresolved** and should be re-tagged to M10+.
+- **M9 simplifications are well-documented** in code comments (auto-return, mana cost-only color identity, fixed mana spending order). Each includes a "deferred to M10+" note.
 
 ---
 
@@ -1218,7 +1335,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M2-01 | M2 | `.expect()` in priority.rs:54 — `next_priority_player` | CLOSED — fix session 1 |
 | MR-M2-02 | M2 | `.expect()` in turn_structure.rs:78 — `next_player_in_turn_order` | CLOSED — fix session 1 |
 | MR-M2-03 | M2 | Concede while active: step-advance then turn-advance overlap | CLOSED — fix session 5 |
-| MR-M2-05 | M2→M9 | Concede doesn't clean up owned objects (CR 800.4a) | DEFERRED → M9 |
+| MR-M2-05 | M2→M9→M10+ | Concede doesn't clean up owned objects (CR 800.4a) | DEFERRED → M10+ |
 | MR-M3-01 | M3 | Partial fizzle: targets not filtered — effects execute against illegal targets | CLOSED — fix session 4 |
 | MR-M3-03 | M3 | GameObject hash omits `has_summoning_sickness` — breaks distributed verification | CLOSED — fix session 7 |
 | MR-M3-04 | M3 | Non-existent object target silently accepted in ability activation | CLOSED — fix session 4 |
@@ -1240,6 +1357,8 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M8-01 | M8 | `resolve_pending_zone_change` hardcodes `ZoneType::Battlefield` as "from" zone in re-check | CLOSED — fix session 1 |
 | MR-M8-02 | M8 | `DestroyPermanent` and `ExileObject` ignore `ChoiceRequired` — bypass player choice | CLOSED — fix session 1 |
 | MR-M8-03 | M8 | `UntilEndOfTurn` replacement effects never expire — prevention shields persist across turns | CLOSED — fix session 1 |
+| MR-M9-01 | M9 | Commander zone return SBA auto-applied without player choice (CR 903.9a) | CLOSED — fix session 1 |
+| MR-M9-02 | M9 | `compute_color_identity` only reads mana cost, not rules text mana symbols (CR 903.4) | CLOSED — fix session 1 |
 
 ### MEDIUM
 
@@ -1276,10 +1395,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M7-06 | M7 | `ForEachTarget::EachPlayer/EachOpponent` returns empty vec — player iteration broken | CLOSED — fix session 3 |
 | MR-M7-07 | M7 | `EffectAmount::CardCount` always returns 0 — unimplemented stub | CLOSED — fix session 3 |
 | MR-M7-08 | M7 | Supreme Verdict "can't be countered", Negate "noncreature" restrictions not modeled | CLOSED — fix session 8 |
-| MR-M7-09 | M7 | AddManaAnyColor/AddManaChoice default to colorless — 4 cards produce wrong mana | OPEN → M9 |
+| MR-M7-09 | M7 | AddManaAnyColor/AddManaChoice default to colorless — 4 cards produce wrong mana | OPEN → M10+ |
 | MR-M7-10 | M7 | `dest_tapped` takes ZoneId not ZoneTarget — ignores "enters tapped" flag | CLOSED — fix session 3 |
 | MR-M7-11 | M7 | Brainstorm only draws 3 — does not put 2 cards back on library | CLOSED — fix session 8 |
-| MR-M7-12 | M7 | Path to Exile's search unconditional — should be "may" | OPEN → M9 |
+| MR-M7-12 | M7 | Path to Exile's search unconditional — should be "may" | OPEN → M10+ |
 | MR-M8-04 | M8 | `zone_change_events` uses hardcoded `PlayerId(0)` for `ObjectExiled` events | CLOSED — fix session 1 |
 | MR-M8-05 | M8 | `ReplacementId(u64::MAX)` sentinel for commander redirect events | CLOSED — fix session 1 |
 | MR-M8-06 | M8 | `zone_change_events` always emits `CreatureDied` for graveyard destinations | CLOSED — fix session 1 |
@@ -1287,6 +1406,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M8-08 | M8 | `NeedsChoice` for WouldDraw replacements silently falls through to normal draw | CLOSED — fix session 2 |
 | MR-M8-09 | M8 | Leyline of the Void uses `ObjectFilter::Any` instead of opponent-only filter | CLOSED — fix session 2 |
 | MR-M8-10 | M8 | `TurnState::cleanup_sba_rounds` field not included in hash | CLOSED — fix session 2 |
+| MR-M9-03 | M9 | Commander tax overflow: `base_cost.generic + tax * 2` can overflow u32 | CLOSED — fix session 1 |
+| MR-M9-04 | M9 | `cards_to_bottom.len() as u32` truncates on 64-bit platforms | OPEN |
+| MR-M9-05 | M9 | Mulligan draws from library via `draw_card` can trigger library-empty loss during pregame | CLOSED — fix session 1 |
+| MR-M9-06 | M9 | Companion mana deduction duplicates `pay_cost` logic with fixed priority order | OPEN |
+| MR-M9-07 | M9 | `validate_deck` silently skips cards not in registry (Architecture Invariant 9) | CLOSED — fix session 1 |
+| MR-M9-08 | M9 | Command zone casting uses raw characteristics for type checks | OPEN |
 
 ### LOW
 
@@ -1343,6 +1468,15 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M8-14 | M8 | Darksteel Colossus "shuffle into library" simplified to RedirectToZone(Library) | OPEN |
 | MR-M8-15 | M8 | No test for multiple ETB replacements interacting (CR 614.15) | OPEN |
 | MR-M8-16 | M8 | Stale replacement effects grow unbounded when source leaves battlefield | OPEN |
+| MR-M9-09 | M9 | `reveals_hidden_info()` incomplete: MulliganTaken, LibraryShuffled, CompanionBroughtToHand not covered | OPEN |
+| MR-M9-10 | M9 | `validate_deck` uses `HashMap` instead of `im::OrdMap` — non-deterministic violation ordering | OPEN |
+| MR-M9-11 | M9 | Deck validation reports multiple violations but no dedup | OPEN |
+| MR-M9-12 | M9 | Mulligan `move_object_to_zone` errors silently dropped with `let _ =` | OPEN |
+| MR-M9-13 | M9 | `BringCompanion` emits event even if companion not found in command zone | OPEN |
+| MR-M9-14 | M9 | Test gap: no test for 3+ mulligans (London mulligan escalation) | OPEN |
+| MR-M9-15 | M9 | Test gap: no test for companion with non-empty stack rejection | OPEN |
+| MR-M9-16 | M9 | Test gap: partner commander damage independence (one at 21+, one not) | OPEN |
+| MR-M9-17 | M9 | Partner validation has no check for empty `commander_card_ids` | OPEN |
 
 ### INFO
 
@@ -1392,6 +1526,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M8-20 | M8 | Hash coverage complete for all M8 types (except pre-M8 gap MR-M8-10) | — |
 | MR-M8-21 | M8 | SBA zone-change interception well-integrated (all 3 ZoneChangeAction variants) | — |
 | MR-M8-22 | M8 | CR 903.9 implementation note: replacement effects vs SBAs for commander zone changes | — |
+| MR-M9-18 | M9 | M8 INFO note MR-M8-22 reconciled — M9 correctly splits SBA vs replacement paths | — |
+| MR-M9-19 | M9 | Well-structured commander.rs module (691 lines, cohesive domain, thorough CR citations) | — |
+| MR-M9-20 | M9 | Comprehensive hash coverage for all M9 types (3 PlayerState fields + 5 GameEvent variants) | — |
+| MR-M9-21 | M9 | Commander damage tracking is CardId-based, surviving zone changes (robust design) | — |
+| MR-M9-22 | M9 | Thorough test coverage: 44+ new tests across 4 files, full 4-player integration test | — |
+| MR-M9-23 | M9 | Three deferred issues from prior milestones (MR-M2-05, MR-M7-09, MR-M7-12) remain unresolved | — |
 
 ---
 
@@ -1399,22 +1539,22 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 168 (146 M0-M7 + 22 M8) |
+| Total unique issue IDs | 191 (146 M0-M7 + 22 M8 + 23 M9) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
-| HIGH (CLOSED) | 28 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1) |
-| HIGH (DEFERRED) | 1 (MR-M2-05 -> M9) |
-| MEDIUM (OPEN) | 4 (4 pre-M8: MR-M4-06, MR-M5-04, MR-M7-09, MR-M7-12) |
-| MEDIUM (CLOSED) | 34 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2) |
-| MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M9, MR-M7-12 -> M9) |
-| LOW (OPEN) | 42 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16) |
+| HIGH (CLOSED) | 30 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02) |
+| HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
+| MEDIUM (OPEN) | 5 (2 pre-M8: MR-M7-09, MR-M7-12 + 3 M9: MR-M9-04, MR-M9-06, MR-M9-08) |
+| MEDIUM (CLOSED) | 37 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07) |
+| MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
+| LOW (OPEN) | 51 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17) |
 | LOW (CLOSED) | 3 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3) |
 | LOW (DEFERRED) | 5 |
-| INFO | 49 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22) |
-| Milestones reviewed | 9 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8) |
-| Milestones not started | 1 (M9) |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed) |
+| INFO | 55 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23) |
+| Milestones reviewed | 10 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9) |
+| Milestones not started | 0 |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase in progress: session 1 complete (2 HIGH + 3 MEDIUM closed); session 2 pending (3 MEDIUM: MR-M9-04, MR-M9-06, MR-M9-08) |
 
-**Engine source LOC (M0-M8)**: ~13,700 lines (+1,200 M8)
-**Engine test LOC (M1-M8)**: ~17,000 lines (+2,400 M8)
-**Total test count**: 395 (all passing, as of M8 completion)
+**Engine source LOC (M0-M9)**: ~15,100 lines (+1,400 M9)
+**Engine test LOC (M1-M9)**: ~20,700 lines (+3,700 M9)
+**Total test count**: 448 (all passing, as of M9 completion)

@@ -2,16 +2,16 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_replacement_004",
-    "name": "Commander dies — auto-redirected to command zone (CR 903.9)",
-    "description": "p1's commander (Llanowar Elves, 1/1) is on the battlefield. p2 casts Lightning Bolt targeting the commander, dealing 3 damage. SBA triggers: commander has lethal damage and would go to graveyard. The commander zone-change replacement (pre-registered by the builder at game start) auto-applies (single applicable replacement), redirecting the commander to p1's command zone. Asserts the commander is NOT in p1's graveyard and NOT on the battlefield.",
-    "cr_sections_tested": ["614.1a", "616.1", "903.9", "704.5g"],
+    "name": "Commander dies — owner chooses to return to command zone (CR 903.9a)",
+    "description": "p1's commander (Llanowar Elves, 1/1) is on the battlefield. p2 casts Lightning Bolt targeting the commander, dealing 3 damage. SBA triggers (704.5g): commander has lethal damage, moves to graveyard. The commander zone-return SBA (CR 903.9a) then emits a choice event — the owner may return the commander to the command zone. p1 sends ReturnCommanderToCommandZone. Asserts the commander is NOT in p1's graveyard and NOT on the battlefield.",
+    "cr_sections_tested": ["903.9a", "704.5g", "704.6d"],
     "corner_case_ref": 18,
-    "tags": ["replacement", "commander", "command-zone", "zone-change", "auto-apply"],
+    "tags": ["replacement", "commander", "command-zone", "zone-change", "player-choice"],
     "confidence": "high",
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
-    "review_date": "2026-02-22",
-    "generation_notes": "The commander zone-change replacement is pre-registered by register_commander_zone_replacements in the builder (not through ETB). Only one replacement applies (commander->graveyard), so it auto-applies per CR 616.1. No OrderReplacements needed. The assert checks negative evidence (not in graveyard, not on battlefield) since the harness does not have a zones.command_zone assertion path.",
+    "review_date": "2026-02-23",
+    "generation_notes": "Updated for MR-M9-01 fix: SBA now emits CommanderZoneReturnChoiceRequired instead of auto-returning. The script adds a return_commander_to_command_zone player action after the SBA check. Negative evidence assertion (not in graveyard) remains valid after the choice is resolved.",
     "disputes": []
   },
   "initial_state": {
@@ -77,7 +77,7 @@
   "script": [
     {
       "step": "precombat_main",
-      "step_note": "p2 casts Lightning Bolt to kill p1's commander; commander zone-change replacement auto-applies",
+      "step_note": "p2 casts Lightning Bolt to kill p1's commander; SBA emits choice; p1 returns commander to command zone",
       "actions": [
         {
           "type": "assert_state",
@@ -85,7 +85,7 @@
           "assertions": {
             "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
           },
-          "note": "Commander is on the battlefield. Commander zone-change replacement is pre-registered by the builder."
+          "note": "Commander is on the battlefield."
         },
         {
           "type": "player_action",
@@ -115,7 +115,7 @@
               "target": { "type": "creature", "card": "Llanowar Elves" },
               "amount": 3,
               "cr_ref": "120.3",
-              "note": "CR 120.3: Lightning Bolt deals 3 damage to Llanowar Elves (1/1 commander). 3 ≥ 1 toughness — lethal."
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Llanowar Elves (1/1 commander). 3 >= 1 toughness — lethal."
             }
           ],
           "note": "Lightning Bolt resolves; commander takes lethal damage."
@@ -125,24 +125,35 @@
           "results": [
             {
               "sba": "704.5g",
-              "description": "Llanowar Elves (commander) has marked damage 3 ≥ toughness 1 — would die. Commander zone-change replacement (pre-registered at game start) auto-applies (single applicable effect). Commander redirected to p1's command zone instead of graveyard.",
+              "description": "Llanowar Elves has marked damage 3 >= toughness 1 — moves to graveyard. Commander zone-return SBA (CR 903.9a) emits CommanderZoneReturnChoiceRequired: owner may return to command zone.",
               "object": "Llanowar Elves",
               "controller": "p1",
-              "result": "sent_to_command_zone",
-              "cr_ref": "903.9"
+              "result": "commander_zone_return_choice_required",
+              "cr_ref": "903.9a"
             }
           ],
           "triggered_abilities": [],
-          "note": "CR 903.9 + 616.1: Single replacement auto-applied; commander goes to command zone."
+          "note": "CR 903.9a: Commander in graveyard — owner must choose whether to return to command zone."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "return_commander_to_command_zone",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "903.9a",
+          "note": "CR 903.9a: p1 chooses to return commander to command zone."
         },
         {
           "type": "assert_state",
-          "description": "After SBA: commander NOT in graveyard and NOT on battlefield (went to command zone)",
+          "description": "After SBA + choice: commander NOT in graveyard and NOT on battlefield (went to command zone)",
           "assertions": {
             "zones.battlefield.p1": { "excludes": ["Llanowar Elves"] },
             "zones.graveyard.p1": { "excludes": ["Llanowar Elves"] }
           },
-          "note": "CR 903.9: Commander replacement fired; Elves in command zone (not graveyard). Harness has no zones.command_zone assertion, verified by negative evidence."
+          "note": "CR 903.9a: Commander returned to command zone by owner's choice. NOT in graveyard (negative evidence; harness has no zones.command_zone assertion path)."
         }
       ]
     }

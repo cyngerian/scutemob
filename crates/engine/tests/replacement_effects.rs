@@ -1147,19 +1147,23 @@ fn test_creature_dies_with_exile_replacement_goes_to_exile() {
     );
 }
 
-// ── Commander dies → SBA auto-returns to command zone (M9 model) ──
+// ── Commander dies → SBA emits choice, owner returns to command zone (CR 903.9a) ──
 
 #[test]
-/// CR 903.9a / CR 704.6d — Commander with lethal damage: SBA returns commander to
-/// command zone (M9 model — not a replacement effect, but a state-based action).
-/// Source: M9 Session 3 SBA model update
+/// CR 903.9a / CR 704.6d — Commander with lethal damage: SBA emits choice, owner returns.
+///
+/// With the M9 fix, the SBA no longer auto-applies: it emits
+/// `CommanderZoneReturnChoiceRequired`. The owner then sends
+/// `ReturnCommanderToCommandZone` to complete the move.
+/// Source: M9 Session 3 SBA model update; fix MR-M9-01
 fn test_commander_dies_auto_redirects_to_command_zone() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
+    let p1 = PlayerId(1);
 
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
+        .player_commander(p1, cmdr_card_id.clone())
         .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 3, 3)
+            ObjectSpec::creature(p1, "Commander", 3, 3)
                 .with_card_id(cmdr_card_id.clone())
                 .with_damage(3),
         )
@@ -1171,55 +1175,71 @@ fn test_commander_dies_auto_redirects_to_command_zone() {
     // The hand/library replacements are still registered via CR 903.9b.
     register_commander_zone_replacements(&mut state);
 
-    let _cmdr_id = state
-        .objects_in_zone(&ZoneId::Battlefield)
-        .first()
-        .unwrap()
-        .id;
-
+    // First SBA pass: lethal damage → commander moves to graveyard,
+    // then commander zone return SBA emits CommanderZoneReturnChoiceRequired.
     let events = mtg_engine::check_and_apply_sbas(&mut state);
 
-    // Commander should NOT be in graveyard.
+    // Commander should be in graveyard (choice not yet resolved).
     assert!(
-        state
-            .objects_in_zone(&ZoneId::Graveyard(PlayerId(1)))
-            .is_empty(),
-        "graveyard should be empty — commander returned to command zone via SBA"
+        !state.objects_in_zone(&ZoneId::Graveyard(p1)).is_empty(),
+        "commander should be in graveyard pending owner's choice"
     );
 
-    // Commander should be in command zone.
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
-    assert_eq!(cmd_objects.len(), 1, "commander should be in command zone");
-
-    // CommanderReturnedToCommandZone SBA event should be emitted (M9 model).
+    // CommanderZoneReturnChoiceRequired should be emitted (MR-M9-01 fix).
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
-        "should emit CommanderReturnedToCommandZone event (SBA model)"
+            .any(|e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { .. })),
+        "should emit CommanderZoneReturnChoiceRequired event; events: {events:?}"
     );
 
-    // No CreatureDied event (commander went directly to command zone via graveyard SBA return).
-    // Note: The commander first enters graveyard (CreatureDied fires), then SBA returns it.
-    // Check it ends up in command zone, not graveyard.
-    let graveyard = state.objects_in_zone(&ZoneId::Graveyard(PlayerId(1)));
+    // Owner resolves the choice: return to command zone.
+    let choice_event = events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, return_events) = mtg_engine::rules::process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
+
+    // Commander should now be in command zone.
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    assert_eq!(cmd_objects.len(), 1, "commander should be in command zone");
+
     assert!(
-        graveyard.is_empty(),
-        "graveyard should be empty after SBA return"
+        state.objects_in_zone(&ZoneId::Graveyard(p1)).is_empty(),
+        "graveyard should be empty after choice resolved"
+    );
+
+    assert!(
+        return_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
+        "should emit CommanderReturnedToCommandZone event"
     );
 }
 
 // ── Commander dies with Rest in Peace active → SBA returns from exile (M9 model) ──
 
 #[test]
-/// CR 903.9a + Corner case #18 — Commander + Rest in Peace: M9 SBA model.
+/// CR 903.9a + Corner case #18 — Commander + Rest in Peace: M9 SBA model (fix MR-M9-01).
 ///
-/// With M9, graveyard/exile commander returns are SBAs, not replacements.
-/// RiP (graveyard→exile) still fires as a replacement on the graveyard event.
-/// Then the commander-return SBA fires on the next SBA pass to pull it from exile.
-/// Source: M9 Session 3 corner case 18 (SBA model update)
+/// RiP (graveyard→exile) fires as a replacement, then the commander-return SBA
+/// emits `CommanderZoneReturnChoiceRequired`. The owner then sends
+/// `ReturnCommanderToCommandZone` to complete the move to command zone.
+/// Source: M9 Session 3 corner case 18 (SBA model update); fix MR-M9-01
 fn test_commander_dies_with_rest_in_peace_needs_choice() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
+    let p1 = PlayerId(1);
 
     // Rest in Peace effect: anything going to graveyard → exile instead.
     let rip_effect = ReplacementEffect {
@@ -1237,9 +1257,9 @@ fn test_commander_dies_with_rest_in_peace_needs_choice() {
     };
 
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
+        .player_commander(p1, cmdr_card_id.clone())
         .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 3, 3)
+            ObjectSpec::creature(p1, "Commander", 3, 3)
                 .with_card_id(cmdr_card_id.clone())
                 .with_damage(3),
         )
@@ -1250,55 +1270,77 @@ fn test_commander_dies_with_rest_in_peace_needs_choice() {
     // Register commander zone-change replacements (hand/library only in M9).
     register_commander_zone_replacements(&mut state);
 
+    // SBAs: lethal damage → RiP redirects graveyard→exile → SBA emits choice.
     let events = mtg_engine::check_and_apply_sbas(&mut state);
 
-    // With M9 model: RiP redirects graveyard→exile, then SBA auto-returns from exile.
-    // End result: commander is in command zone.
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
+    // Commander should be in exile pending the owner's choice.
+    assert!(
+        state.objects_in_zone(&ZoneId::Graveyard(p1)).is_empty(),
+        "graveyard should be empty (RiP redirected to exile)"
+    );
     assert_eq!(
-        cmd_objects.len(),
+        state.objects_in_zone(&ZoneId::Exile).len(),
         1,
-        "commander should be in command zone (RiP exiled it, SBA returned it)"
+        "commander should be in exile awaiting owner's choice"
     );
 
-    // Graveyard should be empty (RiP prevented it from going there).
-    assert!(
-        state
-            .objects_in_zone(&ZoneId::Graveyard(PlayerId(1)))
-            .is_empty(),
-        "graveyard should be empty"
-    );
-
-    // Exile should also be empty (SBA returned commander to command zone).
-    assert!(
-        state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile should be empty — SBA returned commander to command zone"
-    );
-
-    // CommanderReturnedToCommandZone event should have been emitted.
+    // CommanderZoneReturnChoiceRequired should be emitted.
     assert!(
         events
             .iter()
-            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
-        "should emit CommanderReturnedToCommandZone event from SBA"
+            .any(|e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { .. })),
+        "should emit CommanderZoneReturnChoiceRequired; events: {events:?}"
     );
 
-    // No pending zone changes (resolved immediately by SBA).
+    // No pending zone changes from replacement system (the SBA choice is separate).
     assert!(
         state.pending_zone_changes.is_empty(),
-        "no pending zone changes — SBA handles it automatically"
+        "no pending replacement zone changes"
+    );
+
+    // Owner resolves choice: return commander to command zone.
+    let choice_event = events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, _) = mtg_engine::rules::process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
+
+    // Commander should now be in command zone.
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    assert_eq!(
+        cmd_objects.len(),
+        1,
+        "commander should be in command zone after owner's choice"
+    );
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).is_empty(),
+        "exile should be empty after choice resolved"
     );
 }
 
-// ── Commander dies with Rest in Peace → SBA auto-returns from exile (M9 model) ──
+// ── Commander dies with RiP → owner chooses to leave commander in exile ──
 
 #[test]
-/// CR 903.9a + CR 616.1 — Commander + Rest in Peace: in M9, the SBA auto-returns
-/// the commander from exile (where RiP sent it) to the command zone.
-/// No player choice is required for graveyard/exile paths (M9 simplification, deferred to M10+).
-/// Source: M9 Session 3 corner case 18 (SBA model)
+/// CR 903.9a — Commander + Rest in Peace: owner may choose to leave commander in exile.
+///
+/// RiP sends the commander to exile. The SBA emits a choice. Here the owner
+/// sends `LeaveCommanderInZone` to leave the commander in exile (e.g., for
+/// reanimation synergy). The commander stays in exile.
+/// Source: M9 Session 3 corner case 18 (SBA model); fix MR-M9-01
 fn test_commander_dies_with_rip_player_chooses_command_zone() {
     let cmdr_card_id = CardId("cmdr-1".to_string());
+    let p1 = PlayerId(1);
 
     let rip_effect = ReplacementEffect {
         id: ReplacementId(100),
@@ -1315,9 +1357,9 @@ fn test_commander_dies_with_rip_player_chooses_command_zone() {
     };
 
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
+        .player_commander(p1, cmdr_card_id.clone())
         .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 3, 3)
+            ObjectSpec::creature(p1, "Commander", 3, 3)
                 .with_card_id(cmdr_card_id.clone())
                 .with_damage(3),
         )
@@ -1327,48 +1369,57 @@ fn test_commander_dies_with_rip_player_chooses_command_zone() {
 
     register_commander_zone_replacements(&mut state);
 
-    // Run SBAs. With M9 model: RiP redirects graveyard→exile, then SBA auto-returns from exile.
+    // SBAs: lethal damage → RiP redirects to exile → SBA emits choice event.
     let events = mtg_engine::check_and_apply_sbas(&mut state);
 
-    // In M9, the SBA auto-returns the commander (no player choice required for exile path).
-    // Commander should be in command zone.
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
+    // Commander is in exile awaiting owner's choice.
     assert_eq!(
-        cmd_objects.len(),
+        state.objects_in_zone(&ZoneId::Exile).len(),
         1,
-        "commander should be in command zone after SBA auto-return"
+        "commander should be in exile awaiting choice"
     );
-
-    // Graveyard should be empty.
-    assert!(
-        state
-            .objects_in_zone(&ZoneId::Graveyard(PlayerId(1)))
-            .is_empty(),
-        "graveyard should be empty"
-    );
-
-    // Exile should also be empty (SBA returned it from exile).
-    assert!(
-        state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile should be empty — SBA returned commander to command zone"
-    );
-
-    // Pending zone changes should be empty (SBA resolved it automatically).
-    assert!(
-        state.pending_zone_changes.is_empty(),
-        "pending zone changes should be cleared"
-    );
-
-    // CommanderReturnedToCommandZone event should be emitted.
     assert!(
         events.iter().any(|e| matches!(
             e,
-            GameEvent::CommanderReturnedToCommandZone {
+            GameEvent::CommanderZoneReturnChoiceRequired {
                 from_zone: ZoneType::Exile,
                 ..
             }
         )),
-        "should emit CommanderReturnedToCommandZone from exile"
+        "should emit CommanderZoneReturnChoiceRequired from exile; events: {events:?}"
+    );
+
+    // Owner chooses to leave commander in exile.
+    let choice_event = events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, _) = mtg_engine::rules::process_command(
+        state,
+        Command::LeaveCommanderInZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
+
+    // Commander stays in exile.
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Exile).len(),
+        1,
+        "commander should still be in exile after choosing to leave it there"
+    );
+    assert!(
+        state.objects_in_zone(&ZoneId::Command(p1)).is_empty(),
+        "command zone should be empty — owner chose not to return"
+    );
+    assert!(
+        state.pending_commander_zone_choices.is_empty(),
+        "pending choice should be cleared after LeaveCommanderInZone"
     );
 }
 
@@ -1412,22 +1463,20 @@ fn test_has_card_id_filter_matches_object() {
     );
 }
 
-// ── Creature in ExileObject effect — commander goes to exile, SBA returns it (M9 model) ──
+// ── ExileObject effect on commander: SBA emits choice, owner returns (MR-M9-01 fix) ──
 
 #[test]
-/// CR 614 + CR 903.9a — ExileObject effect on commander: in M9, the effect moves the
-/// commander to exile (no replacement for exile path), then a subsequent SBA pass returns
-/// it to the command zone.
-/// Source: M9 Session 3 SBA model update
+/// CR 614 + CR 903.9a — ExileObject effect on commander: the effect moves the commander
+/// to exile, then the SBA emits `CommanderZoneReturnChoiceRequired`. The owner responds
+/// with `ReturnCommanderToCommandZone` to complete the move to command zone.
+/// Source: M9 Session 3 SBA model update; fix MR-M9-01
 fn test_exile_effect_checks_replacements() {
-    // A commander being exiled should be returned by SBA on next pass.
     let cmdr_card_id = CardId("cmdr-exile".to_string());
+    let p1 = PlayerId(1);
 
     let mut state = GameStateBuilder::four_player()
-        .player_commander(PlayerId(1), cmdr_card_id.clone())
-        .object(
-            ObjectSpec::creature(PlayerId(1), "Commander", 4, 4).with_card_id(cmdr_card_id.clone()),
-        )
+        .player_commander(p1, cmdr_card_id.clone())
+        .object(ObjectSpec::creature(p1, "Commander", 4, 4).with_card_id(cmdr_card_id.clone()))
         .build()
         .unwrap();
 
@@ -1461,8 +1510,7 @@ fn test_exile_effect_checks_replacements() {
 
     let _events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
 
-    // After the effect, commander is in exile (no replacement intercepts exile in M9).
-    // The SBA will return it on the next check.
+    // After the effect, commander is in exile.
     let exile_objects = state.objects_in_zone(&ZoneId::Exile);
     assert_eq!(
         exile_objects.len(),
@@ -1470,26 +1518,53 @@ fn test_exile_effect_checks_replacements() {
         "commander should be in exile after ExileObject (before SBA runs)"
     );
 
-    // Now run SBA — it should return the commander to command zone.
+    // SBA emits choice — commander stays in exile pending owner's decision.
     let sba_events = mtg_engine::check_and_apply_sbas(&mut state);
-
-    let cmd_objects = state.objects_in_zone(&ZoneId::Command(PlayerId(1)));
-    assert_eq!(
-        cmd_objects.len(),
-        1,
-        "commander should be in command zone after SBA runs"
-    );
-    assert!(
-        state.objects_in_zone(&ZoneId::Exile).is_empty(),
-        "exile zone should be empty after SBA return"
-    );
-
-    // CommanderReturnedToCommandZone event should have been emitted by SBA.
     assert!(
         sba_events
             .iter()
+            .any(|e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { .. })),
+        "should emit CommanderZoneReturnChoiceRequired from SBA; events: {sba_events:?}"
+    );
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Exile).len(),
+        1,
+        "commander should still be in exile pending choice"
+    );
+
+    // Owner resolves choice: return to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+
+    let (state, return_events) = mtg_engine::rules::process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: obj_id,
+        },
+    )
+    .unwrap();
+
+    let cmd_objects = state.objects_in_zone(&ZoneId::Command(p1));
+    assert_eq!(
+        cmd_objects.len(),
+        1,
+        "commander should be in command zone after choice resolved"
+    );
+    assert!(
+        state.objects_in_zone(&ZoneId::Exile).is_empty(),
+        "exile zone should be empty after choice resolved"
+    );
+    assert!(
+        return_events
+            .iter()
             .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
-        "should emit CommanderReturnedToCommandZone from SBA"
+        "should emit CommanderReturnedToCommandZone event"
     );
 }
 

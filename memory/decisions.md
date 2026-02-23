@@ -1,4 +1,4 @@
-# Design Decisions — Last verified: M8
+# Design Decisions — Last verified: M9
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
@@ -24,6 +24,7 @@
 | 2026-02-22 | `enrich_spec_from_def` populates ObjectSpec from definitions in scripts | `ObjectSpec::card()` creates naked objects; enrichment ensures scripts work without bespoke per-card setup |
 | 2026-02-22 | M9.5 Game State Stepper: web-based (axum + Svelte), placed after engine core | Visual validation before networking; Svelte components reused in M11 Tauri app (props-based, data source is the only difference) |
 | 2026-02-22 | `HasCardId(CardId)` filter for commander replacement scope | ObjectId changes on zone change (CR 400.7) but CardId persists; replacement effects scoped to specific commanders need CardId matching |
-| 2026-02-22 | Two replacement effects per commander (graveyard + exile) | Trigger model `WouldChangeZone` matches a single destination; separate effects for each redirect-able zone type |
+| 2026-02-22 | ~~Two replacement effects per commander (graveyard + exile)~~ — **superseded by M9** | M9 changed graveyard/exile redirects to SBAs (CR 903.9a correct model). See row below. |
+| 2026-02-23 | Commander graveyard/exile redirect is SBA (CR 903.9a); hand/library is replacement (CR 903.9b) | CR 903.9a says players "may put it into the command zone" as an SBA; CR 903.9b explicitly says "instead" (replacement). Mixing models caused incorrect interaction ordering with Rest in Peace. |
 | 2026-02-22 | Self-ETB replacements from card definitions applied inline, not registered in state | Registering would create a global effect for all permanents; per-instance ETB (e.g., Dimir Guildgate) is applied at the ETB site by looking up card_id → CardDefinition → `AbilityDefinition::Replacement { is_self: true }` |
 | 2026-02-22 | `apply_self_etb_from_definition` is public in `replacement.rs`; called from both `resolution.rs` and `lands.rs` | Both permanent spells and land plays are ETB sites; shared public function avoids duplication and ensures consistent CR 614.15 ordering |

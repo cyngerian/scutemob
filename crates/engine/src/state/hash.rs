@@ -1391,6 +1391,19 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 card_id.hash_into(hasher);
             }
+            // M9 fix MR-M9-01: CommanderZoneReturnChoiceRequired (discriminant 62)
+            GameEvent::CommanderZoneReturnChoiceRequired {
+                owner,
+                card_id,
+                object_id,
+                from_zone,
+            } => {
+                62u8.hash_into(hasher);
+                owner.hash_into(hasher);
+                card_id.hash_into(hasher);
+                object_id.hash_into(hasher);
+                from_zone.hash_into(hasher);
+            }
         }
     }
 }
@@ -2003,6 +2016,10 @@ impl GameState {
         self.delayed_triggers.hash_into(&mut hasher);
         self.replacement_effects.hash_into(&mut hasher);
         self.pending_zone_changes.hash_into(&mut hasher);
+        for (owner, oid) in self.pending_commander_zone_choices.iter() {
+            owner.hash_into(&mut hasher);
+            oid.hash_into(&mut hasher);
+        }
         for (id, n) in self.prevention_counters.iter() {
             id.hash_into(&mut hasher);
             n.hash_into(&mut hasher);

@@ -499,19 +499,31 @@ pub enum GameEvent {
     },
 
     // ── M9: Commander zone return SBA (discriminant 58) ──────────────────
-    /// A commander was automatically returned to its owner's command zone by a
-    /// state-based action (CR 903.9a / CR 704.6d).
+    /// A commander was returned to its owner's command zone following the owner's
+    /// explicit choice via `ReturnCommanderToCommandZone` (CR 903.9a / CR 704.6d).
     ///
-    /// Emitted when `check_commander_zone_return_sba` detects a commander in
-    /// graveyard or exile and auto-returns it. `from_zone` indicates which zone
-    /// the commander was moved from.
-    ///
-    /// Note (M9 simplification): the owner's choice to leave the commander in
-    /// graveyard/exile is auto-applied as a return. Player opt-out is deferred
-    /// to M10+ when a choice UI exists.
+    /// Emitted by `handle_return_commander_to_command_zone` when the player chooses
+    /// to return their commander. `from_zone` indicates which zone it was moved from.
     CommanderReturnedToCommandZone {
         card_id: CardId,
         owner: PlayerId,
+        from_zone: ZoneType,
+    },
+
+    // ── M9 fix: Commander zone return player choice (discriminant 62) ─────
+    /// The SBA detected a commander in graveyard or exile and is awaiting the
+    /// owner's choice: return it to the command zone or leave it where it is
+    /// (CR 903.9a — "may put it into the command zone").
+    ///
+    /// The engine pauses until the owner sends either:
+    /// - `Command::ReturnCommanderToCommandZone { player, object_id }` to move it
+    /// - `Command::LeaveCommanderInZone { player, object_id }` to leave it
+    ///
+    /// `object_id` identifies the commander object in its current zone.
+    CommanderZoneReturnChoiceRequired {
+        owner: PlayerId,
+        card_id: CardId,
+        object_id: ObjectId,
         from_zone: ZoneType,
     },
 

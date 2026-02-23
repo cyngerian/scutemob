@@ -352,20 +352,38 @@ fn test_commander_damage_survives_zone_change() {
         .move_object_to_zone(commander_obj_id, ZoneId::Graveyard(p1))
         .expect("move to graveyard failed");
 
-    // SBA: commander in graveyard → auto-return to command zone.
+    // SBA: commander in graveyard → emits CommanderZoneReturnChoiceRequired (MR-M9-01 fix).
     let sba_events = check_and_apply_sbas(&mut state);
     assert!(
         sba_events
             .iter()
-            .any(|e| matches!(e, GameEvent::CommanderReturnedToCommandZone { .. })),
-        "SBA should return commander to command zone"
+            .any(|e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { .. })),
+        "SBA should emit CommanderZoneReturnChoiceRequired; events: {sba_events:?}"
     );
+
+    // Owner resolves choice: return commander to command zone.
+    let choice_event = sba_events.iter().find(
+        |e| matches!(e, GameEvent::CommanderZoneReturnChoiceRequired { owner, .. } if *owner == p1),
+    );
+    let graveyard_obj_id = match choice_event.unwrap() {
+        GameEvent::CommanderZoneReturnChoiceRequired { object_id, .. } => *object_id,
+        _ => unreachable!(),
+    };
+    let (new_state, _) = process_command(
+        state,
+        Command::ReturnCommanderToCommandZone {
+            player: p1,
+            object_id: graveyard_obj_id,
+        },
+    )
+    .expect("return commander to command zone");
+    let mut state = new_state;
 
     // Commander is now in command zone.
     assert_eq!(
         state.objects_in_zone(&ZoneId::Command(p1)).len(),
         1,
-        "commander should be in command zone after SBA return"
+        "commander should be in command zone after choice resolved"
     );
 
     // "Re-cast": add a NEW object with the same card_id to the battlefield
