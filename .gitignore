@@ -25,6 +25,10 @@ Thumbs.db
 # Project-specific
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
 .scryfall-cache/
 test-data/golden-games/*.result.json
 zz_scratch.md
