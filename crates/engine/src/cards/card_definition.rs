@@ -121,6 +121,19 @@ pub enum AbilityDefinition {
     /// the first turn begins. The card is moved from the player's hand to the
     /// battlefield as a pre-game action (not cast, not resolved, no ETB trigger).
     OpeningHand,
+    /// A Panharmonicon-style trigger-doubling static ability (CR 603.2d).
+    ///
+    /// "Whenever an artifact or creature enters the battlefield under your control,
+    /// if a triggered ability of a permanent you control would trigger from that
+    /// event, that ability triggers an additional time."
+    ///
+    /// When a permanent with this ability enters the battlefield, a `TriggerDoubler`
+    /// entry is registered in `GameState::trigger_doublers`. When it leaves, the
+    /// entry is cleaned up lazily (check at use: source must still be on battlefield).
+    TriggerDoubling {
+        filter: crate::state::stubs::TriggerDoublerFilter,
+        additional_triggers: u32,
+    },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

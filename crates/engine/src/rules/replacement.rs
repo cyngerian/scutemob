@@ -1111,21 +1111,45 @@ pub fn register_static_continuous_effects(
         return;
     };
 
+    // Get the controller of the entering permanent for TriggerDoubler registration.
+    let controller = state
+        .objects
+        .get(&new_id)
+        .map(|obj| obj.controller)
+        .unwrap_or_else(|| crate::state::player::PlayerId(0));
+
     for ability in &def.abilities {
-        if let AbilityDefinition::Static { continuous_effect } = ability {
-            let eff_id = state.next_object_id().0;
-            let ts = state.timestamp_counter;
-            state.timestamp_counter += 1;
-            state.continuous_effects.push_back(ContinuousEffect {
-                id: EffectId(eff_id),
-                source: Some(new_id),
-                timestamp: ts,
-                layer: continuous_effect.layer,
-                duration: continuous_effect.duration,
-                filter: continuous_effect.filter.clone(),
-                modification: continuous_effect.modification.clone(),
-                is_cda: false,
-            });
+        match ability {
+            AbilityDefinition::Static { continuous_effect } => {
+                let eff_id = state.next_object_id().0;
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                state.continuous_effects.push_back(ContinuousEffect {
+                    id: EffectId(eff_id),
+                    source: Some(new_id),
+                    timestamp: ts,
+                    layer: continuous_effect.layer,
+                    duration: continuous_effect.duration,
+                    filter: continuous_effect.filter.clone(),
+                    modification: continuous_effect.modification.clone(),
+                    is_cda: false,
+                });
+            }
+            // CR 603.2d: Register a Panharmonicon-style trigger-doubling effect.
+            AbilityDefinition::TriggerDoubling {
+                filter,
+                additional_triggers,
+            } => {
+                state
+                    .trigger_doublers
+                    .push_back(crate::state::stubs::TriggerDoubler {
+                        source: new_id,
+                        controller,
+                        filter: filter.clone(),
+                        additional_triggers: *additional_triggers,
+                    });
+            }
+            _ => {}
         }
     }
 }

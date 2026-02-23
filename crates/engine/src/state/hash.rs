@@ -26,7 +26,7 @@ use super::replacement_effect::{
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use super::stack::{StackObject, StackObjectKind};
-use super::stubs::{DelayedTrigger, PendingTrigger};
+use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
@@ -290,6 +290,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::CantBeBlocked => 24u8.hash_into(hasher),
             // M9.4: Storm (discriminant 25) — CR 702.40
             KeywordAbility::Storm => 25u8.hash_into(hasher),
+            // M9.4: Cascade (discriminant 26) — CR 702.85
+            KeywordAbility::Cascade => 26u8.hash_into(hasher),
         }
     }
 }
@@ -638,6 +640,23 @@ impl HashInto for ContinuousEffect {
 
 // --- Stub type implementations ---
 
+impl HashInto for TriggerDoublerFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            TriggerDoublerFilter::ArtifactOrCreatureETB => 0u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for TriggerDoubler {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.source.hash_into(hasher);
+        self.controller.hash_into(hasher);
+        self.filter.hash_into(hasher);
+        self.additional_triggers.hash_into(hasher);
+    }
+}
+
 impl HashInto for DelayedTrigger {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.source.hash_into(hasher);
@@ -815,6 +834,8 @@ impl HashInto for PendingTrigger {
         self.source.hash_into(hasher);
         self.ability_index.hash_into(hasher);
         self.controller.hash_into(hasher);
+        // M9.4: triggering_event (CR 603.2d) — used for Panharmonicon doubling
+        self.triggering_event.hash_into(hasher);
     }
 }
 
@@ -1470,6 +1491,21 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 from_zone.hash_into(hasher);
             }
+            // M9.4: CascadeExiled (discriminant 66)
+            GameEvent::CascadeExiled {
+                player,
+                cards_exiled,
+            } => {
+                66u8.hash_into(hasher);
+                player.hash_into(hasher);
+                cards_exiled.hash_into(hasher);
+            }
+            // M9.4: CascadeCast (discriminant 67)
+            GameEvent::CascadeCast { player, card_id } => {
+                67u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_id.hash_into(hasher);
+            }
             // M9.4: SpellCopied (discriminant 65)
             GameEvent::SpellCopied {
                 original_stack_id,
@@ -2053,6 +2089,15 @@ impl HashInto for AbilityDefinition {
                 is_self.hash_into(hasher);
             }
             AbilityDefinition::OpeningHand => 6u8.hash_into(hasher),
+            // M9.4: TriggerDoubling (discriminant 7) — CR 603.2d
+            AbilityDefinition::TriggerDoubling {
+                filter,
+                additional_triggers,
+            } => {
+                7u8.hash_into(hasher);
+                filter.hash_into(hasher);
+                additional_triggers.hash_into(hasher);
+            }
         }
     }
 }
@@ -2135,6 +2180,8 @@ impl GameState {
             n.hash_into(&mut hasher);
         }
         self.pending_triggers.hash_into(&mut hasher);
+        // M9.4: trigger_doublers (CR 603.2d) — Panharmonicon-style doubling
+        self.trigger_doublers.hash_into(&mut hasher);
         self.stack_objects.hash_into(&mut hasher);
 
         // 6. Combat state

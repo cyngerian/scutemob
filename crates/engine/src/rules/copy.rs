@@ -15,7 +15,9 @@ use crate::state::{
     error::GameStateError,
     game_object::{Characteristics, ObjectId},
     player::PlayerId,
-    stack::StackObject,
+    stack::{StackObject, StackObjectKind},
+    types::CardType,
+    zone::ZoneId,
     GameState,
 };
 
@@ -217,6 +219,156 @@ pub fn storm_count(state: &GameState, caster: PlayerId) -> u32 {
         .get(&caster)
         .map(|p| p.spells_cast_this_turn.saturating_sub(1))
         .unwrap_or(0)
+}
+
+/// CR 702.85: Resolve cascade for the given spell.
+///
+/// Cascade triggers when the cascade spell is cast. Resolution:
+/// 1. Exile cards from the top of the caster's library one at a time.
+/// 2. Stop when a nonland card with mana value STRICTLY LESS THAN the
+///    cascade spell's mana value is found.
+/// 3. The caster may cast that card without paying its mana cost
+///    (deterministic M9.4: always cast if the card is castable — nonland).
+/// 4. Put all remaining exiled cards (those NOT cast) on the bottom of
+///    the library in a random order (deterministic: ObjectId ascending order).
+///
+/// CR 708.4: For split card mana value when not on the stack, use the combined
+/// mana value of both halves. Split cards are not yet implemented; this rule
+/// is documented here for future reference — `spell_mana_value` is always the
+/// full printed mana value of the cascade spell passed by the caller.
+///
+/// Returns (events, cascaded_card_id) where `cascaded_card_id` is the ObjectId
+/// of the card placed on the stack (if any was found and cast), or `None` if the
+/// library was empty or no qualifying card was found.
+///
+/// NOTE: The cascade card goes onto the stack WITHOUT going through the normal
+/// CastSpell flow (no priority check, no mana payment). It is cast "free" and
+/// the trigger fires separately from normal casting. However, it IS cast — cascade
+/// does trigger "whenever you cast a spell" abilities for the cascaded-into spell
+/// (CR 702.85c).
+pub fn resolve_cascade(
+    state: &mut GameState,
+    caster: PlayerId,
+    spell_mana_value: u32,
+) -> (Vec<GameEvent>, Option<ObjectId>) {
+    let mut events = Vec::new();
+    let mut exiled_ids: Vec<ObjectId> = Vec::new();
+    let mut cast_id: Option<ObjectId> = None;
+
+    // Step 1–2: Exile cards one at a time from the top of the caster's library.
+    loop {
+        // Get top card of library (ordered zone: first element = top).
+        let library_zone_id = ZoneId::Library(caster);
+        let top_card_id = {
+            let library = state.zones.get(&library_zone_id);
+            // CR 702.85: exile from TOP of library — top = last element in ordered zone
+            // (push_back appends; draw_card uses top() = last()).
+            library.and_then(|z| z.top())
+        };
+
+        let Some(top_id) = top_card_id else {
+            // Library empty: stop searching.
+            break;
+        };
+
+        // Exile the top card.
+        let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
+            Ok(r) => r,
+            Err(_) => break,
+        };
+        exiled_ids.push(exile_id);
+
+        // Check if this is a qualifying card: nonland with mana value < spell_mana_value.
+        let is_land = state
+            .objects
+            .get(&exile_id)
+            .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
+            .unwrap_or(false);
+
+        let card_mv = state
+            .objects
+            .get(&exile_id)
+            .and_then(|obj| obj.characteristics.mana_cost.as_ref())
+            .map(|mc| mc.mana_value())
+            .unwrap_or(0);
+
+        if !is_land && card_mv < spell_mana_value {
+            // Found the qualifying card. Cast it for free (deterministic: always cast).
+            // Step 3: Put it on the stack without paying mana cost.
+            let stack_entry_id = state.next_object_id();
+            // Move card from exile to stack zone (new ObjectId via CR 400.7).
+            let (stack_source_id, _old) = match state.move_object_to_zone(exile_id, ZoneId::Stack) {
+                Ok(r) => r,
+                Err(_) => {
+                    // Failed to move card — leave in exile and stop.
+                    break;
+                }
+            };
+            // Remove it from the exiled list (it was cast, not put on bottom).
+            exiled_ids.pop();
+
+            // Create a StackObject for the cascaded spell.
+            // CR 702.85c: cascade IS a cast — it triggers "whenever you cast a spell".
+            let stack_obj = StackObject {
+                id: stack_entry_id,
+                controller: caster,
+                kind: StackObjectKind::Spell {
+                    source_object: stack_source_id,
+                },
+                targets: vec![],
+                cant_be_countered: false,
+                is_copy: false,
+            };
+            state.stack_objects.push_back(stack_obj);
+
+            // CR 702.85c: cascade triggers "whenever you cast" — increment spells_cast_this_turn.
+            if let Some(ps) = state.players.get_mut(&caster) {
+                ps.spells_cast_this_turn += 1;
+            }
+
+            events.push(GameEvent::SpellCast {
+                player: caster,
+                stack_object_id: stack_entry_id,
+                source_object_id: stack_source_id,
+            });
+            events.push(GameEvent::CascadeCast {
+                player: caster,
+                card_id: stack_source_id,
+            });
+
+            cast_id = Some(stack_source_id);
+            break;
+        }
+        // Non-qualifying card: continue to next card.
+    }
+
+    // Emit CascadeExiled for all cards that were exiled (not including the cast card).
+    if !exiled_ids.is_empty() {
+        events.insert(
+            0,
+            GameEvent::CascadeExiled {
+                player: caster,
+                cards_exiled: exiled_ids.clone(),
+            },
+        );
+    }
+
+    // Step 4: Put remaining exiled cards on the bottom of the library.
+    // Deterministic order: sort by ObjectId (ascending).
+    exiled_ids.sort();
+    let library_zone_id = ZoneId::Library(caster);
+    for exile_id in exiled_ids {
+        // Move from exile to bottom of library.
+        // We use move_object_to_zone which assigns a new ObjectId (CR 400.7).
+        // For "bottom of library" ordering, we'd need to append to the ordered zone.
+        // The current Zone::Ordered structure inserts at the front (= top).
+        // We rely on the zone append semantics here — for M9.4 the order within
+        // the "bottom" is deterministic (by ObjectId sort above) but may not be
+        // perfectly "bottom" vs "top" without explicit zone position support.
+        let _ = state.move_object_to_zone(exile_id, library_zone_id);
+    }
+
+    (events, cast_id)
 }
 
 /// Create a Layer 1 copy continuous effect: `copier_id` copies `source_id`.

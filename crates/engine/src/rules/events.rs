@@ -557,6 +557,28 @@ pub enum GameEvent {
     /// action. The companion card is now in the player's hand.
     CompanionBroughtToHand { player: PlayerId, card_id: CardId },
 
+    // ── M9.4: Cascade events ─────────────────────────────────────────────────
+    /// Cards were exiled from the top of a library during cascade resolution
+    /// (CR 702.85b). Emitted once per cascade trigger listing all exiled card IDs.
+    CascadeExiled {
+        /// The player whose library was searched.
+        player: PlayerId,
+        /// ObjectIds of all cards exiled during the cascade search (in order
+        /// exiled; last = the card that will be cast or put on the bottom).
+        cards_exiled: Vec<ObjectId>,
+    },
+
+    /// A card was cast without paying its mana cost as a result of cascade
+    /// (CR 702.85b). Emitted after `CascadeExiled` when the player casts the
+    /// found card. The remaining exiled cards are placed on the bottom of the
+    /// library in a random order (deterministic: ObjectId order).
+    CascadeCast {
+        /// The player who cast the cascade spell.
+        player: PlayerId,
+        /// ObjectId of the card that was cast (now in the Stack zone).
+        card_id: ObjectId,
+    },
+
     // ── M9.4: Storm / spell copy events ──────────────────────────────────
     /// A spell was copied on the stack (CR 707.10, CR 702.40a).
     ///

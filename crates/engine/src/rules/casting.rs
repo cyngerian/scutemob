@@ -243,6 +243,22 @@ pub fn handle_cast_spell(
         events.extend(copy_events);
     }
 
+    // CR 702.85: Cascade — when you cast a spell with cascade, exile cards from
+    // the top of your library until you exile a nonland card with mana value
+    // strictly less than this spell's mana value. You may cast that card without
+    // paying its mana cost. Put the rest on the bottom of your library in a
+    // random order. Cascade is a triggered ability that triggers on cast.
+    if chars.keywords.contains(&KeywordAbility::Cascade) {
+        let spell_mv = chars
+            .mana_cost
+            .as_ref()
+            .map(|mc| mc.mana_value())
+            .unwrap_or(0);
+        let (cascade_events, _cast_card) =
+            crate::rules::copy::resolve_cascade(state, player, spell_mv);
+        events.extend(cascade_events);
+    }
+
     // CR 903.8: Emit commander-specific event when casting from command zone.
     if casting_from_command_zone {
         if let Some(cid) = card_id {

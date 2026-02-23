@@ -148,4 +148,12 @@ pub enum KeywordAbility {
     /// put on the stack, the storm trigger is queued. On resolution, copies equal
     /// to `spells_cast_this_turn - 1` are pushed above the original.
     Storm,
+    /// CR 702.85: Cascade — when you cast this spell, exile cards from top of
+    /// library until you exile a nonland card with mana value strictly less than
+    /// this spell's mana value. You may cast that card without paying its mana
+    /// cost. Put the rest on the bottom of your library in a random order.
+    ///
+    /// Cascade triggers when the spell is cast (not when it resolves). Handled
+    /// in `rules/casting.rs:handle_cast_spell` and `rules/copy.rs:resolve_cascade`.
+    Cascade,
 }

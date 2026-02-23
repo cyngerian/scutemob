@@ -37,7 +37,7 @@ pub use replacement_effect::{
     ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 pub use stack::{StackObject, StackObjectKind};
-pub use stubs::{DelayedTrigger, PendingTrigger};
+pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
@@ -94,6 +94,13 @@ pub struct GameState {
     pub prevention_counters: im::OrdMap<ReplacementId, u32>,
     /// Triggered abilities waiting to be put on the stack.
     pub pending_triggers: Vector<PendingTrigger>,
+    /// Active trigger-doubling effects (Panharmonicon-style, CR 603.2d).
+    ///
+    /// When a trigger that matches any doubler's filter is about to be queued,
+    /// it is queued `additional_triggers` additional times. Entries are added
+    /// when a permanent with a trigger-doubling ability enters the battlefield
+    /// and removed when that permanent leaves.
+    pub trigger_doublers: Vector<TriggerDoubler>,
     /// Stack objects (spells and abilities on the stack).
     pub stack_objects: Vector<StackObject>,
     /// Current combat state, if in a combat phase.

@@ -301,6 +301,7 @@ impl GameStateBuilder {
             pending_commander_zone_choices: Vector::new(),
             prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),
+            trigger_doublers: Vector::new(),
             stack_objects: Vector::new(),
             combat: None,
             timestamp_counter: 0,

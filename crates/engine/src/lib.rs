@@ -22,7 +22,8 @@ pub use state::{
     ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId,
     PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
     ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
-    Target, TriggerEvent, TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
+    Target, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnState,
+    Zone, ZoneId, ZoneType,
 };
 
 pub use rules::commander::{
