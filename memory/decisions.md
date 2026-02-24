@@ -1,4 +1,4 @@
-# Design Decisions — Last verified: M9
+# Design Decisions — Last verified: Engine Core Complete checkpoint (2026-02-23)
 
 | Date | Decision | Rationale |
 |------|----------|-----------|

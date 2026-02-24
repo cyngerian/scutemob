@@ -21,7 +21,7 @@
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b)
 - `testing/`: Script replay harness (with commander registration), 58 approved game scripts (up from 11), 544 tests; 6-player test suite; 54 property invariant tests
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
-- All 35 corner cases: 29 COVERED, 3 DEFERRED (phasing, morph, mutate)
+- All 36 corner cases: 29 COVERED, 4 GAP, 3 DEFERRED (phasing, morph, mutate)
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved through M9.4
