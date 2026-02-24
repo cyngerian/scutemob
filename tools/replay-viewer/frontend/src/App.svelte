@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import StepControls from './lib/StepControls.svelte';
+  import StateView from './lib/StateView.svelte';
   import {
     session,
     currentStepIndex,
@@ -149,9 +150,9 @@
         {/if}
       </div>
 
-      <!-- State display: raw JSON (Phase 1) -->
+      <!-- State display: rich zone components (Session 3) -->
       <div class="state-container">
-        <pre class="state-json">{JSON.stringify($stepData.state, null, 2)}</pre>
+        <StateView state={$stepData.state} />
       </div>
     {/if}
   </main>
@@ -343,13 +344,5 @@
 
   .state-container {
     overflow: auto;
-  }
-
-  .state-json {
-    margin: 0;
-    font-size: 0.75rem;
-    line-height: 1.4;
-    color: #b0c4de;
-    white-space: pre;
   }
 </style>
