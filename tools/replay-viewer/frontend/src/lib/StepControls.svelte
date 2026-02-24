@@ -5,12 +5,16 @@
    * Props:
    *   currentIndex (number) — current step index
    *   totalSteps (number) — total number of steps
+   *   currentStep (string|null) — current turn step name (for phase-jump detection)
    *   onStep (function) — called with new index when navigating
    *   loading (boolean) — disables buttons while fetching
    */
-  const { currentIndex, totalSteps, onStep, loading = false } = $props();
+  import { fetchStepState } from './api.js';
+
+  const { currentIndex, totalSteps, currentStep = null, onStep, loading = false } = $props();
 
   let autoPlayInterval = $state(null);
+  let jumpingPhase = $state(false);
   const AUTO_PLAY_MS = 1000;
 
   // Derived state
@@ -49,15 +53,70 @@
     }
   }
 
-  // Keyboard navigation (bound to window in the parent, or here via svelte:window)
+  /**
+   * Phase-jump: scan forward or backward through steps until state.turn.step changes.
+   * Uses GET /api/step/:n/state (lighter payload) to probe phase boundaries.
+   * Calls onStep() with the first index where the step has changed.
+   */
+  async function jumpPhase(direction) {
+    if (jumpingPhase || loading) return;
+    if (direction > 0 && isLast) return;
+    if (direction < 0 && isFirst) return;
+
+    jumpingPhase = true;
+    try {
+      const startStep = currentStep;
+      let probe = currentIndex + direction;
+      const limit = direction > 0 ? totalSteps - 1 : 0;
+
+      while (true) {
+        // Fetch the lightweight state for the probe index
+        let probeState;
+        try {
+          probeState = await fetchStepState(probe);
+        } catch {
+          break;
+        }
+
+        const probeStep = probeState?.turn?.step ?? null;
+        if (probeStep !== startStep) {
+          // Found a step with a different turn.step value — jump here
+          onStep(probe);
+          break;
+        }
+
+        // Haven't changed step yet — continue scanning
+        if (probe === limit) {
+          // Reached the boundary without finding a step change — jump to limit
+          onStep(probe);
+          break;
+        }
+        probe += direction;
+      }
+    } finally {
+      jumpingPhase = false;
+    }
+  }
+
+  // Keyboard navigation (bound to window via svelte:window)
   function handleKeydown(e) {
     if (loading) return;
     switch (e.key) {
       case 'ArrowLeft':
-        if (!e.shiftKey) goPrev();
+        e.preventDefault();
+        if (e.shiftKey) {
+          jumpPhase(-1);
+        } else {
+          goPrev();
+        }
         break;
       case 'ArrowRight':
-        if (!e.shiftKey) goNext();
+        e.preventDefault();
+        if (e.shiftKey) {
+          jumpPhase(1);
+        } else {
+          goNext();
+        }
         break;
       case 'Home':
         goFirst();
@@ -108,8 +167,8 @@
     {autoPlayInterval !== null ? '⏸' : '▶'}
   </button>
 
-  {#if loading}
-    <span class="loading-indicator">loading…</span>
+  {#if loading || jumpingPhase}
+    <span class="loading-indicator">{jumpingPhase ? 'jumping…' : 'loading…'}</span>
   {/if}
 </div>
 

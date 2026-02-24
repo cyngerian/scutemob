@@ -1,11 +1,73 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/**
+ * app.css — global styles for the MTG Replay Viewer dev tool.
+ *
+ * Design principles:
+ * - Dark background, light text (developer tool aesthetic)
+ * - Monospace throughout for value alignment
+ * - Color coding: mana symbols, card types, zone borders
+ * - Functional, not flashy — no animations except change highlighting
+ */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Background hierarchy: darkest → lightest */
+  --bg-0: #09091a;   /* page background */
+  --bg-1: #0d0d1a;   /* app background */
+  --bg-2: #111120;   /* top bar / header */
+  --bg-3: #141428;   /* panel background */
+  --bg-4: #1a1a30;   /* raised panel, dropdown */
+  --bg-5: #20203a;   /* hover, selection */
+
+  /* Borders */
+  --border-0: #1a1a30;
+  --border-1: #252545;
+  --border-2: #333355;
+  --border-active: #4444aa;
+
+  /* Text hierarchy */
+  --text-0: #eeeeff;  /* primary */
+  --text-1: #aaaacc;  /* secondary */
+  --text-2: #666688;  /* muted */
+  --text-3: #3a3a55;  /* very muted */
+
+  /* Accent colors */
+  --accent-blue: #6aa8ff;
+  --accent-gold: #ffaa00;
+  --accent-green: #66ee66;
+  --accent-red: #ff6666;
+  --accent-purple: #cc88ff;
+  --accent-cyan: #66ccee;
+
+  /* Mana symbol colors */
+  --mana-w-bg: #5a5020;   --mana-w-fg: #ffe8a0;
+  --mana-u-bg: #102060;   --mana-u-fg: #88ccff;
+  --mana-b-bg: #200840;   --mana-b-fg: #cc88ff;
+  --mana-r-bg: #501510;   --mana-r-fg: #ffaa88;
+  --mana-g-bg: #103020;   --mana-g-fg: #88ff88;
+  --mana-c-bg: #303030;   --mana-c-fg: #cccccc;
+
+  /* Card type colors */
+  --type-creature: #446688;
+  --type-land: #4a5520;
+  --type-instant: #3a2a66;
+  --type-sorcery: #5a2a2a;
+  --type-artifact: #4a4a4a;
+  --type-enchantment: #3a5040;
+  --type-planeswalker: #6a4a1a;
+  --type-battle: #4a3060;
+
+  font-family: 'JetBrains Mono', 'Fira Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-0);
+  color-scheme: dark;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,67 +75,176 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
+html, body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-.card {
-  padding: 2em;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-1);
+  color: var(--text-0);
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
+
+/* ── Typography ──────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: bold;
+  font-family: inherit;
+}
+
+p { margin: 0 0 0.5em; }
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333355;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4444aa;
+}
+
+/* ── Buttons (global reset) ──────────────────────────────────────────────── */
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  font-size: inherit;
+  border: 1px solid var(--border-2);
+  border-radius: 3px;
+  background: var(--bg-4);
+  color: var(--text-1);
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  padding: 0.25rem 0.5rem;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+button:hover:not(:disabled) {
+  background: var(--bg-5);
+  color: var(--text-0);
+  border-color: var(--border-active);
 }
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--border-active);
+  outline-offset: 1px;
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
+
+.muted   { color: var(--text-2); }
+.dim     { color: var(--text-3); }
+.mono    { font-family: inherit; }   /* already monospace globally */
+
+/* ── Mana symbol utilities (for use in any component) ───────────────────── */
+
+.mana-w { background: var(--mana-w-bg); color: var(--mana-w-fg); }
+.mana-u { background: var(--mana-u-bg); color: var(--mana-u-fg); }
+.mana-b { background: var(--mana-b-bg); color: var(--mana-b-fg); }
+.mana-r { background: var(--mana-r-bg); color: var(--mana-r-fg); }
+.mana-g { background: var(--mana-g-bg); color: var(--mana-g-fg); }
+.mana-c { background: var(--mana-c-bg); color: var(--mana-c-fg); }
+
+/* ── Card type color utilities ───────────────────────────────────────────── */
+
+.type-creature      { border-left: 3px solid var(--type-creature); }
+.type-land          { border-left: 3px solid var(--type-land); }
+.type-instant       { border-left: 3px solid var(--type-instant); }
+.type-sorcery       { border-left: 3px solid var(--type-sorcery); }
+.type-artifact      { border-left: 3px solid var(--type-artifact); }
+.type-enchantment   { border-left: 3px solid var(--type-enchantment); }
+.type-planeswalker  { border-left: 3px solid var(--type-planeswalker); }
+.type-battle        { border-left: 3px solid var(--type-battle); }
+
+/* ── State change highlight animation ───────────────────────────────────── */
+
+@keyframes changed-flash {
+  0%   { background: #2a2a00; outline: 1px solid #aaaa00; }
+  100% { background: transparent; outline: 1px solid transparent; }
+}
+
+.changed {
+  animation: changed-flash 1s ease-out forwards;
+}
+
+/* ── Status badges ───────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 0.1rem 0.3rem;
+  border-radius: 2px;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+.badge-approved  { background: #1a4a1a; color: #66ff66; }
+.badge-pending   { background: #4a4a1a; color: #ffff66; }
+.badge-disputed  { background: #4a1a1a; color: #ff6666; }
+
+/* ── Zone section borders ────────────────────────────────────────────────── */
+
+.zone-section {
+  border: 1px solid var(--border-1);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
+
+.zone-section-label {
+  font-size: 0.65rem;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.25rem;
+  font-weight: bold;
+}
+
+/* ── Hover effects on card items ─────────────────────────────────────────── */
+
+.card-item {
+  cursor: default;
+  transition: background 0.08s;
+}
+
+.card-item:hover {
+  background: var(--bg-5);
+}
+
+/* ── Assertion badges ────────────────────────────────────────────────────── */
+
+.assertion-pass { color: var(--accent-green); }
+.assertion-fail { color: var(--accent-red);   }
