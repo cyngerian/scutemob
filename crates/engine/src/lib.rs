@@ -26,6 +26,11 @@ pub use state::{
     Zone, ZoneId, ZoneType,
 };
 
+pub use testing::replay_harness::{
+    build_initial_state, card_name_to_id, enrich_spec_from_def, parse_counter_type, parse_step,
+    translate_player_action,
+};
+
 pub use rules::commander::{
     apply_commander_tax, compute_color_identity, validate_deck, validate_partner_commanders,
     DeckValidationResult, DeckViolation,

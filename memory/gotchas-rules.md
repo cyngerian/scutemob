@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.4
+# Rules Gotchas — Last verified: Engine Core Complete checkpoint (2026-02-23)
 
 ## MTG Rules Gotchas
 

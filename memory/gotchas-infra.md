@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.4
+# Infra & Testing Gotchas — Last verified: Engine Core Complete checkpoint (2026-02-23)
 
 ## Rust / im-rs Gotchas
 
