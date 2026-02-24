@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 
 use mtg_engine::{
-    AttackTarget, CombatState, CounterType, GameState, KeywordAbility, ObjectId, PlayerId,
-    StackObjectKind, ZoneId,
+    calculate_characteristics, AttackTarget, CombatState, CounterType, GameState, KeywordAbility,
+    ObjectId, PlayerId, StackObjectKind, ZoneId,
 };
 use serde::Serialize;
 
@@ -311,31 +311,21 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
             .map(|cid| commander_card_ids.contains(cid))
             .unwrap_or(false);
 
+        // Use post-layer calculated characteristics (CR 613) so that continuous
+        // effects (e.g. Humility, Glorious Anthem) are reflected in the viewer.
+        let calc = calculate_characteristics(state, obj.id);
+        let chars = calc.as_ref().unwrap_or(&obj.characteristics);
+
         let permanent = PermanentView {
             object_id: obj.id.0,
-            name: obj.characteristics.name.clone(),
-            card_types: obj
-                .characteristics
-                .card_types
-                .iter()
-                .map(|t| format!("{t:?}"))
-                .collect(),
-            subtypes: obj
-                .characteristics
-                .subtypes
-                .iter()
-                .map(|s| s.0.clone())
-                .collect(),
-            supertypes: obj
-                .characteristics
-                .supertypes
-                .iter()
-                .map(|s| format!("{s:?}"))
-                .collect(),
+            name: chars.name.clone(),
+            card_types: chars.card_types.iter().map(|t| format!("{t:?}")).collect(),
+            subtypes: chars.subtypes.iter().map(|s| s.0.clone()).collect(),
+            supertypes: chars.supertypes.iter().map(|s| format!("{s:?}")).collect(),
             tapped: obj.status.tapped,
             summoning_sick: obj.has_summoning_sickness,
-            power: obj.characteristics.power,
-            toughness: obj.characteristics.toughness,
+            power: chars.power,
+            toughness: chars.toughness,
             counters: obj
                 .counters
                 .iter()
@@ -346,12 +336,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
             attachments: obj.attachments.iter().map(|id| id.0).collect(),
             is_commander,
             is_token: obj.is_token,
-            keywords: obj
-                .characteristics
-                .keywords
-                .iter()
-                .map(format_keyword)
-                .collect(),
+            keywords: chars.keywords.iter().map(format_keyword).collect(),
             controller: controller_name.clone(),
         };
 

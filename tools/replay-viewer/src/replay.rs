@@ -107,12 +107,13 @@ impl ReplaySession {
                     ScriptAction::PriorityPass { player, .. } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
                             let cmd = Command::PassPriority { player: pid };
-                            match process_command(current_state.clone(), cmd.clone()) {
+                            let snapshot_cmd = cmd.clone();
+                            match process_command(current_state.clone(), cmd) {
                                 Ok((new_state, events)) => {
                                     steps.push(StepSnapshot {
                                         index: snapshot_index,
                                         script_action: action.clone(),
-                                        command: Some(cmd),
+                                        command: Some(snapshot_cmd),
                                         events,
                                         state_after: new_state.clone(),
                                         assertions: None,
@@ -124,7 +125,7 @@ impl ReplaySession {
                                     steps.push(StepSnapshot {
                                         index: snapshot_index,
                                         script_action: action.clone(),
-                                        command: Some(cmd),
+                                        command: Some(snapshot_cmd),
                                         events: vec![],
                                         state_after: current_state.clone(),
                                         assertions: Some(vec![AssertionResult {
@@ -158,12 +159,13 @@ impl ReplaySession {
                             let snap_idx = steps.len();
                             if let Some(&pid) = player_map.get(pname.as_str()) {
                                 let cmd = Command::PassPriority { player: pid };
-                                match process_command(current_state.clone(), cmd.clone()) {
+                                let snapshot_cmd = cmd.clone();
+                                match process_command(current_state.clone(), cmd) {
                                     Ok((new_state, events)) => {
                                         steps.push(StepSnapshot {
                                             index: snap_idx,
                                             script_action: action.clone(),
-                                            command: Some(cmd),
+                                            command: Some(snapshot_cmd),
                                             events,
                                             state_after: new_state.clone(),
                                             assertions: None,
@@ -174,7 +176,7 @@ impl ReplaySession {
                                         steps.push(StepSnapshot {
                                             index: snap_idx,
                                             script_action: action.clone(),
-                                            command: Some(cmd),
+                                            command: Some(snapshot_cmd),
                                             events: vec![],
                                             state_after: current_state.clone(),
                                             assertions: Some(vec![AssertionResult {
@@ -208,12 +210,13 @@ impl ReplaySession {
                                 &player_map,
                             );
                             if let Some(cmd) = cmd {
-                                match process_command(current_state.clone(), cmd.clone()) {
+                                let snapshot_cmd = cmd.clone();
+                                match process_command(current_state.clone(), cmd) {
                                     Ok((new_state, events)) => {
                                         steps.push(StepSnapshot {
                                             index: snapshot_index,
                                             script_action: action.clone(),
-                                            command: Some(cmd),
+                                            command: Some(snapshot_cmd),
                                             events,
                                             state_after: new_state.clone(),
                                             assertions: None,
@@ -224,7 +227,7 @@ impl ReplaySession {
                                         steps.push(StepSnapshot {
                                             index: snapshot_index,
                                             script_action: action.clone(),
-                                            command: Some(cmd),
+                                            command: Some(snapshot_cmd),
                                             events: vec![],
                                             state_after: current_state.clone(),
                                             assertions: Some(vec![AssertionResult {

@@ -114,7 +114,7 @@ async fn main() -> Result<()> {
 
     let router = build_router(shared_state, &dist_dir);
 
-    let addr = format!("0.0.0.0:{}", cli.port);
+    let addr = format!("127.0.0.1:{}", cli.port);
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .with_context(|| format!("Failed to bind to {addr}"))?;

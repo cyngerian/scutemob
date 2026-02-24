@@ -131,19 +131,46 @@ pub async fn get_step(
         .as_ref()
         .map(|results| results.iter().map(assertion_to_view).collect());
 
+    let script_action = serde_json::to_value(&snap.script_action).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to serialize script_action: {e}"),
+        )
+    })?;
+
+    let command = snap
+        .command
+        .as_ref()
+        .map(|c| {
+            serde_json::to_value(c).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to serialize command: {e}"),
+                )
+            })
+        })
+        .transpose()?;
+
+    let events: Vec<serde_json::Value> = snap
+        .events
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            serde_json::to_value(e).map_err(|err| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to serialize event[{i}]: {err}"),
+                )
+            })
+        })
+        .collect::<Result<_, _>>()?;
+
     let vm = StepViewModel {
         index: snap.index,
         total_steps: session.step_count(),
-        script_action: serde_json::to_value(&snap.script_action).unwrap_or(serde_json::Value::Null),
-        command: snap
-            .command
-            .as_ref()
-            .and_then(|c| serde_json::to_value(c).ok()),
-        events: snap
-            .events
-            .iter()
-            .filter_map(|e| serde_json::to_value(e).ok())
-            .collect(),
+        script_action,
+        command,
+        events,
         state: state_vm,
         assertions: assertions_view,
     };
@@ -178,14 +205,37 @@ pub async fn post_load(
     Json(req): Json<LoadRequest>,
 ) -> Result<Json<SessionResponse>, (StatusCode, String)> {
     // Determine the script path.
+    // Reject absolute paths to prevent path traversal — scripts must be relative
+    // to scripts_dir. Canonicalize and verify the resolved path is under scripts_dir.
     let script_path = {
         let state_r = state.read().await;
         let p = PathBuf::from(&req.path);
         if p.is_absolute() {
-            p
-        } else {
-            state_r.scripts_dir.join(&req.path)
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Path must be relative to scripts_dir, not absolute".to_string(),
+            ));
         }
+        let joined = state_r.scripts_dir.join(&req.path);
+        // Canonicalize to resolve any `..` components and symlinks.
+        let canonical = joined.canonicalize().map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                format!("Cannot resolve path {}: {e}", joined.display()),
+            )
+        })?;
+        // Verify the resolved path is under scripts_dir.
+        let scripts_dir_canonical = state_r
+            .scripts_dir
+            .canonicalize()
+            .unwrap_or_else(|_| state_r.scripts_dir.clone());
+        if !canonical.starts_with(&scripts_dir_canonical) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Path must be within scripts_dir".to_string(),
+            ));
+        }
+        canonical
     };
 
     // Load and parse the script (blocking I/O — acceptable for a dev tool).

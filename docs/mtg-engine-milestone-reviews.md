@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-23 (M9.4 reviewed)
+> **Last Updated**: 2026-02-23 (M9.5 reviewed)
 
 ---
 
@@ -46,6 +46,7 @@
 - [M8: Replacement & Prevention Effects](#m8-replacement--prevention-effects) **(REVIEWED)**
 - [M9: Commander Rules Integration](#m9-commander-rules-integration) **(REVIEWED)**
 - [M9.4: Copy, Protection, Storm, Cascade, Trigger Doubling, Loop Detection](#m94-copy-protection-storm-cascade-trigger-doubling-loop-detection) **(REVIEWED)**
+- [M9.5: Game State Stepper (Developer Replay Viewer)](#m95-game-state-stepper-developer-replay-viewer) **(REVIEWED)**
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
 ---
@@ -1466,6 +1467,126 @@ commit `8ca4474` (M9.4 session 10). 53 files changed, +7,794 / -218 lines.
 
 ---
 
+## M9.5: Game State Stepper (Developer Replay Viewer)
+
+**Review Status**: REVIEWED (2026-02-23)
+
+### Files Introduced
+
+**Replay Viewer Backend (Rust — `tools/replay-viewer/src/`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `tools/replay-viewer/src/main.rs` | 172 | Axum HTTP server, CLI parsing (clap), static file serving, auto-load first script |
+| `tools/replay-viewer/src/replay.rs` | 361 | `ReplaySession::from_script()` — pre-computes all step snapshots at load time |
+| `tools/replay-viewer/src/view_model.rs` | 607 | `StateViewModel` — converts engine `GameState` to UI-friendly JSON shape |
+| `tools/replay-viewer/src/api.rs` | 342 | Axum route handlers: GET /api/session, GET /api/step/:n, POST /api/load, GET /api/scripts |
+| `tools/replay-viewer/Cargo.toml` | 18 | Dependencies: mtg-engine, axum 0.7, tokio, clap, serde, tower-http |
+
+**Engine Testing Module (extracted — `crates/engine/src/testing/`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `crates/engine/src/testing/replay_harness.rs` | 499 | Extracted from script_replay.rs: `build_initial_state`, `translate_player_action`, `enrich_spec_from_def` |
+| `crates/engine/src/testing/mod.rs` | 14 | Re-exports `replay_harness` and `script_schema` submodules |
+
+**Frontend (Svelte 5 — `tools/replay-viewer/frontend/src/`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/src/App.svelte` | 361 | Root component: layout, routing between views, keyboard nav |
+| `frontend/src/app.css` | 250 | Global CSS: dark theme, mana colors, type colors, change highlighting |
+| `frontend/src/main.js` | 9 | Svelte mount entry point |
+| `frontend/src/lib/stores.js` | 84 | Svelte stores: session, stepData, prevStepData, loading, stateDiff |
+| `frontend/src/lib/api.js` | 47 | Fetch wrapper: fetchSession, fetchStep, fetchStepState, loadScript, fetchScripts |
+| `frontend/src/lib/diff.js` | 123 | State diff engine: compares two StateViewModels, returns Set of changed paths |
+| `frontend/src/lib/eventFormat.js` | 467 | GameEvent formatter: variant-to-string conversion, category classification |
+| `frontend/src/lib/StepControls.svelte` | 228 | Navigation: prev/next/first/last/autoplay, keyboard shortcuts, phase-jump |
+| `frontend/src/lib/StateView.svelte` | 292 | Main state layout: orchestrates zone components, diff flags, card click handler |
+| `frontend/src/lib/PhaseIndicator.svelte` | 215 | Horizontal phase/step progress bar with current-step highlight |
+| `frontend/src/lib/EventTimeline.svelte` | 318 | Right sidebar: collapsible event list with category color coding |
+| `frontend/src/lib/PlayerPanel.svelte` | 299 | Per-player info: life, mana pool, poison, commander damage, zone sizes |
+| `frontend/src/lib/ZoneBattlefield.svelte` | 470 | Battlefield grid: grouped by type, P/T, counters, keywords, status badges |
+| `frontend/src/lib/ZoneStack.svelte` | 239 | Stack display: LIFO order, kind badges, targets, copy indicator |
+| `frontend/src/lib/ZoneHand.svelte` | 127 | Hand display: type-tinted card chips |
+| `frontend/src/lib/ZoneGraveyard.svelte` | 121 | Graveyard display: ordered list with type labels |
+| `frontend/src/lib/ZoneExile.svelte` | 114 | Exile display: flat card list |
+| `frontend/src/lib/CombatView.svelte` | 265 | Combat visualization: attacker-target arrows, blocker assignments |
+| `frontend/src/lib/CardDisplay.svelte` | 370 | Card detail modal: full type line, P/T, counters, keywords, status |
+| `frontend/src/lib/AssertionBadges.svelte` | 210 | Inline pass/fail badges with expandable detail panel |
+| `frontend/src/lib/ScriptPicker.svelte` | 364 | Tree-view script browser with search filter, review status badges |
+| `frontend/src/lib/Counter.svelte` | 10 | Svelte 5 scaffold placeholder (unused) |
+
+**Modified Files**:
+
+| File | Change | Purpose |
+|------|--------|---------|
+| `crates/engine/src/lib.rs` | +5 lines | Re-exports `testing` module and replay_harness public surface |
+| `crates/engine/tests/script_replay.rs` | -500/+500 lines | Refactored: now imports from `replay_harness` instead of inline functions |
+| `crates/engine/src/cards/definitions.rs` | reordered | Alela definition moved earlier in the file (no logic change) |
+| `Cargo.toml` | +1 line | Added `tools/replay-viewer` to workspace members |
+
+**Source total (new)**: ~6,999 lines (1,482 Rust backend + 5,145 Svelte/JS/CSS frontend + 372 config/infra)
+**Modified**: ~1,000 lines net (replay_harness extraction + lib.rs exports)
+
+### CR Sections Implemented
+
+None directly. M9.5 is a developer tooling milestone — no new game rules are implemented. The replay harness extraction makes existing CR-implementing code accessible to external tools without duplicating it.
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M9.5-01 | **MEDIUM** | `api.rs:184` | **Path traversal in `POST /api/load` allows reading arbitrary files.** The `post_load` handler accepts an absolute path (`if p.is_absolute()`) or a relative path joined to `scripts_dir`. An attacker (or accidental input) with `{"path": "/etc/passwd"}` can read any file on disk that `std::fs::read_to_string` can access. While this is a dev tool (localhost only), the server binds to `0.0.0.0` (line 117 of main.rs), meaning it is accessible on all network interfaces, not just loopback. Architecture Invariant 7 (hidden information enforcement) applies broadly: the tool should not expose data outside its intended scope. **Fix:** Reject absolute paths entirely, or canonicalize the joined path and verify it starts with `scripts_dir`. Also consider binding to `127.0.0.1` instead of `0.0.0.0`. | CLOSED — fix session 1 |
+| MR-M9.5-02 | **MEDIUM** | `view_model.rs:337-338` | **Battlefield permanents show raw characteristics, not calculated (post-layer) values.** `PermanentView` reads `obj.characteristics.power`, `obj.characteristics.toughness`, `obj.characteristics.card_types`, `obj.characteristics.keywords` etc. directly from the stored object rather than calling `calculate_characteristics()`. When continuous effects modify a creature's P/T, types, or keywords (e.g., Humility, Glorious Anthem), the viewer shows incorrect pre-layer values. This undermines the tool's core purpose of accurately visualizing game state. **Fix:** Call `mtg_engine::calculate_characteristics(state, obj.id)` for battlefield objects and use the returned characteristics for P/T, types, subtypes, supertypes, and keywords in `PermanentView`. | CLOSED — fix session 1 |
+| MR-M9.5-03 | **MEDIUM** | `replay.rs:110,161,211` | **`process_command(current_state.clone(), cmd.clone())` clones state AND command on every step.** `process_command` takes ownership of `GameState`, so the `.clone()` before each call is necessary to keep the `current_state` snapshot. However, `cmd.clone()` is unnecessary — the command is only used once. The `Command` clone is cheap, but the pattern is misleading: it suggests the command is reused after the call, when it is not. More importantly, the `current_state.clone()` on the success path (line 117: `state_after: new_state.clone()`) is redundant — `new_state` is only used to update `current_state` on line 120, so the snapshot could store the same `new_state` without cloning, and `current_state` could be assigned from a second reference. With im-rs structural sharing the clone is O(1), but the pattern obscures intent. **Fix:** Remove the `.clone()` on `cmd` in all three command-processing branches. For the success path, store `new_state.clone()` in `state_after` and assign `new_state` to `current_state` (current pattern is correct but consider a comment explaining the im-rs O(1) clone). | CLOSED — fix session 1 |
+| MR-M9.5-04 | **MEDIUM** | `api.rs:137,141,145` | **`serde_json::to_value(&snap.script_action).unwrap_or(...)` and `.filter_map(... .ok())` silently drop serialization errors.** In `get_step`, if `serde_json::to_value` fails for the script_action (line 137), it silently falls back to `Value::Null`. For events (lines 144-146), `filter_map(|e| serde_json::to_value(e).ok())` silently drops any event that fails serialization. While serialization of these types should never fail (they all derive `Serialize`), silently swallowing errors makes debugging difficult if a new variant is added without `Serialize`. **Fix:** Use `.expect("GameEvent derives Serialize")` or log a warning for the event path, and similarly for script_action. Acceptable in a dev tool, but the silent drop is worth flagging. | CLOSED — fix session 1 |
+| MR-M9.5-05 | **LOW** | `PhaseIndicator.svelte:40-46` | **`FirstStrikeDamage` step missing from phase indicator.** The engine's `Step` enum includes `FirstStrikeDamage` (between `CombatDamage` and `EndOfCombat`), but the `PHASES` array in `PhaseIndicator.svelte` only lists `CombatDamage` under the Combat phase. When the game is in the FirstStrikeDamage step, no step pip will be highlighted, making the current position ambiguous. **Fix:** Add `{ step: 'FirstStrikeDamage', label: 'First Strike' }` to the Combat phase steps array, before `CombatDamage`. | OPEN |
+| MR-M9.5-06 | **LOW** | `main.rs:117` | **Server binds to `0.0.0.0` instead of `127.0.0.1`.** For a developer tool, binding to all interfaces exposes the replay viewer to the local network. Combined with MR-M9.5-01 (path traversal), this widens the attack surface. **Fix:** Change to `127.0.0.1:{port}` or add a `--bind` CLI flag defaulting to `127.0.0.1`. | OPEN |
+| MR-M9.5-07 | **LOW** | `replay.rs:192` | **Blocking I/O on async task in `POST /api/load`.** `std::fs::read_to_string` (api.rs:192) and the entire `ReplaySession::from_script` computation run on the tokio async runtime thread. For a dev tool with one user this is fine, but it blocks the event loop during script loading (could be seconds for large scripts). **Fix:** Wrap in `tokio::task::spawn_blocking()` or document the limitation. Low priority — single-user dev tool. | OPEN |
+| MR-M9.5-08 | **LOW** | `Counter.svelte` | **Unused scaffold component.** `Counter.svelte` is a Svelte 5 scaffold placeholder (10 lines, simple counter) that is never imported by any component. **Fix:** Delete the file, or note it as intentional scaffold for reference. | OPEN |
+| MR-M9.5-09 | **LOW** | `replay.rs:85-90` | **Synthetic `TurnBasedAction` for step 0 uses hardcoded "initial_state" string.** The initial step snapshot creates a `ScriptAction::TurnBasedAction` with `action: "initial_state".to_string()`. This is not a real script action and could confuse the frontend's action-kind parsing. No bug currently — `getActionKind` in App.svelte extracts the variant name `TurnBasedAction`, not the `action` field. **Fix:** Consider using a dedicated `ScriptAction::Initial` variant or document the convention. | OPEN |
+| MR-M9.5-10 | **LOW** | `diff.js:101-105` | **Hand diff compares only `.length`, not contents.** If a card moves from hand to graveyard and a different card is drawn in the same step, the hand length stays the same but the contents changed. The diff won't flag `zones.hand.<player>` as changed, so no highlight appears. Other zones (graveyard, battlefield) compare full JSON serialization. **Fix:** Use `JSON.stringify` comparison for hand contents, consistent with graveyard and battlefield. | OPEN |
+| MR-M9.5-11 | **LOW** | `api.rs:98` | **Player list order is non-deterministic.** `session.player_map.keys().cloned().collect()` iterates a `HashMap`, producing non-deterministic player order in the `SessionResponse.players` array. Cosmetic issue — the frontend sorts players independently. **Fix:** Sort the keys before collecting. | OPEN |
+| MR-M9.5-12 | **LOW** | `view_model.rs:302-362` | **Battlefield iteration order depends on `OrdMap` key order (ObjectId), not zone order.** Permanents are collected by iterating `state.objects` (which is `OrdMap<ObjectId, GameObject>`), not by reading the zone's ordered list. This means the display order is by ObjectId creation order rather than zone-entry order. Minor for a dev tool — all permanents are shown regardless. **Fix:** Consider iterating `state.zones[Battlefield].object_ids()` for consistent zone-order display. | OPEN |
+| MR-M9.5-13 | **LOW** | `replay_harness.rs:43` | **`PlayerId(i as u64 + 1)` cast uses `as u64` without bounds check.** `i` is a `usize` from `enumerate()`, so this cast is safe in practice (number of players is always small), but it follows the same pattern flagged in prior milestones. Consistent with MR-M1-13. | OPEN |
+| MR-M9.5-14 | **INFO** | `replay_harness.rs` | **Clean extraction from script_replay.rs.** The extraction correctly separates engine-reusable code (`build_initial_state`, `translate_player_action`, `enrich_spec_from_def`, `parse_step`, `parse_counter_type`) from test-specific code (`replay_script`, `check_assertions`, `AssertionMismatch`, `ReplayResult`). The test file now imports from the public surface via `mtg_engine::testing::replay_harness::*`. No logic changes were introduced during extraction — the two implementations produce identical behavior. | -- |
+| MR-M9.5-15 | **INFO** | `view_model.rs` | **Comprehensive zone coverage in StateViewModel.** All 6 zones (battlefield, hand, graveyard, exile, command zone, stack) are mapped with appropriate view model types. Battlefield permanents include counters, damage_marked, attached_to, attachments, is_commander, is_token, and keywords. Stack items include kind classification, source name lookup, target formatting, and is_copy. Commander damage is correctly translated from `(PlayerId, CardId)` pairs to `(String, String)` names. | -- |
+| MR-M9.5-16 | **INFO** | `api.rs` | **Clean API design with proper HTTP status codes.** GET /api/step/:n returns 404 for no session or invalid step index. POST /api/load returns 404 for missing file, 422 for parse errors, 500 for replay engine failures. Script scanning uses partial deserialization for metadata, avoiding full JSON parse of every script. The `SharedState = Arc<RwLock<AppState>>` pattern is correct for axum's multi-threaded runtime. | -- |
+| MR-M9.5-17 | **INFO** | frontend components | **Shared-component strategy correctly implemented.** All Svelte components accept data exclusively via `$props()` — no internal fetch calls, no direct store access (except App.svelte which orchestrates). This makes every component reusable in the M11 Tauri app. The `onCardClick` callback prop pattern is consistently applied across ZoneBattlefield, ZoneHand, ZoneGraveyard, ZoneExile, and ZoneStack. | -- |
+| MR-M9.5-18 | **INFO** | `eventFormat.js` | **Thorough event variant coverage.** All 47 GameEvent variants are handled in both `formatEvent` (human-readable text) and `eventCategory` (color-coding classification). The formatter handles both unit variants (plain strings) and data variants (objects with variant key). The `formatLossReason`, `formatManaColor`, `formatDamageTarget`, `formatCounter`, and `formatZoneType` helpers correctly parse the serde-serialized enum format. | -- |
+| MR-M9.5-19 | **INFO** | `stores.js:73` | **Correct store snapshot pattern for diff computation.** `goToStep` uses an immediately-invoked subscribe callback to synchronously read the current `stepData` value before overwriting it. This is the standard Svelte pattern for reading store values outside reactive contexts. The `prevStepData` store is set before the fetch, ensuring the diff is computed against the correct previous state even if the fetch takes time. | -- |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| Replay harness extraction | Full | Existing 544 tests continue to pass — `script_replay.rs` imports from extracted module |
+| `build_initial_state` | Full | 3 tests in `script_replay.rs` (build state, assert life, assert hand count) |
+| `translate_player_action` | Partial | Covered indirectly via full script replays; no dedicated unit test for each action variant |
+| `ReplaySession::from_script` | None | No Rust test for the pre-compute replay logic — tested only via manual HTTP API use |
+| `StateViewModel::from_game_state` | None | No Rust test for the view model conversion — tested only via manual HTTP API use |
+| API route handlers | None | No integration tests for axum handlers — tested only via manual curl/browser |
+| Frontend components | None | No automated frontend tests (acceptable for a dev tool; Svelte components are props-only) |
+| Script scanning | None | No test for `scan_scripts` / `parse_script_entry` |
+| Assertion evaluation (replay) | Full | Both replay_harness and replay.rs assertion evaluation tested via existing script tests |
+
+### Notes
+
+- **Most significant finding (MR-M9.5-01):** The `POST /api/load` handler accepts absolute paths and the server binds to `0.0.0.0`, creating a path traversal + network exposure combination. While this is a dev tool, the fix is simple (reject absolute paths, bind to localhost) and should be applied before the tool is shared.
+
+- **Second most significant finding (MR-M9.5-02):** The view model reads raw characteristics instead of calculated (post-layer) values for battlefield permanents. This means the developer tool will show incorrect P/T, types, and keywords when continuous effects are active — exactly the scenarios a developer would want to debug. This should be fixed to make the tool useful for its core purpose.
+
+- **Extraction quality is excellent (MR-M9.5-14):** The replay harness extraction is clean and non-breaking. All 544 existing tests continue to pass without modification (beyond import path changes). The public surface is well-chosen — only functions needed by external tools are exported.
+
+- **Frontend architecture is solid (MR-M9.5-17):** The shared-component strategy with props-only data flow is correctly implemented across all 14 Svelte components. This directly enables M11 Tauri app reuse without refactoring.
+
+- **No engine logic changes.** M9.5 is purely tooling — the engine crate gains only re-exports and a module restructure. No new `GameState` fields, no new `Command` variants, no new `GameEvent` variants. The `definitions.rs` change is a cosmetic reordering only.
+
+- **0 HIGH findings.** The path traversal and raw characteristics issues are MEDIUM because the replay viewer is a dev tool (not the engine library), so they cannot produce illegal game states. They do represent meaningful quality/security gaps within the tool's scope.
+
+---
+
 ## Cross-Milestone Issue Index
 
 All findings across all milestones, sorted by severity then milestone.
@@ -1570,6 +1691,10 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.4-06 | M9.4 | `spells_cast_this_turn += 1` can overflow u32 in cascade resolution | CLOSED — fix session 3 |
 | MR-M9.4-07 | M9.4 | TriggerDoubler simplified filter does not verify entering object type (Panharmonicon) | CLOSED — fix session 3 |
 | MR-M9.4-08 | M9.4 | Cascade "bottom of library" placement actually puts cards on top | CLOSED — fix session 2 |
+| MR-M9.5-01 | M9.5 | Path traversal in `POST /api/load` allows reading arbitrary files via absolute path | CLOSED — fix session 1 |
+| MR-M9.5-02 | M9.5 | Battlefield permanents show raw characteristics, not calculated (post-layer) values | CLOSED — fix session 1 |
+| MR-M9.5-03 | M9.5 | Redundant `cmd.clone()` on every process_command call in replay.rs | CLOSED — fix session 1 |
+| MR-M9.5-04 | M9.5 | Serialization errors silently dropped in get_step handler | CLOSED — fix session 1 |
 
 ### LOW
 
@@ -1643,6 +1768,15 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.4-14 | M9.4 | TriggerDoubler manually registered in tests, registration pathway untested | OPEN |
 | MR-M9.4-15 | M9.4 | Thought Vessel test lacks counter-assertion for non-NoMaxHandSize player | OPEN |
 | MR-CKP-01 | Checkpoint S3 | `TurnBasedAction.action` is dead code — field added `#[serde(default)]` so empty string is accepted, but the replay harness never reads it; if it is ever wired up, empty-string must be handled explicitly | OPEN |
+| MR-M9.5-05 | M9.5 | `FirstStrikeDamage` step missing from PhaseIndicator.svelte phase bar | OPEN |
+| MR-M9.5-06 | M9.5 | Server binds to `0.0.0.0` instead of `127.0.0.1` (dev tool network exposure) | OPEN |
+| MR-M9.5-07 | M9.5 | Blocking I/O on async task in `POST /api/load` (single-user dev tool — low priority) | OPEN |
+| MR-M9.5-08 | M9.5 | Unused scaffold `Counter.svelte` component | OPEN |
+| MR-M9.5-09 | M9.5 | Synthetic `TurnBasedAction` for step 0 uses hardcoded "initial_state" string | OPEN |
+| MR-M9.5-10 | M9.5 | Hand diff compares only `.length`, not contents — misses card swaps | OPEN |
+| MR-M9.5-11 | M9.5 | Player list order non-deterministic in SessionResponse (HashMap iteration) | OPEN |
+| MR-M9.5-12 | M9.5 | Battlefield iteration order by ObjectId, not zone entry order | OPEN |
+| MR-M9.5-13 | M9.5 | `PlayerId(i as u64 + 1)` cast without bounds check (safe in practice) | OPEN |
 
 ### INFO
 
@@ -1704,6 +1838,12 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.4-19 | M9.4 | Complete hash coverage for all new M9.4 types — zero gaps | -- |
 | MR-M9.4-20 | M9.4 | Strong test coverage: 51 new tests across 11 files with CR citations | -- |
 | MR-M9.4-21 | M9.4 | Prior-milestone LOWs resolved: MR-M7-13 (equipment), MR-M7-14 (no-max-hand-size), MR-M4-07 (is_copy) | -- |
+| MR-M9.5-14 | M9.5 | Clean replay harness extraction — zero logic changes, 544 tests pass without modification | -- |
+| MR-M9.5-15 | M9.5 | Excellent pre-computation design: `im-rs` structural sharing keeps N snapshots in O(delta) memory | -- |
+| MR-M9.5-16 | M9.5 | Clean API design with proper HTTP status codes and partial script deserialization | -- |
+| MR-M9.5-17 | M9.5 | Shared-component strategy correctly implemented — all components use props-only data flow | -- |
+| MR-M9.5-18 | M9.5 | Thorough event variant coverage — all 47 GameEvent variants handled in formatEvent and eventCategory | -- |
+| MR-M9.5-19 | M9.5 | Correct store snapshot pattern for diff computation in stores.js | -- |
 
 ---
 
@@ -1711,22 +1851,23 @@ All findings across all milestones, sorted by severity then milestone.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 213 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint) |
+| Total unique issue IDs | 232 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12) |
-| MEDIUM (CLOSED) | 45 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07) |
+| MEDIUM (CLOSED) | 49 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 59 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15 + 1 Checkpoint: MR-CKP-01) |
+| LOW (OPEN) | 68 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15 + 1 Checkpoint: MR-CKP-01 + 9 M9.5: MR-M9.5-05 through MR-M9.5-13) |
 | LOW (CLOSED) | 6 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3; MR-M7-13, MR-M7-14, MR-M4-07 -- resolved by M9.4) |
 | LOW (DEFERRED) | 5 |
-| INFO | 61 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21) |
-| Milestones reviewed | 11 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4) |
+| INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
+| Milestones reviewed | 12 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); **M9.4 fix session 1**: 3 HIGH closed (MR-M9.4-01, MR-M9.4-02, MR-M9.4-03); **M9.4 fix session 2**: 3 MEDIUM closed (MR-M9.4-04, MR-M9.4-05, MR-M9.4-08); **M9.4 fix session 3**: 2 MEDIUM closed (MR-M9.4-06, MR-M9.4-07); M9.4 fix phase complete |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
 
 **Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
 **Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)
-**Total test count**: 499 (all passing, as of M9.4 completion)
+**Replay viewer LOC (M9.5)**: ~2,200 Rust + ~2,400 Svelte/JS = ~4,600 lines
+**Total test count**: 544 (all passing, as of M9.5 completion)
