@@ -457,11 +457,33 @@ The owner should choose to apply the commander replacement first to avoid giving
 
 ---
 
+### 36. Blood Moon + Urza's Saga (Layer 4 vs Layer 6, Saga Sacrifice SBA)
+
+**Cards**: Blood Moon (enchantment — "Nonbasic lands are Mountains"), Urza's Saga (Enchantment Land — Urza's Saga, with three chapter abilities that grant abilities to the Saga when they resolve)
+
+**What's being tested**: Two distinct interactions triggered by the June 2025 CR 714.4 update:
+1. **Saga sacrifice SBA**: CR 714.4 now reads "a Saga permanent *with one or more chapter abilities*" — when Blood Moon removes all chapter abilities, the SBA condition is never met and the Saga is NOT sacrificed.
+2. **Layer 4 vs Layer 6 for gained abilities**: Blood Moon's type-change applies in Layer 4, which strips Urza's Saga's printed chapter abilities. However, abilities *gained* as a result of previously resolved chapter abilities (e.g., `{T}: Add {C}` from Chapter I, the Construct-making ability from Chapter II) are separate continuous effects applied in Layer 6, which comes *after* Layer 4. Therefore those gained abilities survive Blood Moon.
+
+**Correct behavior** (post-June 2025 CR):
+- Urza's Saga is NOT sacrificed under Blood Moon, regardless of how many lore counters it has.
+- Urza's Saga retains any abilities gained from chapter abilities that already resolved (because those are Layer 6 effects with timestamps later than Blood Moon's Layer 4 effect, if Blood Moon entered before those chapters resolved; or with earlier timestamps if Blood Moon entered after — in that case the gained abilities have *earlier* timestamps and Blood Moon's Layer 6 removal overrides them — so the exact behavior depends on entry order).
+- No further lore counters are added while Blood Moon is in effect, so no new chapter abilities trigger.
+- Alpine Moon (which explicitly says "lose all abilities" in its text) applies in Layer 6 and will override gained abilities, unlike Blood Moon.
+
+**Entry order matters for retained abilities**:
+- Blood Moon entered *before* Urza's Saga chapters resolved → chapter gains have *later* timestamps → gained abilities survive (Layer 6 timestamp ordering).
+- Blood Moon entered *after* Urza's Saga chapters resolved → Blood Moon has *later* timestamp in Layer 6 → gained abilities are removed.
+
+**CR sections**: 714.4 (Saga sacrifice SBA — updated June 2025), 613.1d (layer 4 type-changing), 613.1f (layer 6 ability-adding/removing), 613.7 (timestamp ordering within layers)
+
+---
+
 ## Testing Priority by Rules Subsystem
 
 | Subsystem | Test Cases | Priority |
 |-----------|-----------|----------|
-| Layer System (613) | 1-7, 30 | Critical — implement and test in M5 |
+| Layer System (613) | 1-7, 30, 36 | Critical — implement and test in M5 |
 | SBAs (704) | 8-11, 24, 31 | Critical — implement and test in M4 |
 | Stack/Priority (405, 117) | 12-15, 35 | Critical — implement and test in M3 |
 | Replacement Effects (614-616) | 16-19, 28, 33 | High — implement in M8 |

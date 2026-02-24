@@ -30,6 +30,17 @@
   with `ObjectSpec::card()` have `power: None`; `enrich_spec_from_def` must propagate
   `def.power`/`def.toughness` to fix spells like Swords to Plowshares.
 
+## Layer System Gotchas
+
+- **Gained abilities need their own timestamps, separate from the permanent's timestamp.**
+  When a chapter ability (or any "gains [ability]" effect) resolves, the resulting continuous
+  effect must be registered with the timestamp of *that resolution*, not the timestamp of the
+  permanent. If gained abilities inherit the permanent's timestamp, the Blood Moon + Urza's
+  Saga entry-order behavior cannot be resolved correctly: Blood Moon entered after chapters
+  resolved should override the gained abilities (later timestamp wins in Layer 6), but Blood
+  Moon entered before should not (chapter gains have the later timestamp). Per-permanent
+  timestamp storage breaks this entirely.
+
 ## ETB Site Gotchas (M9.4)
 
 - **Two ETB sites exist: `resolution.rs` and `lands.rs`.** Any new hook that fires on

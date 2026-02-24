@@ -23,6 +23,36 @@
 - **Tokens cease to exist when they leave the battlefield** — but they DO briefly exist in
   the new zone first (long enough to trigger "when this dies" etc.).
 
+- **CR text overrides card rulings — always.** Card rulings (Gatherer/Scryfall) are dated
+  annotations written at print time. When the CR changes, old rulings become stale and are
+  never retroactively updated. Example: the June 2025 CR 714.4 update changed Blood Moon +
+  Urza's Saga behavior, but the 2021-06-18 Scryfall ruling still says the opposite.
+  **Derive implementation from the CR. Use rulings only to identify edge cases to test.**
+- **Blood Moon has effects in BOTH Layer 4 and Layer 6.** Layer 4: type-change to Mountain
+  (loses other land subtypes). Layer 6: removes ALL abilities (including non-subtype-based
+  ones like Urza's Saga's chapter abilities) and adds `{T}: Add {R}`. Do not implement Blood
+  Moon as a Layer 4-only effect and assume ability removal follows implicitly — it must be
+  modeled with an explicit Layer 6 component too.
+- **Blood Moon vs Alpine Moon in Layer 6**: Alpine Moon explicitly says "loses all abilities"
+  (a clear Layer 6 effect). Blood Moon's ability removal also applies in Layer 6 but comes
+  from its "are Mountains" type-change. The distinction matters for timestamp ordering against
+  other Layer 6 effects (e.g., Saga gained abilities).
+- **Blood Moon applies in Layer 4 (type-changing); gained abilities from resolved chapter
+  abilities apply in Layer 6.** Because Layer 6 comes after Layer 4, abilities that Urza's
+  Saga *gained* from resolved chapter abilities (e.g. `{T}: Add {C}` from Chapter I) survive
+  Blood Moon — Blood Moon's type-change strips the printed chapter abilities but doesn't
+  override the Layer 6 gained-ability effects. Alpine Moon explicitly says "lose all
+  abilities" in Layer 6, so it *does* remove gained abilities (assuming it entered after).
+- **Dress Down triggers the same Saga SBA behavior as Blood Moon.** Any effect that removes
+  all abilities from a Saga (Dress Down, etc.) invokes the CR 714.4 "one or more chapter
+  abilities" check. The Saga is not sacrificed. This is not Blood Moon-specific — the SBA
+  must check the condition generically for any ability-removal effect.
+- **OPEN QUESTION — lore counter addition under ability removal**: Does a Saga that has lost
+  all its abilities still receive lore counters at the beginning of main phase? Depends on
+  whether the lore counter addition is an intrinsic rule of the Saga *subtype* (CR 714) or a
+  printed ability that gets removed. The article states no more counters are added under Blood
+  Moon, but verify against CR 714 before implementing.
+
 ---
 
 ## Top-10 Corner Cases

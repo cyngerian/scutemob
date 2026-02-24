@@ -11,10 +11,10 @@
 
 | Status | Count | % |
 |--------|-------|---|
-| Covered | 29 | 83% |
+| Covered | 29 | 81% |
 | Partial | 0 | 0% |
-| Gap | 3 | 9% |
-| Deferred | 3 | 9% |
+| Gap | 4 | 11% |
+| Deferred | 3 | 8% |
 
 **Card definition gaps**: 0 (all 12 fixed in M9.4)
 
@@ -59,6 +59,7 @@
 | 33 | Sylvan Library + Draw Replacement | 614 | **COVERED** | `test_cc33_sylvan_library_draw_tracking` in `replacement_effects.rs` — `cards_drawn_this_turn` tracking verified | M9.4 S4 |
 | 34 | Reveillark + Karmic Guide Loop | 726, 104.4b | **COVERED** | `test_loop_detection_threshold_is_three` in `loop_detection.rs` — detection algorithm in `rules/loop_detection.rs` | M9.4 S10 |
 | 35 | Storm + Copying | 702.40, 707.10 | **COVERED** | `test_storm_creates_copies`, `test_spell_copy_is_not_cast` in `storm_copy.rs` | M9.4 S8 |
+| 36 | Blood Moon + Urza's Saga (Layer 4 vs 6, Saga SBA) | 714.4, 613.1d, 613.1f, 613.7 | **GAP** | No test — requires Saga gained-ability tracking + updated CR 714.4 SBA logic (June 2025 rules change) | — |
 
 ---
 
