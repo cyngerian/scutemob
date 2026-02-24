@@ -308,6 +308,88 @@ impl ReplaySession {
     }
 }
 
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::testing::script_schema::GameScript;
+
+    /// Load a game script from test-data relative to the workspace root.
+    /// Tests run from the package directory (tools/replay-viewer/), so we
+    /// walk up two levels to reach the workspace root.
+    fn load_baseline_script(filename: &str) -> GameScript {
+        let path = format!(
+            "../../test-data/generated-scripts/baseline/{}",
+            filename
+        );
+        let json = std::fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("Failed to read script at {path}"));
+        serde_json::from_str(&json)
+            .unwrap_or_else(|e| panic!("Failed to parse {filename}: {e}"))
+    }
+
+    #[test]
+    fn test_from_script_produces_steps() {
+        // 001: 2-player priority pass — 1 initial state + 4 priority passes = 5 steps.
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        assert_eq!(session.step_count(), 5, "expected 5 steps (1 initial + 4 priority passes)");
+    }
+
+    #[test]
+    fn test_step_zero_is_initial_state() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        let step0 = &session.steps[0];
+        assert_eq!(step0.index, 0);
+        assert!(step0.command.is_none(), "step 0 must have no command");
+        assert!(step0.events.is_empty(), "step 0 must have no events");
+        assert!(step0.assertions.is_none(), "step 0 must have no assertions");
+    }
+
+    #[test]
+    fn test_initial_life_totals_are_40() {
+        // Commander starts at 40 life.
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        for (_pid, player) in &session.steps[0].state_after.players {
+            assert_eq!(player.life_total, 40, "all players start at 40 life in Commander");
+        }
+    }
+
+    #[test]
+    fn test_player_map_reverse_map_match() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        assert!(!session.player_map.is_empty(), "player_map must be populated");
+        assert_eq!(
+            session.player_map.len(),
+            session.player_names.len(),
+            "player_map and player_names must have the same cardinality"
+        );
+        // Every entry in player_map must round-trip through player_names.
+        for (name, pid) in &session.player_map {
+            assert_eq!(
+                session.player_names.get(pid),
+                Some(name),
+                "player_names[{pid:?}] must equal '{name}'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_some_steps_have_commands() {
+        let script = load_baseline_script("001_priority_pass_empty_stack.json");
+        let session = ReplaySession::from_script(&script).unwrap();
+        // Not every step has a command (informational actions like PhaseTransition
+        // also produce steps with command: None), but at least one step after the
+        // initial state must carry a command (a priority pass).
+        let command_count = session.steps.iter().filter(|s| s.command.is_some()).count();
+        assert!(command_count >= 1, "must have at least one step with a command");
+    }
+}
+
 // ── Assertion evaluation ──────────────────────────────────────────────────────
 
 /// Evaluate dot-notation assertion paths against the current game state.
@@ -322,18 +404,55 @@ fn evaluate_assertions(
     assertions
         .iter()
         .map(|(path, expected)| {
-            let parts: Vec<&str> = path.splitn(4, '.').collect();
-            let actual = match parts.as_slice() {
-                ["players", name, "life"] => players
-                    .get(*name)
-                    .and_then(|pid| state.players.get(pid))
-                    .map(|p| serde_json::json!(p.life_total))
-                    .unwrap_or(serde_json::Value::Null),
-                ["players", name, "poison_counters"] => players
-                    .get(*name)
-                    .and_then(|pid| state.players.get(pid))
-                    .map(|p| serde_json::json!(p.poison_counters))
-                    .unwrap_or(serde_json::Value::Null),
+            // Use splitn(5) to handle up to 4-segment paths like
+            // players.p2.commander_damage_received.p1
+            let parts: Vec<&str> = path.splitn(5, '.').collect();
+            let (actual, passed) = match parts.as_slice() {
+
+                // ── Player stats ──────────────────────────────────────────────
+
+                ["players", name, "life"] => {
+                    let v = players
+                        .get(*name)
+                        .and_then(|pid| state.players.get(pid))
+                        .map(|p| serde_json::json!(p.life_total))
+                        .unwrap_or(serde_json::Value::Null);
+                    let ok = &v == expected;
+                    (v, ok)
+                }
+
+                ["players", name, "poison_counters"] => {
+                    let v = players
+                        .get(*name)
+                        .and_then(|pid| state.players.get(pid))
+                        .map(|p| serde_json::json!(p.poison_counters))
+                        .unwrap_or(serde_json::Value::Null);
+                    let ok = &v == expected;
+                    (v, ok)
+                }
+
+                // commander_damage_received is keyed by source PlayerId → CardId → u32.
+                // The assertion checks total damage from one player's commanders to another.
+                ["players", target, "commander_damage_received", source] => {
+                    let total = players
+                        .get(*target)
+                        .and_then(|tpid| state.players.get(tpid))
+                        .and_then(|p| {
+                            players.get(*source).map(|spid| {
+                                p.commander_damage_received
+                                    .get(spid)
+                                    .map(|by_card| by_card.values().sum::<u32>())
+                                    .unwrap_or(0)
+                            })
+                        })
+                        .unwrap_or(0);
+                    let v = serde_json::json!(total);
+                    let ok = &v == expected;
+                    (v, ok)
+                }
+
+                // ── Zone counts ───────────────────────────────────────────────
+
                 ["zones", "hand", player, "count"] => {
                     if let Some(&pid) = players.get(*player) {
                         let count = state
@@ -341,18 +460,76 @@ fn evaluate_assertions(
                             .values()
                             .filter(|o| o.zone == ZoneId::Hand(pid))
                             .count();
-                        serde_json::json!(count)
+                        let v = serde_json::json!(count);
+                        let ok = &v == expected;
+                        (v, ok)
                     } else {
-                        serde_json::Value::Null
+                        (serde_json::Value::Null, false)
                     }
                 }
+
                 ["zones", "stack", "count"] => {
-                    serde_json::json!(state.stack_objects.len())
+                    let v = serde_json::json!(state.stack_objects.len());
+                    let ok = &v == expected;
+                    (v, ok)
                 }
-                _ => serde_json::Value::Null,
+
+                // ── Zone membership (includes/excludes/is_empty) ──────────────
+
+                ["zones", "stack"] => {
+                    let is_empty = state.stack_objects.is_empty();
+                    let count = state.stack_objects.len();
+                    let v = serde_json::json!({ "count": count, "is_empty": is_empty });
+                    let ok = check_stack_assertion(is_empty, count, expected);
+                    (v, ok)
+                }
+
+                // Battlefield is shared — filter by controller name.
+                ["zones", "battlefield", player] => {
+                    let names = if let Some(&pid) = players.get(*player) {
+                        state
+                            .objects
+                            .values()
+                            .filter(|o| o.zone == ZoneId::Battlefield && o.controller == pid)
+                            .map(|o| o.characteristics.name.clone())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    };
+                    let ok = check_list_assertion(&names, expected);
+                    (serde_json::json!(names), ok)
+                }
+
+                ["zones", "graveyard", player] => {
+                    let names = if let Some(&pid) = players.get(*player) {
+                        state
+                            .objects
+                            .values()
+                            .filter(|o| o.zone == ZoneId::Graveyard(pid))
+                            .map(|o| o.characteristics.name.clone())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    };
+                    let ok = check_list_assertion(&names, expected);
+                    (serde_json::json!(names), ok)
+                }
+
+                // Exile is a shared zone (no per-player ZoneId).
+                ["zones", "exile"] => {
+                    let names: Vec<String> = state
+                        .objects
+                        .values()
+                        .filter(|o| o.zone == ZoneId::Exile)
+                        .map(|o| o.characteristics.name.clone())
+                        .collect();
+                    let ok = check_list_assertion(&names, expected);
+                    (serde_json::json!(names), ok)
+                }
+
+                _ => (serde_json::Value::Null, false),
             };
 
-            let passed = &actual == expected;
             AssertionResult {
                 path: path.clone(),
                 expected: expected.clone(),
@@ -361,4 +538,52 @@ fn evaluate_assertions(
             }
         })
         .collect()
+}
+
+/// Check `{"is_empty": bool}` or `{"count": N}` assertions against the stack.
+fn check_stack_assertion(is_empty: bool, count: usize, expected: &serde_json::Value) -> bool {
+    if let Some(obj) = expected.as_object() {
+        if let Some(exp) = obj.get("is_empty").and_then(|v| v.as_bool()) {
+            return is_empty == exp;
+        }
+        if let Some(exp) = obj.get("count").and_then(|v| v.as_u64()) {
+            return count as u64 == exp;
+        }
+    }
+    // Fallback: direct equality with count.
+    &serde_json::json!(count) == expected
+}
+
+/// Check `{"includes": [...], "excludes": [...]}` assertions against a list of card names.
+/// Each item in includes/excludes can be a plain string or `{"card": "Name"}`.
+fn check_list_assertion(names: &[String], expected: &serde_json::Value) -> bool {
+    let Some(obj) = expected.as_object() else {
+        return false;
+    };
+
+    let card_name = |item: &serde_json::Value| -> Option<String> {
+        item.as_str()
+            .map(|s| s.to_string())
+            .or_else(|| item.get("card").and_then(|c| c.as_str()).map(|s| s.to_string()))
+    };
+
+    let includes_ok = obj
+        .get("includes")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .all(|item| card_name(item).map_or(false, |n| names.iter().any(|a| a == &n)))
+        })
+        .unwrap_or(true);
+
+    let excludes_ok = obj
+        .get("excludes")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .all(|item| card_name(item).map_or(true, |n| !names.iter().any(|a| a == &n)))
+        })
+        .unwrap_or(true);
+
+    includes_ok && excludes_ok
 }
