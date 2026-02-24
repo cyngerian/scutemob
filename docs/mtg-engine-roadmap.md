@@ -38,8 +38,8 @@ M9: Commander Rules Integration                 (~2-3 weeks)
     ENGINE CORE COMPLETE — Playable via tests
 ───────────────────────────────────────────────────────────
 M9.5: Game State Stepper (Dev Replay Viewer)      (~2-3 weeks)
-M10: Networking Layer (Distributed Verification)  (~3-4 weeks)
-M10.5: Mental Poker Integration (NEW)             (~2-3 weeks)
+M10: Networking Layer (Centralized Server)         (~2-3 weeks)
+M10.5: P2P Distributed Verification (DEFERRED)    (unscheduled)
 M11: Tauri App Shell & Basic UI                  (~3-4 weeks)
 M12: Card Definition Pipeline (Bulk Generation)  (~3-4 weeks)
 M13: Full UI — Battlefield, Stack, Targeting     (~4-6 weeks)
@@ -647,96 +647,60 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 
 ---
 
-### M10: Networking Layer (Distributed Verification)
+### M10: Networking Layer (Centralized Server)
 
-**Goal**: Implement the distributed verification network model where all peers run the engine independently and a lightweight coordinator manages protocol sequencing. See `mtg-engine-network-security.md` for full design.
+**Goal**: Implement a lightweight centralized WebSocket game server. One server instance (runnable on a ~$5-10/mo VPS) hosts games for a trusted playgroup. The server runs the engine authoritatively, filters hidden information per player, and broadcasts events. P2P distributed verification is preserved in `docs/mtg-engine-network-security.md` as a documented future upgrade path.
 
-> **Architecture change**: This milestone implements Tier 2 (distributed verification)
-> from the network security strategy, replacing the original authoritative host model.
-> A trusted host fallback mode is also supported. Tier 1 (deterministic state hashing)
-> is a prerequisite — implemented during M3.
+> **Architecture decision (2026-02-23)**: P2P mesh + Mental Poker deferred. A single player
+> with bad internet stalls the whole table in P2P; Mental Poker adds significant complexity
+> for no benefit in a trusted playgroup. Centralized server is simpler, cheaper, solves
+> the timing/reconnection problems cleanly. See `memory/decisions.md`.
+
+**Crate**: `crates/server/` — standalone binary, depends on `crates/engine` as a library. No engine changes required.
 
 **Deliverables**:
-- [ ] Peer-to-peer mesh networking (WebSocket mesh or WebRTC)
-- [ ] Coordinator role: protocol sequencing, command broadcasting (lightweight — no game state)
-- [ ] All peers run engine independently on received commands
-- [ ] Hash comparison after every command (using `public_state_hash()` from Tier 1)
-- [ ] Dispute detection: hash mismatch → majority vote resolution
-- [ ] Coordinator election and migration on disconnect (lowest peer ID)
-- [ ] Message protocol: Command/Event serialization with MessagePack (serde)
-- [ ] Lobby system: create game, join game, set parameters, select security mode
-- [ ] Reconnection protocol: public state sync from majority peers
-- [ ] Trusted host fallback mode: legacy authoritative model for debugging/simplicity
-- [ ] Basic latency tolerance: commands are timestamped and ordered
-- [ ] **State history ring buffer**: retain the last N `GameState` snapshots (im-rs structural sharing makes this O(1) per snapshot); snapshots are keyed by turn number + step + priority sequence number
-- [ ] **Safe checkpoint identification**: use `GameEvent::reveals_hidden_info()` (from M9) to mark state snapshots taken before hidden-information events as safe rewind targets; checkpoints at all-empty-stack priority grants are always safe
-- [ ] **Coordinated rewind protocol**: any player can propose a rewind to a named checkpoint; requires unanimous acceptance from all connected peers before the rewind is applied; dissent cancels the proposal; engine simply restores the retained `GameState` snapshot
-- [ ] **"Pause for rules discussion" command**: any player can send a Pause request; all peers acknowledge and freeze — no further Commands are processed until all peers send Resume; the paused state is the implicit rewind target if players agree to undo actions taken since the pause point
-- [ ] Resumption from pause: all peers send Resume acknowledgment; game continues from the frozen state
+- [ ] WebSocket server (tokio + axum) accepting player connections
+- [ ] Room manager: create game (returns room code), join game by code, 2-6 player slots
+- [ ] One engine instance per active game room, running authoritatively on the server
+- [ ] Command ingestion: accept `Command` from the acting player only; reject out-of-turn commands
+- [ ] Hidden information filtering: broadcast public events to all clients; private events (draw, scry peek, hand reveal) sent only to the relevant player
+- [ ] Message protocol: `ClientMessage` (command) and `ServerMessage` (event, state sync, error) — serde JSON for simplicity, MessagePack optional upgrade
+- [ ] Reconnection: reconnecting client receives full public state dump + their own private state (hand, known library cards)
+- [ ] **State history ring buffer**: server retains last N `GameState` snapshots (O(1) via im-rs structural sharing); keyed by turn + step + priority sequence number
+- [ ] **Safe checkpoint identification**: use `GameEvent::reveals_hidden_info()` (from M9) to mark snapshots before hidden-info events as safe rewind targets
+- [ ] **Rewind**: any player proposes rewind to a named checkpoint; requires unanimous acceptance; server restores snapshot and rebroadcasts state
+- [ ] **Pause**: any player sends Pause; server freezes until all players send Resume
+- [ ] Graceful disconnect: game pauses on disconnect, others notified; rejoin window before forfeit
 
 **Tests** (minimum):
-- [ ] Coordinator starts game, 4 peers connect, game begins
-- [ ] Command round-trip: acting peer sends command, all peers process, hashes compared
-- [ ] Hash consensus: all 4 peers agree after every command
-- [ ] Dispute detection: one peer with tampered state is flagged
-- [ ] Coordinator migration: coordinator disconnects, next peer takes over seamlessly
-- [ ] Reconnect: peer disconnects, rejoins, state synced from majority
-- [ ] Invalid command rejection: all peers reject illegal command independently
-- [ ] Latency simulation: 200ms delay, game plays correctly
-- [ ] Trusted host fallback: same game works in legacy mode
-- [ ] Pause: any player sends Pause, all peers freeze, no further Commands processed
-- [ ] Resume from pause: all peers acknowledge Resume, game continues from frozen state
-- [ ] Rewind proposal: player proposes rewind to a safe checkpoint; all accept; state is restored and hashes match
-- [ ] Rewind rejected: one peer dissents; proposal is cancelled; game continues from current state
-- [ ] Rewind across hidden-info boundary: checkpoint identified as unsafe; proposal is flagged to players (not blocked — honour system; just surfaced clearly)
+- [ ] Server starts, 4 clients connect to a room, game begins
+- [ ] Command round-trip: acting client sends command, server processes, all clients receive correct events
+- [ ] Hidden info: draw event sent only to drawing player; all others see `PlayerDrewCard { count: 1 }` only
+- [ ] Out-of-turn command rejected by server
+- [ ] Reconnect: client disconnects, rejoins, receives correct public + private state sync
+- [ ] Pause: client sends Pause, server freezes, no further Commands processed
+- [ ] Resume: all clients send Resume, game continues
+- [ ] Rewind accepted: all clients accept, state restored and rebroadcast
+- [ ] Rewind rejected: one client dissents, game continues from current state
+- [ ] 6-player game completes a full turn cycle without errors
 
 **Acceptance Criteria**:
-- 4-player Commander game playable over localhost via programmatic clients
-- All peers independently verify every game state transition
-- Hash mismatch detection works and flags the divergent peer
-- Coordinator migration is seamless
-- Trusted host fallback mode functional
+- 4-6 player Commander game playable over LAN/internet via WebSocket clients
+- Hidden information never leaked to wrong client
+- Reconnection restores correct state
+- Runs as a single statically-linked binary with no external dependencies
 
-**Dependencies**: M9 (engine core complete), Tier 1 state hashing (implemented during M3)
-
-**Architecture doc references**: Section 4 (Networking Architecture), `mtg-engine-network-security.md` Tier 2
+**Dependencies**: M9 (engine core complete)
 
 ---
 
-### M10.5: Mental Poker Integration
+### M10.5: P2P Distributed Verification (Deferred — Future Upgrade)
 
-**Goal**: Implement cryptographic card dealing so no player can see hidden information (library order, other players' hands) without the distributed trust of all peers.
+**Goal**: Upgrade from centralized server to peer-to-peer distributed verification for untrusted play — no trusted server required, all peers run the engine independently, hidden information protected via Mental Poker.
 
-> See `mtg-engine-network-security.md` Tier 3 for full protocol design.
-
-**Deliverables**:
-- [ ] Commutative encryption (ElGamal over Curve25519 via `curve25519-dalek`)
-- [ ] Joint shuffle protocol with zero-knowledge shuffle proofs
-- [ ] Draw protocol: partial decryption from each peer reveals card only to drawing player
-- [ ] Search protocol: full library reveal to searching player + re-shuffle afterward
-- [ ] Commit-reveal scheme for public random events (coin flips, random selection)
-- [ ] Hand commitment system: prove card legitimacy when playing from hand
-- [ ] MTG-specific operations: scry, reveal, look at hand, morph/manifest
-- [ ] Integration with engine's draw, search, and shuffle commands (engine stays crypto-free)
-- [ ] Performance testing: draw latency <100ms, search latency <1s
-
-**Tests** (minimum):
-- [ ] Joint shuffle: 4 players shuffle a 100-card deck, no player knows the order
-- [ ] Draw protocol: drawing player sees card, opponents do not
-- [ ] Search protocol: searching player sees library, library re-shuffled afterward
-- [ ] Commit-reveal: public random result is unbiased
-- [ ] Hand commitment: player proves they held a card when casting it
-- [ ] Performance: draw <100ms, search <1s with 4 peers
-- [ ] Integration: full game with Mental Poker produces same outcomes as seeded RNG game
-
-**Acceptance Criteria**:
-- Hidden information is cryptographically protected during networked play
-- Performance is acceptable for turn-based gameplay
-- Engine crate has zero cryptographic dependencies (all crypto in network layer)
-
-**Dependencies**: M10 (distributed verification networking)
-
-**Architecture doc references**: `mtg-engine-network-security.md` Tier 3
+> Full design preserved in `docs/mtg-engine-network-security.md` (Tiers 2 and 3).
+> This milestone is intentionally unscheduled. Revisit after M11 if there is demand
+> for trustless play beyond the trusted playgroup model.
 
 ---
 

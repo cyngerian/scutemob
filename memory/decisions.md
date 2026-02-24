@@ -8,8 +8,9 @@
 | (project start) | Authoritative host (not P2P) | Hidden information requires a trusted authority; simpler than consensus protocols |
 | (project start) | SQLite for card data | Structured queries for card lookup; embedded DB ships with app; no external server needed |
 | (project start) | Separate engine/network/UI crates | Engine testable without IO; prevents coupling; allows future WASM compilation of engine alone |
-| 2026-02-21 | Distributed verification replaces authoritative host | Eliminates trusted host; all peers run engine independently; coordinator is lightweight; see `docs/mtg-engine-network-security.md` |
-| 2026-02-21 | Three-tier network security (hashing → distributed → Mental Poker) | Tier 1 catches non-determinism early; Tier 2 prevents tampering; Tier 3 protects hidden information |
+| 2026-02-21 | ~~Distributed verification replaces authoritative host~~ — **superseded 2026-02-23** | Superseded: P2P mesh + Mental Poker deferred as a future upgrade path |
+| 2026-02-21 | ~~Three-tier network security (hashing → distributed → Mental Poker)~~ — **superseded 2026-02-23** | Superseded: centralized server eliminates need for Tiers 2-3 for trusted playgroups |
+| 2026-02-23 | Centralized WebSocket server for M10 (P2P deferred as future upgrade) | One player with bad internet stalls the whole table in P2P; Mental Poker adds significant complexity for no benefit in a trusted playgroup; centralized server is trivially cheap (~$5-10/mo VPS), simpler to implement, normalises timing, solves reconnection cleanly. P2P + Mental Poker preserved in `docs/mtg-engine-network-security.md` as a documented upgrade path. |
 | 2026-02-21 | Deterministic state hashing from M3 onward | Catching non-determinism during engine development is dramatically cheaper than discovering it during M10 networking |
 | 2026-02-21 | M4 legendary rule auto-keeps newest permanent (highest ObjectId) | Real player choice requires a Command that doesn't exist until M7; auto-newest is deterministic, testable, matches common play |
 | 2026-02-21 | Game script generation deferred to M7; schema defined in M5 | Scripts can't run without the replay harness (M7); schema defined early so it compiles and evolves |
