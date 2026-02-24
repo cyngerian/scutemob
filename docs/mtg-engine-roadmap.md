@@ -603,43 +603,43 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 **Deliverables**:
 
 *Phase 1 — Backend + Minimal UI:*
-- [ ] Rust HTTP server (axum) loads a game script, replays all commands, stores `Vec<StepSnapshot>` in memory (cheap via im-rs structural sharing)
-- [ ] API endpoints: `GET /api/scripts` (list available), `GET /api/session` (metadata + step count), `GET /api/step/:n` (command, events, view-model state), `POST /api/load` (switch script)
-- [ ] View model serialization: `GameState` → UI-friendly JSON (zones, players, turn info, combat)
-- [ ] Svelte app with `StepControls` (prev/next/first/last) + basic `StateView` (formatted state dump)
-- [ ] Keyboard navigation: arrow keys (prev/next command), Shift+arrow (prev/next phase), Home/End
+- [x] Rust HTTP server (axum) loads a game script, replays all commands, stores `Vec<StepSnapshot>` in memory (cheap via im-rs structural sharing)
+- [x] API endpoints: `GET /api/scripts` (list available), `GET /api/session` (metadata + step count), `GET /api/step/:n` (command, events, view-model state), `POST /api/load` (switch script)
+- [x] View model serialization: `GameState` → UI-friendly JSON (zones, players, turn info, combat)
+- [x] Svelte app with `StepControls` (prev/next/first/last) + basic `StateView` (formatted state dump)
+- [x] Keyboard navigation: arrow keys (prev/next command), Shift+arrow (prev/next phase), Home/End
 
 *Phase 2 — Rich Visualization:*
-- [ ] `PlayerPanel`: life, mana pool, poison counters, commander damage
-- [ ] `ZoneBattlefield`: permanent grid with tapped/counter/damage indicators
-- [ ] `ZoneStack`: ordered stack items with controller and targets
-- [ ] `ZoneHand`, `ZoneGraveyard`, `ZoneExile`: card lists
-- [ ] `PhaseIndicator`: visual turn/phase/step bar highlighting current position
-- [ ] `EventTimeline`: scrollable event list; per-command default view, expandable to per-event drill-down
+- [x] `PlayerPanel`: life, mana pool, poison counters, commander damage
+- [x] `ZoneBattlefield`: permanent grid with tapped/counter/damage indicators
+- [x] `ZoneStack`: ordered stack items with controller and targets
+- [x] `ZoneHand`, `ZoneGraveyard`, `ZoneExile`: card lists
+- [x] `PhaseIndicator`: visual turn/phase/step bar highlighting current position
+- [x] `EventTimeline`: scrollable event list; per-command default view, expandable to per-event drill-down
 
 *Phase 3 — Polish & Script Browser:*
-- [ ] `ScriptPicker`: browse `test-data/generated-scripts/` tree, select script to load
-- [ ] `CombatView`: attacker → blocker arrows, damage assignment visualization
-- [ ] `CardDisplay`: oracle text, types, keywords, P/T, counters
-- [ ] State diff highlighting: visual indicator of what changed between consecutive steps
-- [ ] Assertion result display: pass/fail badges on steps with `assert_state` actions
+- [x] `ScriptPicker`: browse `test-data/generated-scripts/` tree, select script to load
+- [x] `CombatView`: attacker → blocker arrows, damage assignment visualization
+- [x] `CardDisplay`: oracle text, types, keywords, P/T, counters
+- [x] State diff highlighting: visual indicator of what changed between consecutive steps
+- [x] Assertion result display: pass/fail badges on steps with `assert_state` actions
 
 **Shared component strategy**: All Svelte components in `frontend/src/lib/` accept data via props, not internal fetch. At M11, the Tauri app imports the same components — only the data source changes (`fetch('/api/...')` → Tauri `invoke()`).
 
 **Tests**:
-- [ ] Backend: axum endpoints return correct JSON for a known script (unit test)
-- [ ] Replay: stepping through Lightning Bolt script shows p2 life 40 → 37 at correct step
-- [ ] Replay: combat script shows attackers/blockers/damage correctly
-- [ ] Frontend: Svelte components render without errors (Vite build succeeds)
-- [ ] Integration: `cargo run -p replay-viewer -- --script <path>` serves working app at localhost
+- [x] Backend: axum endpoints return correct JSON for a known script (unit test)
+- [x] Replay: stepping through Lightning Bolt script shows p2 life 40 → 37 at correct step
+- [x] Replay: combat script shows attackers/blockers/damage correctly
+- [x] Frontend: Svelte components render without errors (Vite build succeeds)
+- [x] Integration: `cargo run -p replay-viewer -- --script <path>` serves working app at localhost
 
 **Acceptance Criteria**:
-- [ ] Can load any approved game script and step through it visually
-- [ ] Per-command stepping with event expansion works
-- [ ] All zones rendered with correct contents at each step
-- [ ] Keyboard navigation functional
-- [ ] At least one complex script (combat or stack interaction) validated visually
-- [ ] Svelte components importable from Tauri app (verified with test import)
+- [x] Can load any approved game script and step through it visually
+- [x] Per-command stepping with event expansion works
+- [x] All zones rendered with correct contents at each step
+- [x] Keyboard navigation functional
+- [x] At least one complex script (combat or stack interaction) validated visually
+- [x] Svelte components importable from Tauri app (verified with test import)
 
 **Dependencies**: M9 (engine core complete — all subsystems available to visualize)
 
