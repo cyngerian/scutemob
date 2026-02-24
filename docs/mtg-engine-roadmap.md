@@ -663,7 +663,8 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 - [ ] Room manager: create game (returns room code), join game by code, 2-6 player slots
 - [ ] One engine instance per active game room, running authoritatively on the server
 - [ ] Command ingestion: accept `Command` from the acting player only; reject out-of-turn commands
-- [ ] Hidden information filtering: broadcast public events to all clients; private events (draw, scry peek, hand reveal) sent only to the relevant player
+- [ ] Extend `GameEvent` with `private_to() -> Option<PlayerId>` (engine crate, small addition alongside existing `reveals_hidden_info()`) to identify which player a private event belongs to
+- [ ] Hidden information filtering: broadcast public events to all clients; private events (draw, scry peek, hand reveal) sent only to the player returned by `private_to()`; all others receive a redacted version
 - [ ] Message protocol: `ClientMessage` (command) and `ServerMessage` (event, state sync, error) — serde JSON for simplicity, MessagePack optional upgrade
 - [ ] Reconnection: reconnecting client receives full public state dump + their own private state (hand, known library cards)
 - [ ] **State history ring buffer**: server retains last N `GameState` snapshots (O(1) via im-rs structural sharing); keyed by turn + step + priority sequence number

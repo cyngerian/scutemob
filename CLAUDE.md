@@ -49,7 +49,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Game Script Strategy | `docs/mtg-engine-game-scripts.md` | Engine-independent test script generation, JSON schema, replay harness design |
 | Corner Case Reference | `docs/mtg-engine-corner-cases.md` | 35 known difficult interactions the engine must handle correctly |
 | Corner Case Audit | `docs/mtg-engine-corner-case-audit.md` | Living correctness ledger: coverage status, card def gaps, deferred items |
-| Network Security Strategy | `docs/mtg-engine-network-security.md` | Three-tier security: state hashing, distributed verification, Mental Poker |
+| Network Security Strategy | `docs/mtg-engine-network-security.md` | **Deferred P2P upgrade path** — not the active M10 plan. M10 uses a centralized server. |
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
 | Replay Viewer Design | `docs/mtg-engine-replay-viewer.md` | M9.5 game state stepper: architecture, API, Svelte components, shared-component strategy |
 | This file | `CLAUDE.md` | Current project state; session context |
@@ -73,7 +73,7 @@ Before starting work, check which files apply to your task:
 | Checking correctness gaps | `docs/mtg-engine-corner-case-audit.md` |
 | Starting a new milestone | Use `/start-milestone <N>` — reads only the relevant roadmap section via Grep+offset, never the full file. |
 | Writing golden tests | `docs/mtg-engine-game-scripts.md` |
-| Implementing network features (M10+) | `docs/mtg-engine-network-security.md` |
+| Implementing network features (M10+) | `docs/mtg-engine-roadmap.md` M10 section (centralized server); `docs/mtg-engine-network-security.md` only for deferred P2P upgrade |
 | Implementing replay viewer (M9.5) | `docs/mtg-engine-replay-viewer.md` |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.
@@ -104,11 +104,11 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 6. **Commander-first.** The command zone, commander tax, commander damage, color identity —
    these are core features, not bolted-on extensions.
 
-7. **Hidden information is enforced.** The engine knows everything. In the distributed
-   verification model (see `docs/mtg-engine-network-security.md`), each peer runs
-   the engine independently and only knows their own private state. Cryptographic
-   protocols (Mental Poker) protect hidden information. Never expose another player's
-   hand or library order.
+7. **Hidden information is enforced.** The engine knows everything. The centralized server
+   filters events before broadcasting — private events go only to the relevant player via
+   `GameEvent::private_to() -> Option<PlayerId>`. Never expose another player's hand or
+   library order to the wrong client. (P2P + Mental Poker is a deferred upgrade path —
+   see `docs/mtg-engine-network-security.md`.)
 
 8. **Tests cite their rules source.** Every test references the CR section or known
    interaction it validates. Untraceable tests are technical debt.

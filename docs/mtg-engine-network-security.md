@@ -1,18 +1,18 @@
 # MTG Commander Rules Engine: Network Security Enhancements
 
-> **Deferred: relevant at M10+. Do not load in earlier sessions.**
+> **DEFERRED UPGRADE PATH — not the active M10 plan.**
+>
+> M10 implements a centralized WebSocket server (see `docs/mtg-engine-roadmap.md` M10).
+> This document describes the P2P distributed verification + Mental Poker upgrade path,
+> preserved for future trustless play. Do not load this document for M10 implementation work.
+> Revisit post-M11 if untrusted play becomes a requirement.
 
 ## Purpose
 
 This document defines a three-tier network security strategy that eliminates the need for
-a trusted host in multiplayer games. It is designed to integrate with the existing architecture
-(`mtg-engine-architecture.md`), roadmap (`mtg-engine-roadmap.md`), and CLAUDE.md.
-
-The current architecture specifies an authoritative host model where one player's machine
-runs the engine and all other players trust it. This document replaces that model with a
-**distributed verification** approach where no single player has privileged access to game
-state, hidden information is cryptographically protected, and cheating is detectable by
-all participants.
+a trusted server in multiplayer games. It is designed as a future upgrade from the M10
+centralized server model to a fully trustless peer-to-peer architecture where no single
+party has privileged access to game state and hidden information is cryptographically protected.
 
 ---
 

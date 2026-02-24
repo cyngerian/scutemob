@@ -404,24 +404,20 @@ enum GameEvent {
 }
 ```
 
-### 4.2 Network Model Evolution
+### 4.2 Network Model
 
-> **Note**: The original authoritative host model described below has been superseded by a
-> **distributed verification** architecture. See `mtg-engine-network-security.md` for the
-> complete three-tier security strategy. The key changes:
+> **Active M10 plan**: Centralized WebSocket server. One server instance (runnable on a
+> ~$5-10/mo VPS) runs the engine authoritatively, filters hidden information per player,
+> and broadcasts events. Simpler than P2P for a trusted playgroup; no bad-internet bottleneck;
+> trivial reconnection. See `docs/mtg-engine-roadmap.md` M10 for deliverables.
 >
-> - **All peers run the engine independently** (no single trusted host)
-> - **Coordinator** replaces authoritative host (lightweight protocol sequencing only)
-> - **Deterministic state hashing** ensures all peers agree after every command
-> - **Mental Poker** (cryptographic card dealing) protects hidden information
-> - A **trusted host fallback mode** is retained for simplicity/debugging
->
-> The Command/Event model (Section 4.1) and the engine's purity (no IO) are unchanged —
-> only the network topology and trust model change.
+> **Deferred upgrade path**: P2P distributed verification + Mental Poker is fully designed
+> in `docs/mtg-engine-network-security.md` for future trustless play. The engine doesn't
+> need to change for either model — only the network layer differs.
 
-#### Original: Authoritative Server Model (Retained as Fallback)
+#### Active: Centralized Server Model
 
-One player's machine acts as the **host** (authoritative server). The host runs the canonical engine instance. All other players send commands to the host; the host validates them, advances the engine, and broadcasts events.
+One server instance runs the canonical engine. All players connect via WebSocket, send commands to the server, and receive filtered events back. The server is the single source of truth and handles hidden information by sending private events only to the relevant player.
 
 ```
 Host Machine                     Client Machines
@@ -432,15 +428,11 @@ Host Machine                     Client Machines
 └──────────────┘                └──────────────┘
 ```
 
-This model is retained as a fallback for simpler debugging, lower latency, and play groups that don't need security guarantees. The distributed model is the primary target for production use.
-
 ### 4.3 Hidden Information & Partial State
 
-> **Note**: In the distributed verification model, hidden information is protected
-> cryptographically rather than by server-side filtering. Each peer maintains their own
-> private state. See `mtg-engine-network-security.md` Tier 3 for details.
+The centralized server knows all game state. It filters events before broadcasting — private events (card draws, scry peeks, hand reveals) are sent only to the relevant player; all others receive a redacted version. The server exposes `GameEvent::private_to() -> Option<PlayerId>` to determine routing.
 
-In the trusted host fallback mode, each client receives a **view** of the game state — a projection that excludes information they shouldn't have:
+Each client receives a **view** of the game state — a projection that excludes information they shouldn't have:
 
 ```rust
 fn project_state_for_player(state: &GameState, viewer: PlayerId) -> ClientGameState {
@@ -465,9 +457,7 @@ Messages are serialized with `serde` — likely MessagePack for compactness, wit
 
 ### 4.5 Reconnection & Resilience
 
-**Trusted host mode**: If a client disconnects, the game pauses. On reconnect, the client receives a full state snapshot. If the host disconnects, the game is interrupted.
-
-**Distributed verification mode**: Coordinator migration is seamless — any peer can take over since the coordinator holds no special state. Reconnecting peers receive public state from the majority and reconstruct private state from their own records. See `mtg-engine-network-security.md` for details.
+**Centralized server**: If a client disconnects, the game pauses and other players are notified. On reconnect, the client receives a full public state dump plus their own private state (hand contents, known library cards). If the server goes down, the game is interrupted — host on a reliable VPS to minimise this.
 
 ---
 
