@@ -4,11 +4,16 @@
   import StateView from './lib/StateView.svelte';
   import PhaseIndicator from './lib/PhaseIndicator.svelte';
   import EventTimeline from './lib/EventTimeline.svelte';
+  import ScriptPicker from './lib/ScriptPicker.svelte';
+  import CombatView from './lib/CombatView.svelte';
+  import CardDisplay from './lib/CardDisplay.svelte';
+  import AssertionBadges from './lib/AssertionBadges.svelte';
   import {
     session,
     currentStepIndex,
     stepData,
     loading,
+    stateDiff,
     initSession,
     goToStep,
   } from './lib/stores.js';
@@ -16,6 +21,9 @@
 
   let scripts = $state(null);
   let showScriptPicker = $state(false);
+
+  /** The card currently shown in the CardDisplay modal (null = hidden). */
+  let selectedCard = $state(null);
 
   onMount(async () => {
     await initSession();
@@ -31,15 +39,13 @@
       await loadScript(path);
       showScriptPicker = false;
       await initSession();
+      // Refresh script list (review_status might have changed)
+      try {
+        scripts = await fetchScripts();
+      } catch (_) { /* ignore */ }
     } catch (err) {
       console.error('Failed to load script:', err);
     }
-  }
-
-  // Flatten all script entries from groups
-  function allScripts(scriptsData) {
-    if (!scriptsData) return [];
-    return Object.values(scriptsData.groups).flat();
   }
 
   function getActionKind(action) {
@@ -53,6 +59,16 @@
 
   // Current turn step for phase-jump in StepControls
   const currentTurnStep = $derived($stepData?.state?.turn?.step ?? null);
+
+  /** Open the card detail panel for a given card object. */
+  function openCard(card) {
+    selectedCard = card;
+  }
+
+  /** Close the card detail panel. */
+  function closeCard() {
+    selectedCard = null;
+  }
 </script>
 
 <div class="app">
@@ -69,7 +85,7 @@
         class="script-picker-btn"
         onclick={() => (showScriptPicker = !showScriptPicker)}
       >
-        Browse Scripts
+        {showScriptPicker ? 'Close' : 'Browse Scripts'}
       </button>
     </div>
 
@@ -81,6 +97,13 @@
       loading={$loading}
     />
 
+    <!-- Assertion badges (only on assert_state steps) -->
+    {#if $stepData?.assertions?.length > 0}
+      <div class="assertion-bar">
+        <AssertionBadges assertions={$stepData.assertions} />
+      </div>
+    {/if}
+
     <!-- Phase indicator below step controls -->
     {#if $stepData?.state?.turn}
       <PhaseIndicator turn={$stepData.state.turn} />
@@ -89,31 +112,19 @@
     {/if}
   </header>
 
-  <!-- Script picker dropdown -->
-  {#if showScriptPicker && scripts}
-    <div class="script-picker">
-      <div class="script-picker-header">
-        <strong>Select a script ({scripts.total} total)</strong>
-        <button onclick={() => (showScriptPicker = false)}>Close</button>
-      </div>
-      {#each Object.entries(scripts.groups).sort() as [subdir, entries]}
-        <div class="script-group">
-          <div class="script-group-title">{subdir}/</div>
-          {#each entries as entry}
-            <button
-              class="script-entry"
-              onclick={() => handleLoadScript(entry.path)}
-            >
-              <span class="entry-name">{entry.name}</span>
-              {#if entry.review_status}
-                <span class="badge badge-{entry.review_status}">{entry.review_status}</span>
-              {/if}
-            </button>
-          {/each}
-        </div>
-      {/each}
+  <!-- Script picker overlay (absolute, positioned near the button) -->
+  {#if showScriptPicker}
+    <div class="script-picker-overlay">
+      <ScriptPicker
+        {scripts}
+        onLoad={handleLoadScript}
+        onClose={() => (showScriptPicker = false)}
+      />
     </div>
   {/if}
+
+  <!-- Card display modal (portal-style via fixed positioning in CardDisplay.svelte) -->
+  <CardDisplay card={selectedCard} onClose={closeCard} />
 
   <!-- Body: main state area + right sidebar (event timeline) -->
   <div class="body-layout">
@@ -126,7 +137,7 @@
           <p>No script loaded. Click "Browse Scripts" to select one.</p>
         </div>
       {:else if $stepData}
-        <!-- Step metadata: action kind, turn/step, assertions -->
+        <!-- Step metadata: action kind, turn/step -->
         <div class="step-meta">
           <span class="meta-item">
             <span class="meta-label">Action:</span>
@@ -135,35 +146,39 @@
           {#if $stepData.state?.turn}
             <span class="meta-item">
               <span class="meta-label">Turn:</span>
-              <span class="meta-value">{$stepData.state.turn.number}</span>
+              <span class="meta-value" class:changed={$stateDiff.has('turn.number')}>{$stepData.state.turn.number}</span>
             </span>
             <span class="meta-item">
               <span class="meta-label">Active:</span>
-              <span class="meta-value">{$stepData.state.turn.active_player}</span>
+              <span class="meta-value" class:changed={$stateDiff.has('turn.active_player')}>{$stepData.state.turn.active_player}</span>
             </span>
             <span class="meta-item">
               <span class="meta-label">Step:</span>
-              <span class="meta-value">{$stepData.state.turn.step}</span>
+              <span class="meta-value" class:changed={$stateDiff.has('turn.step')}>{$stepData.state.turn.step}</span>
             </span>
             {#if $stepData.state.turn.priority}
               <span class="meta-item">
                 <span class="meta-label">Priority:</span>
-                <span class="meta-value">{$stepData.state.turn.priority}</span>
+                <span class="meta-value" class:changed={$stateDiff.has('turn.priority')}>{$stepData.state.turn.priority}</span>
               </span>
             {/if}
           {/if}
-          {#if $stepData.assertions}
-            {#each $stepData.assertions as a}
-              <span class="meta-item assertion-{a.passed ? 'pass' : 'fail'}">
-                {a.passed ? '✓' : '✗'} {a.path}: {JSON.stringify(a.actual)}
-              </span>
-            {/each}
-          {/if}
         </div>
 
-        <!-- State display: rich zone components -->
+        <!-- Combat view (only when combat state is present) -->
+        {#if $stepData.state?.combat}
+          <div class="combat-container" class:changed={$stateDiff.has('combat')}>
+            <CombatView combat={$stepData.state.combat} />
+          </div>
+        {/if}
+
+        <!-- State display: rich zone components with diff flags and card click handler -->
         <div class="state-container">
-          <StateView state={$stepData.state} />
+          <StateView
+            state={$stepData.state}
+            diff={$stateDiff}
+            onCardClick={openCard}
+          />
         </div>
       {/if}
     </main>
@@ -188,6 +203,16 @@
     background: #0d0d1a;
     color: #ddd;
     font-family: monospace;
+  }
+
+  /* Flash animation for changed fields */
+  :global(.changed) {
+    animation: changed-flash 1s ease-out forwards;
+  }
+
+  @keyframes -global-changed-flash {
+    0%   { background-color: rgba(255, 220, 60, 0.35); }
+    100% { background-color: transparent; }
   }
 
   .app {
@@ -243,81 +268,26 @@
     color: #fff;
   }
 
+  .assertion-bar {
+    padding: 0.2rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid #1a1a30;
+  }
+
   .phase-placeholder {
     height: 4px;
   }
 
-  /* ── Script picker dropdown ───────────────────────────────────────────── */
+  /* ── Script picker overlay ────────────────────────────────────────────── */
 
-  .script-picker {
+  .script-picker-overlay {
     position: absolute;
-    top: 120px;
+    top: 90px;
     right: 1rem;
-    width: 420px;
-    max-height: 500px;
-    overflow-y: auto;
-    background: #1a1a30;
-    border: 1px solid #444;
-    border-radius: 4px;
     z-index: 200;
-    padding: 0.5rem;
   }
-
-  .script-picker-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.25rem 0;
-    margin-bottom: 0.5rem;
-    border-bottom: 1px solid #333;
-    font-size: 0.85rem;
-  }
-
-  .script-group {
-    margin-bottom: 0.5rem;
-  }
-
-  .script-group-title {
-    font-size: 0.75rem;
-    color: #888;
-    padding: 0.1rem 0;
-    text-transform: uppercase;
-  }
-
-  .script-entry {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    text-align: left;
-    background: transparent;
-    color: #ccc;
-    border: none;
-    padding: 0.2rem 0.4rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-family: monospace;
-    border-radius: 2px;
-  }
-
-  .script-entry:hover {
-    background: #2a2a4a;
-    color: #fff;
-  }
-
-  .entry-name {
-    flex: 1;
-  }
-
-  .badge {
-    font-size: 0.7rem;
-    padding: 0.1rem 0.3rem;
-    border-radius: 2px;
-  }
-
-  .badge-approved  { background: #1a4a1a; color: #6f6; }
-  .badge-pending   { background: #4a4a1a; color: #ff6; }
-  .badge-disputed  { background: #4a1a1a; color: #f66; }
 
   /* ── Body layout: main + sidebar ─────────────────────────────────────── */
 
@@ -377,8 +347,13 @@
   .meta-label { color: #666; }
   .meta-value { color: #adf; }
 
-  .assertion-pass { color: #6f6; }
-  .assertion-fail { color: #f66; }
+  /* ── Combat container ─────────────────────────────────────────────────── */
+
+  .combat-container {
+    margin-bottom: 0.6rem;
+  }
+
+  /* ── State container ──────────────────────────────────────────────────── */
 
   .state-container {
     overflow: auto;

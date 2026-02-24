@@ -6,7 +6,7 @@
    *   permanents (PermanentView[]) — list of permanents controlled by this player
    *   playerName (string) — player label for the zone header
    */
-  const { permanents = [], playerName } = $props();
+  const { permanents = [], playerName, onCardClick = null } = $props();
 
   // Group permanents by rough type category
   const groups = $derived(() => {
@@ -60,13 +60,17 @@
         <div class="group-label">Creatures ({groups().creatures.length})</div>
         <div class="perm-grid">
           {#each groups().creatures as p (p.object_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="permanent-card"
               class:tapped={p.tapped}
               class:summoning-sick={p.summoning_sick}
               class:is-commander={p.is_commander}
               class:is-token={p.is_token}
+              class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
+              onclick={() => onCardClick?.(p)}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.is_commander}
@@ -125,11 +129,15 @@
         <div class="group-label">Lands ({groups().lands.length})</div>
         <div class="perm-grid perm-grid-lands">
           {#each groups().lands as p (p.object_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="permanent-card permanent-land"
               class:tapped={p.tapped}
               class:is-commander={p.is_commander}
+              class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
+              onclick={() => onCardClick?.(p)}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -152,10 +160,14 @@
         <div class="group-label">Planeswalkers ({groups().planeswalkers.length})</div>
         <div class="perm-grid">
           {#each groups().planeswalkers as p (p.object_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="permanent-card permanent-pw"
               class:tapped={p.tapped}
+              class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
+              onclick={() => onCardClick?.(p)}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -180,12 +192,16 @@
         </div>
         <div class="perm-grid">
           {#each [...groups().artifacts, ...groups().enchantments] as p (p.object_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="permanent-card"
               class:tapped={p.tapped}
               class:permanent-artifact={p.card_types?.includes('Artifact')}
               class:permanent-enchantment={p.card_types?.includes('Enchantment')}
+              class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
+              onclick={() => onCardClick?.(p)}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -211,10 +227,14 @@
         <div class="group-label">Other ({groups().other.length})</div>
         <div class="perm-grid">
           {#each groups().other as p (p.object_id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
               class="permanent-card"
               class:tapped={p.tapped}
+              class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
+              onclick={() => onCardClick?.(p)}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -301,6 +321,15 @@
 
   .permanent-card:hover {
     border-color: #4a8060;
+  }
+
+  .permanent-card.clickable {
+    cursor: pointer;
+  }
+
+  .permanent-card.clickable:hover {
+    border-color: #6aaa80;
+    box-shadow: 0 0 4px rgba(100, 200, 130, 0.3);
   }
 
   .permanent-card.tapped {

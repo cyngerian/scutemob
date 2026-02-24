@@ -7,7 +7,7 @@
    *   cards (CardInZoneView[]) — graveyard contents, top first
    *   playerName (string) — player label for the zone header
    */
-  const { cards = [], playerName } = $props();
+  const { cards = [], playerName, onCardClick = null } = $props();
 </script>
 
 <div class="zone-graveyard">
@@ -21,7 +21,14 @@
   {:else}
     <div class="gy-list">
       {#each cards as card, i (card.object_id)}
-        <div class="gy-card" title="{card.name} ({(card.card_types ?? []).join(', ')})">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="gy-card"
+          class:clickable={onCardClick !== null}
+          title="{card.name} ({(card.card_types ?? []).join(', ')})"
+          onclick={() => onCardClick?.(card)}
+        >
           <span class="gy-index muted">{i + 1}.</span>
           <span class="card-name">{card.name}</span>
           {#if card.card_types?.length}
@@ -88,6 +95,14 @@
 
   .gy-card:hover {
     background: #2a1818;
+  }
+
+  .gy-card.clickable {
+    cursor: pointer;
+  }
+
+  .gy-card.clickable:hover {
+    background: #341a1a;
   }
 
   .gy-index {

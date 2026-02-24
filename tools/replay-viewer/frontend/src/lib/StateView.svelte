@@ -7,6 +7,8 @@
    *
    * Props:
    *   state (StateViewModel) — the game state from the view model
+   *   diff (Set<string>) — set of changed path strings (from diff.js) for highlighting
+   *   onCardClick (function|null) — called with a card object when user clicks a card
    */
   import PlayerPanel from './PlayerPanel.svelte';
   import ZoneBattlefield from './ZoneBattlefield.svelte';
@@ -15,7 +17,7 @@
   import ZoneGraveyard from './ZoneGraveyard.svelte';
   import ZoneExile from './ZoneExile.svelte';
 
-  const { state } = $props();
+  const { state, diff = null, onCardClick = null } = $props();
 
   // Sorted player names for consistent ordering
   const playerNames = $derived(state?.players ? Object.keys(state.players).sort() : []);
@@ -50,14 +52,16 @@
           playerName={pname}
           isActive={state.turn.active_player === pname}
           hasPriority={state.turn.priority === pname}
+          lifeChanged={diff?.has(`players.${pname}.life`) ?? false}
+          manaChanged={diff?.has(`players.${pname}.mana_pool`) ?? false}
         />
       {/each}
     </section>
 
     <!-- Stack (if non-empty, shown prominently) -->
     {#if state.zones.stack?.length > 0}
-      <section class="stack-section">
-        <ZoneStack items={state.zones.stack} />
+      <section class="stack-section" class:changed={diff?.has('zones.stack') ?? false}>
+        <ZoneStack items={state.zones.stack} onCardClick={onCardClick} />
       </section>
     {/if}
 
@@ -66,9 +70,12 @@
       {#each playerNames as pname (pname)}
         {@const permanents = state.zones.battlefield?.[pname] ?? []}
         {#if permanents.length > 0}
-          <div class="player-battlefield">
+          <div
+            class="player-battlefield"
+            class:changed={diff?.has(`zones.battlefield.${pname}`) ?? false}
+          >
             <div class="player-bf-label">{pname}</div>
-            <ZoneBattlefield {permanents} playerName={pname} />
+            <ZoneBattlefield {permanents} playerName={pname} onCardClick={onCardClick} />
           </div>
         {/if}
       {/each}
@@ -77,11 +84,15 @@
     <!-- Hands -->
     <section class="hands-section">
       {#each playerNames as pname (pname)}
-        <div class="player-hand-wrapper">
+        <div
+          class="player-hand-wrapper"
+          class:changed={diff?.has(`zones.hand.${pname}`) ?? false}
+        >
           <div class="zone-player-label muted">{pname}</div>
           <ZoneHand
             cards={state.zones.hand?.[pname] ?? []}
             playerName={pname}
+            onCardClick={onCardClick}
           />
         </div>
       {/each}
@@ -92,18 +103,25 @@
       <section class="gy-exile-section">
         {#each playerNames as pname (pname)}
           {#if (state.zones.graveyard?.[pname]?.length ?? 0) > 0}
-            <div class="player-gy-wrapper">
+            <div
+              class="player-gy-wrapper"
+              class:changed={diff?.has(`zones.graveyard.${pname}`) ?? false}
+            >
               <div class="zone-player-label muted">{pname}</div>
               <ZoneGraveyard
                 cards={state.zones.graveyard[pname]}
                 playerName={pname}
+                onCardClick={onCardClick}
               />
             </div>
           {/if}
         {/each}
         {#if anyExile}
-          <div class="exile-wrapper">
-            <ZoneExile cards={state.zones.exile} />
+          <div
+            class="exile-wrapper"
+            class:changed={diff?.has('zones.exile') ?? false}
+          >
+            <ZoneExile cards={state.zones.exile} onCardClick={onCardClick} />
           </div>
         {/if}
       </section>

@@ -8,7 +8,7 @@
    *   cards (CardInZoneView[]) — cards in this player's hand
    *   playerName (string) — player label for the zone header
    */
-  const { cards = [], playerName } = $props();
+  const { cards = [], playerName, onCardClick = null } = $props();
 
   function primaryType(cardTypes) {
     if (!cardTypes?.length) return 'unknown';
@@ -34,9 +34,13 @@
   {:else}
     <div class="hand-cards">
       {#each cards as card (card.object_id)}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="hand-card card-type-{primaryType(card.card_types)}"
+          class:clickable={onCardClick !== null}
           title="{card.name} ({(card.card_types ?? []).join(', ')})"
+          onclick={() => onCardClick?.(card)}
         >
           <span class="card-name">{card.name}</span>
         </div>
@@ -96,6 +100,15 @@
 
   .hand-card:hover {
     border-color: #556;
+  }
+
+  .hand-card.clickable {
+    cursor: pointer;
+  }
+
+  .hand-card.clickable:hover {
+    border-color: #888;
+    background: #222240;
   }
 
   .card-name {

@@ -8,7 +8,14 @@
    *   isActive (boolean) — true when this player is the active player
    *   hasPriority (boolean) — true when this player holds priority
    */
-  const { player, playerName, isActive = false, hasPriority = false } = $props();
+  const {
+    player,
+    playerName,
+    isActive = false,
+    hasPriority = false,
+    lifeChanged = false,
+    manaChanged = false,
+  } = $props();
 
   // Mana pip color classes
   const MANA_COLORS = [
@@ -63,13 +70,13 @@
   </div>
 
   <!-- Life total -->
-  <div class="life-total" class:life-low={(player?.life ?? 20) <= 5}>
+  <div class="life-total" class:life-low={(player?.life ?? 20) <= 5} class:changed={lifeChanged}>
     {player?.life ?? '?'}
   </div>
 
   <!-- Mana pool -->
   {#if totalMana > 0}
-    <div class="mana-pool" title="Mana pool">
+    <div class="mana-pool" title="Mana pool" class:changed={manaChanged}>
       {#each MANA_COLORS as m}
         {#if (player?.mana_pool?.[m.key] ?? 0) > 0}
           <span class="mana-pip {m.cls}" title="{m.label}: {player.mana_pool[m.key]}">

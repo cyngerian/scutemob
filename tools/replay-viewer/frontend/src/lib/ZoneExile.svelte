@@ -5,7 +5,7 @@
    * Props:
    *   cards (CardInZoneView[]) — exiled cards
    */
-  const { cards = [] } = $props();
+  const { cards = [], onCardClick = null } = $props();
 </script>
 
 <div class="zone-exile">
@@ -19,7 +19,14 @@
   {:else}
     <div class="exile-list">
       {#each cards as card (card.object_id)}
-        <div class="exile-card" title="{card.name} ({(card.card_types ?? []).join(', ')})">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="exile-card"
+          class:clickable={onCardClick !== null}
+          title="{card.name} ({(card.card_types ?? []).join(', ')})"
+          onclick={() => onCardClick?.(card)}
+        >
           <span class="card-name">{card.name}</span>
           {#if card.card_types?.length}
             <span class="card-type muted">{card.card_types[0]}</span>
@@ -87,6 +94,14 @@
 
   .exile-card:hover {
     background: #2a2a4a;
+  }
+
+  .exile-card.clickable {
+    cursor: pointer;
+  }
+
+  .exile-card.clickable:hover {
+    background: #343460;
   }
 
   .card-name {

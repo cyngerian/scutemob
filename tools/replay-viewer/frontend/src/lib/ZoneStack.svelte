@@ -5,7 +5,7 @@
    * Props:
    *   items (StackItemView[]) — stack items, last element = top of stack
    */
-  const { items = [] } = $props();
+  const { items = [], onCardClick = null } = $props();
 
   // Display in reverse so top of stack appears first
   const displayItems = $derived([...items].reverse());
