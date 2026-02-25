@@ -19,7 +19,7 @@ description: |
   </example>
 model: sonnet
 color: blue
-tools: ["Read", "Write", "Glob", "Grep", "mcp__mtg-rules__lookup_card", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings"]
+tools: ["Read", "Write", "Glob", "Grep", "Bash", "mcp__mtg-rules__lookup_card", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings"]
 ---
 
 # Game Script Generator
@@ -325,6 +325,45 @@ Before writing the file:
 - [ ] `schema_version` is `"1.0.0"`
 - [ ] Initial state has valid phase/step values
 - [ ] Mana in pool matches what's needed for the first cast
+
+## Validation Step (VALIDATE — run after writing the script)
+
+After writing the script JSON file, validate it against the harness **before finishing**.
+
+**Step 1 — check if the stepper is running:**
+```bash
+curl -s http://localhost:3030/api/scripts 2>/dev/null \
+  | python3 -c "import sys,json; json.load(sys.stdin); print('UP')" 2>/dev/null \
+  || echo "DOWN"
+```
+
+**Step 2a — if UP:** POST to `/api/scripts/run` with the relative path of the script:
+```bash
+curl -s -X POST http://localhost:3030/api/scripts/run \
+  -H 'Content-Type: application/json' \
+  -d '{"path": "<subsystem>/<NNN>_<name>.json"}'
+```
+Parse the `RunResult` JSON response:
+- If `passed == true`: output `"Harness validation: PASS (N/N assertions)"` and finish.
+- If `passed == false` or `harness_error` is non-null:
+  - Output the `first_failure` detail and `harness_error`.
+  - Attempt to fix the script (inspect the assertion failure, correct the script).
+  - Re-POST to `/api/scripts/run` to re-validate.
+  - Allow at most **2 retries**. If still failing after 2 retries, leave `review_status`
+    as `"pending_review"` and add a note to `metadata.generation_notes` describing the
+    failure (e.g. `"Harness validation failed after 2 retries: <first_failure.path> expected
+    <expected>, got <actual>"`).
+
+**Step 2b — if DOWN:** Output:
+```
+Stepper not running — start with /start-stepper to validate interactively.
+```
+Leave `review_status` as `"pending_review"`.
+
+**Important**: Harness failures may indicate a script error OR an engine bug. Use your
+judgment: if the CR and card oracle text unambiguously support the script, note the
+discrepancy as a potential engine gap rather than silently "fixing" the script to match
+wrong engine behavior. The script is the ground truth for correct rules behavior.
 
 ## Important Constraints
 

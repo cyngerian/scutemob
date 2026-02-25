@@ -74,8 +74,11 @@
 ## Activated Ability Harness Gotchas (M9.5+)
 
 - **`ability_index` is 0-indexed into non-mana `activated_abilities` only.** Mana abilities
-  (Cost::Tap + Effect::AddMana pairs) are filtered out by `enrich_spec_from_def`. Mind Stone's
-  `{1},{T},Sacrifice: Draw a card` lands at `activated_abilities[0]`. Scripts use `ability_index: 0`.
+  (Cost::Tap + Effect::AddMana OR Effect::AddManaAnyColor) are filtered out by `enrich_spec_from_def`.
+  Mind Stone's `{1},{T},Sacrifice: Draw a card` lands at `activated_abilities[0]`. Scripts use `ability_index: 0`.
+  **Note**: the filter must exclude BOTH `Effect::AddMana` and `Effect::AddManaAnyColor` — if only
+  `AddMana` is excluded, cards like Commander's Sphere (which has `{T}: AddManaAnyColor`) get
+  that tap ability indexed as 0, pushing the sacrifice ability to index 1 (wrong).
 - **Sacrifice-as-cost: source leaves battlefield at activation time (CR 602.2c).** The effect is
   captured as `embedded_effect: Option<Box<Effect>>` before any costs are paid. Resolution uses
   `embedded_effect.as_deref().cloned()` because the source may no longer be in `state.objects`.
@@ -140,3 +143,5 @@
 - **Replay viewer tests run from `tools/replay-viewer/`**, not workspace root. Script paths in tests must be `../../test-data/generated-scripts/...`.
 - **`stack_resolve` script actions are informational only** — no command is sent to the engine. State is identical to the preceding priority-pass step. Real engine events for resolution appear in the priority-pass steps, not the stack_resolve step.
 - **`pending_review` game scripts are unvalidated** — auto-generated scripts often misattribute triggers (ETB vs. death vs. activated) and omit interactive commands (e.g. `SearchLibrary` requires an explicit player command the generator doesn't emit). Use the replay viewer to validate before approving.
+- **Svelte 5 keyed `{#each entries as e (e.id)}` crashes silently on duplicate keys.** The entire component's reactivity breaks — buttons stop responding, no error shown. Root cause is always a duplicate `metadata.id` across scripts. The `api.rs` `get_scripts` handler now deduplicates and logs a warning, but fix the source script first.
+- **`metadata.id` must be unique across all scripts.** Copy-pasted scripts inherit the source's `id` — always update it. Pattern: `script_<subdir>_<NNN>` matching the filename number (e.g., `054_mind_stone...json` → `id: "script_stack_054"`).

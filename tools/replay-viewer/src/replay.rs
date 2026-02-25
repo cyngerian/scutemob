@@ -321,14 +321,10 @@ mod tests {
     /// Tests run from the package directory (tools/replay-viewer/), so we
     /// walk up two levels to reach the workspace root.
     fn load_baseline_script(filename: &str) -> GameScript {
-        let path = format!(
-            "../../test-data/generated-scripts/baseline/{}",
-            filename
-        );
+        let path = format!("../../test-data/generated-scripts/baseline/{}", filename);
         let json = std::fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("Failed to read script at {path}"));
-        serde_json::from_str(&json)
-            .unwrap_or_else(|e| panic!("Failed to parse {filename}: {e}"))
+        serde_json::from_str(&json).unwrap_or_else(|e| panic!("Failed to parse {filename}: {e}"))
     }
 
     #[test]
@@ -336,7 +332,11 @@ mod tests {
         // 001: 2-player priority pass — 1 initial state + 4 priority passes = 5 steps.
         let script = load_baseline_script("001_priority_pass_empty_stack.json");
         let session = ReplaySession::from_script(&script).unwrap();
-        assert_eq!(session.step_count(), 5, "expected 5 steps (1 initial + 4 priority passes)");
+        assert_eq!(
+            session.step_count(),
+            5,
+            "expected 5 steps (1 initial + 4 priority passes)"
+        );
     }
 
     #[test]
@@ -356,7 +356,10 @@ mod tests {
         let script = load_baseline_script("001_priority_pass_empty_stack.json");
         let session = ReplaySession::from_script(&script).unwrap();
         for (_pid, player) in &session.steps[0].state_after.players {
-            assert_eq!(player.life_total, 40, "all players start at 40 life in Commander");
+            assert_eq!(
+                player.life_total, 40,
+                "all players start at 40 life in Commander"
+            );
         }
     }
 
@@ -364,7 +367,10 @@ mod tests {
     fn test_player_map_reverse_map_match() {
         let script = load_baseline_script("001_priority_pass_empty_stack.json");
         let session = ReplaySession::from_script(&script).unwrap();
-        assert!(!session.player_map.is_empty(), "player_map must be populated");
+        assert!(
+            !session.player_map.is_empty(),
+            "player_map must be populated"
+        );
         assert_eq!(
             session.player_map.len(),
             session.player_names.len(),
@@ -388,7 +394,10 @@ mod tests {
         // also produce steps with command: None), but at least one step after the
         // initial state must carry a command (a priority pass).
         let command_count = session.steps.iter().filter(|s| s.command.is_some()).count();
-        assert!(command_count >= 1, "must have at least one step with a command");
+        assert!(
+            command_count >= 1,
+            "must have at least one step with a command"
+        );
     }
 }
 
@@ -410,9 +419,7 @@ fn evaluate_assertions(
             // players.p2.commander_damage_received.p1
             let parts: Vec<&str> = path.splitn(5, '.').collect();
             let (actual, passed) = match parts.as_slice() {
-
                 // ── Player stats ──────────────────────────────────────────────
-
                 ["players", name, "life"] => {
                     let v = players
                         .get(*name)
@@ -454,7 +461,6 @@ fn evaluate_assertions(
                 }
 
                 // ── Zone counts ───────────────────────────────────────────────
-
                 ["zones", "hand", player, "count"] => {
                     if let Some(&pid) = players.get(*player) {
                         let count = state
@@ -477,7 +483,6 @@ fn evaluate_assertions(
                 }
 
                 // ── Zone membership (includes/excludes/is_empty) ──────────────
-
                 ["zones", "stack"] => {
                     let is_empty = state.stack_objects.is_empty();
                     let count = state.stack_objects.len();
@@ -529,6 +534,34 @@ fn evaluate_assertions(
                     (serde_json::json!(names), ok)
                 }
 
+                ["zones", "library", player, "count"] => {
+                    if let Some(&pid) = players.get(*player) {
+                        let count = state
+                            .objects
+                            .values()
+                            .filter(|o| o.zone == ZoneId::Library(pid))
+                            .count();
+                        let v = serde_json::json!(count);
+                        let ok = &v == expected;
+                        (v, ok)
+                    } else {
+                        (serde_json::Value::Null, false)
+                    }
+                }
+
+                // `permanent.<CardName>.tapped` — check tapped state of a named battlefield permanent.
+                // Card names may contain spaces; splitn(5, '.') preserves spaces in the name segment.
+                ["permanent", name, "tapped"] => {
+                    let v = state
+                        .objects
+                        .values()
+                        .find(|o| o.characteristics.name == *name && o.zone == ZoneId::Battlefield)
+                        .map(|o| serde_json::json!(o.status.tapped))
+                        .unwrap_or(serde_json::Value::Null);
+                    let ok = &v == expected;
+                    (v, ok)
+                }
+
                 _ => (serde_json::Value::Null, false),
             };
 
@@ -564,9 +597,11 @@ fn check_list_assertion(names: &[String], expected: &serde_json::Value) -> bool 
     };
 
     let card_name = |item: &serde_json::Value| -> Option<String> {
-        item.as_str()
-            .map(|s| s.to_string())
-            .or_else(|| item.get("card").and_then(|c| c.as_str()).map(|s| s.to_string()))
+        item.as_str().map(|s| s.to_string()).or_else(|| {
+            item.get("card")
+                .and_then(|c| c.as_str())
+                .map(|s| s.to_string())
+        })
     };
 
     let includes_ok = obj

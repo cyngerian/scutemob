@@ -145,6 +145,8 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
         .route("/step/:n", get(api::get_step))
         .route("/step/:n/state", get(api::get_step_state))
         .route("/load", post(api::post_load))
+        .route("/scripts/run", post(api::post_run_script))
+        .route("/scripts/approve", post(api::post_approve_script))
         .with_state(state);
 
     let router = Router::new().nest("/api", api_router);
@@ -186,8 +188,9 @@ mod tests {
     fn make_loaded_state() -> SharedState {
         let script = load_script();
         let session = replay::ReplaySession::from_script(&script).unwrap();
-        let scripts_dir =
-            PathBuf::from("../../test-data/generated-scripts").canonicalize().unwrap();
+        let scripts_dir = PathBuf::from("../../test-data/generated-scripts")
+            .canonicalize()
+            .unwrap();
         let mut state = AppState::new(scripts_dir);
         state.session = Some(session);
         Arc::new(RwLock::new(state))
@@ -207,7 +210,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_session_no_script_returns_not_loaded() {
         let resp = app(make_empty_state())
-            .oneshot(Request::builder().uri("/api/session").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -219,13 +227,21 @@ mod tests {
     #[tokio::test]
     async fn test_get_session_with_loaded_script() {
         let resp = app(make_loaded_state())
-            .oneshot(Request::builder().uri("/api/session").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
         let json = body_json(resp.into_body()).await;
         assert_eq!(json["loaded"], true);
-        assert!(json["total_steps"].as_u64().unwrap() >= 2, "must have at least 2 steps");
+        assert!(
+            json["total_steps"].as_u64().unwrap() >= 2,
+            "must have at least 2 steps"
+        );
     }
 
     // ── GET /api/step/:n ──────────────────────────────────────────────────────
@@ -233,7 +249,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_step_zero_returns_state() {
         let resp = app(make_loaded_state())
-            .oneshot(Request::builder().uri("/api/step/0").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/step/0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -251,7 +272,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_step_out_of_range_returns_404() {
         let resp = app(make_loaded_state())
-            .oneshot(Request::builder().uri("/api/step/9999").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/step/9999")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -260,7 +286,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_step_no_session_returns_404() {
         let resp = app(make_empty_state())
-            .oneshot(Request::builder().uri("/api/step/0").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/step/0")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -271,7 +302,12 @@ mod tests {
     #[tokio::test]
     async fn test_get_scripts_returns_groups() {
         let resp = app(make_loaded_state())
-            .oneshot(Request::builder().uri("/api/scripts").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/scripts")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -324,8 +360,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_post_load_valid_script() {
-        let body = serde_json::json!({"path": "baseline/001_priority_pass_empty_stack.json"})
-            .to_string();
+        let body =
+            serde_json::json!({"path": "baseline/001_priority_pass_empty_stack.json"}).to_string();
         let resp = app(make_loaded_state())
             .oneshot(
                 Request::builder()

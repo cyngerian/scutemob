@@ -46,6 +46,18 @@
     card && card.attachments && card.attachments.length > 0
   );
 
+  /** Scryfall image URL for the card name, or null for tokens. */
+  const scryfallUrl = $derived(
+    card && !card.is_token
+      ? `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.name)}&format=image&version=normal`
+      : null
+  );
+
+  /** Hide the image container if Scryfall returns a 404 (token, custom card, etc.) */
+  function hideOnError(e) {
+    e.currentTarget.closest('.card-image-wrap')?.style.setProperty('display', 'none');
+  }
+
   /** Close on Escape key */
   function handleKeydown(e) {
     if (e.key === 'Escape') {
@@ -70,6 +82,19 @@
     </div>
 
     <div class="panel-body">
+      <!-- Scryfall card image -->
+      {#if scryfallUrl}
+        <div class="card-image-wrap">
+          <img
+            class="card-image"
+            src={scryfallUrl}
+            alt={card.name}
+            loading="lazy"
+            onerror={hideOnError}
+          />
+        </div>
+      {/if}
+
       <!-- Type line -->
       <div class="field-row">
         <span class="field-label">Type:</span>
@@ -246,6 +271,21 @@
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
+  }
+
+  /* Scryfall image */
+  .card-image-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.3rem;
+  }
+
+  .card-image {
+    width: 100%;
+    max-width: 240px;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+    display: block;
   }
 
   /* Field row */

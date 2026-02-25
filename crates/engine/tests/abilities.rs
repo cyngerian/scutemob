@@ -903,8 +903,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
         .in_zone(ZoneId::Battlefield);
 
     // Add a card to p1's library so there's something to draw.
-    let library_card = ObjectSpec::creature(p1, "Grizzly Bears", 2, 2)
-        .in_zone(ZoneId::Library(p1));
+    let library_card = ObjectSpec::creature(p1, "Grizzly Bears", 2, 2).in_zone(ZoneId::Library(p1));
 
     let state = GameStateBuilder::four_player()
         .active_player(p1)
@@ -938,10 +937,12 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
     // Source is now in p1's graveyard (sacrifice paid at activation time, CR 602.2).
     // Per CR 400.7, the object gets a new ObjectId when it changes zones — look up by name.
     let in_graveyard = state.objects.values().any(|o| {
-        o.characteristics.name == "Jar of Eyeballs (stub)"
-            && matches!(o.zone, ZoneId::Graveyard(_))
+        o.characteristics.name == "Jar of Eyeballs (stub)" && matches!(o.zone, ZoneId::Graveyard(_))
     });
-    assert!(in_graveyard, "sacrificed source should be in graveyard immediately after activation");
+    assert!(
+        in_graveyard,
+        "sacrificed source should be in graveyard immediately after activation"
+    );
 
     // PermanentDestroyed (non-creature sacrifice) emitted.
     assert!(
@@ -973,7 +974,10 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
     let (state, _) = process_command(state, Command::PassPriority { player: p4 }).unwrap();
 
     // Stack is empty after resolution.
-    assert!(state.stack_objects.is_empty(), "stack should be empty after ability resolves");
+    assert!(
+        state.stack_objects.is_empty(),
+        "stack should be empty after ability resolves"
+    );
 
     // Player 1 drew a card: hand size increased by 1.
     let hand_after = state

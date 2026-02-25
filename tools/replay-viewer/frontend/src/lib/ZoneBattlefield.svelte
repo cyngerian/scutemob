@@ -6,6 +6,7 @@
    *   permanents (PermanentView[]) — list of permanents controlled by this player
    *   playerName (string) — player label for the zone header
    */
+  import { cardTooltip } from './cardTooltip.js';
   const { permanents = [], playerName, onCardClick = null } = $props();
 
   // Group permanents by rough type category
@@ -71,6 +72,7 @@
               class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
               onclick={() => onCardClick?.(p)}
+              use:cardTooltip={p.is_token ? null : p.name}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.is_commander}
@@ -138,6 +140,7 @@
               class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
               onclick={() => onCardClick?.(p)}
+              use:cardTooltip={p.name}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -168,6 +171,7 @@
               class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
               onclick={() => onCardClick?.(p)}
+              use:cardTooltip={p.name}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -202,6 +206,7 @@
               class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
               onclick={() => onCardClick?.(p)}
+              use:cardTooltip={p.is_token ? null : p.name}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}
@@ -235,6 +240,7 @@
               class:clickable={onCardClick !== null}
               title={typeLineStr(p)}
               onclick={() => onCardClick?.(p)}
+              use:cardTooltip={p.is_token ? null : p.name}
             >
               <div class="perm-name">{p.name}</div>
               {#if p.tapped}

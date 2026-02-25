@@ -45,3 +45,21 @@ export function loadScript(path) {
     body: JSON.stringify({ path }),
   });
 }
+
+/** POST /api/scripts/run — run a script through the harness, returns RunResult (no side effects) */
+export function runScript(path) {
+  return apiFetch('/api/scripts/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+}
+
+/** POST /api/scripts/approve — approve a script by id, returns { ok: true } */
+export function approveScript(id) {
+  return apiFetch('/api/scripts/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+}

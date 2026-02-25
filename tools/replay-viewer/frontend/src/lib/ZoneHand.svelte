@@ -8,6 +8,7 @@
    *   cards (CardInZoneView[]) — cards in this player's hand
    *   playerName (string) — player label for the zone header
    */
+  import { cardTooltip } from './cardTooltip.js';
   const { cards = [], playerName, onCardClick = null } = $props();
 
   function primaryType(cardTypes) {
@@ -41,6 +42,7 @@
           class:clickable={onCardClick !== null}
           title="{card.name} ({(card.card_types ?? []).join(', ')})"
           onclick={() => onCardClick?.(card)}
+          use:cardTooltip={card.name}
         >
           <span class="card-name">{card.name}</span>
         </div>

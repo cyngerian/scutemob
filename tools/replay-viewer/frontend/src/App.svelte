@@ -14,10 +14,31 @@
     stepData,
     loading,
     stateDiff,
+    runResult,
     initSession,
     goToStep,
   } from './lib/stores.js';
-  import { loadScript, fetchScripts } from './lib/api.js';
+  import { loadScript, fetchScripts, approveScript } from './lib/api.js';
+
+  let approving = $state(false);
+
+  async function handleApprove() {
+    if (!$session?.script_id) return;
+    approving = true;
+    try {
+      await approveScript($session.script_id);
+      // Update local state immediately — don't wait for a full reload.
+      session.update(s => s ? { ...s, review_status: 'approved' } : s);
+      // Refresh script list so the picker shows updated status.
+      try {
+        scripts = await fetchScripts();
+      } catch (_) { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to approve script:', err);
+    } finally {
+      approving = false;
+    }
+  }
 
   let scripts = $state(null);
   let showScriptPicker = $state(false);
@@ -69,6 +90,7 @@
   function closeCard() {
     selectedCard = null;
   }
+
 </script>
 
 <div class="app">
@@ -78,6 +100,42 @@
       {#if $session?.loaded}
         <span class="script-name">{$session.script_name}</span>
         <span class="script-id muted">({$session.script_id})</span>
+
+        <!-- RunResult badge -->
+        {#if $runResult}
+          {#if $runResult.harness_error}
+            <span class="run-badge run-error" title={$runResult.harness_error}>
+              ⚠ Error: {$runResult.harness_error.slice(0, 60)}{$runResult.harness_error.length > 60 ? '…' : ''}
+            </span>
+          {:else if $runResult.passed}
+            <span class="run-badge run-pass">
+              ✓ PASS ({$runResult.passed_count}/{$runResult.total_assertions})
+            </span>
+          {:else}
+            <span
+              class="run-badge run-fail"
+              title={$runResult.first_failure ? `${$runResult.first_failure.path}: expected ${JSON.stringify($runResult.first_failure.expected)}, got ${JSON.stringify($runResult.first_failure.actual)}` : ''}
+            >
+              ✗ FAIL ({$runResult.passed_count}/{$runResult.total_assertions})
+              {#if $runResult.first_failure}
+                <span class="run-fail-path">— {$runResult.first_failure.path}</span>
+              {/if}
+            </span>
+          {/if}
+        {/if}
+
+        <!-- Approve button (only for pending_review scripts) -->
+        {#if $session.review_status === 'pending_review'}
+          <button
+            class="approve-btn"
+            onclick={handleApprove}
+            disabled={approving}
+          >
+            {approving ? 'Approving…' : 'Approve ✓'}
+          </button>
+        {:else if $session.review_status === 'approved'}
+          <span class="approved-badge">✓ approved</span>
+        {/if}
       {:else}
         <span class="muted">No script loaded</span>
       {/if}
@@ -266,6 +324,74 @@
   .script-picker-btn:hover {
     background: #3a3a7a;
     color: #fff;
+  }
+
+  /* ── RunResult badge ─────────────────────────────────────────────────── */
+
+  .run-badge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-family: monospace;
+    white-space: nowrap;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .run-pass {
+    background: #1a3a1a;
+    color: #5f5;
+    border: 1px solid #2a5a2a;
+  }
+
+  .run-fail {
+    background: #3a1a1a;
+    color: #f77;
+    border: 1px solid #5a2a2a;
+  }
+
+  .run-error {
+    background: #3a2a00;
+    color: #fa0;
+    border: 1px solid #5a4a00;
+  }
+
+  .run-fail-path {
+    color: #f99;
+    font-size: 0.7rem;
+  }
+
+  /* ── Approve button / approved badge ──────────────────────────────────── */
+
+  .approve-btn {
+    background: #1a3a1a;
+    color: #5f5;
+    border: 1px solid #2a5a2a;
+    padding: 0.2rem 0.6rem;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-family: monospace;
+  }
+
+  .approve-btn:hover:not(:disabled) {
+    background: #2a5a2a;
+    color: #afa;
+  }
+
+  .approve-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .approved-badge {
+    font-size: 0.75rem;
+    color: #5f5;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid #2a5a2a;
+    border-radius: 3px;
+    background: #1a3a1a;
   }
 
   .assertion-bar {

@@ -1,141 +1,191 @@
 {
-  "schema_version": "1.0.0",
-  "metadata": {
-    "id": "script_stack_053",
-    "name": "Commander's Sphere — pure sacrifice-draw (no tap required)",
-    "description": "p1 activates Commander's Sphere's second ability 'Sacrifice Commander's Sphere: Draw a card'. The activation cost is sacrifice only — no mana, no tap. Commander's Sphere leaves the battlefield as part of paying the activation cost (CR 601.2h, applied via CR 602.2b). The activated ability goes on the stack as a non-card object. Both players pass priority. The ability resolves: p1 draws Plains from the top of their library (CR 121.1). This script isolates the sacrifice-as-activation-cost pattern and distinguishes it from tapped abilities like Commander's Sphere's mana ability.",
-    "cr_sections_tested": ["602.2", "602.2a", "602.2b", "601.2h", "608.2", "608.2n", "121.1"],
-    "corner_case_ref": null,
-    "tags": ["activated-ability", "sacrifice-as-cost", "draw", "commanders-sphere", "no-mana-cost", "no-tap"],
-    "confidence": "high",
-    "review_status": "pending_review",
-    "reviewed_by": null,
-    "review_date": null,
-    "generation_notes": "Commander's Sphere oracle text (verified via MCP lookup): '{T}: Add one mana of any color in your commander's color identity.' and 'Sacrifice this artifact: Draw a card.' The second ability (ability_index 1, but engine may index from 0 — represented here as ability_index 0 per scenario spec) has NO tap symbol and NO mana cost. Sacrifice is the entire activation cost. Per CR 602.2b, activating an ability follows 601.2b-i; per CR 601.2h the player pays all costs, which here means sacrificing Commander's Sphere. The permanent leaves the battlefield at that moment (CR 701.17a: 'To sacrifice a permanent, its controller moves it from the battlefield directly to its owner's graveyard'). The ability then exists on the stack as a non-card object with no source on the battlefield (CR 602.2a). When all players pass and the ability resolves (CR 608.2), it draws one card: the top card of p1's library (Plains) moves to p1's hand (CR 121.1). As the final step of ability resolution, the ability is removed from the stack (CR 608.2n). Initial state: Commander's Sphere on p1's battlefield (untapped), p1's library has exactly one card (Plains), mana pool empty. Note: existing script 035 (script_stack_035) covers Commander's Sphere but incorrectly describes the cost as '{T} + sacrifice' in its generation_notes and uses cr_ref 608.2 for the activate_ability action. This script corrects those issues and focuses on the pure sacrifice-only activation.",
-    "disputes": []
-  },
   "initial_state": {
-    "format": "commander",
-    "turn_number": 1,
     "active_player": "p1",
+    "continuous_effects": [],
+    "format": "commander",
     "phase": "precombat_main",
-    "step": null,
-    "priority": "p1",
     "players": {
       "p1": {
+        "commander": null,
+        "commander_damage_received": {},
+        "land_plays_remaining": 0,
         "life": 40,
         "mana_pool": {},
-        "land_plays_remaining": 0,
-        "poison_counters": 0,
-        "commander_damage_received": {},
-        "commander": null,
-        "partner_commander": null
+        "partner_commander": null,
+        "poison_counters": 0
       },
       "p2": {
+        "commander": null,
+        "commander_damage_received": {},
+        "land_plays_remaining": 0,
         "life": 40,
         "mana_pool": {},
-        "land_plays_remaining": 0,
-        "poison_counters": 0,
-        "commander_damage_received": {},
-        "commander": null,
-        "partner_commander": null
+        "partner_commander": null,
+        "poison_counters": 0
       }
     },
+    "priority": "p1",
+    "step": null,
+    "turn_number": 1,
     "zones": {
       "battlefield": {
         "p1": [
-          { "card": "Commander's Sphere", "is_commander": false, "owner": null, "tapped": false }
+          {
+            "card": "Commander's Sphere",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
         ]
       },
-      "hand": {},
-      "graveyard": {},
-      "exile": [],
       "command_zone": {},
+      "exile": [],
+      "graveyard": {},
+      "hand": {},
       "library": {
         "p1": [
-          { "card": "Plains", "is_commander": false, "owner": null }
+          {
+            "card": "Plains",
+            "is_commander": false,
+            "owner": null
+          }
         ]
       },
       "stack": []
-    },
-    "continuous_effects": []
+    }
   },
+  "metadata": {
+    "confidence": "high",
+    "corner_case_ref": null,
+    "cr_sections_tested": [
+      "602.2",
+      "602.2a",
+      "602.2b",
+      "601.2h",
+      "608.2",
+      "608.2n",
+      "121.1"
+    ],
+    "description": "p1 activates Commander's Sphere's second ability 'Sacrifice Commander's Sphere: Draw a card'. The activation cost is sacrifice only — no mana, no tap. Commander's Sphere leaves the battlefield as part of paying the activation cost (CR 601.2h, applied via CR 602.2b). The activated ability goes on the stack as a non-card object. Both players pass priority. The ability resolves: p1 draws Plains from the top of their library (CR 121.1). This script isolates the sacrifice-as-activation-cost pattern and distinguishes it from tapped abilities like Commander's Sphere's mana ability.",
+    "disputes": [],
+    "generation_notes": "Commander's Sphere oracle text (verified via MCP lookup): '{T}: Add one mana of any color in your commander's color identity.' and 'Sacrifice this artifact: Draw a card.' The second ability (ability_index 1, but engine may index from 0 — represented here as ability_index 0 per scenario spec) has NO tap symbol and NO mana cost. Sacrifice is the entire activation cost. Per CR 602.2b, activating an ability follows 601.2b-i; per CR 601.2h the player pays all costs, which here means sacrificing Commander's Sphere. The permanent leaves the battlefield at that moment (CR 701.17a: 'To sacrifice a permanent, its controller moves it from the battlefield directly to its owner's graveyard'). The ability then exists on the stack as a non-card object with no source on the battlefield (CR 602.2a). When all players pass and the ability resolves (CR 608.2), it draws one card: the top card of p1's library (Plains) moves to p1's hand (CR 121.1). As the final step of ability resolution, the ability is removed from the stack (CR 608.2n). Initial state: Commander's Sphere on p1's battlefield (untapped), p1's library has exactly one card (Plains), mana pool empty. Note: existing script 035 (script_stack_035) covers Commander's Sphere but incorrectly describes the cost as '{T} + sacrifice' in its generation_notes and uses cr_ref 608.2 for the activate_ability action. This script corrects those issues and focuses on the pure sacrifice-only activation.",
+    "id": "script_stack_053",
+    "name": "Commander's Sphere — pure sacrifice-draw (no tap required)",
+    "review_date": "2026-02-24",
+    "review_status": "approved",
+    "reviewed_by": "stepper",
+    "tags": [
+      "activated-ability",
+      "sacrifice-as-cost",
+      "draw",
+      "commanders-sphere",
+      "no-mana-cost",
+      "no-tap"
+    ]
+  },
+  "schema_version": "1.0.0",
   "script": [
     {
-      "step": "precombat_main",
-      "step_note": "p1 activates Commander's Sphere's sacrifice ability. Sacrifice is paid as cost — sphere leaves battlefield immediately. Draw ability goes on stack.",
       "actions": [
         {
-          "type": "assert_state",
-          "description": "Initial: Commander's Sphere on p1's battlefield untapped, Plains in p1's library, hand empty, stack empty",
           "assertions": {
-            "zones.battlefield.p1": { "includes": [{ "card": "Commander's Sphere" }] },
-            "zones.library.p1.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Commander's Sphere"
+                }
+              ]
+            },
             "zones.hand.p1.count": 0,
-            "zones.stack": { "is_empty": true }
+            "zones.library.p1.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
           },
-          "note": "Starting position: sphere in play, one card in library, no mana in pool."
+          "description": "Initial: Commander's Sphere on p1's battlefield untapped, Plains in p1's library, hand empty, stack empty",
+          "note": "Starting position: sphere in play, one card in library, no mana in pool.",
+          "type": "assert_state"
         },
         {
-          "type": "player_action",
-          "player": "p1",
+          "ability_index": 0,
           "action": "activate_ability",
           "card": "Commander's Sphere",
-          "ability_index": 0,
-          "targets": [],
+          "cr_ref": "602.2",
           "mana_paid": {},
           "mana_source": [],
-          "cr_ref": "602.2",
-          "note": "CR 602.2 / 602.2a: p1 activates 'Sacrifice Commander's Sphere: Draw a card'. No mana cost, no tap required. Per CR 602.2b + 601.2h, sacrifice is paid immediately as the activation cost — Commander's Sphere moves from battlefield to p1's graveyard. The ability is placed on the stack as a non-card object (CR 602.2a)."
+          "note": "CR 602.2 / 602.2a: p1 activates 'Sacrifice Commander's Sphere: Draw a card'. No mana cost, no tap required. Per CR 602.2b + 601.2h, sacrifice is paid immediately as the activation cost — Commander's Sphere moves from battlefield to p1's graveyard. The ability is placed on the stack as a non-card object (CR 602.2a).",
+          "player": "p1",
+          "targets": [],
+          "type": "player_action"
         },
         {
-          "type": "assert_state",
-          "description": "After activation: Commander's Sphere is in p1's graveyard (sacrificed as cost) and the draw ability is on the stack",
           "assertions": {
-            "zones.battlefield.p1": { "excludes": ["Commander's Sphere"] },
-            "zones.graveyard.p1": { "includes": [{ "card": "Commander's Sphere" }] },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Commander's Sphere"
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Commander's Sphere"
+                }
+              ]
+            },
             "zones.stack.count": 1
           },
-          "note": "Sacrifice completes during cost payment (CR 601.2h). The sphere is gone from the battlefield before any player receives priority. The activated ability (draw a card) sits on the stack awaiting resolution."
+          "description": "After activation: Commander's Sphere is in p1's graveyard (sacrificed as cost) and the draw ability is on the stack",
+          "note": "Sacrifice completes during cost payment (CR 601.2h). The sphere is gone from the battlefield before any player receives priority. The activated ability (draw a card) sits on the stack awaiting resolution.",
+          "type": "assert_state"
         },
         {
-          "type": "priority_pass",
+          "note": "p1 passes priority after activating. Active player passes first.",
           "player": "p1",
-          "note": "p1 passes priority after activating. Active player passes first."
+          "type": "priority_pass"
         },
         {
-          "type": "priority_pass",
+          "note": "p2 passes priority. All players have passed — top of stack resolves.",
           "player": "p2",
-          "note": "p2 passes priority. All players have passed — top of stack resolves."
+          "type": "priority_pass"
         },
         {
-          "type": "stack_resolve",
+          "note": "CR 608.2: Activated ability resolves; instructions followed in order written. CR 608.2n: Ability removed from stack as final step of resolution.",
           "object": "Commander's Sphere ability",
           "resolution": [
             {
-              "effect": "draw_card",
-              "player": "p1",
               "amount": 1,
               "card": null,
-              "owner": null,
               "cr_ref": "121.1",
-              "note": "CR 121.1: p1 draws a card — top card of library (Plains) moves to p1's hand."
+              "effect": "draw_card",
+              "note": "CR 121.1: p1 draws a card — top card of library (Plains) moves to p1's hand.",
+              "owner": null,
+              "player": "p1"
             }
           ],
-          "note": "CR 608.2: Activated ability resolves; instructions followed in order written. CR 608.2n: Ability removed from stack as final step of resolution."
+          "type": "stack_resolve"
         },
         {
-          "type": "assert_state",
-          "description": "Final: Plains in p1's hand, Commander's Sphere in p1's graveyard, library empty, stack empty",
           "assertions": {
-            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Commander's Sphere"
+                }
+              ]
+            },
             "zones.hand.p1.count": 1,
             "zones.library.p1.count": 0,
-            "zones.graveyard.p1": { "includes": [{ "card": "Commander's Sphere" }] }
+            "zones.stack": {
+              "is_empty": true
+            }
           },
-          "note": "p1 drew Plains. Commander's Sphere is in graveyard from sacrifice cost. Library is now empty. Ability fully resolved and removed from stack per CR 608.2n."
+          "description": "Final: Plains in p1's hand, Commander's Sphere in p1's graveyard, library empty, stack empty",
+          "note": "p1 drew Plains. Commander's Sphere is in graveyard from sacrifice cost. Library is now empty. Ability fully resolved and removed from stack per CR 608.2n.",
+          "type": "assert_state"
         }
-      ]
+      ],
+      "step": "precombat_main",
+      "step_note": "p1 activates Commander's Sphere's sacrifice ability. Sacrifice is paid as cost — sphere leaves battlefield immediately. Draw ability goes on stack."
     }
   ]
 }

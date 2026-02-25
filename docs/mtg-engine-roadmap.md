@@ -647,6 +647,51 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 
 ---
 
+### Post-M9.5: Script Evaluation Workflow (2026-02-25)
+
+**Goal**: Eliminate the manual JSON-editing approval workflow for game scripts. Scripts previously could not be validated by the harness without first being approved, and approval required hand-editing the JSON file. This session adds a run endpoint, an approve endpoint, a one-click Approve button in the stepper UI, self-validation to the script generator agent, and closes the two pending-review scripts.
+
+**Delivered**:
+
+*A — Harness run endpoint + run result badge:*
+- [x] `POST /api/scripts/run` — runs any script through the harness and returns `RunResult` (passed, total/passed/failed counts, first failure detail, harness error). No side effects on the loaded session.
+- [x] `RunResult` + `FailureDetail` types in `api.rs`; `compute_run_result()` walks all step snapshots
+- [x] `review_status` and `run_result` added to `SessionResponse` (returned by both `GET /api/session` and `POST /api/load`)
+- [x] `runScript(path)` added to `api.js`; `runResult` store in `stores.js` populated on `initSession()`
+- [x] RunResult badge in stepper header: green `✓ PASS (N/N)`, red `✗ FAIL (N/M) — path`, orange `⚠ Error:`
+- [x] Missing assertion paths added to evaluator: `zones.library.<player>.count`, `permanent.<Name>.tapped`
+
+*B — Approve endpoint + Approve button:*
+- [x] `POST /api/scripts/approve` — finds script by `metadata.id`, sets `review_status: "approved"`, `reviewed_by: "stepper"`, `review_date: <today>`, writes back with `serde_json::to_string_pretty`
+- [x] `chrono = "0.4"` added to `tools/replay-viewer/Cargo.toml`
+- [x] `approveScript(id)` added to `api.js`
+- [x] `[Approve ✓]` button in stepper header — visible only for `pending_review` scripts; becomes `✓ approved` badge on success
+
+*C — game-script-generator agent self-validation:*
+- [x] `Bash` added to agent tools list
+- [x] VALIDATE step added: checks if stepper is running, POSTs to `/api/scripts/run`, up to 2 retries on failure, notes harness discrepancies in `generation_notes` without silently "fixing" correct scripts to match wrong engine behavior
+
+*D — Bug fix + approve scripts 053 and 054:*
+- [x] **Bug**: `enrich_spec_from_def` filtered `Effect::AddMana` from non-mana activated abilities but missed `Effect::AddManaAnyColor`. Commander's Sphere's `{T}: AddManaAnyColor` ability was incorrectly placed at `activated_abilities[0]`, shifting the sacrifice-draw ability to index 1. Scripts using `ability_index: 0` activated the tap ability instead. Fixed by extending the filter to both variants.
+- [x] Script 053 (Commander's Sphere sacrifice-draw) validated via `/api/scripts/run` → PASS (11/11 assertions); approved via `/api/scripts/approve`
+- [x] Script 054 (Mind Stone sacrifice-draw, explicit priority passes) already passed; approved via `/api/scripts/approve`
+- [x] All 60 approved scripts pass `run_all_approved_scripts`; 573 tests total, 0 failures
+
+**Files changed**:
+- `tools/replay-viewer/src/api.rs` — RunResult/FailureDetail/ApproveRequest types; post_run_script, post_approve_script, resolve_script_path, find_script_by_id, compute_run_result, review_status_str handlers/helpers; review_status + run_result on SessionResponse
+- `tools/replay-viewer/src/main.rs` — register `/scripts/run` and `/scripts/approve` routes
+- `tools/replay-viewer/Cargo.toml` — `chrono = "0.4"`
+- `tools/replay-viewer/src/replay.rs` — add `zones.library.<p>.count` and `permanent.<Name>.tapped` assertion evaluator arms
+- `tools/replay-viewer/frontend/src/lib/api.js` — `runScript`, `approveScript`
+- `tools/replay-viewer/frontend/src/lib/stores.js` — `runResult` store
+- `tools/replay-viewer/frontend/src/App.svelte` — RunResult badge, Approve button, CSS
+- `crates/engine/src/testing/replay_harness.rs` — extend `is_tap_mana_ability` to include `Effect::AddManaAnyColor`
+- `.claude/agents/game-script-generator.md` — add Bash to tools; add VALIDATE step
+- `test-data/generated-scripts/stack/053_*.json` — `review_status: approved`
+- `test-data/generated-scripts/stack/054_*.json` — `review_status: approved`
+
+---
+
 ### M10: Networking Layer (Centralized Server)
 
 **Goal**: Implement a lightweight centralized WebSocket game server. One server instance (runnable on a ~$5-10/mo VPS) hosts games for a trusted playgroup. The server runs the engine authoritatively, filters hidden information per player, and broadcasts events. P2P distributed verification is preserved in `docs/mtg-engine-network-security.md` as a documented future upgrade path.

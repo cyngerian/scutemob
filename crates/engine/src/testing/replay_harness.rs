@@ -385,10 +385,15 @@ pub fn enrich_spec_from_def(
     // This is required so that Command::ActivateAbility can look up the ability by index.
     for ability in &def.abilities {
         if let AbilityDefinition::Activated { cost, effect, .. } = ability {
-            // Skip simple tap-for-mana abilities (already handled above as ManaAbility).
-            let is_simple_tap_mana =
-                matches!(cost, Cost::Tap) && matches!(effect, Effect::AddMana { .. });
-            if !is_simple_tap_mana {
+            // Skip ALL tap-for-mana abilities (both fixed-mana and any-color variants).
+            // These are either registered as ManaAbility above or handled via TapForMana.
+            // Including them here would shift the ability_index of non-mana abilities.
+            let is_tap_mana_ability = matches!(cost, Cost::Tap)
+                && matches!(
+                    effect,
+                    Effect::AddMana { .. } | Effect::AddManaAnyColor { .. }
+                );
+            if !is_tap_mana_ability {
                 let activation_cost = cost_to_activation_cost(cost);
                 let ab = ActivatedAbility {
                     cost: activation_cost,

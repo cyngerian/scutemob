@@ -5,6 +5,7 @@
    * Props:
    *   items (StackItemView[]) — stack items, last element = top of stack
    */
+  import { cardTooltip } from './cardTooltip.js';
   const { items = [], onCardClick = null } = $props();
 
   // Display in reverse so top of stack appears first
@@ -44,7 +45,7 @@
   {:else}
     <div class="stack-items">
       {#each displayItems as item, i (item.id)}
-        <div class="stack-item" class:is-copy={item.is_copy}>
+        <div class="stack-item" class:is-copy={item.is_copy} use:cardTooltip={item.source_name}>
           <!-- Stack position badge (1 = top) -->
           <span class="stack-pos" title="Stack position (1 = top)">{i + 1}</span>
 

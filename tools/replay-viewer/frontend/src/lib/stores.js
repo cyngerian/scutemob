@@ -15,6 +15,9 @@ import { diffState } from './diff.js';
 /** Current session metadata (from GET /api/session or POST /api/load). */
 export const session = writable(null);
 
+/** RunResult for the currently loaded script (null when no script is loaded). */
+export const runResult = writable(null);
+
 /** The current step index (0 = initial state). */
 export const currentStepIndex = writable(0);
 
@@ -45,6 +48,7 @@ export async function initSession() {
   try {
     const meta = await fetchSession();
     session.set(meta);
+    runResult.set(meta.run_result ?? null);
     currentStepIndex.set(0);
     prevStepData.set(null);
     if (meta.loaded) {

@@ -13,11 +13,12 @@
   /** Filter text for the search input. */
   let filterText = $state('');
 
-  /** Which subdirectory is collapsed (key = subdir, value = true when collapsed). */
-  let collapsed = $state({});
+  /** Which subdirectory is explicitly expanded (key = subdir, value = true when expanded).
+   *  Starts empty so all groups are collapsed on first open. */
+  let expanded = $state({});
 
   function toggleCollapse(subdir) {
-    collapsed = { ...collapsed, [subdir]: !collapsed[subdir] };
+    expanded = { ...expanded, [subdir]: !(expanded[subdir] ?? false) };
   }
 
   /** Sorted subdirectory keys. */
@@ -37,6 +38,7 @@
       (e) =>
         e.name.toLowerCase().includes(q) ||
         e.id.toLowerCase().includes(q) ||
+        e.path.toLowerCase().includes(q) ||
         (e.description ?? '').toLowerCase().includes(q) ||
         (e.tags ?? []).some((t) => t.toLowerCase().includes(q))
     );
@@ -49,6 +51,25 @@
 
   function handleSelect(entry) {
     onLoad?.(entry.path);
+  }
+
+  /** Extract the leading NNN sequence number from a script path like "stack/054_mind_stone.json". */
+  function scriptNumber(path) {
+    const filename = path.split('/').pop() ?? path;
+    const m = filename.match(/^(\d+)/);
+    return m ? m[1] : '';
+  }
+
+  /** True when every visible subdir is expanded. */
+  const allExpanded = $derived(
+    subdirs.filter(sd => filteredEntries(sd).length > 0).every(sd => expanded[sd])
+  );
+
+  function toggleAll() {
+    const next = !allExpanded;
+    const update = {};
+    for (const sd of subdirs) update[sd] = next;
+    expanded = update;
   }
 
   /** Review status → badge CSS class. */
@@ -69,6 +90,9 @@
       Browse Scripts
       <span class="total-count">{scripts?.total ?? 0} total</span>
     </span>
+    <button class="expand-all-btn" onclick={toggleAll} title={allExpanded ? 'Collapse all' : 'Expand all'}>
+      {allExpanded ? '⊟' : '⊞'}
+    </button>
     <button class="close-btn" onclick={onClose} title="Close script browser">✕</button>
   </div>
 
@@ -103,13 +127,13 @@
             onclick={() => toggleCollapse(subdir)}
             title="Toggle {subdir}/"
           >
-            <span class="collapse-icon">{collapsed[subdir] ? '▶' : '▼'}</span>
+            <span class="collapse-icon">{expanded[subdir] ? '▼' : '▶'}</span>
             <span class="subdir-name">{subdir}/</span>
             <span class="subdir-count">{entries.length}</span>
           </button>
 
           <!-- Script entries -->
-          {#if !collapsed[subdir]}
+          {#if expanded[subdir]}
             <div class="entries-list">
               {#each entries as entry (entry.id)}
                 <button
@@ -117,7 +141,12 @@
                   onclick={() => handleSelect(entry)}
                   title={entry.description || entry.name}
                 >
-                  <span class="entry-name">{entry.name}</span>
+                  <div class="entry-name-row">
+                    {#if scriptNumber(entry.path)}
+                      <span class="entry-num">#{scriptNumber(entry.path)}</span>
+                    {/if}
+                    <span class="entry-name">{entry.name}</span>
+                  </div>
                   <div class="entry-meta">
                     {#if entry.tags?.length > 0}
                       {#each entry.tags.slice(0, 3) as tag}
@@ -177,6 +206,22 @@
     color: #556;
     font-size: 0.72rem;
     font-weight: normal;
+  }
+
+  .expand-all-btn {
+    background: transparent;
+    border: none;
+    color: #556;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    line-height: 1;
+  }
+
+  .expand-all-btn:hover {
+    background: #2a2a4a;
+    color: #aaa;
   }
 
   .close-btn {
@@ -326,6 +371,21 @@
   .script-entry:hover {
     background: #1a1a35;
     color: #ddf;
+  }
+
+  .entry-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .entry-num {
+    font-size: 0.68rem;
+    color: #557;
+    flex-shrink: 0;
+    font-weight: bold;
+    letter-spacing: 0.02em;
   }
 
   .entry-name {

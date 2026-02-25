@@ -51,6 +51,42 @@ pub struct SessionResponse {
     pub description: Option<String>,
     pub total_steps: usize,
     pub players: Vec<String>,
+    /// Review status of the loaded script ("pending_review", "approved", "disputed", "corrected", or "" if none).
+    pub review_status: String,
+    /// Run result summary for the loaded script (None if no script is loaded).
+    pub run_result: Option<RunResult>,
+}
+
+/// Summary of running a script through the harness.
+#[derive(Debug, Serialize, Clone)]
+pub struct RunResult {
+    pub passed: bool,
+    pub total_assertions: usize,
+    pub passed_count: usize,
+    pub failed_count: usize,
+    pub first_failure: Option<FailureDetail>,
+    pub harness_error: Option<String>,
+}
+
+/// Details about the first failed assertion in a run.
+#[derive(Debug, Serialize, Clone)]
+pub struct FailureDetail {
+    pub step_index: usize,
+    pub path: String,
+    pub expected: serde_json::Value,
+    pub actual: serde_json::Value,
+}
+
+/// Request body for `POST /api/scripts/run`.
+#[derive(Debug, Deserialize)]
+pub struct RunRequest {
+    pub path: String,
+}
+
+/// Request body for `POST /api/scripts/approve`.
+#[derive(Debug, Deserialize)]
+pub struct ApproveRequest {
+    pub id: String,
 }
 
 /// A script entry in the script listing.
@@ -93,9 +129,14 @@ pub async fn get_session(State(state): State<SharedState>) -> Json<SessionRespon
             description: None,
             total_steps: 0,
             players: vec![],
+            review_status: String::new(),
+            run_result: None,
         }),
         Some(session) => {
             let players: Vec<String> = session.player_map.keys().cloned().collect();
+            let review_status =
+                review_status_str(&session.script.metadata.review_status).to_string();
+            let run_result = compute_run_result(session);
             Json(SessionResponse {
                 loaded: true,
                 script_id: Some(session.script.metadata.id.clone()),
@@ -103,6 +144,8 @@ pub async fn get_session(State(state): State<SharedState>) -> Json<SessionRespon
                 description: Some(session.script.metadata.description.clone()),
                 total_steps: session.step_count(),
                 players,
+                review_status,
+                run_result: Some(run_result),
             })
         }
     }
@@ -263,6 +306,8 @@ pub async fn post_load(
     })?;
 
     let players: Vec<String> = session.player_map.keys().cloned().collect();
+    let review_status = review_status_str(&session.script.metadata.review_status).to_string();
+    let run_result = compute_run_result(&session);
     let response = SessionResponse {
         loaded: true,
         script_id: Some(session.script.metadata.id.clone()),
@@ -270,6 +315,8 @@ pub async fn post_load(
         description: Some(session.script.metadata.description.clone()),
         total_steps: session.step_count(),
         players,
+        review_status,
+        run_result: Some(run_result),
     };
 
     // Store the new session.
@@ -283,6 +330,24 @@ pub async fn post_load(
 pub async fn get_scripts(State(state): State<SharedState>) -> Json<ScriptsResponse> {
     let scripts_dir = state.read().await.scripts_dir.clone();
     let entries = scan_scripts(&scripts_dir);
+
+    // Guard: deduplicate by ID, keeping first occurrence and logging conflicts.
+    let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let entries: Vec<ScriptEntry> = entries
+        .into_iter()
+        .filter(|e| {
+            if seen_ids.insert(e.id.clone()) {
+                true
+            } else {
+                eprintln!(
+                    "WARNING: duplicate script id '{}' in '{}' — skipping (fix metadata.id)",
+                    e.id, e.path
+                );
+                false
+            }
+        })
+        .collect();
+
     let total = entries.len();
 
     let mut groups: HashMap<String, Vec<ScriptEntry>> = HashMap::new();
@@ -378,6 +443,230 @@ fn parse_script_entry(base: &Path, path: &Path) -> Option<ScriptEntry> {
         review_status: partial.metadata.review_status,
         subdirectory,
     })
+}
+
+// ── New route handlers ────────────────────────────────────────────────────────
+
+/// `POST /api/scripts/run` — run a script through the harness and return a `RunResult`.
+/// Does NOT change the currently loaded session.
+pub async fn post_run_script(
+    State(state): State<SharedState>,
+    Json(req): Json<RunRequest>,
+) -> Result<Json<RunResult>, (StatusCode, String)> {
+    let script_path = resolve_script_path(&state, &req.path).await?;
+
+    let json = std::fs::read_to_string(&script_path).map_err(|e| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Cannot read {}: {e}", script_path.display()),
+        )
+    })?;
+
+    let script: mtg_engine::testing::script_schema::GameScript = serde_json::from_str(&json)
+        .map_err(|e| {
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("Cannot parse script: {e}"),
+            )
+        })?;
+
+    let run_result = match ReplaySession::from_script(&script) {
+        Ok(session) => compute_run_result(&session),
+        Err(e) => RunResult {
+            passed: false,
+            total_assertions: 0,
+            passed_count: 0,
+            failed_count: 0,
+            first_failure: None,
+            harness_error: Some(e.to_string()),
+        },
+    };
+
+    Ok(Json(run_result))
+}
+
+/// `POST /api/scripts/approve` — set a script's `review_status` to `"approved"`.
+///
+/// Scans `scripts_dir` for a JSON file whose `metadata.id` matches, edits it in
+/// place, and returns `{ "ok": true }`. Returns 404 if the id is not found.
+pub async fn post_approve_script(
+    State(state): State<SharedState>,
+    Json(req): Json<ApproveRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let scripts_dir = state.read().await.scripts_dir.clone();
+
+    let script_path = find_script_by_id(&scripts_dir, &req.id).ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Script id '{}' not found", req.id),
+        )
+    })?;
+
+    let json = std::fs::read_to_string(&script_path).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Cannot read {}: {e}", script_path.display()),
+        )
+    })?;
+
+    let mut value: serde_json::Value = serde_json::from_str(&json).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Cannot parse {}: {e}", script_path.display()),
+        )
+    })?;
+
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    if let Some(meta) = value.get_mut("metadata") {
+        meta["review_status"] = serde_json::json!("approved");
+        meta["reviewed_by"] = serde_json::json!("stepper");
+        meta["review_date"] = serde_json::json!(today);
+    } else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Script has no metadata field".to_string(),
+        ));
+    }
+
+    let out = serde_json::to_string_pretty(&value).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Cannot serialize: {e}"),
+        )
+    })?;
+
+    std::fs::write(&script_path, format!("{out}\n")).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Cannot write {}: {e}", script_path.display()),
+        )
+    })?;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ── Helper functions ──────────────────────────────────────────────────────────
+
+/// Resolve a relative path string to an absolute, canonicalized path within scripts_dir.
+/// Rejects absolute paths and path traversal attempts.
+async fn resolve_script_path(
+    state: &SharedState,
+    path_str: &str,
+) -> Result<std::path::PathBuf, (StatusCode, String)> {
+    let state_r = state.read().await;
+    let p = PathBuf::from(path_str);
+    if p.is_absolute() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Path must be relative to scripts_dir, not absolute".to_string(),
+        ));
+    }
+    let joined = state_r.scripts_dir.join(path_str);
+    let canonical = joined.canonicalize().map_err(|e| {
+        (
+            StatusCode::NOT_FOUND,
+            format!("Cannot resolve path {}: {e}", joined.display()),
+        )
+    })?;
+    let scripts_dir_canonical = state_r
+        .scripts_dir
+        .canonicalize()
+        .unwrap_or_else(|_| state_r.scripts_dir.clone());
+    if !canonical.starts_with(&scripts_dir_canonical) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Path must be within scripts_dir".to_string(),
+        ));
+    }
+    Ok(canonical)
+}
+
+/// Recursively scan `scripts_dir` for a JSON file whose `metadata.id` matches `target_id`.
+fn find_script_by_id(scripts_dir: &Path, target_id: &str) -> Option<PathBuf> {
+    find_by_id_recursive(scripts_dir, target_id)
+}
+
+fn find_by_id_recursive(dir: &Path, target_id: &str) -> Option<PathBuf> {
+    let read_dir = std::fs::read_dir(dir).ok()?;
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(found) = find_by_id_recursive(&path, target_id) {
+                return Some(found);
+            }
+        } else if path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if let Some(id) = read_script_id(&path) {
+                if id == target_id {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Read just the `metadata.id` from a JSON file without full parsing.
+fn read_script_id(path: &Path) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct PartialScript {
+        metadata: PartialMeta,
+    }
+    #[derive(serde::Deserialize)]
+    struct PartialMeta {
+        id: String,
+    }
+    let json = std::fs::read_to_string(path).ok()?;
+    let partial: PartialScript = serde_json::from_str(&json).ok()?;
+    Some(partial.metadata.id)
+}
+
+/// Compute a `RunResult` from an already-built `ReplaySession`.
+pub fn compute_run_result(session: &ReplaySession) -> RunResult {
+    let mut total_assertions = 0usize;
+    let mut passed_count = 0usize;
+    let mut failed_count = 0usize;
+    let mut first_failure: Option<FailureDetail> = None;
+
+    for (step_idx, step) in session.steps.iter().enumerate() {
+        if let Some(assertions) = &step.assertions {
+            for result in assertions {
+                total_assertions += 1;
+                if result.passed {
+                    passed_count += 1;
+                } else {
+                    failed_count += 1;
+                    if first_failure.is_none() {
+                        first_failure = Some(FailureDetail {
+                            step_index: step_idx,
+                            path: result.path.clone(),
+                            expected: result.expected.clone(),
+                            actual: result.actual.clone(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    RunResult {
+        passed: failed_count == 0,
+        total_assertions,
+        passed_count,
+        failed_count,
+        first_failure,
+        harness_error: None,
+    }
+}
+
+/// Convert a `ReviewStatus` enum variant to its snake_case string form.
+fn review_status_str(status: &mtg_engine::testing::script_schema::ReviewStatus) -> &'static str {
+    use mtg_engine::testing::script_schema::ReviewStatus;
+    match status {
+        ReviewStatus::PendingReview => "pending_review",
+        ReviewStatus::Approved => "approved",
+        ReviewStatus::Disputed => "disputed",
+        ReviewStatus::Corrected => "corrected",
+    }
 }
 
 // ── Conversion helpers ────────────────────────────────────────────────────────
