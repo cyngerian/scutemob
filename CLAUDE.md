@@ -79,6 +79,7 @@ Before starting work, check which files apply to your task:
 | Implementing replay viewer (M9.5) | `docs/mtg-engine-replay-viewer.md` |
 | Implementing a keyword ability | `docs/mtg-engine-ability-coverage.md` |
 | Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
+| Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.
 
@@ -149,7 +150,7 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Eight project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
+Eleven project-scoped agents in `.claude/agents/` encode milestone and ability workflows:
 
 | Agent | Model | Trigger | Purpose |
 |-------|-------|---------|---------|
@@ -161,6 +162,9 @@ Eight project-scoped agents in `.claude/agents/` encode milestone workflows (inv
 | `cr-coverage-auditor` | Sonnet | "check CR coverage for 614" | Audit test/script coverage for CR sections |
 | `game-script-generator` | Sonnet | "generate script for X interaction" | JSON game scripts for replay harness |
 | `ability-coverage-auditor` | Opus | `/audit-abilities` | Scan engine + card defs + scripts → refresh ability coverage doc |
+| `ability-impl-planner` | Opus | `/implement-ability` (plan phase) | CR research, study similar abilities, write implementation plan |
+| `ability-impl-runner` | Sonnet | `/implement-ability` (implement/fix phase) | Execute steps 1-4 (enum, enforcement, triggers, tests), apply fixes |
+| `ability-impl-reviewer` | Opus | `/implement-ability` (review phase) | Verify implementation against CR, check edge cases, write findings |
 
 ---
 

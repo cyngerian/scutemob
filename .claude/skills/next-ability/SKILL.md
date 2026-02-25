@@ -10,6 +10,19 @@ needed to complete it, with a checklist from the Ability Addition Workflow.
 
 ## Procedure
 
+0. **Check for work in progress**: Read `memory/ability-wip.md` if it exists.
+   - If the file exists and `phase:` is NOT `closed`, display the WIP status:
+     ```
+     ## Ability In Progress: <Name>
+     **Phase**: <current phase>
+     **CR**: <number>
+     **Started**: <date>
+
+     Run `/implement-ability` to continue from the current phase.
+     ```
+     Then continue below to also show the next gap (in case the user wants to switch).
+   - If the file doesn't exist or `phase: closed`, proceed normally.
+
 1. **Read `docs/mtg-engine-ability-coverage.md`** — both the section tables and the
    "Ability Addition Workflow" section.
 
