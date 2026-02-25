@@ -14,7 +14,7 @@ use super::continuous_effect::ContinuousEffect;
 use super::error::GameStateError;
 use super::game_object::{
     ActivatedAbility, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
-    TriggeredAbilityDef,
+    TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -24,6 +24,7 @@ use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
+use crate::cards::card_definition::{Cost, Effect, EffectTarget, PlayerTarget};
 
 /// Builder for constructing `GameState` values in tests.
 pub struct GameStateBuilder {
@@ -332,6 +333,44 @@ impl GameStateBuilder {
             let controller = spec.controller.unwrap_or(owner);
             let zone = spec.zone;
 
+            // CR 702.21a: Translate Ward keyword into a TriggeredAbilityDef.
+            // Ward generates a triggered ability at object-construction time: "Whenever
+            // this permanent becomes the target of a spell or ability an opponent controls,
+            // counter that spell or ability unless that player pays {N}."
+            // MayPayOrElse currently always applies or_else (deterministic non-interactive);
+            // interactive payment is deferred to M10+.
+            let mut triggered_abilities: Vec<TriggeredAbilityDef> =
+                spec.triggered_abilities.into_iter().collect();
+            let spec_keywords: im::OrdSet<KeywordAbility> = spec.keywords.iter().cloned().collect();
+            for kw in spec.keywords.iter() {
+                if let KeywordAbility::Ward(cost_n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfBecomesTargetByOpponent,
+                        intervening_if: None,
+                        description: format!(
+                            "Ward {{{cost_n}}} (CR 702.21a): counter unless opponent pays"
+                        ),
+                        effect: Some(Effect::MayPayOrElse {
+                            cost: Cost::Mana(ManaCost {
+                                generic: *cost_n,
+                                ..Default::default()
+                            }),
+                            // CR 702.21a: "counter unless that player pays" — "that player"
+                            // is the controller of the targeting spell/ability (the opponent),
+                            // NOT the ward creature's controller. DeclaredTarget { index: 0 }
+                            // is the targeting spell/ability on the stack (set by
+                            // flush_pending_triggers via targeting_stack_id).
+                            payer: PlayerTarget::ControllerOf(Box::new(
+                                EffectTarget::DeclaredTarget { index: 0 },
+                            )),
+                            or_else: Box::new(Effect::CounterSpell {
+                                target: EffectTarget::DeclaredTarget { index: 0 },
+                            }),
+                        }),
+                    });
+                }
+            }
+
             let characteristics = Characteristics {
                 name: spec.name,
                 mana_cost: spec.mana_cost,
@@ -342,10 +381,10 @@ impl GameStateBuilder {
                 subtypes: spec.subtypes.into_iter().collect(),
                 rules_text: String::new(),
                 abilities: Vector::new(),
-                keywords: spec.keywords.into_iter().collect(),
+                keywords: spec_keywords,
                 mana_abilities: spec.mana_abilities.into_iter().collect(),
                 activated_abilities: spec.activated_abilities.into_iter().collect(),
-                triggered_abilities: spec.triggered_abilities.into_iter().collect(),
+                triggered_abilities,
                 power: spec.power,
                 toughness: spec.toughness,
                 loyalty: spec.loyalty,

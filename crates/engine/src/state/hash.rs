@@ -284,7 +284,10 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Shroud => 18u8.hash_into(hasher),
             KeywordAbility::Trample => 19u8.hash_into(hasher),
             KeywordAbility::Vigilance => 20u8.hash_into(hasher),
-            KeywordAbility::Ward => 21u8.hash_into(hasher),
+            KeywordAbility::Ward(cost) => {
+                21u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
             KeywordAbility::Partner => 22u8.hash_into(hasher),
             KeywordAbility::NoMaxHandSize => 23u8.hash_into(hasher),
             KeywordAbility::CantBeBlocked => 24u8.hash_into(hasher),
@@ -839,6 +842,8 @@ impl HashInto for PendingTrigger {
         self.triggering_event.hash_into(hasher);
         // M9.4 fix session 3: entering_object_id — used by ArtifactOrCreatureETB filter
         self.entering_object_id.hash_into(hasher);
+        // CR 702.21a: targeting_stack_id — the stack object Ward will counter
+        self.targeting_stack_id.hash_into(hasher);
     }
 }
 
@@ -867,6 +872,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfBecomesTapped => 3u8.hash_into(hasher),
             TriggerEvent::SelfAttacks => 4u8.hash_into(hasher),
             TriggerEvent::SelfBlocks => 5u8.hash_into(hasher),
+            // CR 702.21a: Ward trigger — discriminant 6
+            TriggerEvent::SelfBecomesTargetByOpponent => 6u8.hash_into(hasher),
         }
     }
 }
@@ -1561,6 +1568,17 @@ impl HashInto for GameEvent {
                 68u8.hash_into(hasher);
                 description.hash_into(hasher);
             }
+            // CR 702.21a: PermanentTargeted (discriminant 69) — drives Ward triggers
+            GameEvent::PermanentTargeted {
+                target_id,
+                targeting_stack_id,
+                targeting_controller,
+            } => {
+                69u8.hash_into(hasher);
+                target_id.hash_into(hasher);
+                targeting_stack_id.hash_into(hasher);
+                targeting_controller.hash_into(hasher);
+            }
         }
     }
 }
@@ -1812,6 +1830,8 @@ impl HashInto for TriggerCondition {
             }
             TriggerCondition::WheneverYouGainLife => 15u8.hash_into(hasher),
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
+            // CR 702.21a: Ward trigger condition — discriminant 17
+            TriggerCondition::WhenBecomesTargetByOpponent => 17u8.hash_into(hasher),
         }
     }
 }

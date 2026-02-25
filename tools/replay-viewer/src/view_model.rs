@@ -582,7 +582,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Shroud => "Shroud".to_string(),
         KeywordAbility::Trample => "Trample".to_string(),
         KeywordAbility::Vigilance => "Vigilance".to_string(),
-        KeywordAbility::Ward => "Ward".to_string(),
+        KeywordAbility::Ward(n) => format!("Ward {{{n}}}"),
         KeywordAbility::Partner => "Partner".to_string(),
         KeywordAbility::NoMaxHandSize => "No Maximum Hand Size".to_string(),
         KeywordAbility::CantBeBlocked => "Can't Be Blocked".to_string(),

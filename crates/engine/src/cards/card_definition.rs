@@ -503,6 +503,9 @@ pub enum TriggerCondition {
     WheneverYouGainLife,
     /// "Whenever you draw a card."
     WheneverYouDrawACard,
+    /// CR 702.21a: "Whenever this permanent becomes the target of a spell or ability
+    /// an opponent controls." Used by the Ward keyword.
+    WhenBecomesTargetByOpponent,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────

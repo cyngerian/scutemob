@@ -594,6 +594,20 @@ pub enum GameEvent {
         controller: PlayerId,
     },
 
+    // ── Ward targeting events (CR 702.21a) ───────────────────────────────
+    /// A battlefield permanent became the target of a spell or ability (CR 702.21a).
+    ///
+    /// Emitted after a spell is cast or ability activated with targets. Used to
+    /// fire Ward triggered abilities. `target_id` is the ObjectId of the targeted
+    /// permanent. `targeting_stack_id` is the ObjectId of the stack object (spell
+    /// or ability) that is targeting it. `targeting_controller` is the player
+    /// who controls the targeting spell or ability.
+    PermanentTargeted {
+        target_id: ObjectId,
+        targeting_stack_id: ObjectId,
+        targeting_controller: PlayerId,
+    },
+
     // ── M9.4: Infinite loop detection (CR 104.4b) ────────────────────────
     /// The engine detected a mandatory infinite loop and the game is a draw.
     ///

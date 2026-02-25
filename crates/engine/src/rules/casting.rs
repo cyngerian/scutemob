@@ -189,6 +189,22 @@ pub fn handle_cast_spell(
 
     // CR 601.2: Create the StackObject and push it (LIFO — last in, first out).
     let stack_entry_id = state.next_object_id();
+
+    // CR 702.21a: Collect battlefield object targets before moving spell_targets into
+    // the stack object. These are used to emit PermanentTargeted events for Ward.
+    let battlefield_targets: Vec<ObjectId> = spell_targets
+        .iter()
+        .filter_map(|st| {
+            if let Target::Object(id) = st.target {
+                // Only objects that were on the battlefield at cast time trigger ward.
+                if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) {
+                    return Some(id);
+                }
+            }
+            None
+        })
+        .collect();
+
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
@@ -226,6 +242,18 @@ pub fn handle_cast_spell(
         stack_object_id: stack_entry_id,
         source_object_id: new_card_id,
     });
+
+    // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
+    // spell targets. These events drive Ward trigger checks in check_triggers.
+    // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
+    // effect can locate it via direct stack ID match (so.id == id).
+    for target_id in battlefield_targets {
+        events.push(GameEvent::PermanentTargeted {
+            target_id,
+            targeting_stack_id: stack_entry_id,
+            targeting_controller: player,
+        });
+    }
 
     // CR 702.40a: Track spells cast this turn for storm count.
     // Increment after the spell enters the stack (it is now a spell cast this turn).

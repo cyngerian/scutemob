@@ -111,6 +111,10 @@ pub enum TriggerEvent {
     SelfAttacks,
     /// Triggers when this creature blocks (CR 603.5, CR 509.1).
     SelfBlocks,
+    /// CR 702.21a: Triggers when this permanent becomes the target of a spell or
+    /// ability controlled by an opponent. Used exclusively by the Ward keyword.
+    /// The opponent check is done at trigger-collection time in `rules/abilities.rs`.
+    SelfBecomesTargetByOpponent,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

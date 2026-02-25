@@ -508,12 +508,15 @@ fn execute_effect_inner(
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
-                    // Find the stack object by source ObjectId.
+                    // CR 702.21a: Find the stack object by direct ID match (for Ward
+                    // triggers that pass the stack object's own ID as their target) OR
+                    // by source_object match (for traditional CounterSpell usage).
                     let pos = state
                         .stack_objects
                         .iter()
                         .position(|so| {
-                            matches!(&so.kind, crate::state::stack::StackObjectKind::Spell { source_object } if *source_object == id)
+                            so.id == id
+                                || matches!(&so.kind, crate::state::stack::StackObjectKind::Spell { source_object } if *source_object == id)
                         });
                     if let Some(pos) = pos {
                         // CR 101.6: If the spell can't be countered, the CounterSpell
@@ -523,22 +526,42 @@ fn execute_effect_inner(
                         }
                         let stack_obj = state.stack_objects.remove(pos);
                         let controller = stack_obj.controller;
-                        if let crate::state::stack::StackObjectKind::Spell { source_object } =
-                            stack_obj.kind
-                        {
-                            let owner = state
-                                .objects
-                                .get(&source_object)
-                                .map(|o| o.owner)
-                                .unwrap_or(controller);
-                            if let Ok((new_id, _)) =
-                                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
-                            {
+                        match stack_obj.kind {
+                            crate::state::stack::StackObjectKind::Spell { source_object } => {
+                                let owner = state
+                                    .objects
+                                    .get(&source_object)
+                                    .map(|o| o.owner)
+                                    .unwrap_or(controller);
+                                if let Ok((new_id, _)) = state
+                                    .move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                                {
+                                    events.push(GameEvent::SpellCountered {
+                                        player: controller,
+                                        stack_object_id: stack_obj.id,
+                                        source_object_id: new_id,
+                                    });
+                                }
+                            }
+                            crate::state::stack::StackObjectKind::ActivatedAbility {
+                                source_object,
+                                ..
+                            }
+                            | crate::state::stack::StackObjectKind::TriggeredAbility {
+                                source_object,
+                                ..
+                            } => {
+                                // CR 701.5: Countering an ability removes it from the stack.
+                                // Unlike spells, the source stays in its current zone.
                                 events.push(GameEvent::SpellCountered {
                                     player: controller,
                                     stack_object_id: stack_obj.id,
-                                    source_object_id: new_id,
+                                    source_object_id: source_object,
                                 });
+                            }
+                            _ => {
+                                // Other stack object kinds (StormTrigger, etc.) are not
+                                // currently counterable via ward.
                             }
                         }
                     }
@@ -1030,7 +1053,12 @@ fn resolve_effect_target_list_indexed(
                     ..
                 }) => {
                     // Only return if the target object still exists (partial fizzle skip).
-                    if state.objects.contains_key(id) {
+                    // CR 702.21a: Also accept IDs that refer to stack objects (e.g., the
+                    // stack object representing the spell or ability Ward is countering).
+                    // Stack entries are NOT in state.objects, but CounterSpell handles them.
+                    let exists_in_objects = state.objects.contains_key(id);
+                    let exists_on_stack = state.stack_objects.iter().any(|so| so.id == *id);
+                    if exists_in_objects || exists_on_stack {
                         vec![(Some(idx), ResolvedTarget::Object(*id))]
                     } else {
                         vec![]
@@ -1159,12 +1187,24 @@ fn resolve_player_target_list(
         }
         PlayerTarget::ControllerOf(effect_target) => {
             // Find the controller of the specified object.
+            // CR 702.21a: The target may be a stack object (e.g., the spell or ability that
+            // triggered ward). Check state.objects first (battlefield/graveyard/etc.), then
+            // fall back to state.stack_objects for spells/abilities still on the stack.
             let targets = resolve_effect_target_list(state, effect_target, ctx);
             targets
                 .into_iter()
                 .filter_map(|t| {
                     if let ResolvedTarget::Object(id) = t {
-                        state.objects.get(&id).map(|obj| obj.controller)
+                        // Check battlefield objects first.
+                        if let Some(obj) = state.objects.get(&id) {
+                            return Some(obj.controller);
+                        }
+                        // Fall back to stack objects (e.g., targeting spell for ward).
+                        state
+                            .stack_objects
+                            .iter()
+                            .find(|so| so.id == id)
+                            .map(|so| so.controller)
                     } else {
                         None
                     }

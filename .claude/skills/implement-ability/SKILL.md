@@ -94,7 +94,7 @@ Task tool:
 After the runner completes:
 - Read `memory/ability-wip.md` to confirm steps 1-4 are checked off
 - Update `phase: review`
-- Report: "Implementation complete. Run `/implement-ability` to start review."
+- **Continue immediately to Phase: review** (do not stop and report).
 
 ### Phase: review
 
@@ -109,16 +109,15 @@ Task tool:
 
 After the reviewer completes:
 - Read `memory/ability-review-<name>.md`
-- Check the verdict:
-  - If `needs-fix`: update `phase: fix` in `ability-wip.md`
-  - If `clean`: update `phase: card` in `ability-wip.md`
 - Add review reference to `ability-wip.md`:
   ```
   ## Review
   findings: <count>
   review_file: memory/ability-review-<name>.md
   ```
-- Report verdict and findings summary.
+- Check the verdict:
+  - If `needs-fix`: update `phase: fix`, **continue immediately to Phase: fix** (do not stop).
+  - If `clean`: update `phase: card` and stop. Report implementation + review summary.
 
 ### Phase: fix
 
@@ -132,10 +131,9 @@ Task tool:
 ```
 
 After the runner completes:
-- Update `phase: review` in `ability-wip.md` (triggers re-review next invocation)
-- Report: "Fixes applied. Run `/implement-ability` to re-review."
-
-Note: If a re-review comes back `clean`, the review phase handler will advance to `card`.
+- Update `phase: card` in `ability-wip.md`
+- Stop and report: implementation summary, review findings, and what was fixed.
+- User runs `/implement-ability` to continue to card phase.
 
 ### Phase: card
 
@@ -206,8 +204,12 @@ Task tool:
 ## Important Notes
 
 - **One ability at a time.** The WIP file tracks a single ability.
-- **Each phase is one `/implement-ability` invocation.** The skill advances one phase per
-  run, allowing the user to review between phases.
+- **Auto-chained phases**: implement → review → fix run in a single invocation without
+  stopping. The chain ends after fix (advancing to `card`) so the user can review what
+  was built before continuing. Plan, card, script, and close each require a separate
+  invocation.
+- **No re-review after fix.** The runner runs `cargo test` after each fix — that is the
+  safety net. A second Opus review pass is not worth the cost for mechanical fixes.
 - **The planner and reviewer use Opus.** The runner uses Sonnet. This mirrors the milestone
   workflow's proven Plan (Opus) → Implement (Sonnet) → Review (Opus) → Fix (Sonnet) cycle.
 - **Existing agents are reused.** `card-definition-author`, `game-script-generator`, and

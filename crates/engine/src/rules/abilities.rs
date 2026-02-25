@@ -213,6 +213,21 @@ pub fn handle_activate_ability(
 
     // Push the activated ability onto the stack.
     let stack_id = state.next_object_id();
+
+    // CR 702.21a: Collect battlefield object targets before moving spell_targets into
+    // the stack object. These are used to emit PermanentTargeted events for Ward.
+    let battlefield_targets: Vec<ObjectId> = spell_targets
+        .iter()
+        .filter_map(|st| {
+            if let Target::Object(id) = st.target {
+                if matches!(st.zone_at_cast, Some(ZoneId::Battlefield)) {
+                    return Some(id);
+                }
+            }
+            None
+        })
+        .collect();
+
     let stack_obj = StackObject {
         id: stack_id,
         controller: player,
@@ -237,6 +252,19 @@ pub fn handle_activate_ability(
         source_object_id: source,
         stack_object_id: stack_id,
     });
+
+    // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
+    // activated ability targets. These events drive Ward trigger checks in check_triggers.
+    // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
+    // effect can locate it via direct stack ID match (so.id == id).
+    for target_id in battlefield_targets {
+        events.push(GameEvent::PermanentTargeted {
+            target_id,
+            targeting_stack_id: stack_id,
+            targeting_controller: player,
+        });
+    }
+
     events.push(GameEvent::PriorityGiven { player: active });
 
     Ok(events)
@@ -331,6 +359,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
+            GameEvent::PermanentTargeted {
+                target_id,
+                targeting_stack_id,
+                targeting_controller,
+            } => {
+                // CR 702.21a: Ward triggers when this permanent becomes the target
+                // of a spell or ability an opponent controls. Only triggers if the
+                // targeting player is an opponent (not the permanent's controller).
+                if let Some(obj) = state.objects.get(target_id) {
+                    if obj.zone == ZoneId::Battlefield && obj.controller != *targeting_controller {
+                        let pre_len = triggers.len();
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::SelfBecomesTargetByOpponent,
+                            Some(*target_id),
+                            None,
+                        );
+                        // Tag ward triggers with the targeting stack object ID so
+                        // flush_pending_triggers can set the correct target on the
+                        // ward triggered ability's stack entry (for CounterSpell resolution).
+                        for t in &mut triggers[pre_len..] {
+                            t.targeting_stack_id = Some(*targeting_stack_id);
+                        }
+                    }
+                }
+            }
+
             _ => {}
         }
     }
@@ -391,6 +447,7 @@ fn collect_triggers_for_event(
                 controller: obj.controller,
                 triggering_event: Some(event_type.clone()),
                 entering_object_id: entering_object,
+                targeting_stack_id: None,
             });
         }
     }
@@ -453,6 +510,18 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // Compute how many times this trigger fires (1 base + additional from doublers).
         let additional_count = compute_trigger_doubling(state, &trigger);
 
+        // CR 702.21a: For Ward triggers, the targeting stack object ID is carried
+        // through PendingTrigger.targeting_stack_id. Set it as the triggered
+        // ability's target so CounterSpell resolution can find the right stack entry.
+        let trigger_targets: Vec<SpellTarget> = if let Some(tsid) = trigger.targeting_stack_id {
+            vec![SpellTarget {
+                target: Target::Object(tsid),
+                zone_at_cast: None,
+            }]
+        } else {
+            vec![]
+        };
+
         // Push the triggered ability onto the stack (1 + additional_count) times.
         for _ in 0..=(additional_count) {
             let stack_id = state.next_object_id();
@@ -463,7 +532,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
                 },
-                targets: vec![],
+                targets: trigger_targets.clone(),
                 cant_be_countered: false,
                 is_copy: false,
             };

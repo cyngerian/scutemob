@@ -46,6 +46,14 @@ pub struct PendingTrigger {
     /// `None` for triggers that are not caused by a specific permanent entering.
     #[serde(default)]
     pub entering_object_id: Option<ObjectId>,
+    /// CR 702.21a: The stack object that targeted this permanent (for Ward).
+    ///
+    /// Populated when a `SelfBecomesTargetByOpponent` trigger fires. At flush
+    /// time, this ID is used to set the Ward triggered ability's target so the
+    /// resolution can counter the correct spell or ability. `None` for all
+    /// other trigger types.
+    #[serde(default)]
+    pub targeting_stack_id: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

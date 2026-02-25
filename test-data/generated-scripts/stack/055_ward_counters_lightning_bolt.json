@@ -1,0 +1,194 @@
+{
+  "initial_state": {
+    "active_player": "p2",
+    "continuous_effects": [],
+    "format": "commander",
+    "phase": "precombat_main",
+    "players": {
+      "p1": {
+        "commander": null,
+        "commander_damage_received": {},
+        "land_plays_remaining": 0,
+        "life": 40,
+        "mana_pool": {},
+        "partner_commander": null,
+        "poison_counters": 0
+      },
+      "p2": {
+        "commander": null,
+        "commander_damage_received": {},
+        "land_plays_remaining": 0,
+        "life": 40,
+        "mana_pool": {
+          "red": 1
+        },
+        "partner_commander": null,
+        "poison_counters": 0
+      }
+    },
+    "priority": "p2",
+    "step": null,
+    "turn_number": 4,
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Adrix and Nev, Twincasters",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "command_zone": {},
+      "exile": [],
+      "graveyard": {},
+      "hand": {
+        "p2": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "library": {},
+      "stack": []
+    }
+  },
+  "metadata": {
+    "confidence": "high",
+    "corner_case_ref": null,
+    "cr_sections_tested": [
+      "702.21a",
+      "603.3",
+      "117.4",
+      "608.2b",
+      "601.2"
+    ],
+    "description": "p1 controls Adrix and Nev, Twincasters (Ward {2}) on the battlefield. p2 casts Lightning Bolt targeting Adrix and Nev. Per CR 702.21a, Ward triggers and is placed on the stack above Lightning Bolt. Both players pass priority. The ward trigger resolves first (LIFO): in the deterministic engine, MayPayOrElse always fires the or_else branch, so Lightning Bolt is countered unless p2 pays {2}. p2 does not pay, so Lightning Bolt is countered and moved to p2's graveyard. Adrix and Nev survives on the battlefield.",
+    "disputes": [],
+    "generation_notes": "CR 702.21a: Ward {2} is a triggered ability. 'Whenever this permanent becomes the target of a spell or ability an opponent controls, counter that spell or ability unless that player pays {2}.' When p2 casts Lightning Bolt targeting Adrix and Nev (controlled by p1), ward triggers. Per CR 603.3, the triggered ability goes on the stack the next time a player would receive priority — immediately after the cast, so the ward trigger is placed on top of Lightning Bolt. Stack order: ward trigger (top) → Lightning Bolt (bottom). Per CR 117.4, both players pass in succession → top of stack (ward trigger) resolves. In the deterministic engine, MayPayOrElse always executes the or_else branch (the interactive payment choice is deferred to M10+), so ward always counters in these tests. Effect::CounterSpell targets Lightning Bolt's stack object ID. CR 608.2b: the countered spell is placed into its owner's (p2's) graveyard. After resolution, stack is empty; Adrix and Nev remains on p1's battlefield; Lightning Bolt is in p2's graveyard. Priority context: p2 is the active player (turn 4). After p2 casts Lightning Bolt, p2 retains priority per CR 117.3c, then passes. p1 passes. Ward trigger is already on the stack (placed before players get to act on it) and resolves when both pass.",
+    "id": "script_stack_055",
+    "name": "Ward {2} counters Lightning Bolt targeting Adrix and Nev",
+    "review_date": "2026-02-25",
+    "review_status": "approved",
+    "reviewed_by": "stepper",
+    "tags": [
+      "ward",
+      "triggered-ability",
+      "counter-spell",
+      "lightning-bolt",
+      "adrix-and-nev",
+      "protection"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "script": [
+    {
+      "actions": [
+        {
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Adrix and Nev, Twincasters"
+                }
+              ]
+            },
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "description": "Initial: Adrix and Nev on p1's battlefield, Lightning Bolt in p2's hand, stack empty",
+          "note": null,
+          "type": "assert_state"
+        },
+        {
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "cr_ref": "601.2",
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "note": "CR 601.2: p2 casts Lightning Bolt targeting Adrix and Nev, Twincasters (controlled by p1). {R} paid. This causes ward to trigger per CR 702.21a — Adrix and Nev became the target of an opponent-controlled spell.",
+          "player": "p2",
+          "targets": [
+            {
+              "card": "Adrix and Nev, Twincasters",
+              "controller": "p1",
+              "player": null,
+              "type": "permanent"
+            }
+          ],
+          "type": "player_action"
+        },
+        {
+          "assertions": {
+            "zones.hand.p2.count": 0,
+            "zones.stack.count": 2
+          },
+          "description": "After cast: Lightning Bolt on stack, ward trigger also on stack (above Lightning Bolt), p2 hand empty",
+          "note": "CR 603.3: Ward trigger was placed on the stack before p2 receives priority after casting. Stack has 2 objects: ward trigger (top) and Lightning Bolt (bottom).",
+          "type": "assert_state"
+        },
+        {
+          "note": "CR 117.4: Both players pass in succession — ward trigger (top of stack, LIFO) resolves first.",
+          "players": [
+            "p2",
+            "p1"
+          ],
+          "result": "all_pass",
+          "type": "priority_round"
+        },
+        {
+          "note": "CR 702.21a: Ward {2} trigger resolves. MayPayOrElse always fires or_else in the deterministic engine — Lightning Bolt is countered. CR 608.2b: countered spells go to their owner's graveyard.",
+          "object": "Ward trigger",
+          "resolution": [
+            {
+              "amount": null,
+              "card": "Lightning Bolt",
+              "cr_ref": "608.2b",
+              "effect": "counter_spell",
+              "note": "CR 702.21a + 608.2b: Ward trigger resolves. p2 does not pay {2}, so Lightning Bolt is countered and placed into p2's graveyard (its owner's graveyard).",
+              "owner": "p2",
+              "target": {
+                "card": "Lightning Bolt",
+                "type": "spell"
+              }
+            }
+          ],
+          "type": "stack_resolve"
+        },
+        {
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Adrix and Nev, Twincasters"
+                }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "description": "Final: Adrix and Nev still on p1's battlefield, Lightning Bolt in p2's graveyard, stack empty",
+          "note": "Ward protected Adrix and Nev. Lightning Bolt never resolved so Adrix and Nev took no damage. Lightning Bolt is in p2's graveyard as the owner.",
+          "type": "assert_state"
+        }
+      ],
+      "step": "precombat_main",
+      "step_note": "p2 casts Lightning Bolt targeting Adrix and Nev. Ward {2} triggers and is placed above Lightning Bolt on the stack. Both players pass priority. Ward trigger resolves first, countering Lightning Bolt. Adrix and Nev survives."
+    }
+  ]
+}

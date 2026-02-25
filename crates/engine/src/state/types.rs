@@ -125,7 +125,14 @@ pub enum KeywordAbility {
     Shroud,
     Trample,
     Vigilance,
-    Ward,
+    /// CR 702.21a: Ward [cost] — "Whenever this permanent becomes the target of a spell
+    /// or ability an opponent controls, counter that spell or ability unless that player
+    /// pays [cost]."
+    ///
+    /// Implemented as a triggered ability that generates a TriggeredAbilityDef at
+    /// object-construction time (see `state/builder.rs` Ward->trigger translation).
+    /// The `u32` encodes the generic mana cost (ward {N}).
+    Ward(u32),
     /// CR 702.124: Partner keyword — allows two legendary creatures to serve as
     /// commanders together. Both commanders must have partner.
     Partner,
