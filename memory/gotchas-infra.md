@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: Engine Core Complete checkpoint (2026-02-23)
+# Infra & Testing Gotchas — Last verified: M9.5 post-fix (2026-02-24)
 
 ## Rust / im-rs Gotchas
 
@@ -71,6 +71,23 @@
 - **`CardEffectTarget` is the re-exported name** for `cards::EffectTarget` in `lib.rs`. Tests must
   use `mtg_engine::CardEffectTarget`, not `mtg_engine::EffectTarget` (which doesn't exist at root).
 
+## Activated Ability Harness Gotchas (M9.5+)
+
+- **`ability_index` is 0-indexed into non-mana `activated_abilities` only.** Mana abilities
+  (Cost::Tap + Effect::AddMana pairs) are filtered out by `enrich_spec_from_def`. Mind Stone's
+  `{1},{T},Sacrifice: Draw a card` lands at `activated_abilities[0]`. Scripts use `ability_index: 0`.
+- **Sacrifice-as-cost: source leaves battlefield at activation time (CR 602.2c).** The effect is
+  captured as `embedded_effect: Option<Box<Effect>>` before any costs are paid. Resolution uses
+  `embedded_effect.as_deref().cloned()` because the source may no longer be in `state.objects`.
+  After activation, assert source in graveyard; do NOT assert `zones.battlefield` still has it.
+- **After `move_object_to_zone`, the original `ObjectId` is dead (CR 400.7).** Tests that verify
+  the destination must search by name: `state.objects.values().any(|o| o.characteristics.name == "X"
+  && matches!(o.zone, ZoneId::Graveyard(_)))`. Using the old `ObjectId` returns `None`.
+- **`large_enum_variant` clippy error**: Adding `Option<Effect>` to a stack object variant hits
+  clippy's size threshold. Fix: box it (`Option<Box<Effect>>`). Access with `.as_deref().cloned()`.
+- **DrawCards on empty library is silently a no-op.** If a sacrifice-draw script asserts
+  `zones.hand.p1.count: 1` after resolution, the library must have at least 1 card in initial_state.
+
 ## Script Harness Gotchas
 
 - **`priority_player` field in action scripts must be set correctly** or the harness routes
@@ -113,3 +130,13 @@
 - **CR 510.1c: last blocker gets ALL remaining power (no trample cap).** "Assign minimum
   lethal before moving to next blocker" only applies when subsequent blockers exist. The
   final blocker without trample absorbs all remaining attacker power.
+
+## Replay Viewer / Axum Gotchas (M9.5+)
+
+- **Axum 0.7 path params use `/:n` not `/{n}`** — `/{n}` is axum 0.8+ syntax. Using `/{n}` silently returns 404 for every request to that route.
+- **`ZoneId::Battlefield` and `ZoneId::Exile` are shared zones** (no player ID). To filter by player on the battlefield, check `obj.controller == pid`. Contrast with `ZoneId::Hand(pid)` and `ZoneId::Graveyard(pid)` which are per-player.
+- **`characteristics.name` is `String`, not `Option<String>`.** Use `.map(|o| o.characteristics.name.clone())` not `.filter_map(...)`. The view model's `PermanentView.name` is also `String`.
+- **Axum 0.7 integration tests** need `tower = { version = "0.4", features = ["util"] }` + `http-body-util = "0.1"` as dev-deps. Pattern: `app.oneshot(req).await` then `resp.into_body().collect().await.unwrap().to_bytes()` to read body.
+- **Replay viewer tests run from `tools/replay-viewer/`**, not workspace root. Script paths in tests must be `../../test-data/generated-scripts/...`.
+- **`stack_resolve` script actions are informational only** — no command is sent to the engine. State is identical to the preceding priority-pass step. Real engine events for resolution appear in the priority-pass steps, not the stack_resolve step.
+- **`pending_review` game scripts are unvalidated** — auto-generated scripts often misattribute triggers (ETB vs. death vs. activated) and omit interactive commands (e.g. `SearchLibrary` requires an explicit player command the generator doesn't emit). Use the replay viewer to validate before approving.

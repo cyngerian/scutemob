@@ -11,6 +11,7 @@ use mtg_engine::state::{
     error::GameStateError, ActivatedAbility, ActivationCost, GameStateBuilder, InterveningIf,
     ManaColor, ManaCost, ObjectSpec, PlayerId, StackObjectKind, TriggerEvent, TriggeredAbilityDef,
 };
+use mtg_engine::{Effect, EffectAmount, PlayerTarget};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -22,6 +23,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: None,
+            sacrifice_self: false,
         },
         description: description.to_string(),
         effect: None,
@@ -34,6 +36,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         cost: ActivationCost {
             requires_tap: true,
             mana_cost: Some(mana),
+            sacrifice_self: false,
         },
         description: description.to_string(),
         effect: None,
@@ -864,4 +867,123 @@ fn test_triggered_ability_resolves_after_all_pass() {
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::AbilityResolved { controller, .. } if *controller == p1)));
+}
+
+// ---------------------------------------------------------------------------
+// Sacrifice-as-cost
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 602.2c — sacrifice is paid at activation time; source leaves the battlefield
+/// before the ability is placed on the stack. At resolution, the embedded_effect
+/// is used because the source no longer exists.
+///
+/// Full flow: sacrifice-cost artifact → stack → all pass → resolve → draw card.
+fn test_sacrifice_as_cost_full_flow_draw_card() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+
+    // Artifact with "Sacrifice this: draw a card." — no tap or mana cost, sacrifice only.
+    let draw_effect = Effect::DrawCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(1),
+    };
+    let artifact = ObjectSpec::artifact(p1, "Jar of Eyeballs (stub)")
+        .with_activated_ability(ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: false,
+                mana_cost: None,
+                sacrifice_self: true,
+            },
+            description: "Sacrifice: Draw a card.".into(),
+            effect: Some(draw_effect),
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    // Add a card to p1's library so there's something to draw.
+    let library_card = ObjectSpec::creature(p1, "Grizzly Bears", 2, 2)
+        .in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(artifact)
+        .object(library_card)
+        .build()
+        .unwrap();
+
+    // Find the artifact on the battlefield.
+    let source_id = *state
+        .zones
+        .get(&ZoneId::Battlefield)
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    // Activate the ability — sacrifice cost is paid immediately.
+    let (state, events) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: source_id,
+            ability_index: 0,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // Source is now in p1's graveyard (sacrifice paid at activation time, CR 602.2).
+    // Per CR 400.7, the object gets a new ObjectId when it changes zones — look up by name.
+    let in_graveyard = state.objects.values().any(|o| {
+        o.characteristics.name == "Jar of Eyeballs (stub)"
+            && matches!(o.zone, ZoneId::Graveyard(_))
+    });
+    assert!(in_graveyard, "sacrificed source should be in graveyard immediately after activation");
+
+    // PermanentDestroyed (non-creature sacrifice) emitted.
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::PermanentDestroyed { object_id, .. } if *object_id == source_id
+        )),
+        "PermanentDestroyed event expected for non-creature sacrifice"
+    );
+
+    // Ability is on the stack with embedded_effect.
+    assert_eq!(state.stack_objects.len(), 1);
+    assert!(matches!(
+        state.stack_objects[0].kind,
+        StackObjectKind::ActivatedAbility { .. }
+    ));
+
+    // Record hand size before resolution.
+    let hand_before = state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .map(|z| z.object_ids().len())
+        .unwrap_or(0);
+
+    // All four players pass priority → ability resolves.
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p3 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p4 }).unwrap();
+
+    // Stack is empty after resolution.
+    assert!(state.stack_objects.is_empty(), "stack should be empty after ability resolves");
+
+    // Player 1 drew a card: hand size increased by 1.
+    let hand_after = state
+        .zones
+        .get(&ZoneId::Hand(p1))
+        .map(|z| z.object_ids().len())
+        .unwrap_or(0);
+    assert_eq!(
+        hand_after,
+        hand_before + 1,
+        "player 1 should have drawn one card from the sacrifice ability"
+    );
 }

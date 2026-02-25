@@ -201,6 +201,10 @@ pub enum ScriptAction {
         mana_paid: Option<HashMap<String, u32>>,
         #[serde(default)]
         mana_source: Vec<ManaSource>,
+        /// 0-based index into `characteristics.activated_abilities` (non-mana only).
+        /// Required for `activate_ability` actions. Defaults to 0.
+        #[serde(default)]
+        ability_index: u32,
         cr_ref: Option<String>,
         note: Option<String>,
     },

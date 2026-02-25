@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 use im::OrdMap;
 
-use crate::state::CounterType;
+use crate::state::{ActivatedAbility, ActivationCost, CounterType};
 use crate::testing::script_schema::{ActionTarget, InitialState};
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
@@ -190,6 +190,7 @@ pub fn translate_player_action(
     action: &str,
     player: PlayerId,
     card_name: Option<&str>,
+    ability_index: usize,
     targets: &[ActionTarget],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
@@ -222,6 +223,17 @@ pub fn translate_player_action(
                 player,
                 source: source_id,
                 ability_index: 0,
+            })
+        }
+
+        "activate_ability" => {
+            let source_id = find_on_battlefield(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::ActivateAbility {
+                player,
+                source: source_id,
+                ability_index,
+                targets: target_list,
             })
         }
 
@@ -369,6 +381,25 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // Populate non-mana activated abilities into characteristics.activated_abilities.
+    // This is required so that Command::ActivateAbility can look up the ability by index.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Activated { cost, effect, .. } = ability {
+            // Skip simple tap-for-mana abilities (already handled above as ManaAbility).
+            let is_simple_tap_mana =
+                matches!(cost, Cost::Tap) && matches!(effect, Effect::AddMana { .. });
+            if !is_simple_tap_mana {
+                let activation_cost = cost_to_activation_cost(cost);
+                let ab = ActivatedAbility {
+                    cost: activation_cost,
+                    description: String::new(),
+                    effect: Some(effect.clone()),
+                };
+                spec = spec.with_activated_ability(ab);
+            }
+        }
+    }
+
     spec
 }
 
@@ -483,6 +514,27 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
         });
     }
     None
+}
+
+/// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.
+///
+/// Handles `Tap`, `Mana`, `Sacrifice`, and `Sequence` (recursively). Unrecognised
+/// cost components (`PayLife`, `DiscardCard`) are silently ignored — they have no
+/// representation in `ActivationCost` yet.
+fn cost_to_activation_cost(cost: &Cost) -> ActivationCost {
+    let mut ac = ActivationCost::default();
+    flatten_cost_into(cost, &mut ac);
+    ac
+}
+
+fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
+    match cost {
+        Cost::Tap => ac.requires_tap = true,
+        Cost::Mana(m) => ac.mana_cost = Some(m.clone()),
+        Cost::Sacrifice(_) => ac.sacrifice_self = true,
+        Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
+        Cost::PayLife(_) | Cost::DiscardCard => {} // no ActivationCost representation yet
+    }
 }
 
 fn parse_mana_color(s: &str) -> Option<ManaColor> {

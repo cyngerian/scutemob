@@ -137,6 +137,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     action,
                     card,
                     targets,
+                    ability_index,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -144,6 +145,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             action.as_str(),
                             pid,
                             card.as_deref(),
+                            *ability_index as usize,
                             targets,
                             &state,
                             &players,

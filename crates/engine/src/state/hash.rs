@@ -846,6 +846,7 @@ impl HashInto for ActivationCost {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.requires_tap.hash_into(hasher);
         self.mana_cost.hash_into(hasher);
+        self.sacrifice_self.hash_into(hasher);
     }
 }
 
@@ -942,10 +943,12 @@ impl HashInto for StackObjectKind {
             StackObjectKind::ActivatedAbility {
                 source_object,
                 ability_index,
+                embedded_effect,
             } => {
                 1u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 ability_index.hash_into(hasher);
+                embedded_effect.is_some().hash_into(hasher);
             }
             StackObjectKind::TriggeredAbility {
                 source_object,

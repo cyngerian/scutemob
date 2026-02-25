@@ -84,12 +84,12 @@ pub fn handle_activate_ability(
         }
     }
 
-    // Clone the cost before mutating state.
-    let ability_cost = {
+    // Clone the cost and capture effect before mutating state.
+    // Effect must be captured now in case sacrifice-as-cost removes the source object.
+    let (ability_cost, embedded_effect) = {
         let obj = state.object(source)?;
-        obj.characteristics.activated_abilities[ability_index]
-            .cost
-            .clone()
+        let ab = &obj.characteristics.activated_abilities[ability_index];
+        (ab.cost.clone(), ab.effect.clone())
     };
 
     let mut events = Vec::new();
@@ -138,6 +138,31 @@ pub fn handle_activate_ability(
             events.push(GameEvent::ManaCostPaid {
                 player,
                 cost: mana_cost.clone(),
+            });
+        }
+    }
+
+    // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
+    if ability_cost.sacrifice_self {
+        let (is_creature, owner) = {
+            let obj = state.object(source)?;
+            (
+                obj.characteristics
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature),
+                obj.owner,
+            )
+        };
+        let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
+        if is_creature {
+            events.push(GameEvent::CreatureDied {
+                object_id: source,
+                new_grave_id: new_id,
+            });
+        } else {
+            events.push(GameEvent::PermanentDestroyed {
+                object_id: source,
+                new_grave_id: new_id,
             });
         }
     }
@@ -194,6 +219,7 @@ pub fn handle_activate_ability(
         kind: StackObjectKind::ActivatedAbility {
             source_object: source,
             ability_index,
+            embedded_effect: embedded_effect.map(Box::new),
         },
         targets: spell_targets,
         cant_be_countered: false,

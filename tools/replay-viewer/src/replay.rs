@@ -198,6 +198,7 @@ impl ReplaySession {
                         action: action_str,
                         card,
                         targets,
+                        ability_index,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -205,6 +206,7 @@ impl ReplaySession {
                                 action_str.as_str(),
                                 pid,
                                 card.as_deref(),
+                                *ability_index as usize,
                                 targets,
                                 &current_state,
                                 &player_map,
@@ -572,7 +574,7 @@ fn check_list_assertion(names: &[String], expected: &serde_json::Value) -> bool 
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .all(|item| card_name(item).map_or(false, |n| names.iter().any(|a| a == &n)))
+                .all(|item| card_name(item).is_some_and(|n| names.iter().any(|a| a == &n)))
         })
         .unwrap_or(true);
 
@@ -581,7 +583,7 @@ fn check_list_assertion(names: &[String], expected: &serde_json::Value) -> bool 
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .all(|item| card_name(item).map_or(true, |n| !names.iter().any(|a| a == &n)))
+                .all(|item| card_name(item).is_none_or(|n| !names.iter().any(|a| a == &n)))
         })
         .unwrap_or(true);
 

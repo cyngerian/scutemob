@@ -64,13 +64,17 @@ impl ManaAbility {
 /// Cost to activate an activated ability (CR 602.2).
 ///
 /// For M3-E, activation costs can include tapping and paying mana.
-/// Future milestones will add sacrificing permanents, paying life, etc.
+/// Sacrifice-as-cost is also supported (CR 602.2c).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActivationCost {
     /// True if activating requires tapping the source (CR 602.2).
     pub requires_tap: bool,
     /// Mana cost component of the activation cost (if any).
     pub mana_cost: Option<ManaCost>,
+    /// True if this ability requires sacrificing the source permanent as a cost.
+    /// CR 602.2: sacrifice is paid at activation time, before the ability is on the stack.
+    #[serde(default)]
+    pub sacrifice_self: bool,
 }
 
 /// A non-mana activated ability that uses the stack (CR 602).

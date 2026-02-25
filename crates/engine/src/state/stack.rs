@@ -62,6 +62,11 @@ pub enum StackObjectKind {
     ActivatedAbility {
         source_object: ObjectId,
         ability_index: usize,
+        /// Effect captured at activation time (CR 602.2). Required when the source
+        /// is sacrificed as a cost and will not exist at resolution time (CR 608.3b).
+        /// Boxed to keep the enum variant size manageable (clippy::large_enum_variant).
+        #[serde(default)]
+        embedded_effect: Option<Box<crate::cards::card_definition::Effect>>,
     },
 
     /// A triggered ability (CR 603).

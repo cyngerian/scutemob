@@ -244,14 +244,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::ActivatedAbility {
             source_object,
             ability_index,
+            embedded_effect,
         } => {
             // CR 608.3b: Activated ability resolves — execute its effect.
-            // Look up the ability from the Characteristics (inline abilities) or registry.
-            let ability_effect = state
-                .objects
-                .get(&source_object)
-                .and_then(|obj| obj.characteristics.activated_abilities.get(ability_index))
-                .and_then(|ab| ab.effect.clone());
+            // Use the embedded_effect captured at activation time (required when the source
+            // was sacrificed as a cost and is no longer in the objects map).
+            // Fall back to live object lookup for non-sacrificed sources.
+            let ability_effect = embedded_effect.as_deref().cloned().or_else(|| {
+                state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|obj| obj.characteristics.activated_abilities.get(ability_index))
+                    .and_then(|ab| ab.effect.clone())
+            });
 
             if let Some(effect) = ability_effect {
                 let mut ctx = EffectContext::new(

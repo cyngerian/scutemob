@@ -169,6 +169,47 @@ Action values: `"cast_spell"`, `"activate_ability"`, `"play_land"`, `"tap_for_ma
 `"declare_attackers"`, `"declare_blockers"`, `"assign_damage"`, `"concede"`,
 `"choose_option"`, `"pass_priority"`
 
+**`activate_ability`** — activate a non-mana activated ability (CR 602):
+```json
+{
+  "type": "player_action",
+  "player": "p1",
+  "action": "activate_ability",
+  "card": "Mind Stone",
+  "ability_index": 0,
+  "targets": [],
+  "mana_paid": { "colorless": 1 },
+  "mana_source": [],
+  "cr_ref": "602.2",
+  "note": "CR 602.2: p1 activates Mind Stone's sacrifice ability."
+}
+```
+
+**`ability_index` rules:**
+- Index 0-based into the card's **non-mana** activated abilities only.
+- Mana abilities (`{T}: Add {X}`) are NOT counted — they use `tap_for_mana` instead.
+- Most cards have exactly one non-mana activated ability → `ability_index: 0`.
+- To determine the index: skip all `AbilityDefinition::Activated` entries whose cost is
+  `Cost::Tap` AND whose effect is `Effect::AddMana`. The remaining activated abilities
+  are numbered 0, 1, 2, … in definition order.
+- Cards with non-mana activated abilities in the engine:
+  - **Mind Stone**: `{1}, {T}, Sacrifice: Draw a card` → index 0
+  - **Commander's Sphere**: `Sacrifice: Draw a card` → index 0
+  - **Hedron Archive**: `{2}, {T}, Sacrifice: Draw two cards` → index 0
+  - **Wayfarer's Bauble**: `{2}, {T}, Sacrifice: Search library for basic land, put it onto battlefield tapped, shuffle` → index 0 (but SearchLibrary needs player command — mark as pending_review with a dispute)
+  - **Evolving Wilds**: `{T}, Sacrifice: Search library for basic land, put onto battlefield tapped, shuffle` → index 0 (same caveat)
+  - **Terramorphic Expanse**: same as Evolving Wilds → index 0 (same caveat)
+  - **Rogue's Passage**: `{4}, {T}: Target creature can't be blocked this turn` → index 0
+
+**Sacrifice-as-cost behavior (CR 602.2c):**
+When a cost includes `Sacrifice`, the source permanent leaves the battlefield **at activation
+time** — before the ability is placed on the stack. This means:
+- After the `player_action`, the source is in the graveyard, NOT on the battlefield.
+- Use `assert_state` after activation to confirm: `"zones.graveyard.p1": { "includes": [{"card": "Mind Stone"}] }` and `"zones.battlefield.p1": { "excludes": [{"card": "Mind Stone"}] }`.
+- The ability still resolves normally using the embedded effect captured at activation time.
+- For the mana pool, use `"colorless": N` to represent generic mana costs (e.g., `{1}` = `{"colorless": 1}`).
+- **Include a card in the player's library** whenever the effect draws cards — otherwise the draw silently does nothing and the assertion will fail.
+
 **`priority_round`** — all players pass priority:
 ```json
 {
