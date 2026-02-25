@@ -53,6 +53,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Network Security Strategy | `docs/mtg-engine-network-security.md` | **Deferred P2P upgrade path** — not the active M10 plan. M10 uses a centralized server. |
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
 | Replay Viewer Design | `docs/mtg-engine-replay-viewer.md` | M9.5 game state stepper: architecture, API, Svelte components, shared-component strategy |
+| Ability Coverage Audit | `docs/mtg-engine-ability-coverage.md` | Keyword and pattern coverage tracking |
 | This file | `CLAUDE.md` | Current project state; session context |
 
 **Read the architecture doc before implementing anything.**
@@ -76,6 +77,8 @@ Before starting work, check which files apply to your task:
 | Writing golden tests | `docs/mtg-engine-game-scripts.md` |
 | Implementing network features (M10+) | `docs/mtg-engine-roadmap.md` M10 section (centralized server); `docs/mtg-engine-network-security.md` only for deferred P2P upgrade |
 | Implementing replay viewer (M9.5) | `docs/mtg-engine-replay-viewer.md` |
+| Implementing a keyword ability | `docs/mtg-engine-ability-coverage.md` |
+| Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.
 
@@ -146,7 +149,7 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 ## Agents
 
-Seven project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
+Eight project-scoped agents in `.claude/agents/` encode milestone workflows (invocation mechanism unverified — run `/agents` to check):
 
 | Agent | Model | Trigger | Purpose |
 |-------|-------|---------|---------|
@@ -157,6 +160,7 @@ Seven project-scoped agents in `.claude/agents/` encode milestone workflows (inv
 | `card-definition-author` | Sonnet | "add card definition for X" | Translate oracle text to CardDefinition DSL |
 | `cr-coverage-auditor` | Sonnet | "check CR coverage for 614" | Audit test/script coverage for CR sections |
 | `game-script-generator` | Sonnet | "generate script for X interaction" | JSON game scripts for replay harness |
+| `ability-coverage-auditor` | Opus | `/audit-abilities` | Scan engine + card defs + scripts → refresh ability coverage doc |
 
 ---
 
