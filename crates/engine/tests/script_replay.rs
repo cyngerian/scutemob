@@ -140,6 +140,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     ability_index,
                     attackers,
                     blockers,
+                    convoke,
+                    delve,
+                    kicked,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -151,6 +154,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             targets,
                             attackers,
                             blockers,
+                            convoke,
+                            delve,
+                            *kicked,
                             &state,
                             &players,
                         );

@@ -868,6 +868,13 @@ pub fn fire_when_enters_triggered_effects(
         return Vec::new();
     };
 
+    // CR 702.33d: Retrieve kicked status from the permanent for ETB trigger context.
+    let kicker_times_paid = state
+        .objects
+        .get(&new_id)
+        .map(|o| o.kicker_times_paid)
+        .unwrap_or(0);
+
     let mut evts = Vec::new();
     for ability in &def.abilities {
         if let AbilityDefinition::Triggered {
@@ -876,7 +883,8 @@ pub fn fire_when_enters_triggered_effects(
             ..
         } = ability
         {
-            let mut ctx = EffectContext::new(controller, new_id, vec![]);
+            let mut ctx =
+                EffectContext::new_with_kicker(controller, new_id, vec![], kicker_times_paid);
             evts.extend(execute_effect(state, effect, &mut ctx));
         }
     }

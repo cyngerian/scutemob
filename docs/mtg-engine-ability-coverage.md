@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-26 (DeclareAttackers+DeclareBlockers validated; AttackerDeclaration/BlockerDeclaration structs, harness action arms, find_on_battlefield_by_name helper, 6 unit tests in combat_harness.rs, scripts combat/015+016)
+> Last audited: 2026-02-26 (Kicker validated; KeywordAbility::Kicker enum + AbilityDefinition::Kicker, Condition::WasKicked, kicker_times_paid on StackObject/GameObject, get_kicker_cost + validation in casting.rs, kicker propagation in resolution.rs, harness kicked:bool, 10 unit tests in kicker.rs, Burst Lightning + Torch Slinger card defs, script stack/065)
 
 ---
 
@@ -31,10 +31,10 @@
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
-| P2       | 17    | 3         | 0        | 0       | 14   | 0   |
+| P2       | 17    | 6         | 0        | 0       | 11   | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **43**   | **2**    | **0**   | **142**| **12** |
+| **Total**| **199**| **46**   | **2**    | **0**   | **139**| **12** |
 
 ---
 
@@ -126,8 +126,8 @@ Keywords that change how mana costs are paid.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Convoke | 702.51 | P2 | `none` | — | — | — | — | Tap creatures to pay mana costs |
-| Delve | 702.66 | P2 | `none` | — | — | — | — | Exile cards from graveyard to pay generic mana |
+| Convoke | 702.51 | P2 | `validated` | `state/types.rs:237`, `state/hash.rs:342`, `rules/command.rs:71`, `rules/casting.rs:499-620`, `rules/engine.rs:74-80`, `testing/replay_harness.rs:220-229`, `testing/script_schema.rs:222` | Siege Wurm | `stack/063` | — | KeywordAbility::Convoke enum; convoke_creatures field on CastSpell command; apply_convoke_reduction validates creatures (battlefield, controlled, untapped, creature type, no duplicates), reduces colored then generic mana, taps creatures, emits PermanentTapped (CR 702.51a/b/d); harness resolves creature names to ObjectIds; 12 unit tests in `tests/convoke.rs`; game script pending_review (all assertions pass) |
+| Delve | 702.66 | P2 | `validated` | `state/types.rs:243`, `state/hash.rs:344`, `rules/command.rs:80`, `rules/casting.rs:278-318,659-714`, `testing/replay_harness.rs:203-236`, `testing/script_schema.rs:223-227` | Treasure Cruise | `stack/064` | — | KeywordAbility::Delve enum; delve_cards field on CastSpell command; apply_delve_reduction validates graveyard membership, no duplicates, count <= generic, exiles cards, emits ObjectExiled (CR 702.66a/b); harness resolves card names from graveyard; 10 unit tests in `tests/delve.rs`; game script pending_review (assertions pass) |
 | Improvise | 702.126 | P3 | `none` | — | — | — | — | Tap artifacts to pay generic mana |
 | Affinity | 702.41 | P3 | `none` | — | — | — | — | Costs {1} less for each [type] you control |
 | Undaunted | 702.124 | P3 | `none` | — | — | — | — | Costs {1} less for each opponent |
@@ -147,7 +147,7 @@ Keywords that modify how spells are cast, copied, or resolved.
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Storm | 702.40 | P1 | `validated` | `rules/casting.rs`, `rules/copy.rs` | Grapeshot (etc.) | `stack/` scripts | — | Copy for each prior spell this turn |
 | Cascade | 702.85 | P1 | `validated` | `rules/casting.rs`, `rules/copy.rs` | Bloodbraid Elf (etc.) | `stack/` scripts | — | Exile until nonland with lesser MV, cast free |
-| Kicker | 702.33 | P2 | `none` | — | — | — | — | Optional additional cost for enhanced effect |
+| Kicker | 702.33 | P2 | `validated` | `state/types.rs:244`, `cards/card_definition.rs:152-166`, `effects/mod.rs:60-91,1744-1745`, `state/stack.rs:58`, `state/game_object.rs:269`, `rules/command.rs:88`, `rules/casting.rs:169-205,393,549-568`, `rules/resolution.rs:149-156,187`, `testing/script_schema.rs:228-232`, `testing/replay_harness.rs:204,238` | Burst Lightning, Torch Slinger | `stack/065` | — | KeywordAbility::Kicker enum + AbilityDefinition::Kicker { cost, is_multikicker }; Condition::WasKicked; kicker_times_paid on StackObject + GameObject; kicker_times on CastSpell; get_kicker_cost + validation/payment in casting.rs; kicker propagation to EffectContext in resolution.rs; harness kicked:bool support; 10 unit tests in `tests/kicker.rs`; game script pending_review (assertions pass) |
 | Overload | 702.96 | P3 | `none` | — | — | — | — | Replace "target" with "each" |
 | Replicate | 702.56 | P4 | `none` | — | — | — | — | Pay replicate cost N times → N copies |
 | Splice | 702.47 | P4 | `none` | — | — | — | — | Reveal from hand, add text to another spell |
@@ -466,12 +466,9 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P2 Gaps (Commander staples)
 
-1. **Convoke** (CR 702.51) — Token decks rely on this; no implementation.
-2. **Delve** (CR 702.66) — Graveyard cost reduction; no implementation.
-3. **Kicker** (CR 702.33) — Very common optional cost; no implementation.
-4. **Split Second** (CR 702.61) — Priority restriction; no implementation.
-5. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
-6. **Crew** (CR 702.122) — Vehicle animation; no implementation.
-7. **Exalted** (CR 702.83) — Voltron staple; no implementation.
+1. **Split Second** (CR 702.61) — Priority restriction; no implementation.
+2. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
+3. **Crew** (CR 702.122) — Vehicle animation; no implementation.
+4. **Exalted** (CR 702.83) — Voltron staple; no implementation.
 
-**Resolved**: Declare attackers/blockers harness action — validated 2026-02-26 (scripts combat/015+016, 6 unit tests in combat_harness.rs). Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll).
+**Resolved**: Declare attackers/blockers harness action — validated 2026-02-26 (scripts combat/015+016, 6 unit tests in combat_harness.rs). Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll). Convoke (CR 702.51) — validated 2026-02-26 (script stack/063, Siege Wurm, 12 unit tests in convoke.rs). Delve (CR 702.66) — validated 2026-02-26 (script stack/064, Treasure Cruise, 10 unit tests in delve.rs). Kicker (CR 702.33) — validated 2026-02-26 (script stack/065, Burst Lightning + Torch Slinger, 10 unit tests in kicker.rs).

@@ -157,6 +157,9 @@ fn test_harness_declare_attackers_basic() {
         &[],
         &decl,
         &[],
+        &[],
+        &[],
+        false,
         &state,
         &players,
     );
@@ -214,6 +217,9 @@ fn test_harness_declare_attackers_empty() {
         &[],
         &[], // empty attackers
         &[],
+        &[],
+        &[],
+        false,
         &state,
         &players,
     );
@@ -309,6 +315,9 @@ fn test_harness_declare_blockers_basic() {
         &[],
         &[],
         &decl,
+        &[],
+        &[],
+        false,
         &state,
         &players,
     );
@@ -374,6 +383,9 @@ fn test_harness_declare_blockers_empty() {
         &[],
         &[],
         &[], // empty blockers
+        &[],
+        &[],
+        false,
         &state,
         &players,
     );
@@ -423,6 +435,9 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],
         &decl_atk,
         &[],
+        &[],
+        &[],
+        false,
         &state,
         &players,
     )
@@ -444,6 +459,9 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],
         &[],
         &[],
+        &[],
+        &[],
+        false,
         &state,
         &players,
     )
@@ -489,6 +507,9 @@ fn test_harness_declare_attackers_default_target() {
         &[],
         &decl,
         &[],
+        &[],
+        &[],
+        false,
         &state,
         &players,
     );

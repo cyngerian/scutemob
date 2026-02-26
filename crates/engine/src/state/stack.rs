@@ -49,6 +49,13 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) — copies are not cast.
     #[serde(default)]
     pub cast_with_flashback: bool,
+    /// CR 702.33d: Number of times the kicker cost was paid when this spell was cast.
+    ///
+    /// 0 = not kicked. 1 = kicked (standard kicker). N = multikicked N times
+    /// (CR 702.33c). Set at cast time and propagated to copies on the stack
+    /// (CR ruling: copies of kicked spells are also kicked).
+    #[serde(default)]
+    pub kicker_times_paid: u32,
 }
 
 /// The kind of object on the stack.

@@ -84,6 +84,9 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -126,6 +129,9 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(land_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -168,6 +174,9 @@ fn test_702_5_enchant_land_targets_land_valid() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(land_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -208,6 +217,9 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .expect("CastSpell should succeed");
@@ -375,6 +387,9 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(creature_id)],
+                convoke_creatures: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
             },
         );
         assert!(
@@ -408,6 +423,9 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 player: p1,
                 card: aura_id,
                 targets: vec![Target::Object(land_id)],
+                convoke_creatures: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
             },
         );
         assert!(
@@ -446,6 +464,9 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             player: p1,
             card: aura_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -491,6 +512,9 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -535,6 +559,9 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             player: p1,
             card: aura_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .expect("CastSpell should succeed");

@@ -184,6 +184,9 @@ fn test_effect_deal_damage_to_player() {
             player: p1,
             card: bolt_card_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -257,6 +260,9 @@ fn test_effect_deal_damage_to_creature() {
             player: p1,
             card: bolt_card_id,
             targets: vec![Target::Object(bear_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -333,6 +339,9 @@ fn test_effect_exile_and_gain_life() {
             player: p1,
             card: stp_id_card,
             targets: vec![Target::Object(angel_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -426,6 +435,9 @@ fn test_effect_draw_cards() {
             player: p1,
             card: div_card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -971,6 +983,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
+        kicker_times_paid: 0,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1089,6 +1102,9 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             player: p2,
             card: shock_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1186,6 +1202,9 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             player: p1,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1284,6 +1303,9 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             player: p3,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1409,6 +1431,9 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             player: p2,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1500,6 +1525,9 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             player: p2,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1615,6 +1643,9 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             player: p2,
             card: shock_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

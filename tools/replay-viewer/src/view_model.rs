@@ -591,5 +591,8 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Flashback => "Flashback".to_string(),
         KeywordAbility::Cycling => "Cycling".to_string(),
         KeywordAbility::Dredge(n) => format!("Dredge {n}"),
+        KeywordAbility::Convoke => "Convoke".to_string(),
+        KeywordAbility::Delve => "Delve".to_string(),
+        KeywordAbility::Kicker => "Kicker".to_string(),
     }
 }

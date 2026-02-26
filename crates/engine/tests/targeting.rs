@@ -66,6 +66,9 @@ fn test_601_2c_targeting_active_player_is_valid() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(result.is_ok(), "targeting an active player should succeed");
@@ -114,6 +117,9 @@ fn test_601_2c_targeting_object_is_valid() {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(result.is_ok());
@@ -155,6 +161,9 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
             player: p1,
             card: card_id,
             targets: vec![Target::Object(bogus_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -211,6 +220,9 @@ fn test_601_2c_targeting_eliminated_player_fails() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)], // p2 is eliminated
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -255,6 +267,9 @@ fn test_608_2b_fizzle_player_target_concedes() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -324,6 +339,9 @@ fn test_608_2b_fizzle_all_targets_illegal() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -413,6 +431,9 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2), Target::Player(p3)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -502,6 +523,9 @@ fn test_601_mana_cost_deducted_on_cast() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -561,6 +585,9 @@ fn test_601_mana_cost_colored_and_generic() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -613,6 +640,9 @@ fn test_601_insufficient_mana_fails() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(result.is_err(), "casting without enough mana should fail");
@@ -669,6 +699,9 @@ fn test_601_generic_paid_from_any_color() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -722,6 +755,9 @@ fn test_601_colorless_requirement_must_use_colorless() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -762,6 +798,9 @@ fn test_601_no_mana_cost_casts_free() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -858,6 +897,9 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
             player: p(1),
             card: doom_card_id,
             targets: vec![Target::Object(black_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -900,6 +942,9 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
             player: p(1),
             card: doom_card_id,
             targets: vec![Target::Object(red_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -986,6 +1031,9 @@ fn test_601_2c_target_creature_rejects_non_creature() {
             player: p1,
             card: doom_card,
             targets: vec![Target::Object(enchantment_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 

@@ -239,6 +239,9 @@ fn test_flashback_basic_cast_from_graveyard() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -328,6 +331,9 @@ fn test_flashback_exile_on_resolution() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -434,6 +440,9 @@ fn test_flashback_exile_on_counter() {
             player: p1,
             card: flashback_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -466,6 +475,9 @@ fn test_flashback_exile_on_counter() {
             player: p2,
             card: counter_id,
             targets: vec![Target::Object(spell_card_on_stack)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -555,6 +567,9 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -611,6 +626,9 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             player: p1,
             card: card_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -683,6 +701,9 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -760,6 +781,9 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -848,6 +872,9 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -919,6 +946,9 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -983,6 +1013,9 @@ fn test_flashback_mana_value_unchanged() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

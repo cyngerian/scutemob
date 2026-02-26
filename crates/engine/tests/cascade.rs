@@ -226,6 +226,9 @@ fn test_cascade_exiles_until_hit() {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -378,6 +381,9 @@ fn test_cascade_skips_lands() {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -532,6 +538,9 @@ fn test_cascade_combined_mana_value_skip() {
             player: p1,
             card: cascade_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

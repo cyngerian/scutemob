@@ -199,6 +199,9 @@ pub fn translate_player_action(
     targets: &[ActionTarget],
     attackers_decl: &[AttackerDeclaration],
     blockers_decl: &[BlockerDeclaration],
+    convoke_names: &[String],
+    delve_names: &[String],
+    kicked: bool,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -216,10 +219,23 @@ pub fn translate_player_action(
         "cast_spell" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players);
+            // CR 702.51: Resolve each convoke creature name to an ObjectId on the battlefield.
+            let convoke_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
+            // CR 702.66: Resolve each delve card name to an ObjectId in the caster's graveyard.
+            let delve_ids: Vec<crate::state::game_object::ObjectId> = delve_names
+                .iter()
+                .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
+                .collect();
             Some(Command::CastSpell {
                 player,
                 card: card_id,
                 targets: target_list,
+                convoke_creatures: convoke_ids,
+                delve_cards: delve_ids,
+                kicker_times: if kicked { 1 } else { 0 },
             })
         }
 
@@ -235,6 +251,9 @@ pub fn translate_player_action(
                 player,
                 card: card_id,
                 targets: target_list,
+                convoke_creatures: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
             })
         }
 

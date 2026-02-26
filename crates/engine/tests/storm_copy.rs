@@ -128,6 +128,9 @@ fn test_storm_creates_copies() {
             player: p1,
             card: storm_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -234,6 +237,9 @@ fn test_storm_copies_resolve_independently() {
             player: p1,
             card: storm_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -350,6 +356,9 @@ fn test_storm_count_resets_each_turn() {
             player: p1,
             card: storm_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -438,6 +447,9 @@ fn test_spell_copy_is_not_cast() {
             player: p1,
             card: storm_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

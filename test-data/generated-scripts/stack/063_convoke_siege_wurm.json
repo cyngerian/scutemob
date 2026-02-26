@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_063",
+    "name": "Convoke: Siege Wurm cast by tapping three distinct mana creatures",
+    "description": "p1 casts Siege Wurm ({5}{G}{G}, 5/5, Convoke, Trample) using the Convoke ability (CR 702.51a). Three distinct green creatures — Llanowar Elves, Elvish Mystic, and Birds of Paradise — are tapped as part of casting to pay for {3} of the generic mana, reducing the mana cost paid from the pool to {2}{G}{G}. After both players pass priority, Siege Wurm resolves and enters the battlefield as a 5/5 with Trample. The script verifies: (1) all three convoke creatures are tapped at cast time, (2) Siege Wurm is on the battlefield after resolution, (3) p1 life is unchanged at 40, and (4) the stack is empty after resolution.",
+    "cr_sections_tested": ["702.51a", "702.51b", "601.2", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["convoke", "stack", "creature", "mana-cost", "siege-wurm"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.51a: Convoke is a static ability that functions while the spell is on the stack. Each creature tapped during casting pays for {1} or one mana of that creature's color. Three distinct creatures are used — Llanowar Elves (green), Elvish Mystic (green), Birds of Paradise (any color) — each paying {1} generic via convoke, covering {3} of the {5} generic cost. The remaining {2}{G}{G} is paid from p1's mana pool sourced from 4 tapped Forests (green:4 in pool). Total cost covered: 3 creatures × {1} = {3} generic + {G}{G}{G}{G} from pool ({G}{G} for the two green pips + {2} for the remaining generic) = {5}{G}{G} total. CR 702.51b: Convoke is not an additional or alternative cost; it applies after the total cost is determined at cast time (CR 601.2). After the cast, the three creatures remain on the battlefield but are tapped. Both players pass priority (CR 116.3). Siege Wurm resolves as a creature spell: it enters the battlefield (CR 608.2) as a 5/5 with Trample. Siege Wurm oracle text confirmed via MCP lookup: {5}{G}{G}, 5/5, Convoke, Trample. Siege Wurm is NOT in the Available Cards list — added via MCP lookup. Llanowar Elves, Elvish Mystic, Birds of Paradise, and Forest are all in the Available Cards list. IMPORTANT HARNESS NOTE: The convoke field uses find_on_battlefield (first-match lookup by name). Using three identical card names (e.g. three 'Llanowar Elves') would resolve all three to the same ObjectId, causing a 'duplicate creature ObjectId in convoke_creatures' error. Using three distinct creature names avoids this limitation entirely.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "green": 4 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": true },
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": true },
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": true },
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": true },
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Elvish Mystic", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Birds of Paradise", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Siege Wurm", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Siege Wurm using Convoke — tapping Llanowar Elves, Elvish Mystic, and Birds of Paradise to cover {3} generic, paying {2}{G}{G} from the mana pool. After both players pass, Siege Wurm resolves and enters the battlefield as a 5/5 with Trample.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: Siege Wurm in p1 hand, three untapped mana creatures on battlefield, p1 has {G}{G}{G}{G} in mana pool",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves", "tapped": false },
+                { "card": "Elvish Mystic", "tapped": false },
+                { "card": "Birds of Paradise", "tapped": false }
+              ]
+            }
+          },
+          "note": "Three distinct creatures are untapped and available to tap for Convoke. Siege Wurm is in hand ready to be cast."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Siege Wurm",
+          "targets": [],
+          "convoke": ["Llanowar Elves", "Elvish Mystic", "Birds of Paradise"],
+          "mana_paid": { "green": 4 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 announces Siege Wurm ({5}{G}{G}). CR 702.51a: Convoke — tapping Llanowar Elves, Elvish Mystic, and Birds of Paradise (each a creature p1 controls) covers {3} generic. Remaining cost {2}{G}{G} paid from mana pool: {G}{G} for the two colored pips, {G}{G} for the two remaining generic mana. Total satisfied: {3} convoke + {4} from pool = {5}{G}{G}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Siege Wurm on stack, hand empty, all three convoke creatures are now tapped",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves", "tapped": true },
+                { "card": "Elvish Mystic", "tapped": true },
+                { "card": "Birds of Paradise", "tapped": true }
+              ]
+            }
+          },
+          "note": "CR 702.51a: All three creatures were tapped as part of paying the Convoke cost. They remain on the battlefield in tapped state. Siege Wurm is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in succession. The stack has one object — Siege Wurm resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Siege Wurm",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "object", "card": "Siege Wurm", "controller": "p1" },
+              "amount": null,
+              "card": "Siege Wurm",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Siege Wurm is a creature spell. On resolution it enters the battlefield under p1's control as a 5/5 with Trample. No ETB triggered abilities on Siege Wurm."
+            }
+          ],
+          "note": "CR 608.2: Creature spell resolves — the permanent enters the battlefield. Siege Wurm is a 5/5 with Trample (CR 702.19a)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Siege Wurm on battlefield as 5/5, stack empty, all three convoke creatures still tapped, p1 life unchanged at 40",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Siege Wurm" },
+                { "card": "Llanowar Elves", "tapped": true },
+                { "card": "Elvish Mystic", "tapped": true },
+                { "card": "Birds of Paradise", "tapped": true }
+              ]
+            },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Siege Wurm entered the battlefield as a 5/5 with Trample. The three convoke creatures remain on the battlefield in tapped state — Convoke taps them as a cost, not as removal. No life was lost; p1 is still at 40."
+        }
+      ]
+    }
+  ]
+}

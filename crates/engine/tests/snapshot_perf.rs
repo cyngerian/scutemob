@@ -125,6 +125,7 @@ fn test_clone_independence_object_modification() {
                 timestamp: 0,
                 has_summoning_sickness: false,
                 goaded_by: im::Vector::new(),
+                kicker_times_paid: 0,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

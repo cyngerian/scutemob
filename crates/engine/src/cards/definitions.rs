@@ -26,7 +26,7 @@ use crate::state::{
 };
 
 use super::card_definition::{
-    AbilityDefinition, CardDefinition, ContinuousEffectDef, Cost, Effect, EffectAmount,
+    AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
     EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TimingRestriction,
     TriggerCondition, TypeLine, ZoneTarget,
 };
@@ -999,7 +999,29 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
-        // 35. Night's Whisper — {1B}, Sorcery; you draw 2 cards and lose 2 life.
+        // 35. Treasure Cruise — {7U}, Sorcery; delve, draw 3 cards.
+        CardDefinition {
+            card_id: cid("treasure-cruise"),
+            name: "Treasure Cruise".to_string(),
+            mana_cost: Some(ManaCost { blue: 1, generic: 7, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Delve),
+                AbilityDefinition::Spell {
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(3),
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 36. Night's Whisper — {1B}, Sorcery; you draw 2 cards and lose 2 life.
         CardDefinition {
             card_id: cid("nights-whisper"),
             name: "Night's Whisper".to_string(),
@@ -1622,6 +1644,21 @@ pub fn all_cards() -> Vec<CardDefinition> {
             }],
         },
 
+        // 60. Siege Wurm — {5GG}, Creature — Wurm 5/5; Convoke. Trample.
+        CardDefinition {
+            card_id: cid("siege-wurm"),
+            name: "Siege Wurm".to_string(),
+            mana_cost: Some(ManaCost { generic: 5, green: 2, ..Default::default() }),
+            types: creature_types(&["Wurm"]),
+            oracle_text: "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nTrample".to_string(),
+            power: Some(5),
+            toughness: Some(5),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Convoke),
+                AbilityDefinition::Keyword(KeywordAbility::Trample),
+            ],
+        },
+
         // ── Replacement-effect cards (M8 Session 6) ──────────────────────────
 
         // 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
@@ -2017,6 +2054,86 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 },
             ],
             ..Default::default()
+        },
+
+        // ── Kicker cards ─────────────────────────────────────────────────────────
+
+        // Burst Lightning {R}
+        // Instant — Kicker {4}
+        // Burst Lightning deals 2 damage to any target. If this spell was kicked,
+        // it deals 4 damage instead.
+        // CR 702.33a: Kicker [cost] — optional additional cost for enhanced effect.
+        // CR 702.33d: "kicked" means the player paid the kicker cost at cast time.
+        CardDefinition {
+            card_id: cid("burst-lightning"),
+            name: "Burst Lightning".to_string(),
+            mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Kicker {4}\nBurst Lightning deals 2 damage to any target. If this spell was kicked, it deals 4 damage instead.".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Kicker),
+                AbilityDefinition::Kicker {
+                    cost: ManaCost { generic: 4, ..Default::default() },
+                    is_multikicker: false,
+                },
+                AbilityDefinition::Spell {
+                    effect: Effect::Conditional {
+                        condition: Condition::WasKicked,
+                        if_true: Box::new(Effect::DealDamage {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(4),
+                        }),
+                        if_false: Box::new(Effect::DealDamage {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(2),
+                        }),
+                    },
+                    targets: vec![TargetRequirement::TargetAny],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // Torch Slinger {2}{R}
+        // Creature — Goblin Shaman, 2/2
+        // Kicker {1}{R}
+        // When Torch Slinger enters, if it was kicked, it deals 2 damage to
+        // target creature an opponent controls.
+        // CR 702.33e: Linked abilities — the ETB trigger is linked to the kicker
+        // and only fires when the permanent was kicked.
+        CardDefinition {
+            card_id: cid("torch-slinger"),
+            name: "Torch Slinger".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                subtypes: [SubType("Goblin".to_string()), SubType("Shaman".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            power: Some(2),
+            toughness: Some(2),
+            oracle_text: "Kicker {1}{R}\nWhen Torch Slinger enters, if it was kicked, it deals 2 damage to target creature.".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Kicker),
+                AbilityDefinition::Kicker {
+                    cost: ManaCost { generic: 1, red: 1, ..Default::default() },
+                    is_multikicker: false,
+                },
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::Conditional {
+                        condition: Condition::WasKicked,
+                        if_true: Box::new(Effect::DealDamage {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(2),
+                        }),
+                        if_false: Box::new(Effect::Sequence(vec![])),
+                    },
+                    intervening_if: None,
+                },
+            ],
         },
 
     ]

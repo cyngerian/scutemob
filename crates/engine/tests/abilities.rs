@@ -526,6 +526,9 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -590,6 +593,9 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -657,6 +663,9 @@ fn test_triggered_ability_apnap_ordering() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -728,6 +737,9 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -782,6 +794,9 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -838,6 +853,9 @@ fn test_triggered_ability_resolves_after_all_pass() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1734,6 +1752,9 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             player: p2,
             card: bolt_id,
             targets: vec![Target::Object(solemn_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

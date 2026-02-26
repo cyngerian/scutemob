@@ -41,11 +41,19 @@ use super::events::GameEvent;
 /// Validates the casting window, validates targets, pays the mana cost, moves
 /// the card to `ZoneId::Stack`, creates a `StackObject`, resets priority to
 /// the active player (CR 601.2i), and returns the events produced.
+///
+/// `convoke_creatures` is a list of creature ObjectIds to tap for convoke cost
+/// reduction (CR 702.51). Pass an empty vec for non-convoke spells.
+/// `delve_cards` is a list of card ObjectIds in the caster's graveyard to exile for
+/// delve cost reduction (CR 702.66). Pass an empty vec for non-delve spells.
 pub fn handle_cast_spell(
     state: &mut GameState,
     player: PlayerId,
     card: ObjectId,
     targets: Vec<Target>,
+    convoke_creatures: Vec<ObjectId>,
+    delve_cards: Vec<ObjectId>,
+    kicker_times: u32,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -158,6 +166,47 @@ pub fn handle_cast_spell(
         base_mana_cost
     };
 
+    // CR 702.33a / 601.2b: If the player declared intention to pay kicker, validate
+    // the spell has kicker and add the kicker cost to the total.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let (kicker_times_paid, kicker_cost_opt) = if kicker_times > 0 {
+        match get_kicker_cost(&card_id, &state.card_registry) {
+            Some((kicker_cost, is_multikicker)) => {
+                // CR 702.33d: Standard kicker can only be paid once.
+                if !is_multikicker && kicker_times > 1 {
+                    return Err(GameStateError::InvalidCommand(
+                        "standard kicker can only be paid once (CR 702.33d)".into(),
+                    ));
+                }
+                (kicker_times, Some(kicker_cost))
+            }
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell does not have kicker".into(),
+                ));
+            }
+        }
+    } else {
+        (0, None)
+    };
+
+    // CR 601.2f: Add kicker cost(s) to the total mana cost.
+    let mana_cost = if let Some(kicker_cost) = kicker_cost_opt {
+        let mut total = mana_cost.unwrap_or_default();
+        for _ in 0..kicker_times_paid {
+            total.white += kicker_cost.white;
+            total.blue += kicker_cost.blue;
+            total.black += kicker_cost.black;
+            total.red += kicker_cost.red;
+            total.green += kicker_cost.green;
+            total.generic += kicker_cost.generic;
+            total.colorless += kicker_cost.colorless;
+        }
+        Some(total)
+    } else {
+        mana_cost
+    };
+
     // Validate casting window.
     if !is_instant_speed {
         // Sorcery speed: active player only, main phase, empty stack (CR 307.1).
@@ -247,6 +296,42 @@ pub fn handle_cast_spell(
         }
     }
 
+    // CR 702.51a / 702.51b: Apply convoke cost reduction AFTER total cost is determined.
+    // Convoke is not an additional or alternative cost — it applies to the total cost.
+    // Order: base_mana_cost → commander_tax → flashback → CONVOKE → DELVE → pay.
+    let mut convoke_events: Vec<GameEvent> = Vec::new();
+    let mana_cost = if !convoke_creatures.is_empty() {
+        if !chars.keywords.contains(&KeywordAbility::Convoke) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have convoke".into(),
+            ));
+        }
+        apply_convoke_reduction(
+            state,
+            player,
+            &convoke_creatures,
+            mana_cost,
+            &mut convoke_events,
+        )?
+    } else {
+        mana_cost
+    };
+
+    // CR 702.66a / 702.66b: Apply delve cost reduction AFTER total cost is determined.
+    // Delve is not an additional or alternative cost — it applies to the total cost.
+    // Order: base_mana_cost → commander_tax → flashback → convoke → DELVE → pay.
+    let mut delve_events: Vec<GameEvent> = Vec::new();
+    let mana_cost = if !delve_cards.is_empty() {
+        if !chars.keywords.contains(&KeywordAbility::Delve) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have delve".into(),
+            ));
+        }
+        apply_delve_reduction(state, player, &delve_cards, mana_cost, &mut delve_events)?
+    } else {
+        mana_cost
+    };
+
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
 
@@ -265,6 +350,14 @@ pub fn handle_cast_spell(
             cost: cost.clone(),
         });
     }
+
+    // CR 702.51a / CR 601.2h: Emit PermanentTapped events for convoke creatures.
+    // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
+    events.extend(convoke_events);
+
+    // CR 702.66a / CR 601.2h: Emit ObjectExiled events for delve cards.
+    // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
+    events.extend(delve_events);
 
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
@@ -297,6 +390,7 @@ pub fn handle_cast_spell(
         cant_be_countered,
         is_copy: false,
         cast_with_flashback: casting_with_flashback,
+        kicker_times_paid,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -368,6 +462,7 @@ pub fn handle_cast_spell(
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,
+            kicker_times_paid: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -401,6 +496,7 @@ pub fn handle_cast_spell(
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,
+            kicker_times_paid: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -448,6 +544,251 @@ fn get_flashback_cost(
             })
         })
     })
+}
+
+/// CR 702.33a: Look up the kicker cost from the card's `AbilityDefinition`.
+///
+/// Returns `Some((ManaCost, is_multikicker))` if the card has a kicker/multikicker
+/// ability, or `None` if it has no kicker.
+fn get_kicker_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(ManaCost, bool)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Kicker {
+                    cost,
+                    is_multikicker,
+                } = a
+                {
+                    Some((cost.clone(), *is_multikicker))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.51a: Validate convoke creatures and compute the reduced mana cost.
+///
+/// For each creature in `convoke_creatures`:
+/// - Must exist in `state.objects` on the battlefield.
+/// - Must be controlled by `player`.
+/// - Must be a creature (by current characteristics via `calculate_characteristics`).
+/// - Must be untapped (`status.tapped == false`).
+/// - Must not appear twice in the list (no duplicates).
+///
+/// Reduction (CR 702.51a):
+/// - For each creature, try to pay one colored pip that matches one of the creature's
+///   colors (WUBRG order). If no colored pip matches, reduce one generic pip.
+/// - If neither colored nor generic mana remains to reduce, the creature list is too
+///   long — return an error.
+///
+/// Taps each creature in `state.objects` and emits a `PermanentTapped` event.
+/// Returns the reduced `Option<ManaCost>`.
+fn apply_convoke_reduction(
+    state: &mut GameState,
+    player: PlayerId,
+    convoke_creatures: &[ObjectId],
+    cost: Option<ManaCost>,
+    events: &mut Vec<GameEvent>,
+) -> Result<Option<ManaCost>, GameStateError> {
+    use crate::state::types::Color;
+
+    // Validate uniqueness (no duplicates in convoke_creatures).
+    let mut seen = std::collections::HashSet::new();
+    for &id in convoke_creatures {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate creature {:?} in convoke_creatures",
+                id
+            )));
+        }
+    }
+
+    // Build per-creature color list with validation, before mutably borrowing state.
+    let mut creature_colors: Vec<(ObjectId, im::OrdSet<Color>)> = Vec::new();
+    for &id in convoke_creatures {
+        let obj = state
+            .objects
+            .get(&id)
+            .ok_or(GameStateError::ObjectNotFound(id))?;
+
+        // Must be on the battlefield.
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(format!(
+                "convoke creature {:?} is not on the battlefield",
+                id
+            )));
+        }
+        // Must be controlled by the caster.
+        if obj.controller != player {
+            return Err(GameStateError::InvalidCommand(format!(
+                "convoke creature {:?} is not controlled by the caster",
+                id
+            )));
+        }
+        // Must be untapped.
+        if obj.status.tapped {
+            return Err(GameStateError::InvalidCommand(format!(
+                "convoke creature {:?} is already tapped",
+                id
+            )));
+        }
+
+        // Must be a creature (use calculate_characteristics for layer-correct check).
+        let chars = calculate_characteristics(state, id)
+            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
+            .unwrap_or_default();
+        if !chars
+            .card_types
+            .contains(&crate::state::types::CardType::Creature)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "convoke creature {:?} is not a creature",
+                id
+            )));
+        }
+
+        creature_colors.push((id, chars.colors.clone()));
+    }
+
+    // Apply cost reduction.
+    let had_cost = cost.is_some();
+    let mut reduced = cost.unwrap_or_default();
+
+    for (_id, colors) in &creature_colors {
+        // Try to pay one colored pip in WUBRG order.
+        let paid_colored = if colors.contains(&Color::White) && reduced.white > 0 {
+            reduced.white -= 1;
+            true
+        } else if colors.contains(&Color::Blue) && reduced.blue > 0 {
+            reduced.blue -= 1;
+            true
+        } else if colors.contains(&Color::Black) && reduced.black > 0 {
+            reduced.black -= 1;
+            true
+        } else if colors.contains(&Color::Red) && reduced.red > 0 {
+            reduced.red -= 1;
+            true
+        } else if colors.contains(&Color::Green) && reduced.green > 0 {
+            reduced.green -= 1;
+            true
+        } else {
+            false
+        };
+
+        if !paid_colored {
+            // No matching colored pip — reduce one generic pip.
+            if reduced.generic > 0 {
+                reduced.generic -= 1;
+            } else {
+                return Err(GameStateError::InvalidCommand(
+                    "too many creatures tapped for convoke — exceeds total cost".into(),
+                ));
+            }
+        }
+    }
+
+    // Tap each convoke creature and emit PermanentTapped events.
+    for &id in convoke_creatures {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.status.tapped = true;
+        }
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: id,
+        });
+    }
+
+    // If the original cost was Some, return Some(reduced); if it was None, return None.
+    if had_cost {
+        Ok(Some(reduced))
+    } else {
+        Ok(None)
+    }
+}
+
+/// CR 702.66a: Validate delve cards and compute the reduced mana cost.
+///
+/// For each card in `delve_cards`:
+/// - Must exist in the caster's graveyard (`ZoneId::Graveyard(player)`).
+/// - Must not appear twice (no duplicates).
+///
+/// Reduction (CR 702.66a):
+/// - Each exiled card reduces one generic pip. Cannot exceed total generic mana.
+///
+/// Exiles each card via `state.move_object_to_zone(id, ZoneId::Exile)` and
+/// emits `ObjectExiled` events for each.
+/// Returns the reduced `Option<ManaCost>`.
+///
+/// CR 702.66b: Delve is not an additional or alternative cost — it applies
+/// after the total cost (including commander tax) is determined.
+fn apply_delve_reduction(
+    state: &mut GameState,
+    player: PlayerId,
+    delve_cards: &[ObjectId],
+    cost: Option<ManaCost>,
+    events: &mut Vec<GameEvent>,
+) -> Result<Option<ManaCost>, GameStateError> {
+    // Validate uniqueness (no duplicates in delve_cards).
+    let mut seen = std::collections::HashSet::new();
+    for &id in delve_cards {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate card {:?} in delve_cards",
+                id
+            )));
+        }
+    }
+
+    // Validate each card is in the caster's graveyard (CR 702.66a: "your graveyard").
+    for &id in delve_cards {
+        let obj = state
+            .objects
+            .get(&id)
+            .ok_or(GameStateError::ObjectNotFound(id))?;
+        if obj.zone != ZoneId::Graveyard(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "delve card {:?} is not in the caster's graveyard (zone: {:?})",
+                id, obj.zone
+            )));
+        }
+    }
+
+    // Apply cost reduction: each card reduces one generic pip (CR 702.66a).
+    let had_cost = cost.is_some();
+    let mut reduced = cost.unwrap_or_default();
+
+    // Validate that we don't exile more cards than the generic portion allows
+    // (CR 702.66a / Treasure Cruise ruling).
+    if delve_cards.len() as u32 > reduced.generic {
+        return Err(GameStateError::InvalidCommand(format!(
+            "delve_cards.len() ({}) exceeds generic mana in cost ({})",
+            delve_cards.len(),
+            reduced.generic
+        )));
+    }
+    reduced.generic -= delve_cards.len() as u32;
+
+    // Exile each card and emit ObjectExiled events (CR 400.7: new ObjectId after zone change).
+    for &id in delve_cards {
+        let (new_exile_id, _old_obj) = state.move_object_to_zone(id, ZoneId::Exile)?;
+        events.push(GameEvent::ObjectExiled {
+            player,
+            object_id: id,
+            new_exile_id,
+        });
+    }
+
+    // If the original cost was Some, return Some(reduced); if it was None, return None.
+    if had_cost {
+        Ok(Some(reduced))
+    } else {
+        Ok(None)
+    }
 }
 
 /// CR 601.2c: Validate targets at cast time and snapshot their current zones.

@@ -413,6 +413,9 @@ fn test_702_18_shroud_prevents_targeting() {
             player: p1,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Object(target_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -470,6 +473,9 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             player: p2,
             card: bolt_id,
             targets: vec![mtg_engine::Target::Object(target_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -1096,6 +1102,9 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             player: p1,
             card: wrath_id,
             targets: vec![], // no targets — global effect
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .expect("casting Wrath of God failed");

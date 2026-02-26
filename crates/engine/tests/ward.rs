@@ -190,6 +190,9 @@ fn test_ward_basic_counter_on_targeting() {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -308,6 +311,9 @@ fn test_ward_does_not_trigger_for_controller() {
             player: p1,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -391,6 +397,9 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             player: p2,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -571,6 +580,9 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -728,6 +740,9 @@ fn test_ward_multiple_targets_trigger_separately() {
             player: p2,
             card: spell_id,
             targets: vec![Target::Object(a_id), Target::Object(b_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -814,6 +829,9 @@ fn test_ward_multiplayer_opponent_check() {
             player: p3,
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

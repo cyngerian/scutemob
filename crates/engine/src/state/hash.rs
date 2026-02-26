@@ -338,6 +338,12 @@ impl HashInto for KeywordAbility {
                 29u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Convoke (discriminant 30) — CR 702.51
+            KeywordAbility::Convoke => 30u8.hash_into(hasher),
+            // Delve (discriminant 31) — CR 702.66
+            KeywordAbility::Delve => 31u8.hash_into(hasher),
+            // Kicker (discriminant 32) — CR 702.33
+            KeywordAbility::Kicker => 32u8.hash_into(hasher),
         }
     }
 }
@@ -480,6 +486,8 @@ impl HashInto for GameObject {
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
         self.goaded_by.hash_into(hasher);
+        // Kicker (CR 702.33d) — times kicker was paid when this permanent was cast
+        self.kicker_times_paid.hash_into(hasher);
     }
 }
 
@@ -1075,6 +1083,8 @@ impl HashInto for StackObject {
         self.is_copy.hash_into(hasher);
         // Flashback (CR 702.34a) — exiled instead of graveyard when cast_with_flashback
         self.cast_with_flashback.hash_into(hasher);
+        // Kicker (CR 702.33d) — times kicker cost was paid at cast time
+        self.kicker_times_paid.hash_into(hasher);
     }
 }
 
@@ -1975,6 +1985,8 @@ impl HashInto for Condition {
                 min.hash_into(hasher);
             }
             Condition::Always => 6u8.hash_into(hasher),
+            // Kicker condition (discriminant 7) — CR 702.33d
+            Condition::WasKicked => 7u8.hash_into(hasher),
         }
     }
 }
@@ -2275,6 +2287,15 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Cycling { cost } => {
                 9u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Kicker (discriminant 10) — CR 702.33
+            AbilityDefinition::Kicker {
+                cost,
+                is_multikicker,
+            } => {
+                10u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                is_multikicker.hash_into(hasher);
             }
         }
     }

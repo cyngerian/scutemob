@@ -146,8 +146,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .filter(|t| is_target_legal(state, t))
                                 .cloned()
                                 .collect();
-                            let mut ctx =
-                                EffectContext::new(controller, source_object, legal_targets);
+                            // CR 702.33d: Pass kicker status to the effect context so
+                            // Condition::WasKicked can be checked during resolution.
+                            let mut ctx = EffectContext::new_with_kicker(
+                                controller,
+                                source_object,
+                                legal_targets,
+                                stack_obj.kicker_times_paid,
+                            );
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -174,8 +180,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
 
                 // CR 608.3a: "under the control of the spell's controller"
                 // (move_object_to_zone resets controller to owner; restore it here).
+                // CR 702.33d: Transfer kicked status from stack to permanent so ETB
+                // triggers can check Condition::WasKicked.
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
+                    obj.kicker_times_paid = stack_obj.kicker_times_paid;
                 }
 
                 // CR 303.4a / 303.4b: If the resolved permanent is an Aura, attach it

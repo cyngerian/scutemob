@@ -200,6 +200,9 @@ fn test_panharmonicon_doubles_etb_trigger() {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -348,6 +351,9 @@ fn test_two_panharmonicons_triple_triggers() {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -478,6 +484,9 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             player: p1,
             card: entering_hand_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

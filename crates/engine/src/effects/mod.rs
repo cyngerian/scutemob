@@ -57,6 +57,11 @@ pub struct EffectContext {
     /// Updated by zone-change effects (ExileObject, MoveZone, etc.) so
     /// subsequent effects can still refer to the target's power/toughness/etc.
     pub target_remaps: HashMap<usize, ObjectId>,
+    /// CR 702.33d: Number of times kicker was paid for this spell.
+    ///
+    /// 0 = not kicked. Used by `Condition::WasKicked`. Set from `StackObject.kicker_times_paid`
+    /// at spell resolution, or from `GameObject.kicker_times_paid` for ETB triggers.
+    pub kicker_times_paid: u32,
 }
 
 impl EffectContext {
@@ -67,6 +72,23 @@ impl EffectContext {
             source,
             targets,
             target_remaps: HashMap::new(),
+            kicker_times_paid: 0,
+        }
+    }
+
+    /// Build a context with kicker status (CR 702.33d).
+    pub fn new_with_kicker(
+        controller: PlayerId,
+        source: ObjectId,
+        targets: Vec<SpellTarget>,
+        kicker_times_paid: u32,
+    ) -> Self {
+        Self {
+            controller,
+            source,
+            targets,
+            target_remaps: HashMap::new(),
+            kicker_times_paid,
         }
     }
 
@@ -965,6 +987,7 @@ fn execute_effect_inner(
                                 zone_at_cast: None,
                             }],
                             target_remaps: HashMap::new(),
+                            kicker_times_paid: ctx.kicker_times_paid,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -981,6 +1004,7 @@ fn execute_effect_inner(
                                 zone_at_cast: Some(ZoneId::Battlefield),
                             }],
                             target_remaps: HashMap::new(),
+                            kicker_times_paid: ctx.kicker_times_paid,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1519,6 +1543,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
         goaded_by: im::Vector::new(),
+        kicker_times_paid: 0,
     }
 }
 
@@ -1716,6 +1741,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .and_then(|obj| obj.counters.get(counter).copied())
             .map(|count| count >= *min)
             .unwrap_or(false),
+        // CR 702.33d: "if this spell was kicked" — true when kicker_times_paid > 0.
+        Condition::WasKicked => ctx.kicker_times_paid > 0,
     }
 }
 

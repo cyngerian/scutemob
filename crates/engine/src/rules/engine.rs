@@ -71,11 +71,22 @@ pub fn process_command(
             player,
             card,
             targets,
+            convoke_creatures,
+            delve_cards,
+            kicker_times,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let mut events = casting::handle_cast_spell(&mut state, player, card, targets)?;
+            let mut events = casting::handle_cast_spell(
+                &mut state,
+                player,
+                card,
+                targets,
+                convoke_creatures,
+                delve_cards,
+                kicker_times,
+            )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
             let new_triggers = abilities::check_triggers(&state, &events);

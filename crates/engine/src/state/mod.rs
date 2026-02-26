@@ -273,6 +273,9 @@ impl GameState {
             has_summoning_sickness: to == ZoneId::Battlefield,
             // CR 400.7: goad state is not preserved across zone changes.
             goaded_by: im::Vector::new(),
+            // CR 400.7: kicked status is not preserved across zone changes
+            // (a permanent re-entering is not kicked).
+            kicker_times_paid: 0,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -341,6 +344,8 @@ impl GameState {
             timestamp: self.timestamp_counter,
             has_summoning_sickness: to == ZoneId::Battlefield,
             goaded_by: im::Vector::new(),
+            // CR 400.7: kicked status is not preserved across zone changes.
+            kicker_times_paid: 0,
         };
 
         // Insert at the front (= bottom) of the destination zone.

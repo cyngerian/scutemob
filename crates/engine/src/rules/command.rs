@@ -60,6 +60,32 @@ pub enum Command {
         card: ObjectId,
         /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
         targets: Vec<Target>,
+        /// CR 702.51: Creatures to tap for convoke cost reduction.
+        /// Empty vec for non-convoke spells. Each creature must be:
+        /// - Untapped, on the battlefield, controlled by the caster
+        /// - A creature (by current characteristics)
+        /// - Not duplicated (no ObjectId appears twice)
+        ///
+        /// Colored creatures pay for one colored mana of their color;
+        /// any creature pays for {1} generic. Validated in handle_cast_spell.
+        convoke_creatures: Vec<ObjectId>,
+        /// CR 702.66: Cards in the caster's graveyard to exile for delve cost reduction.
+        /// Empty vec for non-delve spells. Each card must be:
+        /// - In the caster's graveyard (not opponent's)
+        /// - Not duplicated (no ObjectId appears twice)
+        ///
+        /// Each exiled card pays for {1} generic mana. Cannot exceed the generic
+        /// mana component of the spell's total cost.
+        /// Validated in handle_cast_spell -> apply_delve_reduction.
+        delve_cards: Vec<ObjectId>,
+        /// CR 702.33d: Number of times to pay the kicker cost.
+        ///
+        /// 0 = not kicked. 1 = kicked once (standard kicker). N > 1 = multikicker
+        /// paid N times (CR 702.33c). Validated against the spell's kicker definition:
+        /// standard kicker rejects values > 1; multikicker accepts any N >= 0.
+        /// Ignored for spells without kicker.
+        #[serde(default)]
+        kicker_times: u32,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

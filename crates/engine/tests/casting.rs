@@ -49,6 +49,9 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -106,6 +109,9 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(result.is_ok());
@@ -150,6 +156,9 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -193,6 +202,9 @@ fn test_cast_spell_flash_at_instant_speed() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(
@@ -239,6 +251,9 @@ fn test_cast_spell_lifo_stack_order() {
             player: p1,
             card: first_card,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -258,6 +273,9 @@ fn test_cast_spell_lifo_stack_order() {
             player: p1,
             card: second_card,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -303,6 +321,9 @@ fn test_cast_spell_not_priority_holder_fails() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(
@@ -343,6 +364,9 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -377,6 +401,9 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -428,6 +455,9 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             player: p1,
             card: instant_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -446,6 +476,9 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             player: p1,
             card: sorcery_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -478,6 +511,9 @@ fn test_cast_spell_land_fails() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -513,6 +549,9 @@ fn test_cast_spell_card_not_in_hand_fails() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -552,6 +591,9 @@ fn test_cast_spell_priority_resets_to_active_player() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

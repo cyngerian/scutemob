@@ -172,6 +172,8 @@ pub fn copy_spell_on_stack(
         is_copy: true,
         // CR 707.10: Copies are never cast, so cast_with_flashback is always false.
         cast_with_flashback: false,
+        // CR 702.33d ruling: copies of kicked spells on the stack are also kicked.
+        kicker_times_paid: original.kicker_times_paid,
     };
 
     // Push the copy onto the stack (above the original).
@@ -338,6 +340,7 @@ pub fn resolve_cascade(
                 cant_be_countered: false,
                 is_copy: false,
                 cast_with_flashback: false,
+                kicker_times_paid: 0,
             };
             state.stack_objects.push_back(stack_obj);
 

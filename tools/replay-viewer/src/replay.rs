@@ -201,6 +201,9 @@ impl ReplaySession {
                         ability_index,
                         attackers,
                         blockers,
+                        convoke,
+                        delve,
+                        kicked,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -212,6 +215,9 @@ impl ReplaySession {
                                 targets,
                                 attackers,
                                 blockers,
+                                convoke,
+                                delve,
+                                *kicked,
                                 &current_state,
                                 &player_map,
                             );

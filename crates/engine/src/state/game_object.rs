@@ -257,4 +257,14 @@ pub struct GameObject {
     /// This list is cleared when the creature's controller's next turn begins.
     #[serde(default)]
     pub goaded_by: Vector<PlayerId>,
+    /// CR 702.33d: If this permanent was kicked when cast, records how many times
+    /// the kicker cost was paid.
+    ///
+    /// 0 = not kicked (or permanent entered without being cast).
+    /// 1 = kicked once (standard kicker). N = multikicked N times (CR 702.33c).
+    /// Set during spell resolution when the permanent enters the battlefield.
+    /// Never set for permanents that entered without being cast (CR ruling:
+    /// "If you put a permanent onto the battlefield without casting it, you can't kick it.").
+    #[serde(default)]
+    pub kicker_times_paid: u32,
 }

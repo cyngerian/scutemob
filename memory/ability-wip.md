@@ -1,22 +1,22 @@
-# Ability WIP: DeclareAttackers
+# Ability WIP: Kicker
 
-ability: DeclareAttackers
-cr: 508.1
-priority: P1
+ability: Kicker
+cr: 702.33
+priority: P2
 started: 2026-02-26
 phase: closed
+plan_file: memory/ability-plan-kicker.md
 
 ## Review
-findings: 6 (0 HIGH, 2 MEDIUM, 4 LOW)
-review_file: memory/ability-review-declareattackers.md
+findings: 7 (0 HIGH, 1 MEDIUM, 6 LOW)
+review_file: memory/ability-review-kicker.md
 verdict: needs-fix
-plan_file: memory/ability-plan-declareattackers.md
 
 ## Step Checklist
-- [x] 1. Enum variant — N/A (Command::DeclareAttackers/DeclareBlockers already exist in command.rs:86-101)
-- [x] 2. Rule enforcement — N/A (handle_declare_attackers/handle_declare_blockers already exist in combat.rs)
-- [x] 3. Trigger wiring — N/A (triggers already fire for attacker/blocker declarations)
-- [x] 4. Unit tests — crates/engine/tests/combat_harness.rs (6 tests: basic/empty/default_target for attackers; basic/empty/full_combat for blockers)
-- [x] 5. Card definition — N/A (no new cards needed; existing cards used in scripts)
-- [x] 6. Game script — combat/015_declare_attackers_unblocked.json (12/12), combat/016_declare_blockers_creature_dies.json (21/21)
-- [x] 7. Coverage doc update — DeclareAttackers+DeclareBlockers: partial→validated (both); P1 validated 40→42; P1 gaps: 0 remaining
+- [x] 1. Enum variant (state/types.rs:248, cards/card_definition.rs:152+581, state/stack.rs:51, state/game_object.rs:260, state/hash.rs, rules/command.rs:80)
+- [x] 2. Rule enforcement (rules/casting.rs: get_kicker_cost, kicker validation, cost addition, StackObject population)
+- [x] 3. Trigger wiring (rules/resolution.rs: kicker_times_paid to permanent + EffectContext; rules/replacement.rs: ETB trigger context; effects/mod.rs: Condition::WasKicked, EffectContext::new_with_kicker)
+- [x] 4. Unit tests (crates/engine/tests/kicker.rs: 10 tests)
+- [x] 5. Card definition — Burst Lightning (definitions.rs:2067), Torch Slinger (definitions.rs:2106)
+- [x] 6. Game script — stack/065_burst_lightning_kicked_vs_unkicked.json
+- [x] 7. Coverage doc update — Kicker: none→validated; P2 validated 5→6

@@ -258,6 +258,7 @@ fn test_play_land_stack_nonempty_fails() {
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
+        kicker_times_paid: 0,
     });
 
     let result = mtg_engine::process_command(

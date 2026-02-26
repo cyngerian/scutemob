@@ -149,6 +149,21 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Cycling)` for quick
     /// presence-checking without scanning all abilities.
     Cycling { cost: ManaCost },
+    /// CR 702.33: Kicker [cost]. Optional additional cost that can be paid
+    /// when casting this spell. If paid, the spell is "kicked" and may have
+    /// enhanced effects.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Kicker)` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// `is_multikicker` indicates multikicker (CR 702.33c) — the cost can
+    /// be paid any number of times instead of at most once.
+    Kicker {
+        cost: ManaCost,
+        #[serde(default)]
+        is_multikicker: bool,
+    },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -558,6 +573,12 @@ pub enum Condition {
     SourceHasCounters { counter: CounterType, min: u32 },
     /// Always true (for Conditional branches that always fire).
     Always,
+    /// CR 702.33d: "if this spell was kicked" — true when `kicker_times_paid > 0`.
+    ///
+    /// Checked at resolution time by reading the `kicker_times_paid` field on the
+    /// `EffectContext` (for spells) or on the `GameObject` (for ETB triggers on
+    /// permanents that entered kicked).
+    WasKicked,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

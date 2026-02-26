@@ -228,4 +228,22 @@ pub enum KeywordAbility {
     /// and return this card from your graveyard to your hand. Functions only while
     /// this card is in the graveyard. Requires >= N cards in library (CR 702.52b).
     Dredge(u32),
+    /// CR 702.51: Convoke — tap creatures to pay mana costs.
+    /// "For each colored mana in this spell's total cost, you may tap an untapped
+    /// creature of that color you control rather than pay that mana. For each generic
+    /// mana in this spell's total cost, you may tap an untapped creature you control
+    /// rather than pay that mana."
+    /// CR 702.51d: Multiple instances are redundant.
+    Convoke,
+    /// CR 702.66: Delve — exile cards from your graveyard to pay for generic mana.
+    /// "For each generic mana in this spell's total cost, you may exile a card
+    /// from your graveyard rather than pay that mana."
+    /// CR 702.66b: Not an additional or alternative cost; applies after total cost determined.
+    /// CR 702.66c: Multiple instances are redundant.
+    Delve,
+    /// CR 702.33: Kicker [cost] — optional additional cost for enhanced effect.
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// The kicker cost itself is stored in `AbilityDefinition::Kicker { cost, is_multikicker }`.
+    Kicker,
 }

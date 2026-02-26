@@ -187,6 +187,7 @@ fn test_add_object_to_state() {
         timestamp: 0,
         has_summoning_sickness: false,
         goaded_by: im::Vector::new(),
+        kicker_times_paid: 0,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

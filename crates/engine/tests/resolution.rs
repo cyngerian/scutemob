@@ -66,6 +66,9 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -129,6 +132,9 @@ fn test_608_1_instant_resolves_to_graveyard() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -180,6 +186,9 @@ fn test_608_3a_creature_enters_battlefield() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -250,6 +259,9 @@ fn test_608_3a_artifact_enters_battlefield() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -300,6 +312,9 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             player: p2,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -371,6 +386,9 @@ fn test_608_1_lifo_resolves_top_first() {
             player: p1,
             card: sorcery_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -383,6 +401,9 @@ fn test_608_1_lifo_resolves_top_first() {
             player: p1,
             card: instant_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -484,6 +505,9 @@ fn test_counter_stack_object_spell_to_graveyard() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -557,6 +581,9 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -619,6 +646,9 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             player: p1,
             card: card_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

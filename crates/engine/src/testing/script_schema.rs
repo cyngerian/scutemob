@@ -215,6 +215,21 @@ pub enum ScriptAction {
         /// Example: [{"card": "Llanowar Elves", "blocking": "Grizzly Bears"}]
         #[serde(default)]
         blockers: Vec<BlockerDeclaration>,
+        /// CR 702.51: For `cast_spell` with convoke. Names of untapped creatures on the
+        /// battlefield to tap as part of cost payment. Empty for non-convoke casts.
+        /// Example: ["Llanowar Elves", "Saproling Token", "Saproling Token"]
+        #[serde(default)]
+        convoke: Vec<String>,
+        /// CR 702.66: For `cast_spell` with delve. Names of cards in the caster's graveyard
+        /// to exile as part of cost payment. Empty for non-delve casts.
+        /// Example: ["Lightning Bolt", "Mountain", "Grizzly Bears"]
+        #[serde(default)]
+        delve: Vec<String>,
+        /// CR 702.33: For `cast_spell` with kicker. If true, the kicker cost is paid
+        /// once (standard kicker). For multikicker, use `kicker_times` instead.
+        /// Defaults to false (not kicked).
+        #[serde(default)]
+        kicked: bool,
         cr_ref: Option<String>,
         note: Option<String>,
     },

@@ -445,6 +445,7 @@ impl GameStateBuilder {
                 // been there since the beginning of their controller's turn.
                 has_summoning_sickness: false,
                 goaded_by: im::Vector::new(),
+                kicker_times_paid: 0,
             };
 
             state.add_object(object, zone)?;

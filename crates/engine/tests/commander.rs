@@ -122,6 +122,9 @@ fn test_cast_commander_from_command_zone_first_time() {
             player: p1,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -207,6 +210,9 @@ fn test_cast_commander_from_command_zone_second_time() {
             player: p1,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -281,6 +287,9 @@ fn test_cast_commander_from_command_zone_third_time() {
             player: p1,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -353,6 +362,9 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             player: p1,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -404,6 +416,9 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             player: p1,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -450,6 +465,9 @@ fn test_cast_commander_sorcery_speed_enforced() {
             player: p2,
             card: card_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     );
 
@@ -950,6 +968,9 @@ fn test_partner_commanders_separate_tax_tracking() {
             player: p1,
             card: cmd_a_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1020,6 +1041,9 @@ fn test_partner_commanders_separate_tax_tracking() {
             player: p1,
             card: cmd_a_obj_id2,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -1941,6 +1965,9 @@ fn test_full_four_player_commander_game() {
             player: p2,
             card: beta_cmd_obj_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

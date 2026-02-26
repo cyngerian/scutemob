@@ -320,6 +320,7 @@ pub fn handle_activate_ability(
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
+        kicker_times_paid: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -460,6 +461,7 @@ pub fn handle_cycle_card(
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
+        kicker_times_paid: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -940,6 +942,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 cant_be_countered: false,
                 is_copy: false,
                 cast_with_flashback: false,
+                kicker_times_paid: 0,
             };
             state.stack_objects.push_back(stack_obj);
 

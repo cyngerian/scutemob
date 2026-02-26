@@ -201,6 +201,9 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -305,6 +308,9 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             player: p1,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -376,6 +382,9 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             player: p1,
             card: spell_id,
             targets: vec![],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -445,6 +454,9 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             player: p2,
             card: spell_id,
             targets: vec![Target::Player(p1)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -515,6 +527,9 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -598,6 +613,9 @@ fn test_prowess_until_end_of_turn_expires() {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -695,6 +713,9 @@ fn test_prowess_multiple_spells_stack() {
             player: p1,
             card: bolt_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -723,6 +744,9 @@ fn test_prowess_multiple_spells_stack() {
             player: p1,
             card: shock_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();
@@ -809,6 +833,9 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             player: p1,
             card: spell_id,
             targets: vec![Target::Player(p2)],
+            convoke_creatures: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
         },
     )
     .unwrap();

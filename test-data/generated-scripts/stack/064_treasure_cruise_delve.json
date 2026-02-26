@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_064",
+    "name": "Treasure Cruise cast via Delve — exile 7 graveyard cards, draw 3",
+    "description": "p1 has 7 cards in their graveyard (Forest, Island, Mountain, Plains, Swamp, Lightning Bolt, Counterspell) from earlier play. p1 casts Treasure Cruise ({7}{U}, Sorcery, Delve) by exiling all 7 graveyard cards via Delve to pay the {7} generic, then paying {U} from the mana pool. After both players pass priority, Treasure Cruise resolves and p1 draws 3 cards. The script verifies: (1) 7 cards in p1 graveyard and Treasure Cruise in hand before casting, (2) all 7 graveyard cards move to exile and Treasure Cruise leaves hand at cast time, (3) after resolution the stack is empty, (4) p1 draws 3 cards (hand increases from 3 to 6 after TC leaves hand), and (5) p1 life remains 40.",
+    "cr_sections_tested": ["702.66a", "702.66b", "601.2", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["delve", "stack", "sorcery", "graveyard", "draw", "treasure-cruise", "cost-reduction"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.66a: Delve is a static ability that functions while the spell is on the stack. 'For each generic mana in this spell's total cost, you may exile a card from your graveyard rather than pay that mana.' Treasure Cruise total cost is {7}{U}. p1 exiles all 7 graveyard cards to pay the entire {7} generic component, then pays {U} from the mana pool for the colored pip. CR 702.66b: Delve is not an additional or alternative cost — it is applied after the total cost is determined at cast time (CR 601.2). The 7 exiled graveyard cards (Forest, Island, Mountain, Plains, Swamp, Lightning Bolt, Counterspell) move to exile as part of paying the casting cost; they are NOT in the graveyard at the point of resolution. The graveyard cards chosen are basic lands and iconic instants — all available in the engine's card pool. Initial hand: 4 cards (Treasure Cruise + Island x3 as filler), so after TC is cast (hand = 3) and 3 cards are drawn (hand = 6), we assert hand count = 6. Library has 3 Islands to enable the draw-3 effect without running out of cards. p1 has {U} in the mana pool from a tapped Island to pay the colored pip. Assertions: graveyard starts at 7 cards; after casting, graveyard goes to 0 and exile contains all 7 cards; after resolution, hand count is 6 and stack is empty. p1 life stays at 40 (Treasure Cruise has no life-loss effect). CR 608.2: Sorcery resolves; draw 3 cards effect executes; card moves to p1 graveyard.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null, "tapped": true }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Treasure Cruise", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Mountain", "is_commander": false, "owner": null },
+          { "card": "Plains", "is_commander": false, "owner": null },
+          { "card": "Swamp", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Counterspell", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Treasure Cruise using Delve — exiling all 7 graveyard cards to pay the {7} generic, paying only {U} from the mana pool. After both players pass priority, Treasure Cruise resolves and p1 draws 3 cards.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: 7 cards in p1 graveyard, Treasure Cruise in p1 hand (4 cards total), stack empty, p1 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 4,
+            "zones.graveyard.p1.count": 7,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Mountain" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            }
+          },
+          "note": "7 cards are in p1's graveyard representing prior play. Treasure Cruise is in hand alongside 3 filler Islands. p1 has {U} in pool from a previously tapped Island."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Treasure Cruise",
+          "targets": [],
+          "delve": ["Forest", "Island", "Mountain", "Plains", "Swamp", "Lightning Bolt", "Counterspell"],
+          "mana_paid": { "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "702.66a",
+          "note": "CR 702.66a: Delve — p1 exiles 7 cards from graveyard (Forest, Island, Mountain, Plains, Swamp, Lightning Bolt, Counterspell) to pay the {7} generic component of Treasure Cruise's {7}{U} cost. CR 601.2: p1 pays {U} from the mana pool for the colored pip. CR 702.66b: Delve is not an additional or alternative cost; it applies after the total cost is determined."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Treasure Cruise on stack, p1 hand has 3 cards, p1 graveyard is empty (all 7 cards moved to exile via Delve)",
+          "assertions": {
+            "zones.hand.p1.count": 3,
+            "zones.stack.count": 1,
+            "zones.graveyard.p1.count": 0,
+            "zones.exile": {
+              "includes": [
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Mountain" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            }
+          },
+          "note": "CR 702.66a: The 7 graveyard cards were exiled as payment at cast time — they are in exile, not the graveyard. Treasure Cruise is on the stack. Hand now has 3 cards (the 3 Islands)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in succession. The stack has one object — Treasure Cruise resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Treasure Cruise",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Treasure Cruise resolves. p1 draws 3 cards from the top of their library."
+            }
+          ],
+          "note": "CR 608.2: Sorcery resolves; draw-3 effect executes; Treasure Cruise moves to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: stack empty, p1 hand has 6 cards (3 Islands + 3 drawn), Treasure Cruise in p1 graveyard, p1 life unchanged at 40",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 6,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Treasure Cruise" }
+              ]
+            },
+            "zones.exile": {
+              "includes": [
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Mountain" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            }
+          },
+          "note": "p1 drew 3 cards: hand went from 3 (after casting TC) to 6. Treasure Cruise itself moved to p1's graveyard after resolving. The 7 Delve-exiled cards remain in exile permanently. p1 life is 40 — Treasure Cruise has no life-loss effect."
+        }
+      ]
+    }
+  ]
+}
