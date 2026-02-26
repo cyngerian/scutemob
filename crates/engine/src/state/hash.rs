@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    CardType, Color, CounterType, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
-    SubType, SuperType,
+    CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
+    ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -270,13 +270,31 @@ impl HashInto for LandwalkType {
     }
 }
 
+impl HashInto for EnchantTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EnchantTarget::Creature => 0u8.hash_into(hasher),
+            EnchantTarget::Permanent => 1u8.hash_into(hasher),
+            EnchantTarget::Artifact => 2u8.hash_into(hasher),
+            EnchantTarget::Enchantment => 3u8.hash_into(hasher),
+            EnchantTarget::Land => 4u8.hash_into(hasher),
+            EnchantTarget::Planeswalker => 5u8.hash_into(hasher),
+            EnchantTarget::Player => 6u8.hash_into(hasher),
+            EnchantTarget::CreatureOrPlaneswalker => 7u8.hash_into(hasher),
+        }
+    }
+}
+
 impl HashInto for KeywordAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
             KeywordAbility::Deathtouch => 0u8.hash_into(hasher),
             KeywordAbility::Defender => 1u8.hash_into(hasher),
             KeywordAbility::DoubleStrike => 2u8.hash_into(hasher),
-            KeywordAbility::Enchant => 3u8.hash_into(hasher),
+            KeywordAbility::Enchant(target) => {
+                3u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
             KeywordAbility::Equip => 4u8.hash_into(hasher),
             KeywordAbility::FirstStrike => 5u8.hash_into(hasher),
             KeywordAbility::Flash => 6u8.hash_into(hasher),
@@ -461,7 +479,6 @@ impl HashInto for GameObject {
         self.is_token.hash_into(hasher);
         self.timestamp.hash_into(hasher);
         self.has_summoning_sickness.hash_into(hasher);
-        self.enchants_creatures.hash_into(hasher);
         self.goaded_by.hash_into(hasher);
     }
 }
@@ -1663,6 +1680,17 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 card_new_id.hash_into(hasher);
                 milled.hash_into(hasher);
+            }
+            // CR 303.4a/303.4b: AuraAttached (discriminant 74)
+            GameEvent::AuraAttached {
+                aura_id,
+                target_id,
+                controller,
+            } => {
+                74u8.hash_into(hasher);
+                aura_id.hash_into(hasher);
+                target_id.hash_into(hasher);
+                controller.hash_into(hasher);
             }
         }
     }

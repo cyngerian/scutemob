@@ -21,13 +21,14 @@ use im::OrdSet;
 
 use crate::state::player::PlayerId;
 use crate::state::{
-    CardId, CardType, Color, KeywordAbility, LandwalkType, ManaCost, ManaPool, SubType, SuperType,
+    CardId, CardType, Color, EnchantTarget, KeywordAbility, LandwalkType, ManaCost, ManaPool,
+    SubType, SuperType,
 };
 
 use super::card_definition::{
     AbilityDefinition, CardDefinition, ContinuousEffectDef, Cost, Effect, EffectAmount,
     EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TimingRestriction,
-    TriggerCondition, TypeLine,
+    TriggerCondition, TypeLine, ZoneTarget,
 };
 use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
@@ -1383,8 +1384,16 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         duration: EffectDuration::WhileSourceOnBattlefield,
                     },
                 },
-                // TODO: "can't be blocked" — requires a LayerModification::CantBeBlocked
-                // variant (or equivalent evasion flag) which does not yet exist in the DSL.
+                // CR 509.1b: Equipped creature can't be blocked.
+                // Grants CantBeBlocked in layer 6 (ability) while this Equipment is attached.
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::CantBeBlocked),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
                 // Equip {2}: attach this Equipment to target creature you control.
                 // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
                 AbilityDefinition::Activated {
@@ -1956,6 +1965,58 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 // draw-replacement option when this card is in its owner's graveyard.
                 AbilityDefinition::Keyword(KeywordAbility::Dredge(6)),
             ],
+        },
+
+        // 61. Rancor — {G}, Enchantment — Aura.
+        //     "Enchant creature. Enchanted creature gets +2/+0 and has trample.
+        //      When Rancor is put into a graveyard from the battlefield, return
+        //      Rancor to its owner's hand."
+        //
+        //     CR 702.5a: Enchant creature — restricts casting target and legal attachments.
+        //     CR 613.4c: +2/+0 is a layer-7c P/T-modifying effect.
+        //     CR 702.19a: Trample keyword granted in layer 6.
+        //     CR 603.1: "When Rancor is put into a graveyard from the battlefield" is a
+        //     triggered ability that fires on the zone-change event.
+        CardDefinition {
+            card_id: cid("rancor"),
+            name: "Rancor".to_string(),
+            mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Enchantment], &["Aura"]),
+            oracle_text: "Enchant creature\nEnchanted creature gets +2/+0 and has trample.\nWhen Rancor is put into a graveyard from the battlefield, return Rancor to its owner's hand.".to_string(),
+            abilities: vec![
+                // CR 702.5a: Enchant creature — defines legal targets and attachment restriction.
+                AbilityDefinition::Keyword(KeywordAbility::Enchant(EnchantTarget::Creature)),
+                // CR 613.4c: Enchanted creature gets +2/+0 (layer 7c, P/T modify).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyPower(2),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
+                // CR 702.19a: Enchanted creature has trample (layer 6, ability grant).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Trample),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
+                // CR 603.1: When Rancor is put into a graveyard from the battlefield,
+                // return it to its owner's hand. This trigger fires on the WhenDies
+                // zone-change event (battlefield → graveyard).
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenDies,
+                    effect: Effect::MoveZone {
+                        target: EffectTarget::Source,
+                        to: ZoneTarget::Hand { owner: PlayerTarget::Controller },
+                    },
+                    intervening_if: None,
+                },
+            ],
+            ..Default::default()
         },
 
     ]

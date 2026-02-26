@@ -199,6 +199,8 @@ impl ReplaySession {
                         card,
                         targets,
                         ability_index,
+                        attackers,
+                        blockers,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -208,6 +210,8 @@ impl ReplaySession {
                                 card.as_deref(),
                                 *ability_index as usize,
                                 targets,
+                                attackers,
+                                blockers,
                                 &current_state,
                                 &player_map,
                             );

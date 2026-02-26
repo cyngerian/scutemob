@@ -12,10 +12,12 @@
 //!   the beginning of the controller's most recent turn (CR 302.6)
 //! - Vigilance: attacker doesn't tap (CR 702.20) — tested in combat.rs
 
+use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
-    all_cards, check_and_apply_sbas, process_command, AttackTarget, CardRegistry, CardType, Color,
-    Command, GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, ManaColor, ManaCost,
-    ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
+    all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AttackTarget,
+    CardRegistry, CardType, Color, Command, Effect, EffectDuration, EffectFilter, EffectLayer,
+    GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, LayerModification, ManaColor,
+    ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -1502,5 +1504,283 @@ fn test_702_14_landwalk_plus_flying_both_checked() {
         result.is_err(),
         "Flying+swampwalk creature should be unblockable when defender has a Swamp, \
          even if the blocker has flying"
+    );
+}
+
+// ── CR 509.1b: CantBeBlocked ──────────────────────────────────────────────────
+
+#[test]
+/// CR 509.1b — A creature with CantBeBlocked cannot be declared as a blocker
+/// target. Any attempt to block it must be rejected.
+fn test_509_1b_cant_be_blocked_basic() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Phantom Warrior", 2, 2)
+                .with_keyword(KeywordAbility::CantBeBlocked),
+        )
+        .object(ObjectSpec::creature(p2, "Grizzly Bears", 2, 2))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Phantom Warrior");
+    let blocker_id = find_object(&state, "Grizzly Bears");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Blocking a creature with CantBeBlocked should be rejected (CR 509.1b)"
+    );
+}
+
+#[test]
+/// CR 509.1b / CR 509.1h — A CantBeBlocked attacker with no blockers declared
+/// is legal. The attacker becomes an unblocked creature (CR 509.1h).
+fn test_509_1b_cant_be_blocked_allows_no_blockers() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Phantom Warrior", 2, 2)
+                .with_keyword(KeywordAbility::CantBeBlocked),
+        )
+        .object(ObjectSpec::creature(p2, "Grizzly Bears", 2, 2))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Phantom Warrior");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    // Declaring no blockers is always legal (CR 509.1a: defender chooses "if any").
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Declaring no blockers against a CantBeBlocked creature is legal (CR 509.1h): {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 509.1b — CantBeBlocked is creature-specific. A second attacker without
+/// CantBeBlocked can still be legally blocked. Only the CantBeBlocked creature
+/// is restricted.
+fn test_509_1b_cant_be_blocked_other_attacker_can_be_blocked() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Phantom Warrior", 2, 2)
+                .with_keyword(KeywordAbility::CantBeBlocked),
+        )
+        .object(ObjectSpec::creature(p1, "Normal Bear", 2, 2))
+        .object(ObjectSpec::creature(p2, "Grizzly Bears", 2, 2))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let unblockable_id = find_object(&state, "Phantom Warrior");
+    let normal_id = find_object(&state, "Normal Bear");
+    let blocker_id = find_object(&state, "Grizzly Bears");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers
+            .insert(unblockable_id, AttackTarget::Player(p2));
+        cs.attackers.insert(normal_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    // Block only the Normal Bear — the CantBeBlocked creature is left unblocked.
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, normal_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Blocking a normal attacker alongside a CantBeBlocked attacker must succeed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 509.1b + CR 702.9a — CantBeBlocked is absolute and supersedes all evasion
+/// restrictions. Even a blocker with Flying AND Reach cannot block a creature
+/// with CantBeBlocked (CR 509.1b is an unconditional restriction).
+fn test_509_1b_cant_be_blocked_plus_flying() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Attacker has both CantBeBlocked and Flying.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Sky Phantom", 2, 2)
+                .with_keyword(KeywordAbility::CantBeBlocked)
+                .with_keyword(KeywordAbility::Flying),
+        )
+        // Blocker has both Flying and Reach — would normally satisfy the flying restriction.
+        .object(
+            ObjectSpec::creature(p2, "Giant Spider", 2, 4)
+                .with_keyword(KeywordAbility::Flying)
+                .with_keyword(KeywordAbility::Reach),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Sky Phantom");
+    let blocker_id = find_object(&state, "Giant Spider");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "CantBeBlocked overrides flying/reach: even a flying+reach blocker cannot block \
+         a creature with CantBeBlocked (CR 509.1b)"
+    );
+}
+
+#[test]
+/// CR 509.1b / CR 611.2a — End-to-end: activated ability puts
+/// ApplyContinuousEffect on the stack; after resolution, the target creature
+/// has CantBeBlocked in its calculated characteristics (layer 6). This validates
+/// the full Rogue's Passage effect pipeline without depending on the card def.
+fn test_509_1b_cant_be_blocked_via_continuous_effect() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Build an object with an activated ability that grants CantBeBlocked to a
+    // declared target until end of turn (mirrors Rogue's Passage {4},{T} ability).
+    let passage_ability = ActivatedAbility {
+        cost: ActivationCost {
+            requires_tap: true,
+            mana_cost: Some(ManaCost {
+                generic: 4,
+                ..Default::default()
+            }),
+            sacrifice_self: false,
+        },
+        description: "{4},{T}: Target creature can't be blocked this turn.".to_string(),
+        effect: Some(Effect::ApplyContinuousEffect {
+            effect_def: Box::new(mtg_engine::CardContinuousEffectDef {
+                layer: EffectLayer::Ability,
+                modification: LayerModification::AddKeyword(KeywordAbility::CantBeBlocked),
+                filter: EffectFilter::DeclaredTarget { index: 0 },
+                duration: EffectDuration::UntilEndOfTurn,
+            }),
+        }),
+        sorcery_speed: false,
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        // A land-like source for the activated ability.
+        .object(ObjectSpec::land(p1, "Test Passage").with_activated_ability(passage_ability))
+        // Target creature owned by p1.
+        .object(ObjectSpec::creature(p1, "Sneaky Rogue", 2, 2))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    // Give p1 the 4 generic mana to pay the cost.
+    state
+        .players
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 4);
+    state.turn.priority_holder = Some(p1);
+
+    let passage_id = find_object(&state, "Test Passage");
+    let creature_id = find_object(&state, "Sneaky Rogue");
+
+    // Activate: put the ability on the stack targeting the creature.
+    let (state, _) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p1,
+            source: passage_id,
+            ability_index: 0,
+            targets: vec![Target::Object(creature_id)],
+        },
+    )
+    .expect("ActivateAbility should succeed");
+
+    // Both players pass priority to resolve the ability.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // After resolution, the creature must have CantBeBlocked in layer 6.
+    let chars = calculate_characteristics(&state, creature_id)
+        .expect("creature must still be on battlefield");
+
+    assert!(
+        chars.keywords.contains(&KeywordAbility::CantBeBlocked),
+        "Creature must have CantBeBlocked after ApplyContinuousEffect resolves (CR 611.2a); \
+         keywords: {:?}",
+        chars.keywords
     );
 }

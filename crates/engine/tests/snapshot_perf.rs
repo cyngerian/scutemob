@@ -124,7 +124,6 @@ fn test_clone_independence_object_modification() {
                 is_token: false,
                 timestamp: 0,
                 has_summoning_sickness: false,
-                enchants_creatures: false,
                 goaded_by: im::Vector::new(),
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();

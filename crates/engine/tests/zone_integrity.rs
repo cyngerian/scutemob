@@ -186,7 +186,6 @@ fn test_add_object_to_state() {
         is_token: false,
         timestamp: 0,
         has_summoning_sickness: false,
-        enchants_creatures: false,
         goaded_by: im::Vector::new(),
     };
 

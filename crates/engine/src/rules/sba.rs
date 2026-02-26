@@ -31,7 +31,9 @@ use im::OrdMap;
 use crate::state::game_object::{Characteristics, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::PendingZoneChange;
-use crate::state::types::{CardType, CounterType, KeywordAbility, SubType, SuperType};
+use crate::state::types::{
+    CardType, CounterType, EnchantTarget, KeywordAbility, SubType, SuperType,
+};
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 
@@ -571,13 +573,50 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
 
 // ── CR 704.5m ────────────────────────────────────────────────────────────────
 
+/// CR 702.5a: Extract the EnchantTarget from an Aura's computed keywords.
+///
+/// Returns the first `Enchant(target)` keyword found, or `None` if the
+/// object has no Enchant keyword.
+pub(crate) fn get_enchant_target(keywords: &im::OrdSet<KeywordAbility>) -> Option<EnchantTarget> {
+    keywords.iter().find_map(|kw| {
+        if let KeywordAbility::Enchant(target) = kw {
+            Some(target.clone())
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 702.5a: Check if a target's characteristics satisfy the Enchant restriction.
+///
+/// Used both at cast time (CR 303.4a) and in the Aura SBA (CR 704.5m).
+pub(crate) fn matches_enchant_target(
+    enchant: &EnchantTarget,
+    target_chars: &crate::state::game_object::Characteristics,
+) -> bool {
+    match enchant {
+        EnchantTarget::Creature => target_chars.card_types.contains(&CardType::Creature),
+        EnchantTarget::Land => target_chars.card_types.contains(&CardType::Land),
+        EnchantTarget::Artifact => target_chars.card_types.contains(&CardType::Artifact),
+        EnchantTarget::Enchantment => target_chars.card_types.contains(&CardType::Enchantment),
+        EnchantTarget::Planeswalker => target_chars.card_types.contains(&CardType::Planeswalker),
+        EnchantTarget::Permanent => true, // any permanent type is legal
+        EnchantTarget::Player => false,   // can't be attached to an object (needs player)
+        EnchantTarget::CreatureOrPlaneswalker => {
+            target_chars.card_types.contains(&CardType::Creature)
+                || target_chars.card_types.contains(&CardType::Planeswalker)
+        }
+    }
+}
+
 /// CR 704.5m: If an Aura is attached to an object or player it can't legally
 /// be attached to, put it into its owner's graveyard.
 ///
 /// Checks:
 /// 1. Aura is not attached to anything → always illegal (CR 704.5m).
 /// 2. Target object has left the battlefield → illegal (CR 704.5m).
-/// 3. "Enchant creature" aura: target is no longer a creature → illegal (CR 704.5m).
+/// 3. Enchant restriction mismatch: target no longer matches the Aura's Enchant keyword
+///    (e.g., "Enchant creature" aura on a non-creature) → illegal (CR 704.5m / 303.4c).
 /// 4. CR 702.16c: target has protection from a quality the aura matches → illegal.
 fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
@@ -597,10 +636,13 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 return false;
             }
             // Aura is illegal if it's not attached to anything on the battlefield.
-            let enchants_creatures = obj.enchants_creatures;
             match obj.attached_to {
                 None => true, // Unattached aura — always illegal on battlefield.
                 Some(target_id) => {
+                    // CR 303.4d: An Aura can't enchant itself.
+                    if target_id == **aura_id {
+                        return true;
+                    }
                     // Illegal if the target is gone or not on the battlefield.
                     let target_gone = state
                         .objects
@@ -610,15 +652,24 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
                     if target_gone {
                         return true;
                     }
-                    // CR 704.5m: if this is an "Enchant creature" aura, also check
-                    // that the target is currently a creature (layer-computed).
-                    if enchants_creatures {
-                        let target_chars = calculate_characteristics(state, target_id);
-                        let is_creature = target_chars
-                            .map(|c| c.card_types.contains(&CardType::Creature))
-                            .unwrap_or(false);
-                        if !is_creature {
-                            return true;
+                    // CR 704.5m / 303.4c: if this Aura has an Enchant keyword, check
+                    // that the attached object still satisfies the restriction
+                    // (layer-computed characteristics, so type-change effects apply).
+                    let aura_keywords = calculate_characteristics(state, **aura_id)
+                        .map(|c| c.keywords)
+                        .unwrap_or_default();
+                    if let Some(enchant_target) = get_enchant_target(&aura_keywords) {
+                        let target_chars =
+                            calculate_characteristics(state, target_id).or_else(|| {
+                                state
+                                    .objects
+                                    .get(&target_id)
+                                    .map(|o| o.characteristics.clone())
+                            });
+                        if let Some(tc) = target_chars {
+                            if !matches_enchant_target(&enchant_target, &tc) {
+                                return true;
+                            }
                         }
                     }
                     // CR 702.16c: the aura is illegal if the target has protection from

@@ -725,6 +725,41 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
+            GameEvent::AuraFellOff { new_grave_id, .. } => {
+                // CR 603.6c / CR 603.10a: "When ~ is put into a graveyard from the battlefield"
+                // triggers on Auras fire when the Aura moves to the graveyard via SBA 704.5m.
+                // The Aura's characteristics (including triggered_abilities) are preserved in
+                // the graveyard object by move_object_to_zone — same look-back pattern as
+                // CreatureDied. Controller defaults to owner (as reset by move_object_to_zone).
+                if let Some(obj) = state.objects.get(new_grave_id) {
+                    let controller = obj.controller;
+                    for (idx, trigger_def) in
+                        obj.characteristics.triggered_abilities.iter().enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfDies {
+                            continue;
+                        }
+
+                        // CR 603.4: Check intervening-if clause at trigger time.
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, controller) {
+                                continue;
+                            }
+                        }
+
+                        triggers.push(PendingTrigger {
+                            source: *new_grave_id,
+                            ability_index: idx,
+                            controller,
+                            triggering_event: Some(TriggerEvent::SelfDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                        });
+                    }
+                }
+            }
+
             GameEvent::CombatDamageDealt { assignments } => {
                 // CR 510.3a / CR 603.2: "Whenever ~ deals combat damage to a player"
                 // triggers fire for each creature that dealt > 0 combat damage to a player.

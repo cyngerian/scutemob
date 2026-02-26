@@ -6,7 +6,7 @@
 use mtg_engine::state::builder::{GameStateBuilder, ObjectSpec};
 use mtg_engine::state::player::{CardId, PlayerId};
 use mtg_engine::state::turn::Step;
-use mtg_engine::state::types::{CounterType, SubType, SuperType};
+use mtg_engine::state::types::{CounterType, EnchantTarget, SubType, SuperType};
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     start_game, ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, GameEvent,
@@ -1232,7 +1232,10 @@ fn test_cc31_aura_falls_off_after_type_change_ends() {
 
     if let Some(aura) = state.objects.get_mut(&aura_id) {
         aura.attached_to = Some(land_id);
-        aura.enchants_creatures = true; // "Enchant creature" restriction
+        // CR 702.5a: set Enchant(Creature) keyword to enforce the restriction via SBA.
+        aura.characteristics
+            .keywords
+            .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
     }
     if let Some(land) = state.objects.get_mut(&land_id) {
         land.attachments.push_back(aura_id);

@@ -19,7 +19,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::CardType;
+use crate::state::types::{CardType, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -176,6 +176,58 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // (move_object_to_zone resets controller to owner; restore it here).
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
+                }
+
+                // CR 303.4a / 303.4b: If the resolved permanent is an Aura, attach it
+                // to its target BEFORE registering static continuous effects. The
+                // EffectFilter::AttachedCreature filter reads `attached_to`, so the
+                // attachment must be set before register_static_continuous_effects runs.
+                {
+                    let is_aura = {
+                        let obj = state.objects.get(&new_id);
+                        obj.map(|o| {
+                            o.characteristics
+                                .card_types
+                                .contains(&CardType::Enchantment)
+                                && o.characteristics
+                                    .subtypes
+                                    .contains(&SubType("Aura".to_string()))
+                        })
+                        .unwrap_or(false)
+                    };
+                    if is_aura {
+                        // Find the first legal Object target from the original stack entry.
+                        let aura_target = stack_obj
+                            .targets
+                            .iter()
+                            .filter(|t| is_target_legal(state, t))
+                            .find_map(|t| {
+                                if let Target::Object(target_id) = t.target {
+                                    Some(target_id)
+                                } else {
+                                    None
+                                }
+                            });
+                        if let Some(target_id) = aura_target {
+                            // Set attached_to on the Aura.
+                            if let Some(aura_obj) = state.objects.get_mut(&new_id) {
+                                aura_obj.attached_to = Some(target_id);
+                            }
+                            // Add to target's attachments list.
+                            if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                                if !target_obj.attachments.contains(&new_id) {
+                                    target_obj.attachments.push_back(new_id);
+                                }
+                            }
+                            events.push(GameEvent::AuraAttached {
+                                aura_id: new_id,
+                                target_id,
+                                controller,
+                            });
+                        }
+                        // If no legal target exists, the Aura is left unattached.
+                        // SBA 704.5m will move it to the graveyard on the next SBA check.
+                    }
                 }
 
                 // CR 614.12 / 614.15: Apply ETB replacement effects before emitting

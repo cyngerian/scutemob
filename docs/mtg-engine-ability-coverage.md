@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-26 (Dredge P2-validated; Golgari Grave-Troll card def; script replacement/014)
+> Last audited: 2026-02-26 (DeclareAttackers+DeclareBlockers validated; AttackerDeclaration/BlockerDeclaration structs, harness action arms, find_on_battlefield_by_name helper, 6 unit tests in combat_harness.rs, scripts combat/015+016)
 
 ---
 
@@ -30,11 +30,11 @@
 
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
-| P1       | 42    | 36        | 3        | 3       | 0    | 0   |
+| P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 3         | 0        | 0       | 14   | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **39**   | **3**    | **3**   | **142**| **12** |
+| **Total**| **199**| **43**   | **2**    | **0**   | **142**| **12** |
 
 ---
 
@@ -76,7 +76,7 @@ Additional evasion and blocking-restriction keywords beyond the evergreen set.
 | Horsemanship | 702.30 | P4 | `none` | — | — | — | — | Can only be blocked by horsemanship (Portal Three Kingdoms) |
 | Skulk | 702.120 | P4 | `none` | — | — | — | — | Can't be blocked by creatures with greater power |
 | Landwalk | 702.14 | P1 | `validated` | `state/types.rs:60-77,133-137`, `rules/combat.rs:484-509` | Bog Raiders | `combat/010` | — | LandwalkType enum (BasicType + Nonbasic variants); KeywordAbility::Landwalk; blocking restriction enforced via calculate_characteristics (handles Blood Moon etc.); 7 unit tests in `tests/keywords.rs:1137-1480`; game script `pending_review` (8/8 assertions pass) |
-| CantBeBlocked | 509.1 | P1 | `complete` | `state/types.rs`, `rules/combat.rs` | Rogues Passage (pending) | — | — | Pseudo-keyword; blocking restriction enforced |
+| CantBeBlocked | 509.1b | P1 | `validated` | `state/types.rs:172`, `state/hash.rs:309`, `rules/combat.rs:441-451`, `cards/definitions.rs:400-437,1386-1395` | Rogue's Passage, Whispersilk Cloak | `combat/014` | — | KeywordAbility::CantBeBlocked enum; blocking restriction enforced in handle_declare_blockers; Rogue's Passage grants via activated ability (UntilEndOfTurn continuous effect, layer 6); Whispersilk Cloak grants via static continuous effect (WhileSourceOnBattlefield); 5 unit tests in `tests/keywords.rs:1510-1784`; 1 card-def test in `tests/card_def_fixes.rs:572`; game script pending_review (4 assertions pass) |
 
 ---
 
@@ -87,7 +87,7 @@ Keywords governing how permanents attach to other permanents.
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Equip | 702.6 | P1 | `validated` | `state/types.rs:125`, `rules/abilities.rs:118-164`, `effects/mod.rs:1020-1118`, `cards/definitions.rs` | Lightning Greaves, Swiftfoot Boots, Whispersilk Cloak | `layers/012` | — | KeywordAbility::Equip enum; Effect::AttachEquipment with sorcery-speed validation, layer-aware creature type check, activation-time target validation; 14 unit tests in `tests/equip.rs`; game script approved |
-| Enchant | 702.5 | P1 | `partial` | `state/types.rs` (enum) | Enchantment cards | — | — | Aura attachment works; keyword itself not rule-enforced |
+| Enchant | 702.5 | P1 | `validated` | `state/types.rs:119-149`, `state/hash.rs:273-283`, `rules/casting.rs:204-241`, `rules/resolution.rs:181-228`, `rules/sba.rs:576-703`, `rules/abilities.rs:728` | Rancor | `stack/062` | — | EnchantTarget enum (Creature/Permanent/Artifact/Enchantment/Land/Planeswalker/Player/CreatureOrPlaneswalker); cast-time target restriction (CR 702.5a/303.4a); Aura attachment on resolution (CR 303.4b, AuraAttached event); SBA 704.5m type-mismatch + unattached + self-enchantment (CR 303.4d); AuraFellOff trigger wiring for WhenDies; 11 unit tests in `tests/enchant.rs`; game script pending_review (19/19 assertions pass) |
 | Bestow | 702.103 | P3 | `none` | — | — | — | Enchant | Cast as Aura or creature; falls off → becomes creature |
 | Reconfigure | 702.151 | P4 | `none` | — | — | — | Equip | Artifact creature that can attach/detach |
 | Fortify | 702.67 | P4 | `none` | — | — | — | — | Equip for lands (Fortifications) |
@@ -353,8 +353,8 @@ Common ability patterns that appear across many cards but aren't formal CR 702 k
 | Global replacement | P1 | `validated` | `effects/`, `rules/replacement.rs` | Rest in Peace, Leyline of the Void | `replacement/` scripts | — | Replace zone change events globally |
 | Equipment keyword grant | P1 | `validated` | `cards/definitions.rs`, `rules/layers.rs` | Lightning Greaves, Swiftfoot Boots | `layers/` scripts | — | Layer 6 continuous effect granting keywords |
 | Modal choice | P2 | `none` | — | — | — | — | "Choose one —" modal spells not yet supported |
-| Declare attackers action | P1 | `partial` | `rules/combat.rs` | — | — | — | Combat declaration works; harness action for scripts incomplete |
-| Declare blockers action | P1 | `partial` | `rules/combat.rs` | — | — | — | Combat declaration works; harness action for scripts incomplete |
+| Declare attackers action | P1 | `validated` | `rules/combat.rs:29-310`, `testing/replay_harness.rs:279-310`, `testing/script_schema.rs:342-357` | Llanowar Elves | `combat/015`, `combat/016` | — | AttackerDeclaration struct; translate_player_action "declare_attackers" arm resolves creature names to ObjectIds + player names to AttackTarget; deterministic default target (alphabetically sorted opponents); find_on_battlefield_by_name helper; 6 unit tests in `tests/combat_harness.rs`; 2 game scripts (12+21 assertions) |
+| Declare blockers action | P1 | `validated` | `rules/combat.rs:312-590`, `testing/replay_harness.rs:315-326`, `testing/script_schema.rs:359-369` | Elvish Mystic | `combat/015`, `combat/016` | — | BlockerDeclaration struct; translate_player_action "declare_blockers" arm resolves blocker+attacker names to ObjectIds via find_on_battlefield_by_name; 6 unit tests in `tests/combat_harness.rs`; 2 game scripts (12+21 assertions) |
 
 ---
 
@@ -462,7 +462,7 @@ Top unresolved gaps ordered by priority.
 
 ### P1 Gaps (on existing cards or blocking scripts)
 
-1. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
+All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P2 Gaps (Commander staples)
 
@@ -474,4 +474,4 @@ Top unresolved gaps ordered by priority.
 6. **Crew** (CR 702.122) — Vehicle animation; no implementation.
 7. **Exalted** (CR 702.83) — Voltron staple; no implementation.
 
-**Resolved**: Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll).
+**Resolved**: Declare attackers/blockers harness action — validated 2026-02-26 (scripts combat/015+016, 6 unit tests in combat_harness.rs). Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll).

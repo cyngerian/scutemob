@@ -444,7 +444,6 @@ impl GameStateBuilder {
                 // test-placed permanents on the battlefield are treated as having
                 // been there since the beginning of their controller's turn.
                 has_summoning_sickness: false,
-                enchants_creatures: false,
                 goaded_by: im::Vector::new(),
             };
 

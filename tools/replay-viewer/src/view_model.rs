@@ -564,7 +564,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Deathtouch => "Deathtouch".to_string(),
         KeywordAbility::Defender => "Defender".to_string(),
         KeywordAbility::DoubleStrike => "Double Strike".to_string(),
-        KeywordAbility::Enchant => "Enchant".to_string(),
+        KeywordAbility::Enchant(target) => format!("Enchant {target:?}"),
         KeywordAbility::Equip => "Equip".to_string(),
         KeywordAbility::FirstStrike => "First Strike".to_string(),
         KeywordAbility::Flash => "Flash".to_string(),

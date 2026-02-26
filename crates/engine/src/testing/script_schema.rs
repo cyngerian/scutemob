@@ -205,6 +205,16 @@ pub enum ScriptAction {
         /// Required for `activate_ability` actions. Defaults to 0.
         #[serde(default)]
         ability_index: u32,
+        /// For `declare_attackers`: list of (creature_name, attack_target_player) pairs.
+        /// Each entry declares one creature as attacking one player or planeswalker.
+        /// Example: [{"card": "Grizzly Bears", "target_player": "p2"}]
+        #[serde(default)]
+        attackers: Vec<AttackerDeclaration>,
+        /// For `declare_blockers`: list of (blocker_name, attacker_name) pairs.
+        /// Each entry declares one creature as blocking one attacker.
+        /// Example: [{"card": "Llanowar Elves", "blocking": "Grizzly Bears"}]
+        #[serde(default)]
+        blockers: Vec<BlockerDeclaration>,
         cr_ref: Option<String>,
         note: Option<String>,
     },
@@ -327,4 +337,33 @@ pub struct TriggeredAbilityEvent {
     pub source: String,
     pub controller: String,
     pub cr_ref: Option<String>,
+}
+
+/// CR 508.1: One attacker declaration entry for the `declare_attackers` harness action.
+///
+/// `card` is the name of the attacking creature on the battlefield.
+/// `target_player` is the script player name (e.g. `"p2"`) being attacked.
+/// `target_planeswalker` is the planeswalker card name on the battlefield (mutually exclusive
+/// with `target_player`). If both are absent the harness defaults to the first non-active player.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttackerDeclaration {
+    /// Name of the attacking creature (must be on the battlefield under the player's control).
+    pub card: String,
+    /// Name of the player being attacked (e.g. `"p2"`).
+    pub target_player: Option<String>,
+    /// Name of the planeswalker being attacked (on the battlefield).
+    /// Mutually exclusive with `target_player`.
+    pub target_planeswalker: Option<String>,
+}
+
+/// CR 509.1: One blocker declaration entry for the `declare_blockers` harness action.
+///
+/// `card` is the name of the blocking creature.
+/// `blocking` is the name of the attacker being blocked.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BlockerDeclaration {
+    /// Name of the blocking creature (must be on the battlefield under the player's control).
+    pub card: String,
+    /// Name of the attacking creature being blocked.
+    pub blocking: String,
 }

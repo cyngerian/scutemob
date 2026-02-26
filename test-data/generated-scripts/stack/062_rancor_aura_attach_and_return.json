@@ -1,0 +1,405 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_062",
+    "name": "Rancor Aura attaches to Llanowar Elves; returns to hand when creature dies",
+    "description": "P1 casts Rancor ({G}) targeting their Llanowar Elves (1/1). Both players pass priority. Rancor resolves: it enters the battlefield attached to Llanowar Elves (CR 303.4b), emitting AuraAttached. Rancor's static abilities (CR 613.4c: +2/+0 layer 7c; CR 702.19a: trample keyword layer 6) now apply to Llanowar Elves. P1 passes priority. P2 then casts Doom Blade targeting Llanowar Elves. Doom Blade resolves: Llanowar Elves is destroyed (CR 701.7) and moves to P1's graveyard. SBA check (CR 704.5m / CR 303.4c): Rancor is now attached to an object not on the battlefield \u2014 AuraFellOff fires, Rancor moves to P1's graveyard. CR 603.1: Rancor's WhenDies trigger fires ('When this Aura is put into a graveyard from the battlefield, return it to its owner's hand'). The trigger goes on the stack, both players pass, and the trigger resolves: Rancor moves from P1's graveyard to P1's hand. Final state: P1's hand contains Rancor; P1's graveyard contains only Llanowar Elves.",
+    "cr_sections_tested": [
+      "116.3",
+      "303.4b",
+      "303.4c",
+      "601.2",
+      "603.1",
+      "608.2",
+      "613.4c",
+      "700.4",
+      "701.7",
+      "702.5a",
+      "702.19a",
+      "704.5m"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "aura",
+      "enchant",
+      "rancor",
+      "return-to-hand",
+      "dies-trigger",
+      "sba",
+      "704-5m",
+      "layer-6",
+      "layer-7c"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Rancor oracle: 'Enchant creature. Enchanted creature gets +2/+0 and has trample. When this Aura is put into a graveyard from the battlefield, return it to its owner's hand.' Rancor definition in definitions.rs: card 61, mana_cost {G}, Enchantment\u2014Aura, abilities: [Enchant(Creature), Static{ModifyPT{+2/+0, AttachedCreature}}, Static{AddKeyword{Trample, AttachedCreature}}, Triggered{WhenDies, Effect::MoveZone{Source -> Hand(Controller)}}]. Llanowar Elves definition in definitions.rs: card 47, mana_cost {G}, Creature \u2014 Elf Druid 1/1, {T}: Add {G}. Grizzly Bears is NOT in definitions.rs \u2014 Llanowar Elves is used as the enchant target (a confirmed-defined creature). P1 starts with a tapped Forest (mana already extracted: {G} in pool), Rancor in hand, Llanowar Elves on battlefield. P2 has {1}{B} ready to cast Doom Blade and Doom Blade in hand.\n\nNote on binary freshness: The replay-viewer binary must be rebuilt after definitions.rs is updated. A stale binary fails with 'InvalidTarget: target does not match Enchant restriction (Creature)' because enrich_spec_from_def cannot populate card_types from a definition not present in the compiled registry.\n\nPriority flow: After Rancor resolves (step 1 priority_round), priority returns to P1 (active player, CR 116.3b). P1 passes priority (priority_pass) before P2 can cast Doom Blade. This matches CR 116.3a.\n\nStep 1 \u2014 Rancor cast & resolution: P1 casts Rancor targeting Llanowar Elves (CR 702.5a: Enchant creature target must be a creature). Both pass priority. Rancor resolves: enters battlefield attached to Llanowar Elves (CR 303.4b). The AuraAttached event fires. register_static_continuous_effects is called after attachment is set, registering the +2/+0 (layer 7c, CR 613.4c) and trample (layer 6, CR 702.19a) continuous effects.\n\nStep 2 \u2014 Doom Blade resolves & SBA: P1 passes priority. P2 casts Doom Blade targeting Llanowar Elves (green, nonblack \u2014 valid target, CR 115.4). Both pass. Doom Blade resolves: Llanowar Elves destroyed (CR 701.7), moves to P1's graveyard. SBA check (CR 704.3): Rancor's attached_to points to the dead Llanowar Elves object (which is no longer on the battlefield). CR 704.5m / CR 303.4c: Aura attached to an object that no longer exists on battlefield \u2014 AuraFellOff fires, Rancor is put into its owner's (P1's) graveyard.\n\nStep 3 \u2014 Rancor's WhenDies trigger: Engine fix (AuraFellOff now wired to SelfDies trigger collection in check_triggers). CR 603.1: when Rancor is put into a graveyard from the battlefield, its WhenDies trigger fires and goes on the stack. Priority is given to P1 (active player, CR 116.3b). Both players pass priority (priority_round). The trigger resolves: Rancor is moved from P1's graveyard to P1's hand (MoveZone effect, Effect::MoveZone{Source -> Hand(Controller)}). Final state: Rancor in P1's hand; Llanowar Elves in P1's graveyard; stack empty.\n\nNote on P/T assertion gap: The harness does not expose permanent.<card>.power or permanent.<card>.toughness assertion paths. The +2/+0 and trample grants are verified by unit tests in crates/engine/tests/enchant.rs and tests/layers.rs.",
+    "disputes": [
+      {
+        "step_index": 1,
+        "action_index": 5,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Engine gap: CR 603.1 requires Rancor's WhenDies trigger to fire when Rancor is put into a graveyard from the battlefield via SBA 704.5m (AuraFellOff). The trigger should return Rancor from P1's graveyard to P1's hand. However, abilities.check_triggers (rules/abilities.rs) only handles GameEvent::CreatureDied for TriggerEvent::SelfDies collection. GameEvent::AuraFellOff (emitted by sba.check_aura_sbas, rules/sba.rs) has no trigger-collection handler. As a result, Rancor's return-to-hand trigger does not fire. To fix: add a GameEvent::AuraFellOff arm to check_triggers (parallel to the CreatureDied arm at abilities.rs:686) that looks up the graveyard object and collects any SelfDies triggers from its triggered_abilities. The CR-correct final state is Rancor in P1's hand (zones.hand.p1.count: 1); the engine-actual final state is Rancor in P1's graveyard. Final assertions in this script reflect engine-actual behavior.",
+        "resolution": "RESOLVED: Engine fix applied \u2014 AuraFellOff events now fire WhenDies (SelfDies) triggers on the Aura. Rancor's return-to-hand trigger now fires correctly. Script updated to reflect CR-correct behavior: trigger resolves and Rancor returns to P1's hand.",
+        "resolved_by": "claude-sonnet-4-6",
+        "resolved_date": "2026-02-26"
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "green": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {
+          "black": 1,
+          "colorless": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null,
+            "tapped": true
+          },
+          {
+            "card": "Llanowar Elves",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Rancor",
+            "is_commander": false,
+            "owner": null
+          }
+        ],
+        "p2": [
+          {
+            "card": "Doom Blade",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Rancor targeting Llanowar Elves. Both pass priority. Rancor resolves and attaches.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on P1 battlefield, Rancor in P1 hand, Doom Blade in P2 hand",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Rancor",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p1",
+              "player": null
+            }
+          ],
+          "mana_paid": {
+            "green": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Rancor; {G} paid from pool; CR 702.5a: Enchant creature \u2014 Llanowar Elves (a creature) is a valid target."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Rancor on stack, P1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Rancor is on the stack targeting Llanowar Elves."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Rancor resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rancor",
+          "resolution": [
+            {
+              "effect": "aura_attached",
+              "target": {
+                "type": "permanent",
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
+              "card": "Rancor",
+              "owner": null,
+              "cr_ref": "303.4b",
+              "note": "CR 303.4b: Rancor enters the battlefield attached to Llanowar Elves. attached_to set; AuraAttached event emitted."
+            },
+            {
+              "effect": "continuous_effect_registered",
+              "card": "Rancor",
+              "owner": null,
+              "cr_ref": "613.4c",
+              "note": "CR 613.4c (layer 7c): +2/+0 P/T modification registered for Llanowar Elves. CR 702.19a (layer 6): trample keyword granted."
+            }
+          ],
+          "note": "CR 608.2: Rancor resolves as an Aura permanent, enters battlefield attached to Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Rancor resolves: Rancor on P1 battlefield, Llanowar Elves still present, stack empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Rancor"
+                },
+                {
+                  "card": "Llanowar Elves"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Rancor entered battlefield attached to Llanowar Elves. Llanowar Elves now has +2/+0 (3/1) and trample in layer calculations, but P/T assertion not supported by harness \u2014 verified by unit tests in enchant.rs and layers.rs."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P1 passes priority. P2 casts Doom Blade targeting Llanowar Elves. It resolves: creature dies, SBA 704.5m fires Rancor to graveyard, Rancor's WhenDies trigger fires and puts it on the stack.",
+      "actions": [
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "CR 116.3a: After Rancor resolved, P1 (active player) received priority. P1 passes so P2 may act."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            {
+              "type": "permanent",
+              "card": "Llanowar Elves",
+              "controller": "p1",
+              "player": null
+            }
+          ],
+          "mana_paid": {
+            "black": 1,
+            "colorless": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Doom Blade; {1}{B} paid. Llanowar Elves is green (nonblack) \u2014 valid target (CR 115.4)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Doom Blade on stack, Doom Blade left P2 hand",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Doom Blade resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": {
+                "card": "Llanowar Elves",
+                "controller": "p1"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7",
+              "note": "CR 701.7: Llanowar Elves is destroyed and moves to P1's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Doom Blade resolves; Llanowar Elves destroyed. Doom Blade moves to P2's graveyard."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "aura_falls_off",
+              "target": {
+                "card": "Rancor",
+                "controller": "p1"
+              },
+              "cr_ref": "704.5m",
+              "note": "CR 704.5m / CR 303.4c: Rancor is attached to Llanowar Elves which is no longer on the battlefield. SBA puts Rancor into its owner's (P1's) graveyard. AuraFellOff event emitted. CR 603.1: Rancor's WhenDies trigger ('When this Aura is put into a graveyard from the battlefield, return it to its owner's hand') fires and goes on the stack."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked after Doom Blade resolves. Rancor's enchanted creature is gone \u2014 Aura SBA fires, sending Rancor to P1's graveyard, and Rancor's WhenDies trigger fires."
+        },
+        {
+          "type": "assert_state",
+          "description": "After SBA: Llanowar Elves in P1 graveyard, Rancor in P1 graveyard, Rancor's WhenDies trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                },
+                {
+                  "card": "Rancor"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Llanowar Elves",
+                "Rancor"
+              ]
+            }
+          },
+          "note": "Rancor is in the graveyard and its WhenDies trigger is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Rancor's WhenDies trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rancor",
+          "resolution": [
+            {
+              "effect": "move_zone",
+              "target": {
+                "card": "Rancor",
+                "controller": "p1"
+              },
+              "from_zone": "graveyard",
+              "to_zone": "hand",
+              "card": null,
+              "owner": null,
+              "cr_ref": "603.1",
+              "note": "CR 603.1: Rancor's WhenDies trigger resolves \u2014 Rancor is moved from P1's graveyard to P1's hand."
+            }
+          ],
+          "note": "CR 608.2: Triggered ability resolves; Rancor returns to its owner's hand."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Rancor in P1 hand, Llanowar Elves in P1 graveyard, Doom Blade in P2 graveyard, stack empty",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Llanowar Elves"
+                }
+              ],
+              "excludes": [
+                "Rancor"
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                {
+                  "card": "Doom Blade"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                "Llanowar Elves",
+                "Rancor"
+              ]
+            }
+          },
+          "note": "Rancor's WhenDies trigger resolved correctly: Rancor is in P1's hand. Llanowar Elves was destroyed by Doom Blade and remains in P1's graveyard. Stack is empty."
+        }
+      ]
+    }
+  ]
+}

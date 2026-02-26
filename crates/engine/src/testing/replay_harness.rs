@@ -16,8 +16,11 @@ use std::collections::HashMap;
 
 use im::OrdMap;
 
+use crate::state::combat::AttackTarget;
 use crate::state::{ActivatedAbility, ActivationCost, CounterType};
-use crate::testing::script_schema::{ActionTarget, InitialState};
+use crate::testing::script_schema::{
+    ActionTarget, AttackerDeclaration, BlockerDeclaration, InitialState,
+};
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility, ManaColor,
@@ -187,12 +190,15 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
 ///
 /// Returns `None` for unrecognized action strings (future-proof: new actions
 /// are silently skipped rather than panicking).
+#[allow(clippy::too_many_arguments)]
 pub fn translate_player_action(
     action: &str,
     player: PlayerId,
     card_name: Option<&str>,
     ability_index: usize,
     targets: &[ActionTarget],
+    attackers_decl: &[AttackerDeclaration],
+    blockers_decl: &[BlockerDeclaration],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -266,6 +272,57 @@ pub fn translate_player_action(
         "choose_dredge" => {
             let card = card_name.and_then(|name| find_in_graveyard(state, player, name));
             Some(Command::ChooseDredge { player, card })
+        }
+
+        // CR 508.1: Declare attackers. Resolve creature names to ObjectIds on the
+        // battlefield, and player names to AttackTarget::Player.
+        "declare_attackers" => {
+            let mut atk_pairs: Vec<(crate::state::ObjectId, AttackTarget)> = Vec::new();
+            for decl in attackers_decl {
+                let obj_id = find_on_battlefield(state, player, &decl.card)?;
+                let target = if let Some(ref pname) = decl.target_player {
+                    let &pid = players.get(pname.as_str())?;
+                    AttackTarget::Player(pid)
+                } else if let Some(ref pw_name) = decl.target_planeswalker {
+                    let pw_id = find_on_battlefield_by_name(state, pw_name)?;
+                    AttackTarget::Planeswalker(pw_id)
+                } else {
+                    // Default: attack the first non-active player, sorted alphabetically by
+                    // player name for determinism in multiplayer (3+ player) games. In a
+                    // 2-player game there is only one opponent so order is irrelevant.
+                    // Note: uses find_on_battlefield_by_name for the creature; see that
+                    // function's doc comment about duplicate-name limitations.
+                    let mut opponents: Vec<(&str, PlayerId)> = players
+                        .iter()
+                        .filter(|(_, &pid)| pid != player)
+                        .map(|(name, &pid)| (name.as_str(), pid))
+                        .collect();
+                    opponents.sort_by_key(|(name, _)| *name);
+                    let target_pid = opponents.into_iter().next().map(|(_, pid)| pid)?;
+                    AttackTarget::Player(target_pid)
+                };
+                atk_pairs.push((obj_id, target));
+            }
+            Some(Command::DeclareAttackers {
+                player,
+                attackers: atk_pairs,
+            })
+        }
+
+        // CR 509.1: Declare blockers. Resolve creature names to ObjectIds on the
+        // battlefield. The blocker is controlled by the declaring player; the attacker
+        // may be controlled by any player.
+        "declare_blockers" => {
+            let mut blk_pairs: Vec<(crate::state::ObjectId, crate::state::ObjectId)> = Vec::new();
+            for decl in blockers_decl {
+                let blocker_id = find_on_battlefield(state, player, &decl.card)?;
+                let attacker_id = find_on_battlefield_by_name(state, &decl.blocking)?;
+                blk_pairs.push((blocker_id, attacker_id));
+            }
+            Some(Command::DeclareBlockers {
+                player,
+                blockers: blk_pairs,
+            })
         }
 
         "concede" => Some(Command::Concede { player }),
@@ -378,6 +435,12 @@ pub fn enrich_spec_from_def(
 
     // Apply card types (Land, Instant, Sorcery, Artifact, etc.)
     spec.card_types = def.types.card_types.iter().cloned().collect();
+
+    // Apply subtypes (Aura, Equipment, Human, etc.) so that SBA checks and
+    // the Enchant restriction enforcement can identify the object type.
+    if !def.types.subtypes.is_empty() {
+        spec.subtypes = def.types.subtypes.iter().cloned().collect();
+    }
 
     // Apply mana cost (for cost-payment validation at cast time).
     spec.mana_cost = def.mana_cost.clone();
@@ -635,6 +698,26 @@ fn find_on_battlefield(
             && obj.zone == ZoneId::Battlefield
             && obj.controller == controller
         {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 509.1: Find any permanent on the battlefield by name, regardless of controller.
+///
+/// Used when declaring blockers — the attacker being blocked is controlled by an
+/// opponent, so we cannot filter by the declaring player's controller field.
+///
+/// **Duplicate-name limitation**: if multiple permanents share the same card name,
+/// the one with the lowest `ObjectId` is returned (because `state.objects` is an
+/// `OrdMap<ObjectId, GameObject>` and `find_map` returns the first match). Use unique
+/// card names in test scripts to avoid ambiguity. Adding an `index` field to
+/// `BlockerDeclaration` (e.g. `"index": 1` for the second copy) is a future improvement.
+fn find_on_battlefield_by_name(state: &GameState, name: &str) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name && obj.zone == ZoneId::Battlefield {
             Some(id)
         } else {
             None

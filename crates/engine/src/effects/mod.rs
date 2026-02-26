@@ -1518,7 +1518,6 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_token: true,
         timestamp: 0,
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
-        enchants_creatures: false,
         goaded_by: im::Vector::new(),
     }
 }

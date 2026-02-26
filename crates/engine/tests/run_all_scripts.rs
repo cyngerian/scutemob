@@ -14,6 +14,7 @@
 //! different schema version or be work-in-progress). Scripts that fail
 //! assertions or cause command rejections produce test failures with details.
 
+use std::env;
 use std::fs;
 use std::path::Path;
 
@@ -80,13 +81,35 @@ fn run_all_approved_scripts() {
     // Path is relative to the workspace root (where `cargo test` runs).
     let scripts_dir = Path::new("../../test-data/generated-scripts");
 
+    // Optional filter: SCRIPT_FILTER=<substring> runs only scripts whose path or id
+    // contains the substring. Used by agents to validate a single new script quickly:
+    //   SCRIPT_FILTER=015_declare_attackers cargo test --test run_all_scripts
+    // When SCRIPT_FILTER is set, pending_review scripts are also included so agents
+    // can validate before approving.
+    let filter = env::var("SCRIPT_FILTER").ok();
+
     let all_scripts = discover_scripts(scripts_dir);
     let approved: Vec<_> = all_scripts
         .iter()
-        .filter(|(_, s)| s.metadata.review_status == ReviewStatus::Approved)
+        .filter(|(label, s)| {
+            if let Some(ref f) = filter {
+                // Filter mode: match path OR script id; include any review_status.
+                label.contains(f.as_str()) || s.metadata.id.contains(f.as_str())
+            } else {
+                // Normal mode: approved scripts only.
+                s.metadata.review_status == ReviewStatus::Approved
+            }
+        })
         .collect();
 
     if approved.is_empty() {
+        if filter.is_some() {
+            panic!(
+                "SCRIPT_FILTER={:?} matched 0 scripts in {:?}",
+                filter.unwrap(),
+                scripts_dir
+            );
+        }
         // No approved scripts yet — that's fine for M7 initial state.
         eprintln!(
             "run_all_approved_scripts: 0 approved scripts found in {:?} (pass vacuously)",

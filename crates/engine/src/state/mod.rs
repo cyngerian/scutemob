@@ -41,8 +41,8 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    CardType, Color, CounterType, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
-    SubType, SuperType,
+    CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
+    ProtectionQuality, SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -271,7 +271,6 @@ impl GameState {
             // CR 302.6: a permanent entering the battlefield has summoning sickness
             // until the beginning of its controller's next untap step.
             has_summoning_sickness: to == ZoneId::Battlefield,
-            enchants_creatures: old_object.enchants_creatures,
             // CR 400.7: goad state is not preserved across zone changes.
             goaded_by: im::Vector::new(),
         };
@@ -341,7 +340,6 @@ impl GameState {
             is_token: old_object.is_token,
             timestamp: self.timestamp_counter,
             has_summoning_sickness: to == ZoneId::Battlefield,
-            enchants_creatures: old_object.enchants_creatures,
             goaded_by: im::Vector::new(),
         };
 

@@ -356,11 +356,28 @@ Parse the `RunResult` JSON response:
     describing the failure (e.g. `"Harness validation failed after 2 retries:
     <first_failure.path> expected <expected>, got <actual>"`) and stop.
 
-**Step 2b — if DOWN:** Output:
+**Step 2b — if DOWN:** Run only the new script via `SCRIPT_FILTER`:
+```bash
+SCRIPT_FILTER="<script_filename_without_extension>" \
+  ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
 ```
-Stepper not running — start with /start-stepper to validate interactively.
+For example, for a script named `015_declare_attackers_unblocked.json`, use:
+```bash
+SCRIPT_FILTER=015_declare_attackers_unblocked \
+  ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
 ```
-Leave `review_status` as `"pending_review"`.
+This uses incremental compilation (fast, ~5-10s) and runs ONLY the new script — not all 60+ approved scripts. It works for `pending_review` scripts too.
+
+Parse the output:
+- `"1 approved scripts all passed"` → output `"Harness validation: PASS (N/N assertions)"` — leave `review_status: "pending_review"`.
+- `SCRIPT_FILTER=... matched 0 scripts` → the filename/id didn't match; check the exact script id in your JSON and retry with the correct filter string.
+- `FAILED` or `panicked` → treat as a script logic failure; fix and retry (max 2 retries). Allow at most **2 retries**.
+
+**CRITICAL — NEVER start or build the replay-viewer HTTP server.** Do NOT run:
+- `cargo build -p replay-viewer` or `cargo build --release -p replay-viewer`
+- `target/release/replay-viewer` or any path to the viewer binary
+- Any command that starts the HTTP server on port 3030
+Starting the HTTP server from an agent causes OOM kills (SIGKILL/137). Use `cargo test` only.
 
 **Important**: Harness failures may indicate a script error OR an engine bug. Use your
 judgment: if the CR and card oracle text unambiguously support the script, note the

@@ -30,7 +30,7 @@ use crate::state::player::PlayerId;
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
-use crate::state::types::{CardType, KeywordAbility};
+use crate::state::types::{CardType, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -200,6 +200,52 @@ pub fn handle_cast_spell(
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
     let spell_targets = validate_targets(state, &targets, &requirements, player, Some(&chars))?;
+
+    // CR 702.5a / 303.4a: Aura spells require exactly one target matching the Enchant restriction.
+    // The Enchant keyword defines the target restriction — it is derived from the card's
+    // keywords rather than from an explicit TargetRequirement (which applies to instants/sorceries).
+    if chars.subtypes.contains(&SubType("Aura".to_string()))
+        && chars.card_types.contains(&CardType::Enchantment)
+    {
+        if let Some(enchant_target) = super::sba::get_enchant_target(&chars.keywords) {
+            // CR 303.4a: Aura spell must target exactly one legal object.
+            if spell_targets.is_empty() {
+                return Err(GameStateError::InvalidCommand(
+                    "Aura spells require exactly one target (CR 303.4a)".into(),
+                ));
+            }
+            for st in &spell_targets {
+                if let Target::Object(target_id) = st.target {
+                    // CR 303.4a / 115.4: The target must be on the battlefield.
+                    // Auras can only enchant permanents (or players for Enchant Player).
+                    // A creature in the graveyard or hand is not a legal Aura target.
+                    let is_on_battlefield = state
+                        .objects
+                        .get(&target_id)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false);
+                    if !is_on_battlefield {
+                        return Err(GameStateError::InvalidTarget(
+                            "Aura target must be on the battlefield (CR 303.4a)".into(),
+                        ));
+                    }
+                    let target_chars = calculate_characteristics(state, target_id).or_else(|| {
+                        state
+                            .objects
+                            .get(&target_id)
+                            .map(|o| o.characteristics.clone())
+                    });
+                    if let Some(tc) = target_chars {
+                        if !super::sba::matches_enchant_target(&enchant_target, &tc) {
+                            return Err(GameStateError::InvalidTarget(format!(
+                                "target does not match Enchant restriction ({enchant_target:?})"
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();

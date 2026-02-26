@@ -111,6 +111,30 @@ pub enum CounterType {
     Custom(String),
 }
 
+/// CR 702.5a: Specifies what an Aura can legally target and enchant.
+///
+/// The Enchant keyword restricts both the target at cast time (CR 303.4a) and
+/// what the Aura can be attached to on the battlefield (CR 704.5m).
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum EnchantTarget {
+    /// "Enchant creature" (most common)
+    Creature,
+    /// "Enchant permanent" — any permanent type
+    Permanent,
+    /// "Enchant artifact"
+    Artifact,
+    /// "Enchant enchantment"
+    Enchantment,
+    /// "Enchant land"
+    Land,
+    /// "Enchant planeswalker"
+    Planeswalker,
+    /// "Enchant player" — can target and attach to players (CR 702.5d)
+    Player,
+    /// "Enchant creature or planeswalker"
+    CreatureOrPlaneswalker,
+}
+
 /// Keyword abilities (CR 702). Common keywords used in rules processing.
 ///
 /// Note: `Copy` is not derived because `ProtectionFrom(ProtectionQuality)` contains
@@ -121,7 +145,8 @@ pub enum KeywordAbility {
     Deathtouch,
     Defender,
     DoubleStrike,
-    Enchant,
+    /// CR 702.5a: Enchant [object or player] — restricts what this Aura can target and enchant.
+    Enchant(EnchantTarget),
     Equip,
     FirstStrike,
     Flash,

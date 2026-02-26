@@ -272,6 +272,19 @@ pub enum GameEvent {
         controller: PlayerId,
     },
 
+    /// An Aura resolved and was attached to its target (CR 303.4a, 303.4b).
+    ///
+    /// Emitted when an Aura permanent spell resolves and enters the battlefield
+    /// attached to the declared target.
+    AuraAttached {
+        /// The Aura that was attached.
+        aura_id: ObjectId,
+        /// The object the Aura is now enchanting.
+        target_id: ObjectId,
+        /// The controller of the Aura.
+        controller: PlayerId,
+    },
+
     /// A token in a non-battlefield zone ceased to exist (CR 704.5d).
     TokenCeasedToExist { object_id: ObjectId },
 

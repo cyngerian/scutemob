@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_015",
+    "name": "Declare attackers — unblocked creature deals combat damage to player",
+    "description": "p1 controls Llanowar Elves (1/1 Elf Druid) on the battlefield with no summoning sickness. p2 controls no creatures. p1 is in the DeclareAttackers step and declares Llanowar Elves as an attacker targeting p2. p2 declares no blockers. Llanowar Elves is unblocked and deals 1 combat damage to p2 (CR 510.1b), reducing p2 life from 40 to 39. This is the first script to exercise the real declare_attackers and declare_blockers harness action types as executable engine commands.",
+    "cr_sections_tested": ["508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1h", "510.1b", "510.2", "704.5a"],
+    "corner_case_ref": null,
+    "tags": ["combat", "declare-attackers", "declare-blockers", "unblocked", "combat-damage"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Llanowar Elves oracle text (Scryfall verified): '{T}: Add {G}.' Type: Creature — Elf Druid. P/T: 1/1. Mana cost: {G}. No keywords. This is the first script to use real declare_attackers and declare_blockers commands in the harness (prior combat scripts 001-014 used informational turn_based_action entries). Initial state is set to DeclareAttackers step with p1 as active player and priority holder. The builder sets has_summoning_sickness: false for test-placed permanents (GameStateBuilder line 446), so Llanowar Elves can attack without haste. CR 508.1a: Llanowar Elves is untapped and free of summoning sickness — it may attack. CR 508.1f: Llanowar Elves becomes tapped as a side effect of attacking (not a cost). CR 508.1k: Llanowar Elves becomes an attacking creature. After declare_attackers, the engine resets priority and grants it back to p1 (combat::handle_declare_attackers line 301-303). p1 and p2 both pass priority → AllPassed with empty stack → advance_step() transitions to DeclareBlockers step → enter_step grants priority to p1. p2 issues declare_blockers with an empty blockers list (engine allows empty declaration — ends the blocking step). Both players pass → advance to CombatDamage step → turn_actions::combat_damage_step executes automatically (no player command needed). Llanowar Elves (power 1) is unblocked and assigns 1 damage to p2 (CR 510.1b). p2 life: 40 → 39. SBA check after CombatDamage: p2 has 39 life (above 0) — no SBA 704.5a. Llanowar Elves took no damage — no SBA 704.5g. The CombatDamage step has priority (Step::has_priority() returns true for all steps except Untap and Cleanup), so enter_step grants priority after SBAs are checked. assert_state after both players pass priority in CombatDamage confirms p2 life = 39 and Llanowar Elves in graveyard (tapped from attacking). Llanowar Elves remains on battlefield (it took no damage). The script uses turn_number: 4 to match the established pattern for 'no summoning sickness' initial states.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Llanowar Elves as an attacker targeting p2. Llanowar Elves becomes tapped (CR 508.1f). Priority resets to p1 after attackers are declared.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves untapped on p1 battlefield, p2 has no creatures, life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Llanowar Elves.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Llanowar Elves is untapped and has no summoning sickness (placed in initial state via builder, which sets has_summoning_sickness: false). p2 controls no creatures, so no legal blockers exist."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Llanowar Elves", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Llanowar Elves as an attacking creature targeting p2. CR 508.1a: Llanowar Elves is untapped and free of summoning sickness — legal attacker. CR 508.1f: Llanowar Elves becomes tapped as a side effect of attacking (not a cost). CR 508.1k: Llanowar Elves becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Llanowar Elves is tapped, stack empty",
+          "assertions": {
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Llanowar Elves was tapped as part of the attack declaration. No triggers fire (Llanowar Elves has no attack trigger). Priority is held by p1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance to DeclareBlockers step. p1 receives priority as active player in DeclareBlockers."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 declares no blockers (p2 controls no creatures). Llanowar Elves becomes an unblocked attacker (CR 509.1h). Both players pass priority → advance to CombatDamage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers (no creatures to block with). CR 509.1h: Llanowar Elves has no creatures declared as blockers → it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Llanowar Elves (power 1, unblocked) assigns 1 combat damage to p2 (CR 510.1b). p2 life: 40 → 39. SBAs checked: p2 has 39 life (no SBA 704.5a). Llanowar Elves took no damage (no SBA 704.5g).",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 39 life (above 0) — no player-death SBA. CR 704.5g: Llanowar Elves (1/1) took no damage — no lethal-damage SBA. No SBAs apply."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty → advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: p2 at 39 life, Llanowar Elves still on p1 battlefield (tapped), p2 has no creatures",
+          "assertions": {
+            "players.p2.life": 39,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Llanowar Elves (power 1) dealt 1 combat damage to p2. p2 life: 40 → 39. Llanowar Elves remains on battlefield (tapped from attacking). No damage marked on Llanowar Elves."
+        }
+      ]
+    }
+  ]
+}
