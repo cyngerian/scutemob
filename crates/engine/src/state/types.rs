@@ -185,4 +185,22 @@ pub enum KeywordAbility {
     /// Cascade triggers when the spell is cast (not when it resolves). Handled
     /// in `rules/casting.rs:handle_cast_spell` and `rules/copy.rs:resolve_cascade`.
     Cascade,
+    /// CR 702.34: Flashback — card may be cast from the owner's graveyard by paying
+    /// its flashback cost instead of its mana cost. If cast via flashback, the card
+    /// is exiled instead of going anywhere else when it leaves the stack.
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// The flashback cost itself is stored in `AbilityDefinition::Flashback { cost }`.
+    Flashback,
+    /// CR 702.29: Cycling [cost] — activated ability from hand.
+    /// "Cycling [cost]" means "[cost], Discard this card: Draw a card."
+    /// Activate only from hand. The keyword exists in all zones (CR 702.29b).
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// The cycling cost itself is stored in `AbilityDefinition::Cycling { cost }`.
+    Cycling,
+    /// CR 702.52: Dredge N — if you would draw a card, you may instead mill N cards
+    /// and return this card from your graveyard to your hand. Functions only while
+    /// this card is in the graveyard. Requires >= N cards in library (CR 702.52b).
+    Dredge(u32),
 }

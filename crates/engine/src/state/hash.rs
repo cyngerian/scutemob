@@ -311,6 +311,15 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Storm => 25u8.hash_into(hasher),
             // M9.4: Cascade (discriminant 26) — CR 702.85
             KeywordAbility::Cascade => 26u8.hash_into(hasher),
+            // Flashback (discriminant 27) — CR 702.34
+            KeywordAbility::Flashback => 27u8.hash_into(hasher),
+            // Cycling (discriminant 28) — CR 702.29
+            KeywordAbility::Cycling => 28u8.hash_into(hasher),
+            // Dredge (discriminant 29) — CR 702.52
+            KeywordAbility::Dredge(n) => {
+                29u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -861,6 +870,8 @@ impl HashInto for PendingTrigger {
         self.entering_object_id.hash_into(hasher);
         // CR 702.21a: targeting_stack_id — the stack object Ward will counter
         self.targeting_stack_id.hash_into(hasher);
+        // CR 603.2 / CR 102.2: triggering_player — the opponent who cast the spell
+        self.triggering_player.hash_into(hasher);
     }
 }
 
@@ -877,6 +888,8 @@ impl HashInto for ActivatedAbility {
         self.cost.hash_into(hasher);
         self.description.hash_into(hasher);
         self.effect.hash_into(hasher);
+        // CR 602.5d: sorcery-speed restriction field
+        self.sorcery_speed.hash_into(hasher);
     }
 }
 
@@ -895,6 +908,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::ControllerCastsNoncreatureSpell => 7u8.hash_into(hasher),
             // CR 603.6c / CR 700.4: Dies trigger — discriminant 8
             TriggerEvent::SelfDies => 8u8.hash_into(hasher),
+            // CR 510.3a / CR 603.2: Combat damage to player trigger — discriminant 9
+            TriggerEvent::SelfDealsCombatDamageToPlayer => 9u8.hash_into(hasher),
+            // CR 603.2 / CR 102.2: Opponent-casts trigger — discriminant 10
+            TriggerEvent::OpponentCastsSpell => 10u8.hash_into(hasher),
         }
     }
 }
@@ -1039,6 +1056,8 @@ impl HashInto for StackObject {
         self.cant_be_countered.hash_into(hasher);
         // M9.4: is_copy (CR 707.10) — copies don't move cards on resolution
         self.is_copy.hash_into(hasher);
+        // Flashback (CR 702.34a) — exiled instead of graveyard when cast_with_flashback
+        self.cast_with_flashback.hash_into(hasher);
     }
 }
 
@@ -1602,6 +1621,49 @@ impl HashInto for GameEvent {
                 targeting_stack_id.hash_into(hasher);
                 targeting_controller.hash_into(hasher);
             }
+            // CR 702.6a: EquipmentAttached (discriminant 70)
+            GameEvent::EquipmentAttached {
+                equipment_id,
+                target_id,
+                controller,
+            } => {
+                70u8.hash_into(hasher);
+                equipment_id.hash_into(hasher);
+                target_id.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
+            // CR 702.29a: CardCycled (discriminant 71)
+            GameEvent::CardCycled {
+                player,
+                object_id,
+                new_id,
+            } => {
+                71u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_id.hash_into(hasher);
+            }
+            // CR 702.52: DredgeChoiceRequired (discriminant 72)
+            GameEvent::DredgeChoiceRequired { player, options } => {
+                72u8.hash_into(hasher);
+                player.hash_into(hasher);
+                (options.len() as u64).hash_into(hasher);
+                for (card_id, n) in options {
+                    card_id.hash_into(hasher);
+                    n.hash_into(hasher);
+                }
+            }
+            // CR 702.52: Dredged (discriminant 73)
+            GameEvent::Dredged {
+                player,
+                card_new_id,
+                milled,
+            } => {
+                73u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_new_id.hash_into(hasher);
+                milled.hash_into(hasher);
+            }
         }
     }
 }
@@ -2103,6 +2165,12 @@ impl HashInto for Effect {
                 29u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            // CR 702.6a / CR 701.3a: AttachEquipment (discriminant 30)
+            Effect::AttachEquipment { equipment, target } => {
+                30u8.hash_into(hasher);
+                equipment.hash_into(hasher);
+                target.hash_into(hasher);
+            }
         }
     }
 }
@@ -2169,6 +2237,16 @@ impl HashInto for AbilityDefinition {
                 7u8.hash_into(hasher);
                 filter.hash_into(hasher);
                 additional_triggers.hash_into(hasher);
+            }
+            // Flashback (discriminant 8) — CR 702.34
+            AbilityDefinition::Flashback { cost } => {
+                8u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Cycling (discriminant 9) — CR 702.29
+            AbilityDefinition::Cycling { cost } => {
+                9u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

@@ -134,6 +134,21 @@ pub enum AbilityDefinition {
         filter: crate::state::stubs::TriggerDoublerFilter,
         additional_triggers: u32,
     },
+    /// CR 702.34: Flashback [cost]. The card may be cast from its owner's graveyard
+    /// by paying this cost instead of its mana cost. If cast via flashback, the card
+    /// is exiled instead of going anywhere else when it leaves the stack.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Flashback)` for quick
+    /// presence-checking without scanning all abilities.
+    Flashback { cost: ManaCost },
+    /// CR 702.29: Cycling [cost]. The card may be activated from hand by paying
+    /// [cost] and discarding itself. The effect is "draw a card."
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Cycling)` for quick
+    /// presence-checking without scanning all abilities.
+    Cycling { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -318,6 +333,22 @@ pub enum Effect {
     /// controller's next turn. Enforcement of attack requirements is deferred
     /// to a future session.
     Goad { target: EffectTarget },
+    /// CR 702.6a / CR 701.3a: Attach the source Equipment to the target creature.
+    ///
+    /// Used as the effect of the Equip activated ability. On resolution:
+    /// 1. Detach Equipment from any previously equipped creature (CR 301.5c).
+    /// 2. Set `source.attached_to = target` and add source to `target.attachments`.
+    /// 3. Update Equipment timestamp (CR 701.3c, CR 613.7e).
+    ///
+    /// If the target is no longer legal at resolution (left battlefield, no longer
+    /// a creature, no longer controlled by the activating player), the ability
+    /// fizzles via the standard target legality check in resolution.rs.
+    AttachEquipment {
+        /// The equipment to attach. Should be `EffectTarget::Source`.
+        equipment: EffectTarget,
+        /// The creature to attach to. Should be `EffectTarget::DeclaredTarget { index: 0 }`.
+        target: EffectTarget,
+    },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 }

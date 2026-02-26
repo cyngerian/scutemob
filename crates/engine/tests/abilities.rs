@@ -27,6 +27,7 @@ fn tap_ability(description: &str) -> ActivatedAbility {
         },
         description: description.to_string(),
         effect: None,
+        sorcery_speed: false,
     }
 }
 
@@ -40,6 +41,7 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
         },
         description: description.to_string(),
         effect: None,
+        sorcery_speed: false,
     }
 }
 
@@ -899,6 +901,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             },
             description: "Sacrifice: Draw a card.".into(),
             effect: Some(draw_effect),
+            sorcery_speed: false,
         })
         .in_zone(ZoneId::Battlefield);
 
@@ -1287,6 +1290,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             },
             description: "Sacrifice: trigger dies".to_string(),
             effect: None,
+            sorcery_speed: false,
         })
         .with_triggered_ability(dies_trigger("When ~ dies (CR 700.4)"))
         .in_zone(ZoneId::Battlefield);

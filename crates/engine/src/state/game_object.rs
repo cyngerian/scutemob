@@ -91,6 +91,10 @@ pub struct ActivatedAbility {
     /// that have no automated effect (e.g., abilities that rely on player choice in M9+).
     #[serde(default)]
     pub effect: Option<crate::cards::card_definition::Effect>,
+    /// CR 602.5d: If true, this ability can only be activated at sorcery speed
+    /// (main phase, stack empty, active player only).
+    #[serde(default)]
+    pub sorcery_speed: bool,
 }
 
 /// Trigger event patterns for triggered abilities (CR 603).
@@ -124,6 +128,16 @@ pub enum TriggerEvent {
     /// graveyard from the battlefield ("dies"). This is a leaves-the-battlefield
     /// trigger that "looks back in time" (CR 603.10a).
     SelfDies,
+    /// CR 603.2 / CR 510.3a: Triggers when this creature deals combat damage
+    /// to a player. The creature must still be on the battlefield after damage
+    /// is dealt (CR 603.10 — combat damage triggers do NOT look back in time).
+    /// Fires only when damage > 0 (CR 603.2g: prevented damage does not trigger).
+    SelfDealsCombatDamageToPlayer,
+    /// CR 603.2 / CR 102.2: Triggers when an opponent of the source's controller
+    /// casts a spell. "Opponent" = any player other than the source's controller
+    /// (CR 102.2 two-player, CR 102.3 multiplayer FFA = Commander default).
+    /// The opponent check is done at trigger-collection time in `rules/abilities.rs`.
+    OpponentCastsSpell,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

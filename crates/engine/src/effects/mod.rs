@@ -537,8 +537,15 @@ fn execute_effect_inner(
                                     .get(&source_object)
                                     .map(|o| o.owner)
                                     .unwrap_or(controller);
-                                if let Ok((new_id, _)) = state
-                                    .move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                                // CR 702.34a: If cast with flashback, exile instead of
+                                // graveyard when countered by an effect.
+                                let destination = if stack_obj.cast_with_flashback {
+                                    crate::state::zone::ZoneId::Exile
+                                } else {
+                                    ZoneId::Graveyard(owner)
+                                };
+                                if let Ok((new_id, _)) =
+                                    state.move_object_to_zone(source_object, destination)
                                 {
                                     events.push(GameEvent::SpellCountered {
                                         player: controller,
@@ -1016,6 +1023,113 @@ fn execute_effect_inner(
         }
 
         Effect::Nothing => {}
+
+        // CR 702.6a / CR 701.3a: Attach the source Equipment to the target creature.
+        //
+        // On resolution:
+        // 1. Detach from any previously equipped creature (CR 301.5c: can't equip more than one).
+        // 2. Set source.attached_to = target; add source to target.attachments.
+        // 3. Update Equipment timestamp (CR 701.3c, CR 613.7e).
+        //
+        // If the target is no longer a creature on the battlefield under the activating player's
+        // control, or if the equipment would equip itself (CR 301.5c), the effect is skipped
+        // for that pair.
+        Effect::AttachEquipment { equipment, target } => {
+            let equip_resolved = resolve_effect_target_list(state, equipment, ctx);
+            let target_resolved = resolve_effect_target_list(state, target, ctx);
+
+            for equip_res in &equip_resolved {
+                let equip_id = match equip_res {
+                    ResolvedTarget::Object(id) => *id,
+                    _ => continue,
+                };
+                for target_res in &target_resolved {
+                    let target_id = match target_res {
+                        ResolvedTarget::Object(id) => *id,
+                        _ => continue,
+                    };
+
+                    // CR 301.5c: Equipment can't equip itself.
+                    if equip_id == target_id {
+                        continue;
+                    }
+
+                    // Validate: target must be a creature on the battlefield controlled
+                    // by the ability's controller.
+                    //
+                    // CR 702.6a: "target creature you control."
+                    // Use layer-computed characteristics so that permanents whose types
+                    // were changed by a continuous effect (e.g. animated artifacts, or
+                    // creatures stripped of their type by Humility) are evaluated
+                    // correctly (Finding 1 fix — layer-aware creature type check).
+                    let target_on_battlefield_and_controlled = state
+                        .objects
+                        .get(&target_id)
+                        .map(|obj| {
+                            obj.zone == ZoneId::Battlefield && obj.controller == ctx.controller
+                        })
+                        .unwrap_or(false);
+                    let target_is_creature = {
+                        let layer_chars =
+                            crate::rules::layers::calculate_characteristics(state, target_id)
+                                .or_else(|| {
+                                    state
+                                        .objects
+                                        .get(&target_id)
+                                        .map(|o| o.characteristics.clone())
+                                });
+                        layer_chars
+                            .map(|chars| chars.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false)
+                    };
+                    let target_valid = target_on_battlefield_and_controlled && target_is_creature;
+
+                    if !target_valid {
+                        // CR 701.3b: Can't attach to an illegal target; do nothing.
+                        continue;
+                    }
+
+                    // CR 701.3b: Already attached to the same target — do nothing.
+                    if state
+                        .objects
+                        .get(&equip_id)
+                        .and_then(|o| o.attached_to)
+                        .map(|att| att == target_id)
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
+
+                    // Detach from previous creature (CR 301.5c: can't equip more than one).
+                    let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
+                    if let Some(prev_target) = prev_target_opt {
+                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                            prev.attachments.retain(|&x| x != equip_id);
+                        }
+                    }
+
+                    // Attach to new target.
+                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
+                    state.timestamp_counter += 1;
+                    let new_ts = state.timestamp_counter;
+                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                        equip_obj.attached_to = Some(target_id);
+                        equip_obj.timestamp = new_ts;
+                    }
+                    if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                        if !target_obj.attachments.contains(&equip_id) {
+                            target_obj.attachments.push_back(equip_id);
+                        }
+                    }
+
+                    events.push(GameEvent::EquipmentAttached {
+                        equipment_id: equip_id,
+                        target_id,
+                        controller: ctx.controller,
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -1415,6 +1529,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
 fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
     // CR 614.11: Check WouldDraw replacement effects before performing the draw.
     // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
+    // CR 702.52: Also checks for dredge-eligible cards in the graveyard.
     {
         use crate::rules::replacement::{self, DrawAction};
         match replacement::check_would_draw_replacement(state, player) {
@@ -1422,6 +1537,10 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
             DrawAction::Skip(event) => return vec![event],
             DrawAction::NeedsChoice(event) => {
                 // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
+                return vec![event];
+            }
+            DrawAction::DredgeAvailable(event) => {
+                // CR 702.52: Dredge options available — pause for player choice.
                 return vec![event];
             }
         }

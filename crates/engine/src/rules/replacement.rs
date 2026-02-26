@@ -409,6 +409,10 @@ pub enum DrawAction {
     /// Multiple replacements apply — the player must choose (CR 616.1).
     /// Emit the returned `ReplacementChoiceRequired` event and defer the draw.
     NeedsChoice(GameEvent),
+    /// CR 702.52: One or more dredge cards in the player's graveyard can replace
+    /// this draw. Contains the `DredgeChoiceRequired` event to emit.
+    /// The engine pauses until a `Command::ChooseDredge` is received.
+    DredgeAvailable(GameEvent),
 }
 
 /// CR 614.11: Check WouldDraw replacement effects before performing a draw.
@@ -417,12 +421,57 @@ pub enum DrawAction {
 /// action per CR 616.1, and returns a `DrawAction` indicating how the draw
 /// should proceed.
 ///
+/// Also checks for dredge-eligible cards in the player's graveyard (CR 702.52).
+/// Dredge takes priority as a "may" replacement — if dredge options are available,
+/// the engine pauses for the player's choice before checking other WouldDraw
+/// replacements. If the player declines dredge, the normal draw path re-checks
+/// other WouldDraw replacements.
+///
 /// Called from both `draw_card` (turn_actions.rs) and `draw_one_card`
 /// (effects/mod.rs) to keep the two draw paths consistent.
 pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> DrawAction {
     use crate::state::replacement_effect::{
         PlayerFilter, ReplacementModification, ReplacementTrigger,
     };
+    use crate::state::types::KeywordAbility;
+
+    // CR 702.52a: Scan the player's graveyard for dredge-eligible cards.
+    // A card is eligible if:
+    //   1. It has KeywordAbility::Dredge(n) in its keywords.
+    //   2. The player has >= n cards in their library (CR 702.52b).
+    let graveyard_zone = ZoneId::Graveyard(player);
+    let library_zone = ZoneId::Library(player);
+    let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
+
+    let mut dredge_options: Vec<(ObjectId, u32)> = state
+        .objects
+        .values()
+        .filter(|obj| obj.zone == graveyard_zone)
+        .filter_map(|obj| {
+            obj.characteristics.keywords.iter().find_map(|kw| {
+                if let KeywordAbility::Dredge(n) = kw {
+                    if (*n as usize) <= library_count {
+                        Some((obj.id, *n))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+
+    // Sort for determinism (by ObjectId).
+    dredge_options.sort_by_key(|(id, _)| *id);
+
+    if !dredge_options.is_empty() {
+        // CR 702.52a: Dredge options available — pause for player choice.
+        return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
+            player,
+            options: dredge_options,
+        });
+    }
 
     let trigger = ReplacementTrigger::WouldDraw {
         player_filter: PlayerFilter::Specific(player),
@@ -1298,4 +1347,204 @@ pub fn apply_damage_prevention(
     }
 
     (remaining, events)
+}
+
+// ── Dredge command handler (CR 702.52) ────────────────────────────────────
+
+/// CR 702.52: Handle the player's choice to dredge or draw normally.
+///
+/// Called from `engine.rs::process_command` when a `Command::ChooseDredge` is received.
+///
+/// If `card` is `Some(id)`:
+///   1. Validate the card is in the player's graveyard with `KeywordAbility::Dredge(n)`.
+///   2. Validate the player has >= n cards in library (CR 702.52b).
+///   3. Mill n cards from the top of the library (emitting `CardMilled` events).
+///   4. Move the dredge card from graveyard to hand (CR 400.7: new ObjectId).
+///   5. Emit `Dredged` event.
+///   6. Do NOT increment `cards_drawn_this_turn` (dredge is NOT drawing — CR 702.52a).
+///
+/// If `card` is `None`:
+///   The player declined to dredge — perform the normal draw (re-checks other
+///   WouldDraw replacements including any registered replacement effects).
+pub fn handle_choose_dredge(
+    state: &mut GameState,
+    player: PlayerId,
+    card: Option<ObjectId>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::types::KeywordAbility;
+
+    match card {
+        None => {
+            // Player declined dredge — perform normal draw.
+            // CR 702.52a: "you may instead" — declining is always legal.
+            // Call draw_card which will re-check WouldDraw replacement effects
+            // (but NOT dredge — the player just declined).
+            // We temporarily call draw_card_without_dredge to avoid re-offering dredge.
+            draw_card_skipping_dredge(state, player)
+        }
+        Some(card_id) => {
+            // Player chose to dredge card_id.
+            // Step 1: Validate the card is in the player's graveyard.
+            let graveyard_zone = ZoneId::Graveyard(player);
+            let dredge_n = {
+                let obj = state.objects.get(&card_id).ok_or_else(|| {
+                    GameStateError::InvalidCommand(format!("dredge card {:?} not found", card_id))
+                })?;
+                if obj.zone != graveyard_zone {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "dredge card {:?} is not in {:?}'s graveyard (zone: {:?})",
+                        card_id, player, obj.zone
+                    )));
+                }
+                // Find Dredge(n) in keywords.
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .find_map(|kw| {
+                        if let KeywordAbility::Dredge(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .ok_or_else(|| {
+                        GameStateError::InvalidCommand(format!(
+                            "card {:?} does not have Dredge keyword",
+                            card_id
+                        ))
+                    })?
+            };
+
+            // Step 2: Validate library has >= n cards (CR 702.52b).
+            let library_zone = ZoneId::Library(player);
+            let library_count = state.zones.get(&library_zone).map(|z| z.len()).unwrap_or(0);
+            if (dredge_n as usize) > library_count {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "cannot dredge {}: library has only {} cards (need {})",
+                    card_id.0, library_count, dredge_n
+                )));
+            }
+
+            let mut events = Vec::new();
+
+            // Step 3: Mill n cards from the top of library.
+            for _ in 0..dredge_n {
+                let top = state.zones.get(&library_zone).and_then(|z| z.top());
+                if let Some(top_id) = top {
+                    if let Ok((new_id, _)) =
+                        state.move_object_to_zone(top_id, ZoneId::Graveyard(player))
+                    {
+                        events.push(GameEvent::CardMilled { player, new_id });
+                    }
+                }
+            }
+
+            // Step 4: Move the dredge card from graveyard to hand (CR 400.7: new ObjectId).
+            let (new_hand_id, _) = state
+                .move_object_to_zone(card_id, ZoneId::Hand(player))
+                .map_err(|e| {
+                    GameStateError::InvalidCommand(format!(
+                        "failed to move dredge card to hand: {:?}",
+                        e
+                    ))
+                })?;
+
+            // Step 5: Emit Dredged event.
+            // Step 6: Do NOT increment cards_drawn_this_turn (CR 702.52a).
+            events.push(GameEvent::Dredged {
+                player,
+                card_new_id: new_hand_id,
+                milled: dredge_n,
+            });
+
+            Ok(events)
+        }
+    }
+}
+
+/// Perform a normal draw for `player`, bypassing the dredge check.
+///
+/// Called when a player declines dredge (`ChooseDredge { card: None }`). We
+/// re-check other WouldDraw replacement effects (SkipDraw etc.) but do NOT
+/// re-offer dredge (the player just chose not to dredge this draw).
+///
+/// Mirrors the logic of `turn_actions::draw_card` but skips the dredge
+/// portion of `check_would_draw_replacement`.
+fn draw_card_skipping_dredge(
+    state: &mut GameState,
+    player: PlayerId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::rules::events::LossReason;
+
+    // Eliminated / conceded players cannot draw.
+    if let Some(p) = state.players.get(&player) {
+        if p.has_lost || p.has_conceded {
+            return Ok(vec![]);
+        }
+    }
+
+    // Check non-dredge WouldDraw replacement effects.
+    use crate::state::replacement_effect::{
+        PlayerFilter, ReplacementModification, ReplacementTrigger,
+    };
+    let trigger = ReplacementTrigger::WouldDraw {
+        player_filter: PlayerFilter::Specific(player),
+    };
+    let applicable = find_applicable(state, &trigger, &HashSet::new());
+    let action = determine_action(state, &applicable, player, "draw a card");
+
+    match action {
+        ReplacementResult::AutoApply(id) => {
+            let modification = state
+                .replacement_effects
+                .iter()
+                .find(|e| e.id == id)
+                .map(|e| e.modification.clone());
+            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
+                return Ok(vec![GameEvent::ReplacementEffectApplied {
+                    effect_id: id,
+                    description: "skip that draw".to_string(),
+                }]);
+            }
+        }
+        ReplacementResult::NeedsChoice {
+            player,
+            choices,
+            event_description,
+        } => {
+            return Ok(vec![GameEvent::ReplacementChoiceRequired {
+                player,
+                event_description,
+                choices,
+            }]);
+        }
+        ReplacementResult::NoApplicable => {}
+    }
+
+    // Perform the actual draw.
+    let library_zone = ZoneId::Library(player);
+    let top_id = match state.zones.get(&library_zone).and_then(|z| z.top()) {
+        Some(id) => id,
+        None => {
+            // Library empty — player loses (CR 104.3b).
+            if let Some(p) = state.players.get_mut(&player) {
+                p.has_lost = true;
+            }
+            return Ok(vec![GameEvent::PlayerLost {
+                player,
+                reason: LossReason::LibraryEmpty,
+            }]);
+        }
+    };
+
+    let (new_id, _) = state.move_object_to_zone(top_id, ZoneId::Hand(player))?;
+    if let Some(p) = state.players.get_mut(&player) {
+        p.has_drawn_for_turn = true;
+        p.cards_drawn_this_turn += 1;
+    }
+
+    Ok(vec![GameEvent::CardDrawn {
+        player,
+        new_object_id: new_id,
+    }])
 }

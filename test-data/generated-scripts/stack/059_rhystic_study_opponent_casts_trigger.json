@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_059",
+    "name": "Rhystic Study \u2014 trigger on opponent cast with Lightning Bolt targeting P1",
+    "description": "P1 controls Rhystic Study on the battlefield. P2 (active player) casts Lightning Bolt targeting P1. Per CR 603.2/603.3, Rhystic Study's triggered ability ('whenever an opponent casts a spell') fires immediately when P2 casts Lightning Bolt and goes on the stack above Lightning Bolt (LIFO). The trigger resolves first: since the engine runs MayPayOrElse in non-interactive mode (or_else always fires), P1 draws 1 card. Then Lightning Bolt resolves, dealing 3 damage to P1 (40 -> 37). Final: P1 at 37 life, hand count 4 (3 initial + 1 drawn). CR 603.2: the enrich_spec_from_def path correctly wires OpponentCastsSpell via WheneverOpponentCastsSpell in the card definition.",
+    "cr_sections_tested": ["601.2", "603.2", "603.3", "116.3", "608.2", "120.3"],
+    "corner_case_ref": null,
+    "tags": ["triggered-ability", "rhystic-study", "draw", "tax-trigger", "opponent-casts", "lightning-bolt"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-26",
+    "generation_notes": "Rhystic Study oracle: 'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.' Per CR 603.2, the trigger event is an opponent casting a spell. Per CR 603.3, the triggered ability is flushed to the stack immediately as part of process_command(CastSpell) — not after a priority pass. After the cast, the stack has 2 items: Lightning Bolt (bottom) and the Rhystic Study trigger (top). The trigger goes on top per LIFO (CR 405.1). P2 and P1 pass priority round 1 -> trigger resolves -> P1 draws 1 card (MayPayOrElse or_else path, non-interactive). P2 and P1 pass priority round 2 -> Lightning Bolt resolves -> P1 takes 3 damage (40 -> 37). Final state: P1 has 4 cards in hand (3 initial + 1 drawn), life at 37. This script was originally written to document the broken behavior (trigger not firing) when enrich_spec_from_def lacked the WheneverOpponentCastsSpell mapping. That gap was fixed in the Opponent-Casts Trigger implementation (step 3). The dispute is now resolved and the script updated to reflect correct engine behavior. Confirmed by test_rhystic_study_enrich_path_trigger_fires (tests/effects.rs).",
+    "disputes": [
+      {
+        "step_index": 2,
+        "action_index": 2,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Originally: trigger did not fire because enrich_spec_from_def lacked the WheneverOpponentCastsSpell -> TriggerEvent::OpponentCastsSpell mapping. Stack count after cast was 1 (only Lightning Bolt), and P1's hand stayed at 3.",
+        "resolution": "RESOLVED (2026-02-26): The WheneverOpponentCastsSpell enrichment block was added to enrich_spec_from_def in replay_harness.rs (step 3 of the Opponent-Casts Trigger implementation). The trigger now correctly fires via the enrich path. Stack count after cast is 2 (Lightning Bolt + trigger); P1 draws 1 card; final hand count is 4. Confirmed by test_rhystic_study_enrich_path_trigger_fires.",
+        "resolved_by": "claude-sonnet-4-6",
+        "resolved_date": "2026-02-26"
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Rhystic Study", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Mountain", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P2 casts Lightning Bolt targeting P1. Rhystic Study trigger fires immediately (enrich_spec_from_def path). Trigger resolves first (P1 draws), then Lightning Bolt resolves (P1 takes 3 damage).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Rhystic Study on P1 battlefield, Lightning Bolt in P2 hand, P1 has 3 cards in hand, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Rhystic Study" }] },
+            "zones.hand.p1.count": 3,
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "player", "player": "p1", "card": null, "controller": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Lightning Bolt targeting P1. {R} paid from pool. CR 603.2: Rhystic Study trigger fires immediately (opponent cast a spell) and is flushed to the stack in the same process_command call."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Lightning Bolt + Rhystic Study trigger on stack (count 2), P2 hand empty",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p2.count": 0
+          },
+          "note": "CR 603.3: triggered ability is placed on the stack the next time a player would receive priority. The engine flushes triggers immediately in process_command(CastSpell), so the stack has 2 items: Lightning Bolt (bottom, cast first) and Rhystic Study trigger (top, LIFO per CR 405.1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority with the Rhystic Study trigger on top. Trigger resolves: P1 may draw a card (MayPayOrElse — non-interactive mode, or_else always fires, P1 draws)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Rhystic Study trigger",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "603.2",
+              "note": "CR 603.2: Rhystic Study trigger resolves. MayPayOrElse: P2 declines to pay {1}, so P1 draws 1 card (hand 3 -> 4). Non-interactive mode: or_else always fires."
+            }
+          ],
+          "note": "CR 608.2: Rhystic Study triggered ability resolves. P1 draws 1 card. Lightning Bolt remains on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority with Lightning Bolt on the stack. Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to target player P1 (40 -> 37)."
+            }
+          ],
+          "note": "CR 608.2: Lightning Bolt resolves; deals 3 damage to P1; card moves to P2's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: stack empty, P1 at 37 life, P1 hand count 4 (drew from Rhystic Study trigger), Lightning Bolt in P2 graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 37,
+            "zones.hand.p1.count": 4,
+            "zones.hand.p2.count": 0,
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] }
+          },
+          "note": "P1 took 3 damage (40->37). P1 drew 1 card from Rhystic Study trigger (hand 3->4). Engine correctly fires the OpponentCastsSpell trigger via enrich_spec_from_def. Confirmed by test_rhystic_study_enrich_path_trigger_fires."
+        }
+      ]
+    }
+  ]
+}

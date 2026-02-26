@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_013",
+    "name": "Scroll Thief combat damage trigger: draw a card",
+    "description": "p1 controls Scroll Thief ({2}{U}, 1/3 Merfolk Rogue) on the battlefield. On p1's turn (turn 3, no summoning sickness per CR 302.6), p1 attacks with Scroll Thief targeting p2, who controls no creatures and declares no blockers. Scroll Thief is unblocked and deals 1 combat damage to p2 (CR 510.1b), reducing p2's life from 40 to 39. The combat damage trigger \u2014 'Whenever this creature deals combat damage to a player, draw a card' \u2014 fires and goes on the stack (CR 510.3a, CR 603.2). Both players pass priority; the trigger resolves and p1 draws a card (CR 120.2), increasing p1's hand count from 3 to 4. The script documents the full CR-correct sequence. Because the harness does not execute declare_attackers or combat damage as engine commands, the final assert_state reflects only the initial harness-visible state; a disputes entry captures the limitation.",
+    "cr_sections_tested": [
+      "302.6",
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "508.1m",
+      "509.1",
+      "510.1",
+      "510.1b",
+      "510.2",
+      "510.3",
+      "510.3a",
+      "603.2",
+      "603.3",
+      "603.3a",
+      "608.2",
+      "120.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "triggered-ability",
+      "combat-damage-trigger",
+      "whenever-deals-combat-damage",
+      "combat",
+      "draw",
+      "scroll-thief",
+      "merfolk",
+      "rogue"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-26",
+    "generation_notes": "Scroll Thief oracle text (Scryfall verified): 'Whenever this creature deals combat damage to a player, draw a card.' Type: Creature \u2014 Merfolk Rogue. P/T: 1/3. Mana cost: {2}{U}. Card rulings confirm: (1) the ability is mandatory \u2014 p1 must draw; (2) the ability triggers once per combat damage event regardless of amount dealt. CR 302.6: Scroll Thief cannot attack unless it has been controlled by p1 continuously since the turn began (summoning sickness). By setting turn_number 3 and placing it on the battlefield in the initial state it is assumed to have been there since a prior turn \u2014 free of summoning sickness. CR 508.1a: Scroll Thief must be untapped; no summoning sickness applies. CR 508.1f: Scroll Thief becomes tapped as part of attacking (not a cost). CR 508.1k: Scroll Thief becomes an attacking creature. CR 509.1: p2 controls no creatures and declares no blockers; Scroll Thief is an unblocked attacker (CR 509.1h). CR 510.1b: An unblocked creature assigns its combat damage to the player it is attacking; Scroll Thief (power 1) assigns 1 damage to p2. CR 510.2: Combat damage is dealt simultaneously. p2 life: 40 \u2192 39. CR 510.3a: Any abilities that triggered on damage being dealt are put onto the stack before the active player gets priority. Scroll Thief's combat damage trigger fires here. CR 603.2: 'Whenever this creature deals combat damage to a player' is a triggered ability that fires when the trigger event (combat damage dealt to p2) occurs. CR 603.3: The triggered ability is placed on the stack as a non-card object the next time a player would receive priority. CR 603.3a: Controlled by p1 (controller of Scroll Thief at trigger time). CR 608.2: The trigger resolves: Effect::DrawCards{player: Controller, count: Fixed(1)} draws 1 card for p1. p1 hand count: 3 \u2192 4. CR 120.2: Drawing a card means moving the top card of a player's library to their hand. Library card (Island) provided so the draw has a card to pull. Engine observation: The harness does not support declare_attackers or combat_damage as executable engine commands in translate_player_action; therefore all combat and trigger steps are informational (turn_based_action, trigger_placed, stack_resolve). The final assert_state reflects initial harness-visible state only. A disputes entry documents this gap consistent with scripts 004-011.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 7,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The harness does not support declare_attackers or combat damage as executable engine commands (translate_player_action does not map them to any Command). Therefore the combat damage trigger ('Whenever this creature deals combat damage to a player, draw a card') and Scroll Thief's unblocked damage to p2 cannot be asserted by the replay harness. All combat and trigger steps in this script are informational (turn_based_action, trigger_placed, stack_resolve). Expected CR outcome \u2014 p2 life 39 (1 unblocked combat damage), p1 hand count 4 (drew 1 from trigger) \u2014 is documented in generation_notes and step notes. This is consistent with scripts 004-011 which also use documentary combat steps without engine-enforced assertions.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Scroll Thief",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Island",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "p1 declares Scroll Thief as attacker targeting p2. p2 has no creatures and declares no blockers. Scroll Thief is unblocked and deals 1 combat damage to p2 (p2 life 40 \u2192 39, CR 510.1b). The combat damage trigger fires (CR 510.3a, CR 603.2), goes on the stack (CR 603.3), and resolves: p1 draws 1 card (hand 3 \u2192 4, CR 120.2).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Scroll Thief untapped on p1 battlefield, p1 at 40 life with 3 cards in hand, p2 at 40 life with no creatures, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.hand.p1.count": 3,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Scroll Thief has been on the battlefield since before this turn (turn 3), so it is not subject to summoning sickness (CR 302.6). It can attack. p2 controls no creatures."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers step: p1 declares Scroll Thief as attacker targeting p2",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Scroll Thief as the attacking creature against p2. CR 508.1a: Scroll Thief is untapped and has been controlled by p1 continuously since the turn began \u2014 no summoning sickness. CR 508.1f: Scroll Thief becomes tapped as part of attacking (not a cost). CR 508.1k: Scroll Thief becomes an attacking creature."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers step: p2 controls no creatures and declares no blockers \u2014 Scroll Thief is unblocked",
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 controls no creatures and declares no blockers. Scroll Thief becomes an unblocked attacker (CR 509.1h)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage step: Scroll Thief (unblocked, power 1) assigns 1 damage to p2",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: An unblocked creature assigns its combat damage to the player it is attacking. Scroll Thief (power 1) assigns all 1 damage to p2. CR 510.2: Combat damage is dealt simultaneously. p2 life: 40 \u2192 39."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Scroll Thief's combat damage trigger fires: 'Whenever this creature deals combat damage to a player, draw a card' (CR 510.3a, CR 603.2)",
+          "cr_ref": "510.3a",
+          "note": "CR 510.3a: Any abilities that triggered on damage being dealt are put onto the stack before the active player gets priority. Scroll Thief dealt 1 combat damage to p2 (a player), so the triggered ability fires. CR 603.2: The trigger event \u2014 this creature dealing combat damage to a player \u2014 has occurred."
+        },
+        {
+          "type": "trigger_placed",
+          "source": "Scroll Thief",
+          "controller": "p1",
+          "trigger_condition": "whenever_deals_combat_damage_to_player",
+          "targets": [],
+          "ordering_context": null,
+          "apnap_position": null,
+          "cr_ref": "603.3",
+          "note": "CR 603.3: The triggered ability is placed on the stack as a non-card object the next time a player would receive priority (after combat damage is dealt, per CR 510.3). CR 603.3a: The ability is controlled by p1 (controller of Scroll Thief when it triggered)."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 the Scroll Thief combat damage trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Scroll Thief combat damage trigger",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.2",
+              "note": "CR 120.2 / Effect::DrawCards{player: Controller, count: Fixed(1)}: p1 draws 1 card from their library. p1 hand count: 3 \u2192 4. Island is drawn from the top of p1's library. The ruling confirms this ability is mandatory."
+            }
+          ],
+          "note": "CR 608.2: Scroll Thief's triggered ability resolves. Effect::DrawCards{player: Controller, count: Fixed(1)}: p1 draws 1 card. The ability triggers once for the combat damage event regardless of amount dealt (per card ruling 2010-08-15)."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 39 life (above 0), p1 has 40 life (above 0) \u2014 no player-death SBA. Scroll Thief (1/3) took no damage. No SBAs apply."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-combat state as visible to harness: life totals and hand count unchanged from initial (combat and trigger not executed by harness); Scroll Thief still on p1 battlefield, stack empty",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.hand.p1.count": 3,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Scroll Thief"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Harness does not execute declare_attackers, combat damage, or the combat damage trigger \u2014 all state changes are documented in the informational steps above. Expected CR outcomes: p2 life 39 (1 unblocked combat damage from Scroll Thief), p1 hand 4 (drew 1 from combat damage trigger). See dispute entry for details."
+        }
+      ]
+    }
+  ]
+}

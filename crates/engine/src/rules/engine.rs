@@ -180,6 +180,42 @@ pub fn process_command(
             let events = commander::handle_bring_companion(&mut state, player)?;
             all_events.extend(events);
         }
+
+        // ── Cycling (CR 702.29) ───────────────────────────────────────────
+        Command::CycleCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: cycling is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = abilities::handle_cycle_card(&mut state, player, card)?;
+            // CR 603.2: Check for triggers after cycling (including "when you cycle" triggers).
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Dredge (CR 702.52) ───────────────────────────────────────────
+        Command::ChooseDredge { player, card } => {
+            // CR 702.52: Handle the player's dredge choice.
+            // No validate_player_active needed — dredge can replace draws during any
+            // draw effect, not just the active player's draw step.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: dredge is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = replacement::handle_choose_dredge(&mut state, player, card)?;
+            // CR 603.2: Check for triggers after dredge (milled cards may trigger effects;
+            // the dredge card returning to hand is not an ETB, so no ETB triggers fire).
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history
@@ -269,6 +305,16 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     loop {
         // Execute turn-based actions for this step
         let action_events = turn_actions::execute_turn_based_actions(state)?;
+
+        // CR 510.3a: Check triggers from turn-based actions (e.g., CombatDamageDealt)
+        // BEFORE extending events (so the reference is still valid) and BEFORE SBA
+        // checking. This ensures "whenever ~ deals combat damage to a player" triggers
+        // are queued alongside SBA-generated triggers.
+        let tba_triggers = abilities::check_triggers(state, &action_events);
+        for t in tba_triggers {
+            state.pending_triggers.push_back(t);
+        }
+
         events.extend(action_events);
 
         // Check if game ended due to turn-based actions (e.g., draw from empty library)

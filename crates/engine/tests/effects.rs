@@ -6,10 +6,10 @@
 
 use mtg_engine::state::{CardType, ObjectId};
 use mtg_engine::{
-    process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,
-    CombatDamageTarget, Command, Cost, Effect, EffectAmount, GameEvent, GameStateBuilder,
-    ManaColor, ManaCost, ObjectSpec, PlayerId, PlayerTarget, Step, Target, TriggerEvent,
-    TriggeredAbilityDef, TypeLine, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition,
+    CardEffectTarget, CardId, CardRegistry, CombatDamageTarget, Command, Cost, Effect,
+    EffectAmount, GameEvent, GameStateBuilder, ManaColor, ManaCost, ObjectSpec, PlayerId,
+    PlayerTarget, Step, Target, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -970,6 +970,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         targets: vec![],
         cant_be_countered: false,
         is_copy: false,
+        cast_with_flashback: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1019,27 +1020,27 @@ fn test_effect_counter_spell_removes_from_stack() {
 ///
 /// In M7 the payment choice is not interactive — the `or_else` branch always fires
 /// (the opponent never pays). Verifies the full pipeline: SpellCast event → trigger
-/// queued → trigger flushed to stack → trigger resolves → controller draws a card.
+/// queued via OpponentCastsSpell → trigger flushed to stack → trigger resolves →
+/// controller draws a card.
 ///
-/// The trigger uses TriggerEvent::AnySpellCast (the state-level mechanism that
-/// corresponds to TriggerCondition::WheneverOpponentCastsSpell in the CardDefinition
-/// DSL). Opponent-only filtering is enforced at the CardDefinition layer and will be
-/// wired to check_triggers in a future milestone.
+/// Uses TriggerEvent::OpponentCastsSpell (CR 603.2 / CR 102.2). The opponent check
+/// is enforced at trigger-collection time in check_triggers (abilities.rs): only
+/// permanents whose controller != caster are eligible.
 fn test_rhystic_study_draws_card_when_opponent_casts() {
     let p1 = p(1); // Rhystic Study controller
     let p2 = p(2); // opponent who casts a spell
 
     // Rhystic Study on the battlefield as p1's permanent.
-    // TriggeredAbilityDef: fires on AnySpellCast; effect = MayPayOrElse { pay {1} or draw }.
+    // TriggeredAbilityDef: fires on OpponentCastsSpell; effect = MayPayOrElse { pay {1} or draw }.
     let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
         .with_types(vec![CardType::Enchantment])
         .with_triggered_ability(TriggeredAbilityDef {
-            trigger_on: TriggerEvent::AnySpellCast,
+            trigger_on: TriggerEvent::OpponentCastsSpell,
             intervening_if: None,
             description: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".into(),
             effect: Some(Effect::MayPayOrElse {
                 cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
-                payer: PlayerTarget::EachOpponent,
+                payer: PlayerTarget::DeclaredTarget { index: 0 },
                 or_else: Box::new(Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
@@ -1074,7 +1075,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
         .filter(|o| o.zone == ZoneId::Hand(p1))
         .count();
 
-    // p2 casts Shock — this emits SpellCast, which check_triggers picks up as AnySpellCast.
+    // p2 casts Shock — this emits SpellCast, which check_triggers picks up as OpponentCastsSpell.
     let shock_id = state
         .objects
         .iter()
@@ -1126,5 +1127,532 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
         final_hand,
         initial_hand + 1,
         "Rhystic Study should draw 1 card for p1 when opponent casts a spell (M7: payment always skipped)"
+    );
+}
+
+// ── Opponent-casts trigger: additional correctness tests ──────────────────────
+
+#[test]
+/// CR 603.2 / CR 102.2 — OpponentCastsSpell must NOT fire when the permanent's
+/// controller casts the spell. Rhystic Study controller casts their own spell;
+/// the trigger must not fire and p1's hand must be unchanged.
+fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
+    let p1 = p(1); // Rhystic Study controller — also the caster
+    let p2 = p(2);
+
+    let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
+        .with_types(vec![CardType::Enchantment])
+        .with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::OpponentCastsSpell,
+            intervening_if: None,
+            description: "Whenever an opponent casts a spell (CR 603.2)".into(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            }),
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    // p1 (study controller) casts a spell.
+    let own_spell = ObjectSpec::card(p1, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p1));
+
+    // p1 needs library cards so a draw would be observable if it incorrectly fires.
+    let library_card = ObjectSpec::card(p1, "Plains").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(rhystic_study)
+        .object(own_spell)
+        .object(library_card)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let spell_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p1))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // p1 casts their own spell — opponent-casts trigger must NOT fire.
+    let (state, events) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: spell_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // No AbilityTriggered event should be present right after casting.
+    let triggered = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AbilityTriggered { .. }));
+    assert!(
+        !triggered,
+        "CR 102.2: OpponentCastsSpell must not fire when the permanent's controller casts"
+    );
+
+    // The library card should remain in the library (i.e. no draw occurred).
+    // Fully resolve the stack (Shock resolves, nothing else happens).
+    let mut current = state;
+    for _ in 0..6 {
+        if current.stack_objects.is_empty() {
+            break;
+        }
+        let (ns, _) =
+            process_command(current.clone(), Command::PassPriority { player: p1 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p2 }).unwrap();
+        current = ns;
+    }
+
+    // Plains should still be in the library — it was never drawn because the trigger didn't fire.
+    let plains_still_in_library = current
+        .objects
+        .values()
+        .any(|o| o.characteristics.name == "Plains" && o.zone == ZoneId::Library(p1));
+    assert!(
+        plains_still_in_library,
+        "CR 102.2: no card should be drawn when the Rhystic-Study controller casts their own spell"
+    );
+}
+
+#[test]
+/// CR 603.2 / CR 102.2 / CR 903.2 — In a 4-player Commander game (FFA), all
+/// other players are opponents. When p3 casts a spell and p1 controls a
+/// Rhystic-Study-like permanent, exactly p1's trigger fires (not from p2 or
+/// p4, who control no such permanents).
+fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
+    let p1 = p(1); // controls Rhystic-Study-like permanent
+    let p2 = p(2); // no relevant permanent
+    let p3 = p(3); // the caster (p1's opponent)
+    let p4 = p(4); // no relevant permanent
+
+    let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
+        .with_types(vec![CardType::Enchantment])
+        .with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::OpponentCastsSpell,
+            intervening_if: None,
+            description: "Whenever an opponent casts a spell (CR 603.2)".into(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            }),
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    // p3 casts a spell.
+    let spell = ObjectSpec::card(p3, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p3));
+
+    // p1 needs library cards to draw from.
+    let library_card = ObjectSpec::card(p1, "Plains").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::four_player()
+        .object(rhystic_study)
+        .object(spell)
+        .object(library_card)
+        .at_step(Step::PreCombatMain)
+        .active_player(p3)
+        .build()
+        .unwrap();
+
+    let initial_hand_p1 = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    let spell_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p3))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // p3 casts Shock.
+    let (state, cast_events) = process_command(
+        state,
+        Command::CastSpell {
+            player: p3,
+            card: spell_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // Exactly 1 AbilityTriggered event: p1's Rhystic Study.
+    let triggered_count = cast_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+    assert_eq!(
+        triggered_count, 1,
+        "CR 603.2: exactly 1 OpponentCastsSpell trigger should fire (p1's study only)"
+    );
+
+    // The triggered ability's controller must be p1.
+    let trigger_controller = cast_events
+        .iter()
+        .find_map(|e| {
+            if let GameEvent::AbilityTriggered { controller, .. } = e {
+                Some(*controller)
+            } else {
+                None
+            }
+        })
+        .expect("AbilityTriggered event must be present");
+    assert_eq!(
+        trigger_controller, p1,
+        "CR 603.3a: triggered ability controller must be p1 (the study controller)"
+    );
+
+    // Resolve the stack — p1 draws 1 card.
+    let mut current = state;
+    for _ in 0..10 {
+        if current.stack_objects.is_empty() {
+            break;
+        }
+        let (ns, _) =
+            process_command(current.clone(), Command::PassPriority { player: p3 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p4 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p1 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p2 }).unwrap();
+        current = ns;
+    }
+
+    let final_hand_p1 = current
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    assert_eq!(
+        final_hand_p1,
+        initial_hand_p1 + 1,
+        "CR 603.2: p1 should draw exactly 1 card (Rhystic Study trigger resolved)"
+    );
+}
+
+#[test]
+/// CR 603.2c — If multiple permanents each have OpponentCastsSpell, each triggers
+/// independently. Two Rhystic-Study-like enchantments controlled by p1 both fire
+/// when p2 casts a spell, and p1 draws 2 cards total.
+fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
+    let p1 = p(1); // controls 2 enchantments
+    let p2 = p(2); // the caster
+
+    let make_study = |name: &str| {
+        ObjectSpec::card(p1, name)
+            .with_types(vec![CardType::Enchantment])
+            .with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::OpponentCastsSpell,
+                intervening_if: None,
+                description: "Whenever an opponent casts a spell (CR 603.2)".into(),
+                effect: Some(Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                }),
+            })
+            .in_zone(ZoneId::Battlefield)
+    };
+
+    let study1 = make_study("Study Alpha");
+    let study2 = make_study("Study Beta");
+
+    // p2 casts a spell.
+    let spell = ObjectSpec::card(p2, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p2));
+
+    // p1 needs 2 library cards to draw from.
+    let lib1 = ObjectSpec::card(p1, "Plains A").in_zone(ZoneId::Library(p1));
+    let lib2 = ObjectSpec::card(p1, "Plains B").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(study1)
+        .object(study2)
+        .object(spell)
+        .object(lib1)
+        .object(lib2)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let initial_hand = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    let spell_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p2))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // p2 casts Shock — both studies should trigger.
+    let (state, cast_events) = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    let triggered_count = cast_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2c: both studies must trigger independently (2 AbilityTriggered events)"
+    );
+
+    // Resolve all stack items — p1 draws 2 cards.
+    let mut current = state;
+    for _ in 0..10 {
+        if current.stack_objects.is_empty() {
+            break;
+        }
+        let (ns, _) =
+            process_command(current.clone(), Command::PassPriority { player: p2 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p1 }).unwrap();
+        current = ns;
+    }
+
+    let final_hand = current
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    assert_eq!(
+        final_hand,
+        initial_hand + 2,
+        "CR 603.2c: p1 should draw 2 cards (one per triggered study)"
+    );
+}
+
+#[test]
+/// CR 603.2 / CR 102.2 — The triggered ability stack entry for OpponentCastsSpell
+/// carries the casting player as Target::Player at index 0, so that
+/// DeclaredTarget { index: 0 } at effect resolution time correctly identifies
+/// the specific opponent who cast the spell.
+fn test_opponent_casts_trigger_carries_casting_player_as_target() {
+    let p1 = p(1); // Rhystic Study controller
+    let p2 = p(2); // opponent who casts
+
+    let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
+        .with_types(vec![CardType::Enchantment])
+        .with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::OpponentCastsSpell,
+            intervening_if: None,
+            description: "Whenever an opponent casts a spell (CR 603.2)".into(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            }),
+        })
+        .in_zone(ZoneId::Battlefield);
+
+    let spell = ObjectSpec::card(p2, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p2));
+
+    let library_card = ObjectSpec::card(p1, "Plains").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(rhystic_study)
+        .object(spell)
+        .object(library_card)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    let spell_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p2))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // p2 casts Shock — this should queue the OpponentCastsSpell trigger.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: spell_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // Pass p2 priority so pending triggers flush to the stack.
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    // The triggered ability stack entry must have p2 as Target::Player at index 0.
+    // The stack should have: Shock (bottom) + Rhystic Study trigger (top).
+    let triggered_stack_obj = state
+        .stack_objects
+        .iter()
+        .find(|o| matches!(o.kind, mtg_engine::StackObjectKind::TriggeredAbility { .. }))
+        .expect("triggered ability must be on the stack after trigger flush");
+
+    assert_eq!(
+        triggered_stack_obj.targets.len(),
+        1,
+        "CR 603.2: triggered ability must have exactly 1 target (the casting player)"
+    );
+    assert_eq!(
+        triggered_stack_obj.targets[0].target,
+        Target::Player(p2),
+        "CR 102.2: target[0] must be Target::Player(p2) — the opponent who cast the spell"
+    );
+}
+
+// ── Enrich-path test: trigger fires when built via enrich_spec_from_def ───────
+
+#[test]
+/// CR 603.2 / CR 603.3 — Rhystic Study's OpponentCastsSpell trigger must fire
+/// when the card is built via `enrich_spec_from_def` (the replay-harness path),
+/// not just when `with_triggered_ability` is called directly.
+///
+/// This test catches the regression where the enrich path was missing the
+/// WheneverOpponentCastsSpell → TriggerEvent::OpponentCastsSpell mapping.
+/// When p2 casts a spell, p1's Rhystic Study (enriched from CardDefinition)
+/// must queue a triggered ability and ultimately draw p1 a card.
+fn test_rhystic_study_enrich_path_trigger_fires() {
+    let p1 = p(1); // Rhystic Study controller
+    let p2 = p(2); // opponent who casts a spell
+
+    // Build a CardDefinition map from the actual card database.
+    let cards = all_cards();
+    let defs: std::collections::HashMap<String, CardDefinition> =
+        cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
+
+    // Enrich Rhystic Study from its CardDefinition — this is the same path as
+    // the replay harness uses in `build_initial_state` for battlefield permanents.
+    let rhystic_study = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Rhystic Study")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(mtg_engine::card_name_to_id("Rhystic Study")),
+        &defs,
+    );
+
+    // p2's spell: a simple instant with no mana cost and no targets so it can be
+    // cast freely. Using a bare `ObjectSpec::card` (no enrich) so the mana_cost
+    // field is None — the engine casts it for free.
+    let opp_spell = ObjectSpec::card(p2, "Shock")
+        .with_types(vec![CardType::Instant])
+        .in_zone(ZoneId::Hand(p2));
+
+    // p1 needs a library card so the draw effect can succeed.
+    let library_card = ObjectSpec::card(p1, "Plains").in_zone(ZoneId::Library(p1));
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(rhystic_study)
+        .object(opp_spell)
+        .object(library_card)
+        .at_step(Step::PreCombatMain)
+        .active_player(p2)
+        .build()
+        .unwrap();
+
+    // Count p1's initial hand size.
+    let initial_hand = state
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    // Verify that Rhystic Study on the battlefield has a triggered ability
+    // with TriggerEvent::OpponentCastsSpell (enrich path correctness check).
+    let rhystic_obj = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Rhystic Study" && o.zone == ZoneId::Battlefield)
+        .expect("Rhystic Study must be on the battlefield");
+    assert!(
+        rhystic_obj
+            .characteristics
+            .triggered_abilities
+            .iter()
+            .any(|t| t.trigger_on == TriggerEvent::OpponentCastsSpell),
+        "enrich_spec_from_def must populate OpponentCastsSpell trigger on Rhystic Study"
+    );
+
+    // p2 casts Shock — SpellCast event is emitted, check_triggers dispatches
+    // OpponentCastsSpell trigger for Rhystic Study.
+    let shock_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Shock" && obj.zone == ZoneId::Hand(p2))
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state, cast_events) = process_command(
+        state,
+        Command::CastSpell {
+            player: p2,
+            card: shock_id,
+            targets: vec![],
+        },
+    )
+    .unwrap();
+
+    // At least one AbilityTriggered event must be present immediately after the cast.
+    let triggered = cast_events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AbilityTriggered { .. }));
+    assert!(
+        triggered,
+        "CR 603.2: enrich-path Rhystic Study must emit AbilityTriggered when opponent casts; \
+         got events: {:?}",
+        cast_events
+    );
+
+    // Keep passing priority until the stack is empty — the trigger resolves and
+    // p1 draws a card (MayPayOrElse always applies or_else in non-interactive mode).
+    let mut current = state;
+    for _ in 0..20 {
+        if current.stack_objects.is_empty() {
+            break;
+        }
+        let (ns, _) =
+            process_command(current.clone(), Command::PassPriority { player: p2 }).unwrap();
+        let (ns, _) = process_command(ns, Command::PassPriority { player: p1 }).unwrap();
+        current = ns;
+    }
+
+    let final_hand = current
+        .objects
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    assert_eq!(
+        final_hand,
+        initial_hand + 1,
+        "CR 603.2 / enrich path: p1 should draw 1 card from Rhystic Study trigger \
+         when opponent casts via enrich_spec_from_def"
     );
 }

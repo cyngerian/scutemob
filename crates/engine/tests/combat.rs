@@ -1534,3 +1534,402 @@ fn test_cc20_first_strike_blocks_double_strike() {
         "p1 should not have taken damage (all damage was between creatures)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Tests: SelfDealsCombatDamageToPlayer trigger (CR 510.3a, CR 603.2)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 510.3a — "whenever ~ deals combat damage to a player" triggers after
+/// combat damage is dealt during the CombatDamage step. An unblocked creature
+/// with the trigger fires when it damages the defending player.
+/// CR 603.2g — damage amount > 0 is required for the trigger to fire.
+fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
+    use mtg_engine::{TriggerEvent, TriggeredAbilityDef};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let triggered_ability = TriggeredAbilityDef {
+        trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+        intervening_if: None,
+        description: "Whenever ~ deals combat damage to a player, do something".to_string(),
+        effect: None,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Trigger Creature", 2, 2)
+                .with_triggered_ability(triggered_ability),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1)
+        .unwrap()
+        .id;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .expect("declare attackers failed");
+
+    // Pass through DeclareAttackers → DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 declares no blockers.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("declare blockers failed");
+
+    // Pass through DeclareBlockers → CombatDamage (turn-based action fires).
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // AbilityTriggered event should have been emitted for the creature.
+    let triggered = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == attacker_id
+        )
+    });
+    assert!(
+        triggered,
+        "SelfDealsCombatDamageToPlayer trigger should fire for unblocked attacker"
+    );
+
+    // The triggered ability should be on the stack.
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "Triggered ability should be placed on the stack"
+    );
+
+    // p2's life should be reduced by 2.
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "p2 should have taken 2 combat damage"
+    );
+}
+
+#[test]
+/// CR 510.1c — a blocked creature (without trample) deals its damage to
+/// blockers only, not to the defending player. The SelfDealsCombatDamageToPlayer
+/// trigger must NOT fire because no combat damage was dealt to a player.
+fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
+    use mtg_engine::{TriggerEvent, TriggeredAbilityDef};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let triggered_ability = TriggeredAbilityDef {
+        trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+        intervening_if: None,
+        description: "Whenever ~ deals combat damage to a player, do something".to_string(),
+        effect: None,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Trigger Attacker", 2, 2)
+                .with_triggered_ability(triggered_ability),
+        )
+        .object(ObjectSpec::creature(p2, "Blocker", 3, 3))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1 && o.characteristics.name == "Trigger Attacker")
+        .unwrap()
+        .id;
+    let blocker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p2)
+        .unwrap()
+        .id;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .expect("declare attackers failed");
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .expect("declare blockers failed");
+
+    // Pass through DeclareBlockers → CombatDamage.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // No AbilityTriggered event for the attacker (damage went to the blocker).
+    let triggered = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == attacker_id
+        )
+    });
+    assert!(
+        !triggered,
+        "SelfDealsCombatDamageToPlayer trigger must NOT fire when creature is blocked (no trample)"
+    );
+
+    // The stack should have no triggered abilities from the attacker.
+    assert_eq!(
+        state.stack_objects.len(),
+        0,
+        "No triggered ability should be on the stack"
+    );
+
+    // p2's life total should be unchanged (all damage went to the blocker).
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        40,
+        "p2 should not have taken any combat damage"
+    );
+}
+
+#[test]
+/// CR 510.1a — a creature with 0 power assigns no combat damage.
+/// CR 603.2g — because no damage is dealt, the SelfDealsCombatDamageToPlayer
+/// trigger does NOT fire (prevented/zero damage does not trigger).
+fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
+    use mtg_engine::{TriggerEvent, TriggeredAbilityDef};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let triggered_ability = TriggeredAbilityDef {
+        trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+        intervening_if: None,
+        description: "Whenever ~ deals combat damage to a player, do something".to_string(),
+        effect: None,
+    };
+
+    // 0-power creature: assigns 0 damage (CR 510.1a).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Zero Power", 0, 2).with_triggered_ability(triggered_ability),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1)
+        .unwrap()
+        .id;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .expect("declare attackers failed");
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("declare blockers failed");
+
+    // Pass through DeclareBlockers → CombatDamage.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // No AbilityTriggered event — 0 damage was assigned, trigger does not fire.
+    let triggered = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == attacker_id
+        )
+    });
+    assert!(
+        !triggered,
+        "SelfDealsCombatDamageToPlayer trigger must NOT fire when creature has 0 power"
+    );
+
+    // p2's life total should be unchanged.
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        40,
+        "p2 should not have taken any damage from a 0-power creature"
+    );
+}
+
+#[test]
+/// CR 603.2c — an ability triggers once for each time the trigger event occurs.
+/// In multiplayer, two unblocked creatures attacking different players each fire
+/// their SelfDealsCombatDamageToPlayer triggers independently. Both go on the
+/// stack (CR 510.3a: abilities triggered on damage being dealt are placed on the
+/// stack before priority is granted).
+fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
+    use mtg_engine::{TriggerEvent, TriggeredAbilityDef};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let p3 = PlayerId(3);
+
+    let make_trigger = || TriggeredAbilityDef {
+        trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+        intervening_if: None,
+        description: "Whenever ~ deals combat damage to a player, do something".to_string(),
+        effect: None,
+    };
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .object(ObjectSpec::creature(p1, "Creature A", 2, 2).with_triggered_ability(make_trigger()))
+        .object(ObjectSpec::creature(p1, "Creature B", 3, 3).with_triggered_ability(make_trigger()))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let att_a_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1 && o.characteristics.name == "Creature A")
+        .unwrap()
+        .id;
+    let att_b_id = state
+        .objects
+        .values()
+        .find(|o| o.controller == p1 && o.characteristics.name == "Creature B")
+        .unwrap()
+        .id;
+
+    // Creature A attacks p2; Creature B attacks p3.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![
+                (att_a_id, AttackTarget::Player(p2)),
+                (att_b_id, AttackTarget::Player(p3)),
+            ],
+        },
+    )
+    .expect("declare attackers failed");
+
+    let (state, _) = pass_all(state, &[p1, p2, p3]);
+
+    // Both p2 and p3 declare no blockers.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("p2 declare blockers failed");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p3,
+            blockers: vec![],
+        },
+    )
+    .expect("p3 declare blockers failed");
+
+    // Pass through DeclareBlockers → CombatDamage.
+    let (state, events) = pass_all(state, &[p1, p2, p3]);
+
+    // Both creatures should have fired their triggers.
+    let triggered_a = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == att_a_id
+        )
+    });
+    let triggered_b = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::AbilityTriggered { source_object_id, .. }
+            if *source_object_id == att_b_id
+        )
+    });
+
+    assert!(
+        triggered_a,
+        "Creature A's SelfDealsCombatDamageToPlayer trigger should fire"
+    );
+    assert!(
+        triggered_b,
+        "Creature B's SelfDealsCombatDamageToPlayer trigger should fire"
+    );
+
+    // Both triggered abilities should be on the stack.
+    assert_eq!(
+        state.stack_objects.len(),
+        2,
+        "Both triggered abilities should be placed on the stack (one per creature)"
+    );
+
+    // p2 and p3 both took damage; p1 is untouched.
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        38,
+        "p2 should have taken 2 damage from Creature A"
+    );
+    assert_eq!(
+        state.players.get(&p3).unwrap().life_total,
+        37,
+        "p3 should have taken 3 damage from Creature B"
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().life_total,
+        40,
+        "p1 (the attacker) should be untouched"
+    );
+}

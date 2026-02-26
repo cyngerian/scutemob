@@ -261,6 +261,17 @@ pub enum GameEvent {
     /// was attached to is no longer a legal attachment target (CR 704.5n).
     EquipmentUnattached { object_id: ObjectId },
 
+    /// An Equipment was attached to a creature via the Equip ability (CR 702.6a).
+    /// Emitted when the equip effect resolves and the attachment state changes.
+    EquipmentAttached {
+        /// The Equipment that was attached.
+        equipment_id: ObjectId,
+        /// The creature it was attached to.
+        target_id: ObjectId,
+        /// The player who activated the equip ability.
+        controller: PlayerId,
+    },
+
     /// A token in a non-battlefield zone ceased to exist (CR 704.5d).
     TokenCeasedToExist { object_id: ObjectId },
 
@@ -366,6 +377,19 @@ pub enum GameEvent {
         /// ObjectId in hand (now retired).
         object_id: ObjectId,
         /// New ObjectId in the graveyard (CR 400.7).
+        new_id: ObjectId,
+    },
+
+    /// A card was cycled from a player's hand (CR 702.29a).
+    ///
+    /// This event fires IN ADDITION TO `CardDiscarded` (CR 702.29d: "cycles or discards"
+    /// triggers fire once). The `CardCycled` event enables "when you cycle" triggers
+    /// (CR 702.29c) that are distinct from generic discard triggers.
+    CardCycled {
+        player: PlayerId,
+        /// ObjectId of the card in hand (now retired — CR 400.7).
+        object_id: ObjectId,
+        /// New ObjectId in the graveyard.
         new_id: ObjectId,
     },
 
@@ -644,6 +668,30 @@ pub enum GameEvent {
         /// The player who goaded the creature.
         goading_player: PlayerId,
     },
+
+    // ── Dredge events (CR 702.52) ─────────────────────────────────────────
+    /// One or more dredge cards are available in the player's graveyard and
+    /// the player must choose whether to dredge one or draw normally (CR 702.52a).
+    ///
+    /// The engine pauses until a `Command::ChooseDredge` is received.
+    /// `options` lists `(ObjectId, u32)` pairs of (dredge card, dredge amount).
+    DredgeChoiceRequired {
+        player: PlayerId,
+        options: Vec<(ObjectId, u32)>,
+    },
+
+    /// CR 702.52: A player dredged a card — milled N cards and returned the
+    /// dredge card from graveyard to hand instead of drawing.
+    ///
+    /// Dredge does NOT count as drawing (CR 702.52a — it's a replacement effect).
+    /// `cards_drawn_this_turn` is NOT incremented.
+    Dredged {
+        player: PlayerId,
+        /// The dredge card's new ObjectId in hand (CR 400.7 — zone change creates new id).
+        card_new_id: ObjectId,
+        /// Number of cards milled as part of the dredge.
+        milled: u32,
+    },
 }
 
 impl GameEvent {
@@ -664,6 +712,8 @@ impl GameEvent {
             GameEvent::CardDrawn { .. } => true,
             // Discarding reveals the card's identity to all players.
             GameEvent::CardDiscarded { .. } => true,
+            // Cycling reveals the card's identity to all players (CR 702.29a — discard as cost).
+            GameEvent::CardCycled { .. } => true,
             // All other events involve only public information.
             _ => false,
         }

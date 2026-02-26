@@ -105,6 +105,7 @@ pub fn draw_card(
 
     // CR 614.11: Check WouldDraw replacement effects before performing the draw.
     // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
+    // CR 702.52: Also checks for dredge-eligible cards in the graveyard.
     {
         use crate::rules::replacement::{self, DrawAction};
         match replacement::check_would_draw_replacement(state, player) {
@@ -112,6 +113,10 @@ pub fn draw_card(
             DrawAction::Skip(event) => return Ok(vec![event]),
             DrawAction::NeedsChoice(event) => {
                 // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
+                return Ok(vec![event]);
+            }
+            DrawAction::DredgeAvailable(event) => {
+                // CR 702.52: Dredge options available — pause for player choice.
                 return Ok(vec![event]);
             }
         }

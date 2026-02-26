@@ -55,13 +55,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // Card goes to graveyard without effect (same zone move as normal
                     // instant/sorcery resolution, but emits SpellFizzled, not SpellResolved).
                     //
+                    // CR 702.34a: If cast with flashback, the card is exiled instead of
+                    // going to the graveyard — this applies even on fizzle.
+                    //
                     // CR 707.10: Copies have no physical card to move — skip zone move.
                     let fizzle_source_id = if stack_obj.is_copy {
                         source_object
                     } else {
                         let owner = state.object(source_object)?.owner;
+                        let destination = if stack_obj.cast_with_flashback {
+                            ZoneId::Exile // CR 702.34a
+                        } else {
+                            ZoneId::Graveyard(owner)
+                        };
                         let (new_id, _old) =
-                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+                            state.move_object_to_zone(source_object, destination)?;
                         new_id
                     };
 
@@ -231,8 +239,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
             } else {
                 // CR 608.2n: Instant/sorcery — card moves to owner's graveyard.
-                let (new_id, _old) =
-                    state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+                // CR 702.34a: If cast with flashback, exile instead of graveyard.
+                let destination = if stack_obj.cast_with_flashback {
+                    ZoneId::Exile // CR 702.34a
+                } else {
+                    ZoneId::Graveyard(owner)
+                };
+                let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
 
                 events.push(GameEvent::SpellResolved {
                     player: controller,
@@ -442,8 +455,13 @@ pub fn counter_stack_object(
         StackObjectKind::Spell { source_object } => {
             let controller = stack_obj.controller;
             let owner = state.object(source_object)?.owner;
-            let (new_id, _old) =
-                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))?;
+            // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
+            let destination = if stack_obj.cast_with_flashback {
+                ZoneId::Exile // CR 702.34a
+            } else {
+                ZoneId::Graveyard(owner)
+            };
+            let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
 
             events.push(GameEvent::SpellCountered {
                 player: controller,

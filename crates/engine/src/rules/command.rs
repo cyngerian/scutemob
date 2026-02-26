@@ -170,4 +170,32 @@ pub enum Command {
     /// Special action: costs {3}, requires main phase, stack empty, priority,
     /// and that the player has not already used this action.
     BringCompanion { player: PlayerId },
+
+    // ── Cycling (CR 702.29) ───────────────────────────────────────────────
+    /// Cycle a card from hand (CR 702.29a).
+    ///
+    /// Cycling is an activated ability that functions only while the card is in
+    /// the player's hand. The activation cost is the cycling cost (mana) plus
+    /// discarding the card itself. The effect is "draw a card" and uses the stack.
+    ///
+    /// Unlike `ActivateAbility` (which requires the source on the battlefield),
+    /// `CycleCard` works from the hand zone. The card is discarded as cost
+    /// (immediately), and a cycling ability is placed on the stack. When it
+    /// resolves, the controller draws a card.
+    CycleCard { player: PlayerId, card: ObjectId },
+
+    // ── Dredge (CR 702.52) ───────────────────────────────────────────────
+    /// Choose whether to dredge a card from the graveyard instead of drawing (CR 702.52a).
+    ///
+    /// Sent in response to a `DredgeChoiceRequired` event. If `card` is `Some(id)`,
+    /// the player dredges that card (mills N, returns card to hand). If `card` is `None`,
+    /// the player draws normally.
+    ///
+    /// Validation: the card must be in the player's graveyard with `KeywordAbility::Dredge(n)`,
+    /// and the player must have >= n cards in their library (CR 702.52b).
+    ChooseDredge {
+        player: PlayerId,
+        /// The dredge card to return from graveyard to hand, or None to draw normally.
+        card: Option<ObjectId>,
+    },
 }

@@ -21,7 +21,8 @@ use crate::testing::script_schema::{ActionTarget, InitialState};
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility, ManaColor,
-    ObjectSpec, PlayerId, Step, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    ObjectSpec, PlayerId, Step, TimingRestriction, TriggerCondition, TriggerEvent,
+    TriggeredAbilityDef, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -216,6 +217,21 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.34a: Cast a spell with flashback from the player's graveyard.
+        // The engine determines it's a flashback cast by checking the card's zone
+        // (graveyard) and whether it has the Flashback keyword. No new Command variant
+        // is needed — CastSpell handles flashback automatically when the source is
+        // in the graveyard.
+        "cast_spell_flashback" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+            })
+        }
+
         "tap_for_mana" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
             // Assume ability index 0 for basic mana abilities.
@@ -235,6 +251,21 @@ pub fn translate_player_action(
                 ability_index,
                 targets: target_list,
             })
+        }
+
+        "cycle_card" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::CycleCard {
+                player,
+                card: card_id,
+            })
+        }
+
+        // CR 702.52a: Choose to use dredge instead of drawing. card_name is the
+        // dredge card to return from graveyard; if absent, declines dredge (draws normally).
+        "choose_dredge" => {
+            let card = card_name.and_then(|name| find_in_graveyard(state, player, name));
+            Some(Command::ChooseDredge { player, card })
         }
 
         "concede" => Some(Command::Concede { player }),
@@ -384,7 +415,12 @@ pub fn enrich_spec_from_def(
     // Populate non-mana activated abilities into characteristics.activated_abilities.
     // This is required so that Command::ActivateAbility can look up the ability by index.
     for ability in &def.abilities {
-        if let AbilityDefinition::Activated { cost, effect, .. } = ability {
+        if let AbilityDefinition::Activated {
+            cost,
+            effect,
+            timing_restriction,
+        } = ability
+        {
             // Skip ALL tap-for-mana abilities (both fixed-mana and any-color variants).
             // These are either registered as ManaAbility above or handled via TapForMana.
             // Including them here would shift the ability_index of non-mana abilities.
@@ -399,6 +435,12 @@ pub fn enrich_spec_from_def(
                     cost: activation_cost,
                     description: String::new(),
                     effect: Some(effect.clone()),
+                    // CR 602.5d: Propagate timing restriction so sorcery-speed abilities
+                    // (e.g., Equip) are enforced in handle_activate_ability.
+                    sorcery_speed: matches!(
+                        timing_restriction,
+                        Some(TimingRestriction::SorcerySpeed)
+                    ),
                 };
                 spec = spec.with_activated_ability(ab);
             }
@@ -466,6 +508,48 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 510.3a / CR 603.2: Convert "Whenever ~ deals combat damage to a player"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via CombatDamageDealt events.
+    // intervening_if is None here: Condition and InterveningIf are separate types;
+    // conditional combat-damage triggers are rare and deferred.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+                intervening_if: None,
+                description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 603.2 / CR 102.2: Convert "Whenever an opponent casts a spell"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via SpellCast events.
+    // The opponent check is done at trigger-collection time in abilities.rs,
+    // not here -- this only wires the TriggerEvent.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverOpponentCastsSpell,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::OpponentCastsSpell,
+                intervening_if: None,
+                description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
     spec
 }
 
@@ -519,6 +603,21 @@ fn resolve_targets(
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> Option<crate::state::ObjectId> {
     state.objects.iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == ZoneId::Hand(player) {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 702.34a: Find a named card in a player's graveyard (for flashback casting).
+fn find_in_graveyard(
+    state: &GameState,
+    player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(player) {
             Some(id)
         } else {
             None

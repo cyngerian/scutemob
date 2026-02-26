@@ -42,6 +42,13 @@ pub struct StackObject {
     /// care about casting, and do not go to graveyard when they finish resolving.
     #[serde(default)]
     pub is_copy: bool,
+    /// CR 702.34a: If true, this spell was cast via flashback. When it leaves the
+    /// stack (resolves, is countered, or fizzles), it is exiled instead of going
+    /// to any other zone. Set at cast time in `handle_cast_spell`.
+    ///
+    /// Must always be false for copies (`is_copy: true`) — copies are not cast.
+    #[serde(default)]
+    pub cast_with_flashback: bool,
 }
 
 /// The kind of object on the stack.

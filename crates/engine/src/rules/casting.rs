@@ -55,18 +55,32 @@ pub fn handle_cast_spell(
         });
     }
 
-    // Fetch the card and validate it is in the player's hand OR command zone.
-    // CR 903.8: A player may cast their commander from the command zone.
-    let (casting_from_command_zone, card_id, base_mana_cost) = {
+    // Fetch the card and validate it is in the player's hand, command zone, or graveyard
+    // (with flashback). CR 903.8: A player may cast their commander from the command zone.
+    // CR 702.34a: A card with flashback may be cast from its owner's graveyard.
+    let (casting_from_command_zone, casting_with_flashback, card_id, base_mana_cost) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
-        if card_obj.zone != ZoneId::Hand(player) && !casting_from_command_zone {
+        let casting_from_graveyard = card_obj.zone == ZoneId::Graveyard(player);
+
+        // CR 702.34a: Flashback — allowed if card has the flashback keyword and is in graveyard.
+        let casting_with_flashback = casting_from_graveyard
+            && card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Flashback);
+
+        if card_obj.zone != ZoneId::Hand(player)
+            && !casting_from_command_zone
+            && !casting_with_flashback
+        {
             return Err(GameStateError::InvalidCommand(
                 "card is not in your hand".into(),
             ));
         }
         (
             casting_from_command_zone,
+            casting_with_flashback,
             card_obj.card_id.clone(),
             card_obj.characteristics.mana_cost.clone(),
         )
@@ -107,9 +121,31 @@ pub fn handle_cast_spell(
     let is_instant_speed = chars.card_types.contains(&CardType::Instant)
         || chars.keywords.contains(&KeywordAbility::Flash);
 
-    // CR 903.8: Apply commander tax if casting from command zone.
-    // Additional cost: {2} * times_previously_cast.
-    let mana_cost: Option<ManaCost> = if casting_from_command_zone {
+    // CR 702.34a: Flashback — type validation: only instants and sorceries can use flashback.
+    // CR 702.34a: "You may cast this card from your graveyard if the resulting spell is an
+    // instant or sorcery spell."
+    if casting_with_flashback {
+        let is_instant_or_sorcery = chars.card_types.contains(&CardType::Instant)
+            || chars.card_types.contains(&CardType::Sorcery);
+        if !is_instant_or_sorcery {
+            return Err(GameStateError::InvalidCommand(
+                "flashback can only be used on instants and sorceries".into(),
+            ));
+        }
+    }
+
+    // CR 702.34a / CR 903.8: Determine the cost to pay.
+    // - Flashback: pay the flashback cost (alternative cost, CR 118.9) instead of mana cost.
+    // - Command zone: pay mana cost + commander tax (additional cost, CR 903.8).
+    // - Otherwise: pay the printed mana cost.
+    // CR 118.9d: additional costs apply on top of the alternative cost — commander tax
+    // applies on top of flashback if applicable (rare, but handled correctly here).
+    let mana_cost: Option<ManaCost> = if casting_with_flashback {
+        // CR 702.34a: Pay flashback cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_flashback_cost(&card_id, &state.card_registry)
+    } else if casting_from_command_zone {
+        // CR 903.8: Apply commander tax (additional cost on top of mana cost).
         let tax = {
             let player_state = state.player(player)?;
             card_id
@@ -214,6 +250,7 @@ pub fn handle_cast_spell(
         targets: spell_targets,
         cant_be_countered,
         is_copy: false,
+        cast_with_flashback: casting_with_flashback,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -284,6 +321,7 @@ pub fn handle_cast_spell(
             targets: vec![],
             cant_be_countered: false,
             is_copy: false,
+            cast_with_flashback: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -316,6 +354,7 @@ pub fn handle_cast_spell(
             targets: vec![],
             cant_be_countered: false,
             is_copy: false,
+            cast_with_flashback: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -341,6 +380,28 @@ pub fn handle_cast_spell(
     });
 
     Ok(events)
+}
+
+/// CR 702.34a / CR 118.9: Look up the flashback cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Flashback { cost }`, or `None`
+/// if the card has no definition or no flashback ability defined. When `None` is returned,
+/// no mana payment is required (free flashback — rare, but correct per CR 118.9).
+fn get_flashback_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Flashback { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
 }
 
 /// CR 601.2c: Validate targets at cast time and snapshot their current zones.

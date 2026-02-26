@@ -588,5 +588,8 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::CantBeBlocked => "Can't Be Blocked".to_string(),
         KeywordAbility::Storm => "Storm".to_string(),
         KeywordAbility::Cascade => "Cascade".to_string(),
+        KeywordAbility::Flashback => "Flashback".to_string(),
+        KeywordAbility::Cycling => "Cycling".to_string(),
+        KeywordAbility::Dredge(n) => format!("Dredge {n}"),
     }
 }

@@ -20,17 +20,19 @@
 
 use im::OrdSet;
 
+use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
-use crate::state::game_object::{InterveningIf, ObjectId, TriggerEvent};
-use crate::state::player::PlayerId;
+use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
+use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::stubs::{PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 use crate::state::targeting::{SpellTarget, Target};
+use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
 use super::casting;
-use super::events::GameEvent;
+use super::events::{CombatDamageTarget, GameEvent};
 
 // ---------------------------------------------------------------------------
 // Activated ability handler
@@ -84,6 +86,29 @@ pub fn handle_activate_ability(
         }
     }
 
+    // CR 602.5d: Check sorcery-speed restriction before paying any costs.
+    {
+        let obj = state.object(source)?;
+        let ab = &obj.characteristics.activated_abilities[ability_index];
+        if ab.sorcery_speed {
+            // Must be active player's main phase with empty stack.
+            if state.turn.active_player != player {
+                return Err(GameStateError::InvalidCommand(
+                    "sorcery-speed ability can only be activated during your own turn".into(),
+                ));
+            }
+            if !matches!(
+                state.turn.step,
+                crate::state::turn::Step::PreCombatMain | crate::state::turn::Step::PostCombatMain
+            ) {
+                return Err(GameStateError::NotMainPhase);
+            }
+            if !state.stack_objects.is_empty() {
+                return Err(GameStateError::StackNotEmpty);
+            }
+        }
+    }
+
     // Clone the cost and capture effect before mutating state.
     // Effect must be captured now in case sacrifice-as-cost removes the source object.
     let (ability_cost, embedded_effect) = {
@@ -91,6 +116,58 @@ pub fn handle_activate_ability(
         let ab = &obj.characteristics.activated_abilities[ability_index];
         (ab.cost.clone(), ab.effect.clone())
     };
+
+    // CR 702.6a / CR 601.2c: Equip abilities can only target "a creature you control."
+    // Validate target type and controller BEFORE spending any costs, so that mana is
+    // not wasted when the activation is illegal.
+    //
+    // This is a special-case check for AttachEquipment effects. The general activated-
+    // ability framework does not (yet) have a TargetRequirement field; this check
+    // bridges that gap for Equip specifically.
+    if matches!(
+        &embedded_effect,
+        Some(crate::cards::card_definition::Effect::AttachEquipment { .. })
+    ) {
+        if let Some(Target::Object(target_id)) = targets.first() {
+            let target_id = *target_id;
+            // Check: target must be a creature on the battlefield controlled by the
+            // activating player. Use layer-computed characteristics for correctness
+            // under continuous effects (e.g. animated artifacts).
+            let on_battlefield_and_controlled = state
+                .objects
+                .get(&target_id)
+                .map(|obj| {
+                    obj.zone == crate::state::zone::ZoneId::Battlefield && obj.controller == player
+                })
+                .unwrap_or(false);
+            let is_creature = {
+                let layer_chars = crate::rules::layers::calculate_characteristics(state, target_id)
+                    .or_else(|| {
+                        state
+                            .objects
+                            .get(&target_id)
+                            .map(|o| o.characteristics.clone())
+                    });
+                layer_chars
+                    .map(|chars| {
+                        chars
+                            .card_types
+                            .contains(&crate::state::types::CardType::Creature)
+                    })
+                    .unwrap_or(false)
+            };
+            if !on_battlefield_and_controlled {
+                return Err(GameStateError::InvalidTarget(
+                    "equip target must be a creature you control on the battlefield".into(),
+                ));
+            }
+            if !is_creature {
+                return Err(GameStateError::InvalidTarget(
+                    "equip target must be a creature".into(),
+                ));
+            }
+        }
+    }
 
     let mut events = Vec::new();
 
@@ -242,6 +319,7 @@ pub fn handle_activate_ability(
         targets: spell_targets,
         cant_be_countered: false,
         is_copy: false,
+        cast_with_flashback: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -271,6 +349,155 @@ pub fn handle_activate_ability(
     events.push(GameEvent::PriorityGiven { player: active });
 
     Ok(events)
+}
+
+// ---------------------------------------------------------------------------
+// Cycling handler
+// ---------------------------------------------------------------------------
+
+/// Handle a CycleCard command: validate, pay mana cost, discard self, push draw onto stack.
+///
+/// CR 702.29a: Cycling is an activated ability from hand. "[Cost], Discard this card: Draw a card."
+/// The discard is part of the cost (happens immediately before ability goes on stack).
+/// The draw uses the stack and can be responded to (e.g., Stifle).
+///
+/// CR 702.29b: The keyword exists in all zones, but activation is only legal from hand.
+pub fn handle_cycle_card(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Zone check (CR 702.29a): card must be in Hand(player).
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Hand(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "CycleCard: card {:?} is not in Hand({:?}); cycling can only be activated from hand (CR 702.29a)",
+                card, player
+            )));
+        }
+    }
+
+    // 3. Keyword check (CR 702.29a): card must have KeywordAbility::Cycling.
+    {
+        let obj = state.object(card)?;
+        if !obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Cycling)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "CycleCard: card {:?} does not have the Cycling keyword (CR 702.29a)",
+                card
+            )));
+        }
+    }
+
+    // 4. Look up cycling cost from CardRegistry (CR 702.29a).
+    let card_id_opt = state.object(card)?.card_id.clone();
+    let cycling_cost = get_cycling_cost(&card_id_opt, &state.card_registry.clone());
+
+    // 5. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if let Some(ref cost) = cycling_cost {
+        if cost.mana_value() > 0 {
+            let player_state = state.player_mut(player)?;
+            if !casting::can_pay_cost(&player_state.mana_pool, cost) {
+                return Err(GameStateError::InsufficientMana);
+            }
+            casting::pay_cost(&mut player_state.mana_pool, cost);
+            events.push(GameEvent::ManaCostPaid {
+                player,
+                cost: cost.clone(),
+            });
+        }
+    }
+
+    // 6. Discard self as cost (CR 702.29a): move card from hand to graveyard.
+    // This happens BEFORE the ability goes on the stack.
+    // Capture owner before zone move (move_object_to_zone resets controller to owner).
+    let owner = state.object(card)?.owner;
+    let (new_grave_id, _) = state.move_object_to_zone(card, ZoneId::Graveyard(owner))?;
+
+    // Emit CardDiscarded (CR 701.8 — discard is always announced).
+    events.push(GameEvent::CardDiscarded {
+        player,
+        object_id: card,
+        new_id: new_grave_id,
+    });
+    // Emit CardCycled (CR 702.29a — distinct event for "when you cycle" trigger matching).
+    events.push(GameEvent::CardCycled {
+        player,
+        object_id: card,
+        new_id: new_grave_id,
+    });
+
+    // 7. Push cycling ability onto stack as ActivatedAbility with embedded DrawCards effect.
+    // CR 602.2c: The source object (card) is now in the graveyard; source_object records
+    // the retired ObjectId for reference. ability_index 0 is a placeholder.
+    let stack_id = state.next_object_id();
+    let draw_effect = crate::cards::card_definition::Effect::DrawCards {
+        player: crate::cards::card_definition::PlayerTarget::Controller,
+        count: crate::cards::card_definition::EffectAmount::Fixed(1),
+    };
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::ActivatedAbility {
+            source_object: card,
+            ability_index: 0,
+            embedded_effect: Some(Box::new(draw_effect)),
+        },
+        targets: Vec::new(),
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 8. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+/// CR 702.29a: Look up the cycling cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Cycling { cost }`, or `None`
+/// if the card has no definition or no cycling ability defined. When `None` is returned,
+/// no mana payment is required (free cycling, e.g., Street Wraith).
+fn get_cycling_cost(
+    card_id: &Option<CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Cycling { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -359,6 +586,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some(obj_id),
                             None,
                         );
+                    }
+                }
+
+                // CR 603.2 / CR 102.2: "Whenever an opponent casts a spell."
+                // Collect triggers on all permanents whose controller is NOT the caster.
+                // In Commander FFA (CR 903.2, CR 102.2), all other players are opponents.
+                {
+                    let opponent_sources: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller != *player)
+                        .map(|obj| obj.id)
+                        .collect();
+
+                    let pre_len = triggers.len();
+                    for obj_id in opponent_sources {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::OpponentCastsSpell,
+                            Some(obj_id),
+                            None,
+                        );
+                    }
+                    // Tag opponent-casts triggers with the casting player so
+                    // flush_pending_triggers can set Target::Player at index 0.
+                    for t in &mut triggers[pre_len..] {
+                        t.triggering_player = Some(*player);
                     }
                 }
             }
@@ -464,7 +719,30 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_event: Some(TriggerEvent::SelfDies),
                             entering_object_id: None,
                             targeting_stack_id: None,
+                            triggering_player: None,
                         });
+                    }
+                }
+            }
+
+            GameEvent::CombatDamageDealt { assignments } => {
+                // CR 510.3a / CR 603.2: "Whenever ~ deals combat damage to a player"
+                // triggers fire for each creature that dealt > 0 combat damage to a player.
+                // CR 603.2g: damage with amount == 0 (fully prevented) does not trigger.
+                // CR 603.10: NOT a look-back trigger — creature must be on battlefield;
+                // collect_triggers_for_event checks obj.zone == Battlefield internally.
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // CR 603.2g: damage was fully prevented
+                    }
+                    if matches!(assignment.target, CombatDamageTarget::Player(_)) {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::SelfDealsCombatDamageToPlayer,
+                            Some(assignment.source),
+                            None,
+                        );
                     }
                 }
             }
@@ -530,6 +808,7 @@ fn collect_triggers_for_event(
                 triggering_event: Some(event_type.clone()),
                 entering_object_id: entering_object,
                 targeting_stack_id: None,
+                triggering_player: None,
             });
         }
     }
@@ -595,9 +874,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // CR 702.21a: For Ward triggers, the targeting stack object ID is carried
         // through PendingTrigger.targeting_stack_id. Set it as the triggered
         // ability's target so CounterSpell resolution can find the right stack entry.
+        // CR 603.2 / CR 102.2: For OpponentCastsSpell triggers, the casting player
+        // is set as Target::Player at index 0 so DeclaredTarget { index: 0 } resolves
+        // to the specific opponent who cast the spell (e.g. Rhystic Study resolution).
         let trigger_targets: Vec<SpellTarget> = if let Some(tsid) = trigger.targeting_stack_id {
             vec![SpellTarget {
                 target: Target::Object(tsid),
+                zone_at_cast: None,
+            }]
+        } else if let Some(pid) = trigger.triggering_player {
+            vec![SpellTarget {
+                target: Target::Player(pid),
                 zone_at_cast: None,
             }]
         } else {
@@ -617,6 +904,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 targets: trigger_targets.clone(),
                 cant_be_countered: false,
                 is_copy: false,
+                cast_with_flashback: false,
             };
             state.stack_objects.push_back(stack_obj);
 

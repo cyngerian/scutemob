@@ -54,6 +54,15 @@ pub struct PendingTrigger {
     /// other trigger types.
     #[serde(default)]
     pub targeting_stack_id: Option<ObjectId>,
+    /// CR 603.2 / CR 102.2: The player whose action triggered this ability.
+    ///
+    /// Populated when an `OpponentCastsSpell` trigger fires. At flush time,
+    /// this is converted to `Target::Player(triggering_player)` at target
+    /// index 0 so `DeclaredTarget { index: 0 }` can resolve to the specific
+    /// opponent who cast the spell (e.g. Rhystic Study's "that player pays {1}").
+    /// `None` for all other trigger types.
+    #[serde(default)]
+    pub triggering_player: Option<PlayerId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

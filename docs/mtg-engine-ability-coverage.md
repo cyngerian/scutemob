@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-26 (Attack trigger row updated)
+> Last audited: 2026-02-26 (Dredge P2-validated; Golgari Grave-Troll card def; script replacement/014)
 
 ---
 
@@ -30,11 +30,11 @@
 
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
-| P1       | 42    | 33        | 3        | 6       | 0    | 0   |
-| P2       | 17    | 0         | 0        | 0       | 17   | 0   |
+| P1       | 42    | 36        | 3        | 3       | 0    | 0   |
+| P2       | 17    | 3         | 0        | 0       | 14   | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **33**   | **3**    | **6**   | **145**| **12** |
+| **Total**| **199**| **39**   | **3**    | **3**   | **142**| **12** |
 
 ---
 
@@ -86,7 +86,7 @@ Keywords governing how permanents attach to other permanents.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Equip | 702.6 | P1 | `partial` | `state/types.rs` (enum), `cards/definitions.rs` (static grants) | Lightning Greaves, Swiftfoot Boots | — | — | Static keyword-grant works; no `Command::EquipCreature` activation |
+| Equip | 702.6 | P1 | `validated` | `state/types.rs:125`, `rules/abilities.rs:118-164`, `effects/mod.rs:1020-1118`, `cards/definitions.rs` | Lightning Greaves, Swiftfoot Boots, Whispersilk Cloak | `layers/012` | — | KeywordAbility::Equip enum; Effect::AttachEquipment with sorcery-speed validation, layer-aware creature type check, activation-time target validation; 14 unit tests in `tests/equip.rs`; game script approved |
 | Enchant | 702.5 | P1 | `partial` | `state/types.rs` (enum) | Enchantment cards | — | — | Aura attachment works; keyword itself not rule-enforced |
 | Bestow | 702.103 | P3 | `none` | — | — | — | Enchant | Cast as Aura or creature; falls off → becomes creature |
 | Reconfigure | 702.151 | P4 | `none` | — | — | — | Equip | Artifact creature that can attach/detach |
@@ -101,7 +101,7 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Flashback | 702.34 | P2 | `none` | — | — | — | — | Cast from graveyard, then exile |
+| Flashback | 702.34 | P2 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `state/stack.rs` | Think Twice, Faithless Looting | `stack/060` | — | Cast from graveyard paying alternative cost; exiled on any stack departure (CR 702.34a) |
 | Madness | 702.35 | P3 | `none` | — | — | — | — | When discarded, may cast for madness cost |
 | Miracle | 702.94 | P3 | `none` | — | — | — | — | Reveal first drawn card, cast for miracle cost |
 | Escape | 702.138 | P3 | `none` | — | — | — | — | Cast from graveyard by exiling other cards |
@@ -231,7 +231,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Cycling | 702.29 | P2 | `none` | — | — | — | — | Discard + pay cost → draw a card |
+| Cycling | 702.29 | P2 | `validated` | `state/types.rs:195`, `cards/card_definition.rs:145`, `state/hash.rs:316+1630+2220`, `rules/command.rs:182`, `rules/engine.rs:185`, `rules/abilities.rs:365`, `rules/events.rs:386` | Lonely Sandbar | `stack/061` | — | KeywordAbility::Cycling enum + AbilityDefinition::Cycling { cost }; Command::CycleCard dispatch; handle_cycle_card validates zone/keyword/mana, discards as cost, pushes draw onto stack; GameEvent::CardCycled emitted; 12 unit tests in `tests/cycling.rs`; game script approved |
 | Suspend | 702.62 | P3 | `none` | — | — | — | — | Exile with time counters; remove each upkeep; cast when last removed |
 | Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
 | Cumulative Upkeep | 702.24 | P4 | `none` | — | — | — | — | Increasing cost each upkeep |
@@ -240,7 +240,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Vanishing | 702.63 | P4 | `none` | — | — | — | — | ETB with time counters; remove each upkeep; sacrifice at 0 |
 | Forecast | 702.57 | P4 | `none` | — | — | — | — | Reveal from hand during upkeep for effect |
 | Recover | 702.59 | P4 | `none` | — | — | — | — | When a creature dies, return this from graveyard |
-| Dredge | 702.52 | P2 | `none` | — | — | — | — | Replace draw with mill N + return from graveyard |
+| Dredge | 702.52 | P2 | `validated` | `state/types.rs:205`, `state/hash.rs:318+1646+1656`, `rules/command.rs:187`, `rules/events.rs:672-692`, `rules/replacement.rs:412-1492`, `rules/engine.rs:200`, `rules/turn_actions.rs:108`, `effects/mod.rs:1532` | Golgari Grave-Troll | `replacement/014` | — | KeywordAbility::Dredge(u32) enum; GameEvent::DredgeChoiceRequired + Dredged; Command::ChooseDredge; DrawAction::DredgeAvailable; check_would_draw_replacement dredge scan; handle_choose_dredge + draw_card_skipping_dredge; 13 unit tests in `tests/dredge.rs`; choose_dredge harness action; game script approved (9/9 assertions pass) |
 
 ---
 
@@ -344,8 +344,8 @@ Common ability patterns that appear across many cards but aren't formal CR 702 k
 | ETB trigger | P1 | `complete` | `cards/card_definition.rs:466`, `rules/resolution.rs` | Wall of Omens, Solemn Simulacrum | — | — | `WhenEntersBattlefield` TriggerCondition; runtime dispatch works |
 | Dies trigger | P1 | `validated` | `cards/card_definition.rs:468`, `rules/abilities.rs:428-463`, `testing/replay_harness.rs:406-424` | Solemn Simulacrum | Scripts 019, 058 | — | `TriggerEvent::SelfDies` dispatched in `check_triggers`; `enrich_spec_from_def` converts `WhenDies`; 10 unit tests; 2 approved scripts |
 | Attack trigger | P1 | `validated` | `state/game_object.rs:111` (TriggerEvent::SelfAttacks), `cards/card_definition.rs:470` (TriggerCondition::WhenAttacks), `testing/replay_harness.rs:426-447` (enrichment), `rules/abilities.rs:377-388` (dispatch — CR 508.1m, 508.3a), `rules/combat.rs:290-298` (flush) | Audacious Thief | `combat/011` | — | Full pipeline: enum + enrichment + dispatch + flush + card def + script; 5 unit tests in `tests/abilities.rs:1790-2253` + 1 in `tests/combat.rs:744`; script `pending_review` (10/10 assertions pass) |
-| Combat damage trigger | P1 | `partial` | `cards/card_definition.rs:474` | Alela (approximated) | — | — | `WhenDealsCombatDamageToPlayer` defined; dispatch incomplete |
-| Opponent-casts trigger | P1 | `partial` | `cards/card_definition.rs:476` | Rhystic Study | — | — | `WheneverOpponentCastsSpell` defined; trigger dispatch partial |
+| Combat damage trigger | P1 | `validated` | `state/game_object.rs:135`, `state/hash.rs:901`, `rules/abilities.rs:561`, `testing/replay_harness.rs:494` | Scroll Thief | `combat/013` | — | TriggerEvent::SelfDealsCombatDamageToPlayer enum + dispatch via CombatDamageDealt match; enrichment in replay_harness; 4 unit tests in `tests/combat.rs:1539`; game script approved |
+| Opponent-casts trigger | P1 | `validated` | `state/game_object.rs:140`, `state/stubs.rs:59`, `state/hash.rs:905,1852`, `rules/abilities.rs:456,725`, `testing/replay_harness.rs:509-515`, `cards/card_definition.rs:492` | Rhystic Study | `stack/059` | — | TriggerEvent::OpponentCastsSpell enum + dispatch in SpellCast arm; triggering_player on PendingTrigger; WheneverOpponentCastsSpell enrichment in replay_harness; 5 unit tests in `tests/effects.rs`; game script approved (12/12 assertions) |
 | Search library | P1 | `complete` | `effects/` | Wayfarer's Bauble, Evolving Wilds, Terramorphic Expanse, Cultivate | — | — | `SearchLibrary` effect works; harness doesn't emit player command yet |
 | Destroy + compensate | P1 | `validated` | `effects/` | Beast Within, Generous Gift, Pongify, Rapid Hybridization | `baseline/` scripts | — | Destroy target + create token for controller |
 | Mass removal | P1 | `validated` | `effects/` | Wrath of God, Damnation, Supreme Verdict, Blasphemous Act | `baseline/` scripts | — | Destroy/damage all creatures |
@@ -462,20 +462,16 @@ Top unresolved gaps ordered by priority.
 
 ### P1 Gaps (on existing cards or blocking scripts)
 
-1. **Equip activation** — Static keyword grant works, but no `Command::EquipCreature` exists. Equipment can't be moved between creatures via player action. Blocks combat scripts involving equipment.
-2. **Combat damage trigger dispatch** — `WhenDealsCombatDamageToPlayer` defined but dispatch incomplete.
-3. **Opponent-casts trigger dispatch** — `WheneverOpponentCastsSpell` defined but partial.
-4. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
+1. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
 
 ### P2 Gaps (Commander staples)
 
-1. **Flashback** (CR 702.34) — Top Commander mechanic; no implementation.
-2. **Cycling** (CR 702.29) — Common Commander draw smoothing; no implementation.
-3. **Dredge** (CR 702.52) — Powerful graveyard mechanic; no implementation.
-4. **Convoke** (CR 702.51) — Token decks rely on this; no implementation.
-5. **Delve** (CR 702.66) — Graveyard cost reduction; no implementation.
-6. **Kicker** (CR 702.33) — Very common optional cost; no implementation.
-7. **Split Second** (CR 702.61) — Priority restriction; no implementation.
-8. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
-9. **Crew** (CR 702.122) — Vehicle animation; no implementation.
-10. **Exalted** (CR 702.83) — Voltron staple; no implementation.
+1. **Convoke** (CR 702.51) — Token decks rely on this; no implementation.
+2. **Delve** (CR 702.66) — Graveyard cost reduction; no implementation.
+3. **Kicker** (CR 702.33) — Very common optional cost; no implementation.
+4. **Split Second** (CR 702.61) — Priority restriction; no implementation.
+5. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
+6. **Crew** (CR 702.122) — Vehicle animation; no implementation.
+7. **Exalted** (CR 702.83) — Voltron staple; no implementation.
+
+**Resolved**: Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll).

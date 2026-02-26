@@ -170,6 +170,8 @@ pub fn copy_spell_on_stack(
         targets: original.targets.clone(),
         cant_be_countered: original.cant_be_countered,
         is_copy: true,
+        // CR 707.10: Copies are never cast, so cast_with_flashback is always false.
+        cast_with_flashback: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -335,6 +337,7 @@ pub fn resolve_cascade(
                 targets: vec![],
                 cant_be_countered: false,
                 is_copy: false,
+                cast_with_flashback: false,
             };
             state.stack_objects.push_back(stack_obj);
 

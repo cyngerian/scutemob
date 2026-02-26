@@ -1,4 +1,4 @@
-//! Hand-authored card definitions (51 cards as of M8).
+//! Hand-authored card definitions (57 cards as of Flashback ability implementation).
 //!
 //! These are Commander staples covering a range of effects that the engine
 //! can execute. Each definition encodes the card's behavior using the Effect DSL
@@ -26,8 +26,8 @@ use crate::state::{
 
 use super::card_definition::{
     AbilityDefinition, CardDefinition, ContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TriggerCondition,
-    TypeLine,
+    EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TimingRestriction,
+    TriggerCondition, TypeLine,
 };
 use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
@@ -557,6 +557,40 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         ],
                     },
                     timing_restriction: None,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 19b. Lonely Sandbar — Land — Island; enters tapped; cycling {U}.
+        CardDefinition {
+            card_id: cid("lonely-sandbar"),
+            name: "Lonely Sandbar".to_string(),
+            mana_cost: None,
+            types: types_sub(&[CardType::Land], &["Island"]),
+            oracle_text: "This land enters tapped.\n{T}: Add {U}.\nCycling {U} ({U}, Discard this card: Draw a card.)".to_string(),
+            abilities: vec![
+                // CR 614.1c: self-replacement effect — this permanent enters tapped.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldEnterBattlefield {
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::EntersTapped,
+                    is_self: true,
+                },
+                // {T}: Add {U} (Island subtype grants this implicitly, but explicit here).
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 1, 0, 0, 0, 0),
+                    },
+                    timing_restriction: None,
+                },
+                // CR 702.29: Cycling {U} — pay {U} and discard this card to draw a card.
+                AbilityDefinition::Keyword(KeywordAbility::Cycling),
+                AbilityDefinition::Cycling {
+                    cost: ManaCost { blue: 1, ..Default::default() },
                 },
             ],
             ..Default::default()
@@ -1277,6 +1311,16 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         duration: EffectDuration::WhileSourceOnBattlefield,
                     },
                 },
+                // Equip {0}: attach this Equipment to target creature you control.
+                // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(ManaCost { ..Default::default() }), // Equip {0}
+                    effect: Effect::AttachEquipment {
+                        equipment: EffectTarget::Source,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                },
             ],
             ..Default::default()
         },
@@ -1304,6 +1348,52 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         filter: EffectFilter::AttachedCreature,
                         duration: EffectDuration::WhileSourceOnBattlefield,
                     },
+                },
+                // Equip {1}: attach this Equipment to target creature you control.
+                // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(ManaCost { generic: 1, ..Default::default() }), // Equip {1}
+                    effect: Effect::AttachEquipment {
+                        equipment: EffectTarget::Source,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 47. Whispersilk Cloak — {3}, Artifact — Equipment; Equipped creature has
+        //     shroud and can't be blocked. Equip {2}.
+        //     CR 702.6a: Equipment static ability grants keyword to equipped creature.
+        //     CR 604.2: Static ability functions while on the battlefield.
+        CardDefinition {
+            card_id: cid("whispersilk-cloak"),
+            name: "Whispersilk Cloak".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+            types: types_sub(&[CardType::Artifact], &["Equipment"]),
+            oracle_text: "Equipped creature can't be blocked and has shroud. (It can't be the target of spells or abilities.)\nEquip {2}".to_string(),
+            abilities: vec![
+                // CR 702.6a: Equipped creature has Shroud (layer 6 ability grant).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeyword(KeywordAbility::Shroud),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
+                // TODO: "can't be blocked" — requires a LayerModification::CantBeBlocked
+                // variant (or equivalent evasion flag) which does not yet exist in the DSL.
+                // Equip {2}: attach this Equipment to target creature you control.
+                // CR 702.6b: Equip is an activated ability; sorcery speed (CR 702.6d).
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(ManaCost { generic: 2, ..Default::default() }), // Equip {2}
+                    effect: Effect::AttachEquipment {
+                        equipment: EffectTarget::Source,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    timing_restriction: Some(TimingRestriction::SorcerySpeed),
                 },
             ],
             ..Default::default()
@@ -1498,6 +1588,27 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         amount: EffectAmount::Fixed(1),
                     },
                 ]),
+                intervening_if: None,
+            }],
+        },
+
+        // 59. Scroll Thief — {2U}, Creature — Merfolk Rogue 1/3;
+        //     Whenever this creature deals combat damage to a player, draw a card.
+        CardDefinition {
+            card_id: cid("scroll-thief"),
+            name: "Scroll Thief".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, blue: 1, ..Default::default() }),
+            types: creature_types(&["Merfolk", "Rogue"]),
+            oracle_text: "Whenever this creature deals combat damage to a player, draw a card."
+                .to_string(),
+            power: Some(1),
+            toughness: Some(3),
+            abilities: vec![AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
                 intervening_if: None,
             }],
         },
@@ -1727,6 +1838,123 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 AbilityDefinition::Keyword(KeywordAbility::Ward(2)),
                 // TODO: Token-doubling replacement effect — requires ReplacementTrigger::WouldCreateToken
                 // and ReplacementModification::DoubleTokens (not yet in DSL). See note above.
+            ],
+        },
+
+        // 56. Think Twice — {1}{U}, Instant; draw a card. Flashback {2}{U}.
+        //
+        //     CR 702.34a: "Flashback [cost]" means the card may be cast from its owner's
+        //     graveyard by paying [cost] rather than its mana cost. If the flashback cost was
+        //     paid, exile this card instead of putting it anywhere else when it leaves the stack.
+        //
+        //     Two abilities encode flashback:
+        //     1. AbilityDefinition::Keyword(KeywordAbility::Flashback) — marker for quick
+        //        presence-checking in casting.rs (zone validation, cost lookup).
+        //     2. AbilityDefinition::Flashback { cost } — stores the alternative cost {2}{U}.
+        CardDefinition {
+            card_id: cid("think-twice"),
+            name: "Think Twice".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, blue: 1, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Draw a card.\nFlashback {2}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)".to_string(),
+            abilities: vec![
+                // CR 702.34a: Flashback marker — enables casting from graveyard in casting.rs.
+                AbilityDefinition::Keyword(KeywordAbility::Flashback),
+                // CR 702.34a: The flashback cost itself ({2}{U}).
+                AbilityDefinition::Flashback {
+                    cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
+                },
+                // The spell effect: draw a card for the controller.
+                AbilityDefinition::Spell {
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 57. Faithless Looting — {R}, Sorcery; draw two cards, then discard two cards.
+        //     Flashback {2}{R}.
+        //
+        //     CR 702.34a: Sorcery with flashback — can be cast from graveyard at sorcery speed
+        //     by paying {2}{R}. Exiled on any stack departure when cast via flashback.
+        //
+        //     Note: Faithless Looting is banned in Modern but legal in Commander. It is a
+        //     Commander staple and an ideal test card for sorcery-speed flashback.
+        CardDefinition {
+            card_id: cid("faithless-looting"),
+            name: "Faithless Looting".to_string(),
+            mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)".to_string(),
+            abilities: vec![
+                // CR 702.34a: Flashback marker — enables casting from graveyard in casting.rs.
+                AbilityDefinition::Keyword(KeywordAbility::Flashback),
+                // CR 702.34a: The flashback cost itself ({2}{R}).
+                AbilityDefinition::Flashback {
+                    cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+                },
+                // The spell effect: draw 2 cards, then discard 2 cards.
+                AbilityDefinition::Spell {
+                    effect: Effect::Sequence(vec![
+                        Effect::DrawCards {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::Fixed(2),
+                        },
+                        Effect::DiscardCards {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::Fixed(2),
+                        },
+                    ]),
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 60. Golgari Grave-Troll — {4G}, Creature — Troll Skeleton 0/4.
+        //     "This creature enters with a +1/+1 counter on it for each creature card in
+        //      your graveyard. {1}, Remove a +1/+1 counter from this creature: Regenerate
+        //      this creature. Dredge 6."
+        //
+        //     Simplifications for this milestone:
+        //     - Power is fixed at 0 (real card is 0/0 and tracks counters; counter-based
+        //       P/T requires a continuous layer-3 effect, deferred).
+        //     - ETB counter placement (one per creature card in graveyard) deferred — needs
+        //       a TriggeredEffect that counts graveyard contents at resolution.
+        //     - Regeneration cost deferred — requires AbilityDefinition::Activated with a
+        //       RemoveCounter cost variant that does not yet exist in the DSL.
+        //
+        //     CR 702.52a: Dredge N — if you would draw a card, you may instead mill N cards
+        //     and return this card from your graveyard to your hand. Functions only while
+        //     this card is in the graveyard. Requires >= N cards in library (CR 702.52b).
+        //
+        //     TODO: AbilityDefinition::Dredge { amount } does not exist in card_definition.rs;
+        //     once added (paired with KeywordAbility::Dredge marker, following the Flashback
+        //     pattern), replace this keyword-only encoding with the full two-ability form.
+        CardDefinition {
+            card_id: cid("golgari-grave-troll"),
+            name: "Golgari Grave-Troll".to_string(),
+            mana_cost: Some(ManaCost { generic: 4, green: 1, ..Default::default() }),
+            types: creature_types(&["Troll", "Skeleton"]),
+            oracle_text:
+                "This creature enters with a +1/+1 counter on it for each creature card in your graveyard.\n\
+                 {1}, Remove a +1/+1 counter from this creature: Regenerate this creature.\n\
+                 Dredge 6 (If you would draw a card, you may mill six cards instead. If you do, return this card from your graveyard to your hand.)"
+                    .to_string(),
+            power: Some(0),
+            toughness: Some(4),
+            abilities: vec![
+                // CR 702.52a: Dredge 6 marker — checked in drawing logic to offer the
+                // draw-replacement option when this card is in its owner's graveyard.
+                AbilityDefinition::Keyword(KeywordAbility::Dredge(6)),
             ],
         },
 
