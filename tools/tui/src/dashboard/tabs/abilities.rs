@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::{theme, widgets::progress_bar::progress_bar};
+use crate::theme;
 use super::super::app::App;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
@@ -24,13 +24,22 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
 
 fn render_summary(f: &mut Frame, area: Rect, app: &App) {
     let inner_width = area.width.saturating_sub(4);
+    let label_width = 20u16;
+    let bar_width = inner_width.saturating_sub(label_width + 1);
     let mut lines: Vec<Line> = vec![];
 
     for row in &app.data.abilities.summary {
         if row.priority.to_lowercase().contains("total") || row.priority.is_empty() { continue; }
         let ratio = if row.total > 0 { row.validated as f64 / row.total as f64 } else { 0.0 };
-        let label = format!("{}: {}/{} validated  complete:{} none:{}", row.priority, row.validated, row.total, row.complete, row.none);
-        lines.push(progress_bar(ratio, inner_width, &label, theme::GREEN));
+        let label = format!("{}: {:>2}/{:<2} validated", row.priority, row.validated, row.total);
+        let filled = ((ratio.clamp(0.0, 1.0) * bar_width as f64) as u16).min(bar_width);
+        let empty = bar_width - filled;
+        lines.push(Line::from(vec![
+            Span::styled(format!("{:<20}", label), Style::default().fg(Color::White)),
+            Span::raw(" "),
+            Span::styled("█".repeat(filled as usize), Style::default().fg(theme::GREEN)),
+            Span::styled("░".repeat(empty as usize), Style::default().fg(Color::DarkGray)),
+        ]));
     }
 
     if lines.is_empty() {
@@ -99,10 +108,16 @@ fn render_ability_list(f: &mut Frame, area: Rect, app: &mut App) {
 fn ability_row_spans(row: &crate::dashboard::data::AbilityRow) -> Vec<Span<'static>> {
     let status_color = theme::status_color(&row.status);
     let symbol = theme::status_symbol(&row.status);
+    // Truncate long names to fit (24 chars covers section 13 patterns)
+    let name = if row.name.len() > 24 {
+        format!("{:.24}", row.name)
+    } else {
+        format!("{:<24}", row.name)
+    };
     vec![
-        Span::styled(format!("{:<18}", row.name), Style::default().fg(Color::White)),
+        Span::styled(name, Style::default().fg(Color::White)),
         Span::styled(format!("{:>2} ", row.priority), Style::default().fg(Color::Gray)),
-        Span::styled(format!("{}", symbol), Style::default().fg(status_color)),
-        Span::styled(format!("{:<12}", row.status), Style::default().fg(status_color)),
+        Span::styled(format!("{} ", symbol), Style::default().fg(status_color)),
+        Span::styled(format!("{:<10}", row.status), Style::default().fg(status_color)),
     ]
 }

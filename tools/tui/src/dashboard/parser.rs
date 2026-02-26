@@ -176,10 +176,11 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
                 if is_separator(line) { continue; }
                 let cells = table_cells(line);
                 if cells.len() < 2 { continue; }
-                // Header row: first cell is "Ability"
-                if cells[0].to_lowercase() == "ability" { continue; }
+                // Header row: first cell is "Ability", "Pattern", etc.
+                let first_lower = cells[0].to_lowercase();
+                if first_lower == "ability" || first_lower == "pattern" { continue; }
                 let row = AbilityRow {
-                    name: cells.get(0).cloned().unwrap_or_default(),
+                    name: cells.first().cloned().unwrap_or_default(),
                     cr: cells.get(1).cloned().unwrap_or_default(),
                     priority: cells.get(2).cloned().unwrap_or_default(),
                     status: cells.get(3).cloned().unwrap_or_default(),

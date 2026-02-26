@@ -1,4 +1,5 @@
 mod app;
+pub mod markdown;
 mod render;
 
 use std::{io, path::PathBuf, time::Duration};

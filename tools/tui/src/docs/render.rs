@@ -1,12 +1,13 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 
 use super::app::App;
+use super::markdown;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Outer: content area + status bar
@@ -50,8 +51,8 @@ fn render_file_list(f: &mut Frame, area: Rect, app: &mut App) {
         // Strip the "group/" prefix from display name
         let short = file
             .display
-            .splitn(2, '/')
-            .nth(1)
+            .split_once('/')
+            .map(|x| x.1)
             .unwrap_or(&file.display);
 
         items.push(ListItem::new(Line::from(vec![
@@ -108,10 +109,12 @@ fn render_content(f: &mut Frame, area: Rect, app: &App) {
             );
         }
         Some(content) => {
-            let text = tui_markdown::from_str(content);
+            let lines = markdown::render_markdown(content);
+            let text = Text::from(lines);
             f.render_widget(
                 Paragraph::new(text)
                     .block(Block::default().borders(Borders::ALL).title(title))
+                    .wrap(Wrap { trim: false })
                     .scroll((app.scroll, 0)),
                 area,
             );

@@ -110,19 +110,23 @@ fn render_middle_row(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_ability_summary(f: &mut Frame, area: Rect, app: &App) {
     let inner_width = area.width.saturating_sub(4);
+    // Fixed label width so all bars align: "P1: 42/42 validated" = 20 chars max
+    let label_width = 20u16;
+    let bar_width = inner_width.saturating_sub(label_width + 1);
     let mut lines: Vec<Line> = vec![];
 
     for row in &app.data.abilities.summary {
         if row.priority.starts_with("Total") || row.priority.is_empty() { continue; }
         let ratio = if row.total > 0 { row.validated as f64 / row.total as f64 } else { 0.0 };
-        let label = format!("{}: {}/{} validated", row.priority, row.validated, row.total);
-        lines.push(progress_bar(ratio, inner_width, &label, theme::GREEN));
-        if row.complete > 0 || row.partial > 0 {
-            lines.push(Line::from(Span::styled(
-                format!("     complete:{} partial:{} none:{}", row.complete, row.partial, row.none),
-                Style::default().fg(Color::DarkGray),
-            )));
-        }
+        let label = format!("{}: {:>2}/{:<2} validated", row.priority, row.validated, row.total);
+        let filled = ((ratio.clamp(0.0, 1.0) * bar_width as f64) as u16).min(bar_width);
+        let empty = bar_width - filled;
+        lines.push(Line::from(vec![
+            Span::styled(format!("{:<20}", label), Style::default().fg(Color::White)),
+            Span::raw(" "),
+            Span::styled("█".repeat(filled as usize), Style::default().fg(theme::GREEN)),
+            Span::styled("░".repeat(empty as usize), Style::default().fg(Color::DarkGray)),
+        ]));
     }
 
     if lines.is_empty() {
@@ -171,9 +175,9 @@ fn render_bottom_row(f: &mut Frame, area: Rect, app: &App) {
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(33),
-            Constraint::Percentage(33),
-            Constraint::Percentage(34),
+            Constraint::Length(30),  // Code Reviews (compact)
+            Constraint::Min(20),    // Scripts (fill remaining)
+            Constraint::Length(24), // Engine Size (compact)
         ])
         .split(area);
 
@@ -220,6 +224,15 @@ fn render_scripts(f: &mut Frame, area: Rect, app: &App) {
     let inner_width = area.width.saturating_sub(4);
     let max_count = scripts.by_directory.iter().map(|(_, c)| *c).max().unwrap_or(1);
 
+    // Compute max dir name length for alignment
+    let name_width = scripts.by_directory.iter()
+        .map(|(d, _)| d.len())
+        .max()
+        .unwrap_or(8)
+        .max(8) + 1; // +1 for padding
+    let count_width = 4u16; // " XX"
+    let bar_width = inner_width.saturating_sub(name_width as u16 + count_width);
+
     let mut lines: Vec<Line> = vec![
         Line::from(Span::styled(
             format!("Total: {}", scripts.total),
@@ -229,13 +242,12 @@ fn render_scripts(f: &mut Frame, area: Rect, app: &App) {
 
     for (dir, count) in &scripts.by_directory {
         let ratio = if max_count > 0 { *count as f64 / max_count as f64 } else { 0.0 };
-        let bar_w = (inner_width.saturating_sub(12)).min(20);
-        let filled = ((ratio * bar_w as f64) as u16).min(bar_w);
+        let filled = ((ratio * bar_width as f64) as u16).min(bar_width);
         lines.push(Line::from(vec![
-            Span::styled(format!("{:<10}", dir), Style::default().fg(Color::Gray)),
+            Span::styled(format!("{:<w$}", dir, w = name_width), Style::default().fg(Color::Gray)),
             Span::styled("█".repeat(filled as usize), Style::default().fg(theme::BLUE)),
-            Span::styled("░".repeat((bar_w - filled) as usize), Style::default().fg(Color::DarkGray)),
-            Span::raw(format!(" {}", count)),
+            Span::styled("░".repeat((bar_width - filled) as usize), Style::default().fg(Color::DarkGray)),
+            Span::styled(format!(" {:>2}", count), Style::default().fg(Color::White)),
         ]));
     }
 

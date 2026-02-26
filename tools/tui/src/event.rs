@@ -4,7 +4,7 @@ use std::time::Duration;
 pub enum AppEvent {
     Key(KeyEvent),
     Tick,
-    Resize(u16, u16),
+    Resize((), ()),
 }
 
 pub fn poll_event(timeout: Duration) -> anyhow::Result<Option<AppEvent>> {
@@ -13,7 +13,7 @@ pub fn poll_event(timeout: Duration) -> anyhow::Result<Option<AppEvent>> {
             Event::Key(key) if key.kind == KeyEventKind::Press => {
                 Ok(Some(AppEvent::Key(key)))
             }
-            Event::Resize(w, h) => Ok(Some(AppEvent::Resize(w, h))),
+            Event::Resize(_, _) => Ok(Some(AppEvent::Resize((), ()))),
             _ => Ok(None),
         }
     } else {

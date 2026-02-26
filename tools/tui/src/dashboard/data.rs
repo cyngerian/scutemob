@@ -24,12 +24,14 @@ pub struct CurrentState {
 
 /// Parsed from `docs/mtg-engine-ability-coverage.md`.
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct AbilityCoverage {
     pub summary: Vec<PrioritySummary>,
     pub sections: Vec<AbilitySection>,
 }
 
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct PrioritySummary {
     pub priority: String, // "P1", "P2", etc.
     pub total: u32,
@@ -40,12 +42,6 @@ pub struct PrioritySummary {
     pub na: u32,
 }
 
-impl PrioritySummary {
-    pub fn implemented(&self) -> u32 {
-        self.validated + self.complete + self.partial
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct AbilitySection {
     pub name: String,
@@ -53,6 +49,7 @@ pub struct AbilitySection {
 }
 
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct AbilityRow {
     pub name: String,
     pub cr: String,

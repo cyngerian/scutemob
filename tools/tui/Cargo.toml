@@ -12,7 +12,7 @@ path = "src/main.rs"
 # Core TUI
 ratatui = "0.30"
 crossterm = "0.28"
-tui-markdown = "0.3"
+pulldown-cmark = "0.13"
 
 # CLI
 clap = { version = "4", features = ["derive"] }

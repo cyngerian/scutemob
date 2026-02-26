@@ -6,6 +6,7 @@ use ratatui::{
 use crate::theme;
 
 /// Return a styled `Span` showing symbol + status for a cell.
+#[allow(dead_code)]
 pub fn status_span(status: &str) -> Span<'static> {
     let color = theme::status_color(status);
     let symbol = theme::status_symbol(status);
@@ -14,6 +15,7 @@ pub fn status_span(status: &str) -> Span<'static> {
 }
 
 /// Return a compact symbol-only `Span` (for table cells with limited width).
+#[allow(dead_code)]
 pub fn status_symbol_span(status: &str) -> Span<'static> {
     let color = theme::status_color(status);
     let symbol = theme::status_symbol(status);
