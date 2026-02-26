@@ -120,6 +120,10 @@ pub enum TriggerEvent {
     /// and controller-match are verified at trigger-collection time in
     /// `rules/abilities.rs`.
     ControllerCastsNoncreatureSpell,
+    /// CR 603.6c / CR 700.4: Triggers when this permanent is put into a
+    /// graveyard from the battlefield ("dies"). This is a leaves-the-battlefield
+    /// trigger that "looks back in time" (CR 603.10a).
+    SelfDies,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

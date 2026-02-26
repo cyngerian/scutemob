@@ -285,11 +285,8 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         // A safety counter (max 100) guards against pathological infinite loops.
         if state.turn.step == crate::state::turn::Step::Cleanup {
             const MAX_CLEANUP_SBA_ROUNDS: u32 = 100;
+            // Trigger checking is done inside check_and_apply_sbas (per-pass).
             let sba_events = sba::check_and_apply_sbas(state);
-            let sba_triggers = abilities::check_triggers(state, &sba_events);
-            for t in sba_triggers {
-                state.pending_triggers.push_back(t);
-            }
             events.extend(sba_events.clone());
 
             let trigger_events = abilities::flush_pending_triggers(state);
@@ -327,12 +324,9 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
 
         if state.turn.step.has_priority() {
             // CR 704.3: Check and apply all SBAs before granting priority.
+            // Trigger checking is done inside check_and_apply_sbas (per-pass) so
+            // that token dies triggers fire before SBA 704.5d removes the token.
             let sba_events = sba::check_and_apply_sbas(state);
-            // Any SBA events may have triggered abilities — queue them.
-            let sba_triggers = abilities::check_triggers(state, &sba_events);
-            for t in sba_triggers {
-                state.pending_triggers.push_back(t);
-            }
             events.extend(sba_events);
 
             // If all players lost due to SBAs, end the game.

@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_011",
+    "name": "Audacious Thief attack trigger fires: draw 1 card, lose 1 life",
+    "description": "p1 controls Audacious Thief ({2}{B}, 2/2 Human Rogue) on the battlefield. On p1's turn (turn 5, so no summoning sickness per CR 302.6), p1 attacks with Audacious Thief targeting p2. Upon being declared as an attacker (CR 508.1m, CR 508.3a), Audacious Thief's triggered ability fires: 'Whenever this creature attacks, you draw a card and you lose 1 life.' The trigger is placed on the stack (CR 603.3) and resolves: p1 draws 1 card (hand count 1 → 2) and loses 1 life (40 → 39). After the trigger resolves, combat proceeds and Audacious Thief deals 2 unblocked combat damage to p2 (40 → 38, CR 510.1b). All combat steps are informational (the harness does not execute declare_attackers as an engine command), so only the initial state is asserted by the harness. The life changes from the trigger and combat damage are documented for correctness.",
+    "cr_sections_tested": [
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1m",
+      "508.3a",
+      "603.3",
+      "603.3a",
+      "608.2",
+      "302.6",
+      "510.1b",
+      "120.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "triggered-ability",
+      "attack-trigger",
+      "when-attacks",
+      "combat",
+      "draw",
+      "life-loss",
+      "audacious-thief"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Audacious Thief oracle text (Scryfall verified): 'Whenever this creature attacks, you draw a card and you lose 1 life.' Type: Creature — Human Rogue. P/T: 2/2. Mana cost: {2}{B}. CR 302.6: A creature can't attack unless it has been controlled by its controller continuously since the beginning of the turn (summoning sickness rule). By setting turn_number 5 and placing Audacious Thief on the battlefield in the initial state, it is assumed to have been in play since a prior turn — thus free of summoning sickness. CR 508.1a: The creature must either have haste or have been controlled continuously since the turn began. CR 508.1f: Tapping as part of attacking is not a cost. CR 508.1m: Any abilities that trigger on attackers being declared trigger after attackers are declared. CR 508.3a (via 603.2): 'Whenever [a creature] attacks' is a triggered ability whose trigger event is being declared as an attacker. CR 603.3: Once triggered, the ability is placed on the stack as a non-card object the next time a player would receive priority after it triggers (which is after attackers are declared, before the declare-blockers step). CR 603.3a: The triggered ability is controlled by p1 (the controller of Audacious Thief at the time it triggered). Engine: The harness registers WhenAttacks triggers via enrich_spec_from_def (replay_harness.rs:427-448), converting TriggerCondition::WhenAttacks into TriggerEvent::SelfAttacks. However, declare_attackers is NOT in translate_player_action, so the attack trigger cannot be fired via an executable harness command. All combat and trigger steps are therefore informational (turn_based_action, trigger_placed, stack_resolve). The assert_state checkpoints verify only the initial state. Expected CR outcomes: (1) Audacious Thief attacks — declared as attacker, tapped (CR 508.1f); (2) WhenAttacks trigger fires and goes on stack (CR 508.1m, 603.3); (3) p2 passes priority with no response; p1 passes; trigger resolves: DrawCards{player: Controller, count: Fixed(1)} draws 1 card for p1 (hand 1 → 2), LoseLife{player: Controller, amount: Fixed(1)} reduces p1 life from 40 to 39 (CR 608.2); (4) p2 declares no blockers; (5) Audacious Thief (power 2) unblocked, deals 2 combat damage to p2 (40 → 38, CR 510.1b). Library card (Forest) provided so the draw effect has a card to draw. A dispute is filed noting the harness cannot assert life/hand changes from the WhenAttacks trigger or combat damage since those are not engine-executed in the script.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 4,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The harness does not support declare_attackers as an executable player_action (translate_player_action does not map it to any Command). Therefore the WhenAttacks trigger (draw 1 card, lose 1 life) and the unblocked combat damage (2 damage to p2) cannot be asserted by the replay harness. All combat and trigger steps in this script are informational (turn_based_action, trigger_placed, stack_resolve). The expected CR outcome — p1 life 39, p1 hand count 2, p2 life 38 — is documented in generation_notes and the step notes. This is consistent with scripts 004-010 which also use documentary combat steps without engine-enforced life assertions.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Audacious Thief",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "p1 declares Audacious Thief as attacker targeting p2. WhenAttacks trigger fires (CR 508.1m), goes on stack (CR 603.3). Trigger resolves: p1 draws 1 card (hand 1 → 2), p1 loses 1 life (40 → 39). No blockers. Audacious Thief deals 2 unblocked combat damage to p2 (40 → 38, CR 510.1b).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Audacious Thief untapped on p1 battlefield, p1 at 40 life with 1 card in hand, p2 at 40 life, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Audacious Thief" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Audacious Thief has been on the battlefield since before this turn (turn 5), so it is not subject to summoning sickness (CR 302.6). It can attack."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers step: p1 declares Audacious Thief as attacker targeting p2",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Audacious Thief as the attacking creature against p2. CR 508.1a: No summoning sickness restriction applies (controlled since before this turn began). CR 508.1f: Audacious Thief becomes tapped as part of attacking (not a cost). CR 508.1k: Audacious Thief becomes an attacking creature."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "WhenAttacks triggered ability fires: Audacious Thief's attack trigger is queued (CR 508.1m)",
+          "cr_ref": "508.1m",
+          "note": "CR 508.1m: Any abilities that trigger on attackers being declared trigger after all attackers are declared. Audacious Thief's triggered ability 'Whenever this creature attacks, you draw a card and you lose 1 life' triggers here."
+        },
+        {
+          "type": "trigger_placed",
+          "source": "Audacious Thief",
+          "controller": "p1",
+          "trigger_condition": "whenever_attacks",
+          "targets": [],
+          "ordering_context": null,
+          "apnap_position": null,
+          "cr_ref": "603.3",
+          "note": "CR 603.3: The triggered ability is placed on the stack as a non-card object the next time a player would receive priority (after declare-attackers step, before declare-blockers). CR 603.3a: The ability is controlled by p1 (controller of Audacious Thief when it triggered)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Audacious Thief WhenAttacks trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Audacious Thief WhenAttacks trigger",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.2",
+              "note": "CR 120.2 / Effect::DrawCards{player: Controller, count: Fixed(1)}: p1 draws 1 card from their library. p1 hand count: 1 → 2. Forest is drawn from the top of p1's library."
+            },
+            {
+              "effect": "lose_life",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "119.4",
+              "note": "CR 119.4 / Effect::LoseLife{player: Controller, amount: Fixed(1)}: p1 loses 1 life. p1 life: 40 → 39."
+            }
+          ],
+          "note": "CR 608.2: Audacious Thief's triggered ability resolves. Effect::Sequence: first draw 1 card for controller, then controller loses 1 life. Both effects apply to p1 (controller of Audacious Thief)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers step: p2 declares no blockers — Audacious Thief is unblocked",
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 controls no creatures and declares no blockers. Audacious Thief is an unblocked attacker (CR 509.1h)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage step: Audacious Thief (unblocked, power 2) assigns 2 damage to p2",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: An unblocked creature assigns its combat damage to the player it is attacking. Audacious Thief (power 2) assigns all 2 damage to p2. CR 510.2: Combat damage is dealt simultaneously. p2 life: 40 → 38."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 38 life (above 0), p1 has 39 life (above 0) — no player-death SBA. No creatures received lethal damage. No SBAs apply."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-combat state as visible to harness: life totals and hand count unchanged (combat and trigger not executed by harness); Audacious Thief still on p1 battlefield",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Audacious Thief" }
+              ]
+            },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Harness does not execute declare_attackers or the WhenAttacks trigger — all state changes are documented in the informational steps above. Expected CR outcomes: p1 life 39 (lost 1 from trigger), p1 hand 2 (drew 1 from trigger), p2 life 38 (2 unblocked combat damage). See dispute entry for details."
+        }
+      ]
+    }
+  ]
+}

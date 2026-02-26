@@ -14,7 +14,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::{CardId, PlayerId};
 use crate::state::turn::Step;
-use crate::state::types::{CardType, KeywordAbility};
+use crate::state::types::{CardType, KeywordAbility, LandwalkType, SuperType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -450,6 +450,28 @@ pub fn handle_declare_blockers(
             )));
         }
 
+        // CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures
+        // and/or creatures that share a color with it.
+        if attacker_chars
+            .keywords
+            .contains(&KeywordAbility::Intimidate)
+        {
+            let blocker_is_artifact_creature =
+                blocker_chars.card_types.contains(&CardType::Artifact)
+                    && blocker_chars.card_types.contains(&CardType::Creature);
+            let shares_a_color = attacker_chars
+                .colors
+                .iter()
+                .any(|c| blocker_chars.colors.contains(c));
+            if !blocker_is_artifact_creature && !shares_a_color {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} cannot block {:?} (attacker has intimidate; \
+                     blocker is neither an artifact creature nor shares a color)",
+                    blocker_id, attacker_id
+                )));
+            }
+        }
+
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
         if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
@@ -457,6 +479,33 @@ pub fn handle_declare_blockers(
                 "Object {:?} cannot block {:?} (attacker has protection from the blocker)",
                 blocker_id, attacker_id
             )));
+        }
+
+        // CR 702.14c: A creature with landwalk can't be blocked as long as the defending
+        // player controls at least one land with the specified type. Uses
+        // `calculate_characteristics` to get post-layer subtypes (handles Blood Moon, etc.).
+        for kw in attacker_chars.keywords.iter() {
+            if let KeywordAbility::Landwalk(lw_type) = kw {
+                let defender_has_matching_land = state.objects.values().any(|obj| {
+                    obj.zone == ZoneId::Battlefield && obj.controller == player && {
+                        let chars = calculate_characteristics(state, obj.id).unwrap_or_default();
+                        chars.card_types.contains(&CardType::Land)
+                            && match lw_type {
+                                LandwalkType::BasicType(st) => chars.subtypes.contains(st),
+                                LandwalkType::Nonbasic => {
+                                    !chars.supertypes.contains(&SuperType::Basic)
+                                }
+                            }
+                    }
+                });
+                if defender_has_matching_land {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "Object {:?} cannot block {:?} (attacker has {:?} landwalk; \
+                         defending player controls a matching land)",
+                        blocker_id, attacker_id, lw_type
+                    )));
+                }
+            }
         }
     }
 

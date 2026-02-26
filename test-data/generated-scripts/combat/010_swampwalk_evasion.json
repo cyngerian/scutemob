@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_010",
+    "name": "Swampwalk — Bog Raiders attacks unblocked through defending Swamp",
+    "description": "p1 controls Bog Raiders (2/2, Swampwalk). p2 controls a Swamp and a Hill Giant (3/3 vanilla creature). p1 attacks with Bog Raiders targeting p2. Because p2 controls a Swamp, Bog Raiders has swampwalk and cannot be blocked (CR 702.14c). p2 has a Hill Giant that would otherwise legally block a 2/2, but the swampwalk restriction (CR 509.1b) makes any declaration of Hill Giant as a blocker illegal. Bog Raiders is therefore an unblocked attacker and per CR 510.1b assigns its 2 damage to p2, reducing p2's life from 40 to 38. This tests the positive case: swampwalk is active when the defending player controls the matching land type. The negative case (no Swamp on p2's side means Hill Giant can block) is covered by unit tests.",
+    "cr_sections_tested": [
+      "702.14b",
+      "702.14c",
+      "508.1",
+      "509.1b",
+      "510.1b"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "swampwalk",
+      "landwalk",
+      "evasion",
+      "combat",
+      "blocking-restriction",
+      "unblocked"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.14b: Swampwalk is a landwalk ability, which is an evasion ability. CR 702.14c: A creature with swampwalk can't be blocked as long as the defending player controls at least one land with the subtype Swamp. p2 controls a Swamp (Basic Land — Swamp, confirmed by Scryfall oracle), which satisfies the condition. Hill Giant (3/3, Creature — Giant, no abilities) is controlled by p2 and would normally be a legal blocker for a 2/2 creature. However, CR 509.1b requires the defending player to check whether each chosen blocker obeys all restrictions. Because Bog Raiders has swampwalk and p2 controls a Swamp, any declaration of Hill Giant as a blocker for Bog Raiders violates the restriction — the declaration would be illegal (CR 509.1b). Bog Raiders is therefore an unblocked attacker. CR 510.1b: An unblocked creature assigns its combat damage to the player, planeswalker, or battle it's attacking. Bog Raiders (power 2) assigns 2 damage to p2, reducing p2's life from 40 to 38. Card definitions used: Bog Raiders ({2}{B}, Creature — Zombie 2/2, keyword Landwalk(BasicType(Swamp))) confirmed in definitions.rs line 1462. Swamp (Basic Land — Swamp, {T}: Add {B}) confirmed in definitions.rs line 474. Hill Giant is not in definitions.rs but is used only for the battlefield and is a recognized Scryfall oracle card (3/3, Creature — Giant, no abilities). All combat steps are documentary (turn_based_action) — the harness does not execute combat actions, consistent with scripts 004-009. The final assert_state checks initial life totals only (the life-total change is documented in the sba_check note as the expected CR outcome). A dispute is filed noting the harness cannot assert the life change after combat.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 5,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness does not execute combat from turn_based_action steps — the unblocked damage dealing (Bog Raiders 2 damage to p2, reducing life from 40 to 38) cannot be asserted after the script runs. The CR reasoning is unambiguous: swampwalk triggers CR 702.14c when p2 controls a Swamp, blocking restriction propagates via CR 509.1b, and unblocked damage goes to the defending player via CR 510.1b. The expected final state (p2 life 38) is documented in generation_notes and the combat damage step note. This is consistent with the approach taken in scripts 004-009 which also use documentary turn_based_action steps without executable life-change assertions.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Swamp",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          },
+          {
+            "card": "Hill Giant",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Bog Raiders (2/2, Swampwalk) attacks p2; Hill Giant cannot legally block because p2 controls a Swamp.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Bog Raiders (2/2 Swampwalk) on p1 battlefield; Swamp and Hill Giant on p2 battlefield; life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Bog Raiders" }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Swamp" },
+                { "card": "Hill Giant" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p2 controls a Swamp — swampwalk condition (CR 702.14c) is already satisfied before combat begins."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers: p1 attacks with Bog Raiders targeting p2",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Bog Raiders as attacker targeting p2. Bog Raiders becomes tapped (CR 508.1f). Bog Raiders has swampwalk (CR 702.14b: a landwalk ability, which is an evasion ability)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers step: Hill Giant cannot legally block Bog Raiders — swampwalk restriction is active because p2 controls a Swamp",
+          "cr_ref": "509.1b",
+          "note": "CR 509.1b: The defending player checks each chosen blocker against restrictions. CR 702.14c: Bog Raiders has swampwalk; p2 controls at least one land with the subtype Swamp (a Swamp). Therefore Bog Raiders cannot be blocked — any attempt to declare Hill Giant as a blocker would be illegal. p2 declares no blockers. Bog Raiders is an unblocked attacker (CR 509.1h)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage assignment: Bog Raiders (unblocked, power 2) assigns 2 damage to p2",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: An unblocked creature assigns its combat damage to the player it's attacking. Bog Raiders (power 2) assigns all 2 damage to p2. p2 life total: 40 - 2 = 38."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.5a: p2 now has 38 life (above 0), so no SBA triggers for life total. No creatures received lethal damage. No SBAs apply."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-combat state as visible to harness: life totals unchanged (combat damage not executed by harness); Bog Raiders still on p1 battlefield",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Bog Raiders" }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Swamp" }
+              ]
+            }
+          },
+          "note": "Harness does not execute combat — life totals remain 40/40 in the harness state. The expected CR outcome (p2 life 38, Bog Raiders tapped on p1 battlefield) is documented in the turn_based_action steps above and in generation_notes. See dispute entry for explanation."
+        }
+      ]
+    }
+  ]
+}

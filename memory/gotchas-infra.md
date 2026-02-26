@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Ward (2026-02-25)
+# Infra & Testing Gotchas — Last verified: M9.5 + Prowess (2026-02-25)
 
 ## Rust / im-rs Gotchas
 

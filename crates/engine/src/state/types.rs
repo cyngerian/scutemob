@@ -57,6 +57,24 @@ pub enum CardType {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SubType(pub String);
 
+/// Specifies which kind of landwalk ability (CR 702.14a).
+///
+/// Landwalk is a generic term -- each variant specifies what kind of land the
+/// defending player must control for the creature to become unblockable.
+/// CR 702.14c: "A creature with landwalk can't be blocked as long as the defending
+/// player controls at least one land with the specified type."
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum LandwalkType {
+    /// Checks if defending player controls a land with the given basic land subtype.
+    /// Covers: Plainswalk (`SubType("Plains")`), Islandwalk (`SubType("Island")`),
+    /// Swampwalk (`SubType("Swamp")`), Mountainwalk (`SubType("Mountain")`),
+    /// Forestwalk (`SubType("Forest")`).
+    BasicType(SubType),
+    /// Nonbasic landwalk: checks if defending player controls a land WITHOUT
+    /// the `Basic` supertype (e.g., Dryad Sophisticate).
+    Nonbasic,
+}
+
 /// Protection quality: what a permanent is protected from (CR 702.16a).
 ///
 /// Used in `KeywordAbility::ProtectionFrom(ProtectionQuality)` to specify
@@ -112,7 +130,11 @@ pub enum KeywordAbility {
     Hexproof,
     Indestructible,
     Intimidate,
-    Landwalk,
+    /// CR 702.14a: Landwalk -- a creature with landwalk can't be blocked as long as the
+    /// defending player controls at least one land matching the `LandwalkType` specification.
+    /// CR 702.14b: Landwalk is an evasion ability.
+    /// CR 702.14e: Multiple instances of the same landwalk are redundant (auto-deduped by OrdSet).
+    Landwalk(LandwalkType),
     Lifelink,
     Menace,
     /// CR 702.16a: Protection from a quality (DEBT: Damage, Enchanting, Blocking, Targeting).

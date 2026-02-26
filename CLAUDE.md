@@ -12,14 +12,14 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 580+ tests passing; 61 scripts (all approved); Ward P1 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
+- **Status**: 588 tests passing; 63 scripts (61 approved, 2 pending_review); Prowess P1 validated (29/42 P1); 0 HIGH/MEDIUM; ~43 LOW deferred
 - **Last Updated**: 2026-02-25
 
 ### What Exists (M9.5 complete, includes M0-M9 + Engine Core Complete checkpoint)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 54 hand-authored cards (all definitions correct — no simplifications), CardRegistry
+- `cards/`: CardDefinition framework (30+ Effect primitives), 55 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Goad, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b)
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), 58 approved game scripts, 558 tests; 6-player test suite; 54 property invariant tests
+- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), 61 approved game scripts, 588 tests; 6-player test suite; 54 property invariant tests
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
 - All 36 corner cases: 29 COVERED, 4 GAP, 3 DEFERRED (phasing, morph, mutate)

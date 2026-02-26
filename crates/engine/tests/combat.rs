@@ -741,11 +741,11 @@ fn test_509_2_multiple_blockers_damage_order() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 9: SelfAttacks trigger fires when creature attacks (CR 603.5)
+// Test 9: SelfAttacks trigger fires when creature attacks (CR 508.3a)
 // ---------------------------------------------------------------------------
 
 #[test]
-/// CR 603.5 — "whenever this creature attacks" triggers when it is declared
+/// CR 508.3a — "whenever this creature attacks" triggers when it is declared
 /// as an attacker and the trigger goes on the stack.
 fn test_603_self_attacks_trigger_fires() {
     use mtg_engine::{TriggerEvent, TriggeredAbilityDef};

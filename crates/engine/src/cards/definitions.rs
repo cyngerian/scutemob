@@ -21,7 +21,7 @@ use im::OrdSet;
 
 use crate::state::player::PlayerId;
 use crate::state::{
-    CardId, CardType, Color, KeywordAbility, ManaCost, ManaPool, SubType, SuperType,
+    CardId, CardType, Color, KeywordAbility, LandwalkType, ManaCost, ManaPool, SubType, SuperType,
 };
 
 use super::card_definition::{
@@ -1443,6 +1443,63 @@ pub fn all_cards() -> Vec<CardDefinition> {
                 // CR 702.108a: Prowess — builder.rs auto-generates the triggered ability from this keyword.
                 AbilityDefinition::Keyword(KeywordAbility::Prowess),
             ],
+        },
+
+        // 56. Bladetusk Boar — {3R}, Creature — Boar 3/2; Intimidate.
+        CardDefinition {
+            card_id: cid("bladetusk-boar"),
+            name: "Bladetusk Boar".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, red: 1, ..Default::default() }),
+            types: creature_types(&["Boar"]),
+            oracle_text: "Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)".to_string(),
+            power: Some(3),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Intimidate),
+            ],
+        },
+
+        // 57. Bog Raiders — {2B}, Creature — Zombie 2/2; Swampwalk.
+        CardDefinition {
+            card_id: cid("bog-raiders"),
+            name: "Bog Raiders".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+            types: creature_types(&["Zombie"]),
+            oracle_text: "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Landwalk(
+                    LandwalkType::BasicType(SubType("Swamp".to_string())),
+                )),
+            ],
+        },
+
+        // 58. Audacious Thief — {2B}, Creature — Human Rogue 2/2;
+        //     Whenever this creature attacks, you draw a card and you lose 1 life.
+        CardDefinition {
+            card_id: cid("audacious-thief"),
+            name: "Audacious Thief".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, black: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Rogue"]),
+            oracle_text: "Whenever Audacious Thief attacks, you draw a card and you lose 1 life."
+                .to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenAttacks,
+                effect: Effect::Sequence(vec![
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::LoseLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
+                intervening_if: None,
+            }],
         },
 
         // ── Replacement-effect cards (M8 Session 6) ──────────────────────────

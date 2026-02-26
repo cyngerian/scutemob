@@ -573,7 +573,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Hexproof => "Hexproof".to_string(),
         KeywordAbility::Indestructible => "Indestructible".to_string(),
         KeywordAbility::Intimidate => "Intimidate".to_string(),
-        KeywordAbility::Landwalk => "Landwalk".to_string(),
+        KeywordAbility::Landwalk(lw) => format!("Landwalk ({lw:?})"),
         KeywordAbility::Lifelink => "Lifelink".to_string(),
         KeywordAbility::Menace => "Menace".to_string(),
         KeywordAbility::ProtectionFrom(q) => format!("Protection ({q:?})"),

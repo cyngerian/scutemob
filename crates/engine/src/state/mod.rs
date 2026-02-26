@@ -41,7 +41,8 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    CardType, Color, CounterType, KeywordAbility, ManaColor, ProtectionQuality, SubType, SuperType,
+    CardType, Color, CounterType, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
+    SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 

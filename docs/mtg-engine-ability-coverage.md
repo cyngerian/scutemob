@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-25
+> Last audited: 2026-02-26 (Attack trigger row updated)
 
 ---
 
@@ -30,11 +30,11 @@
 
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
-| P1       | 42    | 29        | 3        | 10      | 0    | 0   |
+| P1       | 42    | 33        | 3        | 6       | 0    | 0   |
 | P2       | 17    | 0         | 0        | 0       | 17   | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **29**   | **3**    | **10**  | **145**| **12** |
+| **Total**| **199**| **33**   | **3**    | **6**   | **145**| **12** |
 
 ---
 
@@ -70,12 +70,12 @@ Additional evasion and blocking-restriction keywords beyond the evergreen set.
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Ward | 702.21 | P1 | `validated` | `state/types.rs`, `state/builder.rs`, `state/game_object.rs`, `rules/casting.rs`, `rules/abilities.rs`, `rules/events.rs`, `effects/mod.rs` | Adrix and Nev, Twincasters | `stack/055` | — | Ward(u32) enum + trigger via PermanentTargeted/SelfBecomesTargetByOpponent; MayPayOrElse counter-unless-pay; 7 unit tests in `tests/ward.rs`; script `pending_review` |
-| Intimidate | 702.13 | P1 | `partial` | `state/types.rs` (enum only) | — | — | — | In enum; no blocking restriction enforced |
+| Intimidate | 702.13 | P1 | `validated` | `state/types.rs:114`, `rules/combat.rs:453-474` | Bladetusk Boar | `combat/009` | — | CR 702.13b blocking restriction enforced (artifact creature OR shared color); 7 unit tests in `tests/keywords.rs:632`; game script `pending_review` (6/6 assertions pass) |
 | Fear | 702.36 | P3 | `none` | — | — | — | — | Can't be blocked except by artifact/black creatures |
 | Shadow | 702.28 | P4 | `none` | — | — | — | — | Can only block/be blocked by shadow creatures |
 | Horsemanship | 702.30 | P4 | `none` | — | — | — | — | Can only be blocked by horsemanship (Portal Three Kingdoms) |
 | Skulk | 702.120 | P4 | `none` | — | — | — | — | Can't be blocked by creatures with greater power |
-| Landwalk | 702.14 | P1 | `partial` | `state/types.rs` (enum only) | — | — | — | In enum; no unblockability rule enforced |
+| Landwalk | 702.14 | P1 | `validated` | `state/types.rs:60-77,133-137`, `rules/combat.rs:484-509` | Bog Raiders | `combat/010` | — | LandwalkType enum (BasicType + Nonbasic variants); KeywordAbility::Landwalk; blocking restriction enforced via calculate_characteristics (handles Blood Moon etc.); 7 unit tests in `tests/keywords.rs:1137-1480`; game script `pending_review` (8/8 assertions pass) |
 | CantBeBlocked | 509.1 | P1 | `complete` | `state/types.rs`, `rules/combat.rs` | Rogues Passage (pending) | — | — | Pseudo-keyword; blocking restriction enforced |
 
 ---
@@ -342,8 +342,8 @@ Common ability patterns that appear across many cards but aren't formal CR 702 k
 | Tap-for-mana | P1 | `validated` | `cards/definitions.rs`, `effects/` | 14 land/artifact cards | `baseline/` scripts | — | Mana ability activation fully working |
 | Sacrifice-to-draw | P1 | `validated` | `cards/definitions.rs`, `effects/` | Commander's Sphere, Mind Stone, Arcane Signet | Scripts 053, 054 | — | Activated ability with sacrifice cost |
 | ETB trigger | P1 | `complete` | `cards/card_definition.rs:466`, `rules/resolution.rs` | Wall of Omens, Solemn Simulacrum | — | — | `WhenEntersBattlefield` TriggerCondition; runtime dispatch works |
-| Dies trigger | P1 | `partial` | `cards/card_definition.rs:468` | Solemn Simulacrum | — | — | `WhenDies` TriggerCondition defined; runtime `check_triggers` incomplete |
-| Attack trigger | P1 | `partial` | `cards/card_definition.rs:470` | — | — | — | `WhenAttacks` TriggerCondition defined; no runtime dispatch |
+| Dies trigger | P1 | `validated` | `cards/card_definition.rs:468`, `rules/abilities.rs:428-463`, `testing/replay_harness.rs:406-424` | Solemn Simulacrum | Scripts 019, 058 | — | `TriggerEvent::SelfDies` dispatched in `check_triggers`; `enrich_spec_from_def` converts `WhenDies`; 10 unit tests; 2 approved scripts |
+| Attack trigger | P1 | `validated` | `state/game_object.rs:111` (TriggerEvent::SelfAttacks), `cards/card_definition.rs:470` (TriggerCondition::WhenAttacks), `testing/replay_harness.rs:426-447` (enrichment), `rules/abilities.rs:377-388` (dispatch — CR 508.1m, 508.3a), `rules/combat.rs:290-298` (flush) | Audacious Thief | `combat/011` | — | Full pipeline: enum + enrichment + dispatch + flush + card def + script; 5 unit tests in `tests/abilities.rs:1790-2253` + 1 in `tests/combat.rs:744`; script `pending_review` (10/10 assertions pass) |
 | Combat damage trigger | P1 | `partial` | `cards/card_definition.rs:474` | Alela (approximated) | — | — | `WhenDealsCombatDamageToPlayer` defined; dispatch incomplete |
 | Opponent-casts trigger | P1 | `partial` | `cards/card_definition.rs:476` | Rhystic Study | — | — | `WheneverOpponentCastsSpell` defined; trigger dispatch partial |
 | Search library | P1 | `complete` | `effects/` | Wayfarer's Bauble, Evolving Wilds, Terramorphic Expanse, Cultivate | — | — | `SearchLibrary` effect works; harness doesn't emit player command yet |
@@ -463,13 +463,9 @@ Top unresolved gaps ordered by priority.
 ### P1 Gaps (on existing cards or blocking scripts)
 
 1. **Equip activation** — Static keyword grant works, but no `Command::EquipCreature` exists. Equipment can't be moved between creatures via player action. Blocks combat scripts involving equipment.
-2. **Intimidate blocking rule** — In enum but no combat restriction enforced.
-3. **Landwalk unblockability** — In enum but no blocking check.
-4. **Dies trigger dispatch** — `WhenDies` condition defined but `check_triggers` doesn't fire it.
-5. **Attack trigger dispatch** — `WhenAttacks` condition defined but no runtime dispatch.
-6. **Combat damage trigger dispatch** — `WhenDealsCombatDamageToPlayer` defined but dispatch incomplete.
-7. **Opponent-casts trigger dispatch** — `WheneverOpponentCastsSpell` defined but partial.
-8. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
+2. **Combat damage trigger dispatch** — `WhenDealsCombatDamageToPlayer` defined but dispatch incomplete.
+3. **Opponent-casts trigger dispatch** — `WheneverOpponentCastsSpell` defined but partial.
+4. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
 
 ### P2 Gaps (Commander staples)
 

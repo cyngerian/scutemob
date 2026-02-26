@@ -375,11 +375,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     }
 
     // CR 704.3: Check SBAs before granting priority (happens after each resolution).
+    // Trigger checking is done inside check_and_apply_sbas (per-pass).
     let sba_events = sba::check_and_apply_sbas(state);
-    let sba_triggers = abilities::check_triggers(state, &sba_events);
-    for t in sba_triggers {
-        state.pending_triggers.push_back(t);
-    }
     events.extend(sba_events);
 
     // Flush any pending triggers onto the stack before granting priority (CR 603.3).

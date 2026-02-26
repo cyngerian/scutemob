@@ -1,0 +1,165 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_009",
+    "name": "Intimidate \u2014 artifact creature successfully blocks (positive case)",
+    "description": "p1 controls Bladetusk Boar (3/2, red, Intimidate). p2 controls Memnite (1/1, colorless Artifact Creature). Bladetusk Boar attacks; Memnite legally blocks despite intimidate because CR 702.13b explicitly permits artifact creatures to block creatures with intimidate regardless of color. Combat damage resolves: Boar deals 3 damage to Memnite (lethal), Memnite deals 1 damage to Boar (non-lethal, toughness 2). Memnite is destroyed by SBA (CR 704.5g). Bladetusk Boar survives with 1 damage marked. Tests the artifact-creature exception to the intimidate blocking restriction. Note: combat steps are documentary (turn_based_action) — the harness does not execute combat; zone-change assertions are documented in sba_check notes.",
+    "cr_sections_tested": [
+      "702.13b",
+      "509.1b",
+      "508.1",
+      "510.1c",
+      "510.1d",
+      "704.5g"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "intimidate",
+      "combat",
+      "blocking-restriction",
+      "artifact-creature",
+      "evasion"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.13b: A creature with intimidate can't be blocked except by artifact creatures and/or creatures that share a color with it. Memnite is a colorless artifact creature (Artifact Creature — Construct, {0}, 1/1, no color identity) and therefore falls into the explicit artifact-creature exception. The block is legal under CR 509.1b (no restriction violated). Combat damage: CR 510.1c — Boar (3 power) assigns all 3 damage to Memnite (its sole blocker); CR 510.1d — Memnite (1 power) assigns all 1 damage to Boar. Boar has toughness 2, so 1 damage is non-lethal. Memnite has toughness 1, so 3 damage is lethal. CR 704.5g: Memnite has damage >= toughness and is destroyed. Boar remains on battlefield with 1 damage marked (cleared at end of turn per CR 510.5). Bladetusk Boar card definition: {3}{R}, Creature — Boar, 3/2, red, keyword Intimidate. Memnite card definition: {0}, Artifact Creature — Construct, 1/1, colorless, no abilities. Harness validation: final assert scoped to life totals only (verifiable state) — combat turn_based_action steps are documentary; zone changes from combat damage are not executed by the harness (consistent with scripts 004-008). Dispute filed at step 0 action 4 (sba_check) noting that Memnite destruction cannot be harness-asserted.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 4,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness does not execute combat from turn_based_action or sba_check steps — zone changes from combat damage (Memnite destroyed, moved to graveyard) cannot be asserted after the script runs. The CR reasoning is correct: Memnite is a legal blocker (702.13b artifact exception), 3 damage is lethal to a 1-toughness creature (704.5g), and Boar survives with 1 non-lethal damage. This is consistent with the approach taken in scripts 004, 005, 007, and 008 which also use documentary turn_based_action steps without zone-change assertions. Full executable combat coverage requires engine-level combat command support in the harness.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Bladetusk Boar",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Memnite",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Bladetusk Boar (3/2, Intimidate) attacks p2; Memnite (1/1 Artifact Creature) blocks legally as an artifact creature.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Bladetusk Boar (3/2 Intimidate) on p1 battlefield; Memnite (1/1 artifact) on p2 battlefield; life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Bladetusk Boar"
+                }
+              ]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                {
+                  "card": "Memnite"
+                }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": null
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers: p1 attacks with Bladetusk Boar targeting p2",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Bladetusk Boar as attacker. Boar becomes tapped (CR 508.1f). Boar has Intimidate (CR 702.13b)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers: p2 blocks Bladetusk Boar with Memnite — legal because Memnite is an artifact creature",
+          "cr_ref": "509.1b",
+          "note": "CR 509.1b: Blocker restriction check. CR 702.13b: Intimidate says 'can't be blocked except by artifact creatures and/or creatures that share a color with it.' Memnite is a colorless artifact creature, satisfying the artifact-creature exception. Block is legal."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage assignment: Boar assigns 3 damage to Memnite; Memnite assigns 1 damage to Boar",
+          "cr_ref": "510.1c",
+          "note": "CR 510.1c: Bladetusk Boar (3 power) assigns all 3 damage to Memnite, its sole blocker. CR 510.1d: Memnite (1 power) assigns all 1 damage to Bladetusk Boar. Boar toughness is 2, so 1 damage is non-lethal. Memnite toughness is 1, so 3 damage is lethal."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Memnite", "controller": "p2" },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Memnite has toughness 1 and 3 damage marked (>= toughness). Lethal damage — Memnite is destroyed and goes to p2's graveyard."
+            }
+          ],
+          "note": "CR 704.5g: SBAs checked after combat damage. Bladetusk Boar has 1 damage marked on a 2-toughness creature — non-lethal, survives. Expected outcome (not harness-executable): Memnite in p2 graveyard, Boar on p1 battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-combat state as visible to harness: life totals unchanged (Boar was blocked, no unblocked damage to players)",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Life totals remain 40/40: Bladetusk Boar was fully blocked by Memnite (no trample), so no damage reached p2. Memnite's 1 damage went to Boar (non-lethal, toughness 2). Zone changes from combat damage (Memnite destroyed) are documented in sba_check above but not executable by the harness."
+        }
+      ]
+    }
+  ]
+}

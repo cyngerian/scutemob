@@ -30,7 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    CardType, Color, CounterType, KeywordAbility, ManaColor, ProtectionQuality, SubType, SuperType,
+    CardType, Color, CounterType, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
+    SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -257,6 +258,18 @@ impl HashInto for ProtectionQuality {
     }
 }
 
+impl HashInto for LandwalkType {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            LandwalkType::BasicType(st) => {
+                0u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+            LandwalkType::Nonbasic => 1u8.hash_into(hasher),
+        }
+    }
+}
+
 impl HashInto for KeywordAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -272,7 +285,10 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Hexproof => 9u8.hash_into(hasher),
             KeywordAbility::Indestructible => 10u8.hash_into(hasher),
             KeywordAbility::Intimidate => 11u8.hash_into(hasher),
-            KeywordAbility::Landwalk => 12u8.hash_into(hasher),
+            KeywordAbility::Landwalk(lw_type) => {
+                12u8.hash_into(hasher);
+                lw_type.hash_into(hasher);
+            }
             KeywordAbility::Lifelink => 13u8.hash_into(hasher),
             KeywordAbility::Menace => 14u8.hash_into(hasher),
             KeywordAbility::ProtectionFrom(q) => {
@@ -877,6 +893,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfBecomesTargetByOpponent => 6u8.hash_into(hasher),
             // CR 702.108a: Prowess trigger — discriminant 7
             TriggerEvent::ControllerCastsNoncreatureSpell => 7u8.hash_into(hasher),
+            // CR 603.6c / CR 700.4: Dies trigger — discriminant 8
+            TriggerEvent::SelfDies => 8u8.hash_into(hasher),
         }
     }
 }
@@ -1221,10 +1239,12 @@ impl HashInto for GameEvent {
             GameEvent::CreatureDied {
                 object_id,
                 new_grave_id,
+                controller,
             } => {
                 27u8.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_grave_id.hash_into(hasher);
+                controller.hash_into(hasher);
             }
             GameEvent::PlaneswalkerDied {
                 object_id,

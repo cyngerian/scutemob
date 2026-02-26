@@ -236,6 +236,11 @@ pub enum GameEvent {
         object_id: ObjectId,
         /// New ObjectId of the card in the graveyard (CR 400.7).
         new_grave_id: ObjectId,
+        /// CR 603.3a: controller of the creature at the moment of death (before
+        /// zone change). `move_object_to_zone` resets controller to owner, so
+        /// the controller must be captured before the move and carried through
+        /// this event to the trigger dispatch in `check_triggers`.
+        controller: PlayerId,
     },
 
     /// A planeswalker was put into its owner's graveyard because its loyalty

@@ -483,27 +483,26 @@ pub async fn post_run_script(
 
     // Build the replay session on a dedicated blocking thread with a full stack.
     // Prowess and other trigger-heavy scripts overflow tokio worker thread stacks (2 MB).
-    let run_result = match tokio::task::spawn_blocking(move || ReplaySession::from_script(&script))
-        .await
-    {
-        Ok(Ok(session)) => compute_run_result(&session),
-        Ok(Err(e)) => RunResult {
-            passed: false,
-            total_assertions: 0,
-            passed_count: 0,
-            failed_count: 0,
-            first_failure: None,
-            harness_error: Some(e.to_string()),
-        },
-        Err(e) => RunResult {
-            passed: false,
-            total_assertions: 0,
-            passed_count: 0,
-            failed_count: 0,
-            first_failure: None,
-            harness_error: Some(format!("Replay session panicked: {e}")),
-        },
-    };
+    let run_result =
+        match tokio::task::spawn_blocking(move || ReplaySession::from_script(&script)).await {
+            Ok(Ok(session)) => compute_run_result(&session),
+            Ok(Err(e)) => RunResult {
+                passed: false,
+                total_assertions: 0,
+                passed_count: 0,
+                failed_count: 0,
+                first_failure: None,
+                harness_error: Some(e.to_string()),
+            },
+            Err(e) => RunResult {
+                passed: false,
+                total_assertions: 0,
+                passed_count: 0,
+                failed_count: 0,
+                first_failure: None,
+                harness_error: Some(format!("Replay session panicked: {e}")),
+            },
+        };
 
     Ok(Json(run_result))
 }

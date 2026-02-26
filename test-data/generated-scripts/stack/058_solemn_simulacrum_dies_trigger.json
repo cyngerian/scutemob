@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_058",
+    "name": "Solemn Simulacrum dies to Lightning Bolt — dies trigger draws a card",
+    "description": "P2 casts Lightning Bolt targeting P1's Solemn Simulacrum (2/2). Lightning Bolt deals 3 damage to the creature (CR 120.3e: damage marked on creature). SBA checks fire after resolution: 3 damage >= toughness 2 means lethal damage (CR 704.5g), so Solemn Simulacrum is destroyed and moves to P1's graveyard (CR 700.4). The dies trigger fires (CR 603.6c) and goes onto the stack. Both players pass priority; the trigger resolves and P1 draws 1 card (hand 3 to 4). This script specifically tests the SBA-mediated death path as distinct from a direct destroy effect — the creature survives Lightning Bolt's resolution and dies only via SBA.",
+    "cr_sections_tested": ["120.3e", "603.2", "603.6c", "700.4", "704.3", "704.5g", "601.2", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["death-trigger", "draw", "solemn-simulacrum", "dies", "lightning-bolt", "sba", "lethal-damage"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-26",
+    "generation_notes": "Solemn Simulacrum oracle text: 'When this creature dies, you may draw a card.' (WhenDies trigger). Lightning Bolt oracle text: 'Lightning Bolt deals 3 damage to any target.' Solemn Simulacrum is a 2/2 artifact creature. Lightning Bolt deals 3 damage to the creature (CR 120.3e: no wither/infect so damage is marked on the creature). After Lightning Bolt resolves and moves to P2's graveyard (P2 is the caster/owner), SBA checks are performed (CR 704.3). CR 704.5g: 3 marked damage >= 2 toughness — lethal damage — creature is destroyed. Creature moves to P1's graveyard. CR 603.6c: The dies trigger fires and is placed on the stack. CR 704.3: Triggered abilities placed on stack before priority is granted. Both players pass priority; the dies trigger resolves; P1 draws 1 card. P1 starts with 3 cards in hand and 1 card in library, so hand goes from 3 to 4. P2 is active player with {R} mana to cast Lightning Bolt. Script 019 tests the same Solemn Simulacrum dies trigger but via Doom Blade (direct destroy effect). This script adds coverage of the damage-marked -> SBA -> lethal-damage path and specifically isolates the engine gap where WhenDies triggers from card definitions (enrich_spec_from_def) do not fire via the SBA lethal-damage path. The hand count assertion (expected 4) is omitted from the final assert_state because the engine gap prevents it from passing. The graveyard assertions correctly verify that the creature died. See disputes for detailed failure analysis.",
+    "disputes": [
+      {
+        "step_index": 8,
+        "action_index": 8,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Engine gap: WhenDies trigger from Solemn Simulacrum's card definition (populated by enrich_spec_from_def in the script harness) does not fire when the creature dies via SBA lethal damage (CR 704.5g). After Lightning Bolt resolves, check_and_apply_sbas moves Solemn Simulacrum to P1's graveyard (CreatureDied event emitted — confirmed by graveyard assertion passing). However, the WhenDies TriggeredAbilityDef on the graveyard object is not collected by check_triggers: zones.hand.p1.count remains 3 (expected 4) even after two priority rounds. The unit test test_dies_trigger_fires_on_lethal_damage_sba (tests/abilities.rs) passes using manually constructed ObjectSpec::creature().with_triggered_ability(), confirming the engine correctly handles lethal-damage SBA deaths in principle. The gap is specific to the card-definition -> enrich_spec_from_def -> SBA trigger-collection path used by the script harness. CR 603.6c and CR 700.4 unambiguously require the dies trigger to fire. This is NOT a script logic error — the hand count assertion was removed from the final assert_state to allow the rest of the script to be validated.",
+        "resolution": "RESOLVED (2026-02-26): Investigation showed the engine IS correct. The apparent gap was caused by a unit test that omitted .with_card_id() on the Lightning Bolt ObjectSpec. Without card_id set, resolution.rs silently skips the spell effect (line 116: `if let Some(cid) = card_id.clone()`), so no damage is dealt, no SBA fires, and the trigger never has a chance to fire. The script harness always calls .with_card_id(card_name_to_id(name)) before enrich_spec_from_def, so the trigger correctly fires in the harness. Confirmed by adding regression test test_dies_trigger_full_via_lightning_bolt_and_sba (abilities.rs:1516+) which passes. Hand count assertion restored.",
+        "resolved_by": "claude-sonnet-4-6",
+        "resolved_date": "2026-02-26"
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Solemn Simulacrum",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Mountain", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P2 casts Lightning Bolt targeting P1's Solemn Simulacrum; it deals lethal damage, SBA fires, dies trigger should draw P1 a card.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Solemn Simulacrum on P1 battlefield, Lightning Bolt in P2 hand, P1 has 3 cards in hand",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Solemn Simulacrum" }] },
+            "zones.hand.p1.count": 3,
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "permanent", "card": "Solemn Simulacrum", "controller": "p1" }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Lightning Bolt targeting P1's Solemn Simulacrum; {R} paid from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Lightning Bolt on stack, P2 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": "Lightning Bolt is on the stack targeting Solemn Simulacrum."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "permanent", "card": "Solemn Simulacrum", "controller": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3e",
+              "note": "CR 120.3e: 3 damage marked on Solemn Simulacrum (no wither/infect). Creature survives resolution; SBA checks will apply."
+            }
+          ],
+          "note": "CR 608.2: Lightning Bolt resolves; 3 damage marked on Solemn Simulacrum; Lightning Bolt moves to P2's graveyard."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Solemn Simulacrum", "controller": "p1" },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Solemn Simulacrum has 3 damage marked >= toughness 2 (lethal damage) — destroyed and moved to P1's graveyard."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked after Lightning Bolt resolves. Solemn Simulacrum's lethal damage triggers its destruction. CR 603.6c: Dies trigger placed on stack after SBA batch."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "Both players pass priority — Solemn Simulacrum dies trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Solemn Simulacrum dies trigger",
+          "resolution": [
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: P1 draws 1 card from the dies trigger. CR-correct result: hand goes from 3 to 4. Engine gap prevents this assertion from passing — see disputes."
+            }
+          ],
+          "note": "CR 608.2: Dies trigger resolves; P1 draws 1 card (hand 3 to 4). Engine gap: trigger does not fire in practice — see disputes."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Solemn Simulacrum in P1 graveyard, Lightning Bolt in P2 graveyard, stack empty, P1 drew card",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Solemn Simulacrum" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.hand.p1.count": 4
+          },
+          "note": "CR 603.6c / CR 700.4: P1 draws 1 card from the dies trigger (hand 3 -> 4). Dispute resolved: engine IS correct. The enrich_spec_from_def path works; earlier gap analysis was based on a unit test missing .with_card_id()."
+        }
+      ]
+    }
+  ]
+}

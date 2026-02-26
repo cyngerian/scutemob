@@ -21,9 +21,9 @@
       "doom-blade"
     ],
     "confidence": "high",
-    "review_status": "pending_review",
-    "reviewed_by": null,
-    "review_date": null,
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-26",
     "generation_notes": "Solemn Simulacrum has two triggered abilities: ETB (search library for basic land) and dies ('When Solemn Simulacrum dies, draw a card'). This script tests the death trigger only. Doom Blade destroys the Simulacrum; it moves to p1's graveyard; the dies trigger fires and goes on the stack; p1 draws a card. Library must have 1 card. Initial: p1 controls Solemn Simulacrum (not summoning sick, already on bf); p2 has Doom Blade with {1}{B}.",
     "disputes": []
   },
@@ -191,11 +191,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 death trigger resolves."
+          "note": "CR 116.3: p2 is active player — priority starts with p2. Both pass \u2014 death trigger resolves."
         },
         {
           "type": "stack_resolve",

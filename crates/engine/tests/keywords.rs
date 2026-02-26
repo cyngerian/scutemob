@@ -13,9 +13,9 @@
 //! - Vigilance: attacker doesn't tap (CR 702.20) — tested in combat.rs
 
 use mtg_engine::{
-    all_cards, check_and_apply_sbas, process_command, AttackTarget, CardRegistry, CardType,
-    Command, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec,
-    PlayerId, Step, ZoneId,
+    all_cards, check_and_apply_sbas, process_command, AttackTarget, CardRegistry, CardType, Color,
+    Command, GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, ManaColor, ManaCost,
+    ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -629,6 +629,345 @@ fn test_702_110_menace_allows_two_blockers() {
     );
 }
 
+// ── CR 702.13: Intimidate ─────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.13b — A creature with intimidate can't be blocked by a non-artifact
+/// creature that doesn't share a color with it (basic enforcement).
+fn test_702_13_intimidate_blocks_non_matching_creature() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Red attacker with intimidate; white blocker — neither artifact nor shares red.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Red Intimidator", 3, 2)
+                .with_keyword(KeywordAbility::Intimidate)
+                .with_colors(vec![Color::Red]),
+        )
+        .object(ObjectSpec::creature(p2, "White Blocker", 2, 2).with_colors(vec![Color::White]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Red Intimidator");
+    let blocker_id = find_object(&state, "White Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "A non-artifact, non-color-sharing creature should not block an intimidate attacker"
+    );
+}
+
+#[test]
+/// CR 702.13b — Artifact creatures can always block a creature with intimidate,
+/// regardless of colors.
+fn test_702_13_intimidate_allows_artifact_creature_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Red attacker with intimidate; colorless artifact creature blocker.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Red Intimidator", 3, 2)
+                .with_keyword(KeywordAbility::Intimidate)
+                .with_colors(vec![Color::Red]),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Artifact Creature", 1, 1)
+                .with_types(vec![CardType::Artifact, CardType::Creature]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Red Intimidator");
+    let blocker_id = find_object(&state, "Artifact Creature");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "An artifact creature should always be able to block an intimidate attacker: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.13b — A creature that shares a color with an intimidate attacker can block it.
+fn test_702_13_intimidate_allows_same_color_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Red attacker with intimidate; red blocker — shares red.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Red Intimidator", 3, 2)
+                .with_keyword(KeywordAbility::Intimidate)
+                .with_colors(vec![Color::Red]),
+        )
+        .object(ObjectSpec::creature(p2, "Red Blocker", 2, 2).with_colors(vec![Color::Red]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Red Intimidator");
+    let blocker_id = find_object(&state, "Red Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "A creature sharing a color with the intimidate attacker should be able to block: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.13b — A multicolored intimidate attacker can be blocked by a creature
+/// sharing ANY one of its colors (partial color match suffices).
+/// Source: Hideous Visage ruling 2011-09-22.
+fn test_702_13_intimidate_multicolor_attacker_allows_partial_color_match() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // White-blue attacker with intimidate; green-white blocker — shares white.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "White-Blue Intimidator", 2, 2)
+                .with_keyword(KeywordAbility::Intimidate)
+                .with_colors(vec![Color::White, Color::Blue]),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Green-White Blocker", 2, 2)
+                .with_colors(vec![Color::Green, Color::White]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "White-Blue Intimidator");
+    let blocker_id = find_object(&state, "Green-White Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Blocker sharing one color with multicolor intimidate attacker should be legal: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.13b + CR 105.2c — A colorless creature with intimidate has no colors,
+/// so only artifact creatures can block it.
+fn test_702_13_intimidate_colorless_attacker_only_artifact_can_block() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Colorless attacker with intimidate; red blocker — red can't share colors
+    // with a colorless creature (which has no colors).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Colorless Intimidator", 2, 2)
+                .with_keyword(KeywordAbility::Intimidate),
+            // No .with_colors() — colorless
+        )
+        .object(ObjectSpec::creature(p2, "Red Blocker", 3, 3).with_colors(vec![Color::Red]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Colorless Intimidator");
+    let blocker_id = find_object(&state, "Red Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "No colored creature can block a colorless intimidate attacker (no shared colors)"
+    );
+}
+
+#[test]
+/// CR 702.13b + CR 105.2c — An artifact creature CAN block a colorless intimidate
+/// attacker because the artifact-creature exception still applies.
+fn test_702_13_intimidate_colorless_attacker_artifact_creature_blocks() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Colorless Intimidator", 2, 2)
+                .with_keyword(KeywordAbility::Intimidate),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Artifact Creature", 1, 1)
+                .with_types(vec![CardType::Artifact, CardType::Creature]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Colorless Intimidator");
+    let blocker_id = find_object(&state, "Artifact Creature");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Artifact creature should block colorless intimidate attacker: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.13b + CR 702.9a — A creature with both flying and intimidate requires
+/// the blocker to satisfy BOTH restrictions. A same-colored ground creature fails
+/// because it satisfies intimidate but not flying.
+fn test_702_13_intimidate_plus_flying_both_must_be_satisfied() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Red flying+intimidate attacker; red ground creature — shares red (intimidate OK)
+    // but has no flying/reach (flying fails).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Red Sky Terror", 3, 2)
+                .with_keyword(KeywordAbility::Intimidate)
+                .with_keyword(KeywordAbility::Flying)
+                .with_colors(vec![Color::Red]),
+        )
+        .object(ObjectSpec::creature(p2, "Red Ground Creature", 2, 2).with_colors(vec![Color::Red]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Red Sky Terror");
+    let blocker_id = find_object(&state, "Red Ground Creature");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "A ground creature should not block flying+intimidate even if it shares a color"
+    );
+}
+
 // ── CR 702.15: Lifelink ───────────────────────────────────────────────────────
 
 #[test]
@@ -792,5 +1131,376 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
     assert!(
         !hexproof_still_on_battlefield,
         "Hexproof Creature should be gone from the battlefield after Wrath of God (CR 702.11a)"
+    );
+}
+
+// ── CR 702.14: Landwalk ───────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.14c — A creature with swampwalk can't be blocked if the defending player
+/// controls a Swamp. The Swamp has `SubType("Swamp")` and `SuperType::Basic`.
+fn test_702_14_swampwalk_unblockable_when_defender_controls_swamp() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Bog Raider", 2, 2).with_keyword(
+            KeywordAbility::Landwalk(LandwalkType::BasicType(SubType("Swamp".to_string()))),
+        ))
+        .object(ObjectSpec::creature(p2, "Swamp Blocker", 2, 2))
+        .object(
+            ObjectSpec::land(p2, "Swamp")
+                .with_subtypes(vec![SubType("Swamp".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Bog Raider");
+    let blocker_id = find_object(&state, "Swamp Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Swampwalk creature should be unblockable when defender controls a Swamp"
+    );
+}
+
+#[test]
+/// CR 702.14c (negative) — A creature with swampwalk CAN be blocked if the defending
+/// player does NOT control a Swamp.
+fn test_702_14_swampwalk_blockable_when_defender_has_no_swamp() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Bog Raider", 2, 2).with_keyword(
+            KeywordAbility::Landwalk(LandwalkType::BasicType(SubType("Swamp".to_string()))),
+        ))
+        .object(ObjectSpec::creature(p2, "Plains Blocker", 2, 2))
+        .object(
+            // p2 controls a Plains, NOT a Swamp — swampwalk does not trigger.
+            ObjectSpec::land(p2, "Plains")
+                .with_subtypes(vec![SubType("Plains".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Bog Raider");
+    let blocker_id = find_object(&state, "Plains Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Swampwalk creature should be blockable when defender has no Swamp: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.14c — A creature with islandwalk can't be blocked if the defending player
+/// controls an Island. Confirms the BasicType check works for different land subtypes.
+fn test_702_14_islandwalk_unblockable_when_defender_controls_island() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Merfolk Scout", 2, 1).with_keyword(KeywordAbility::Landwalk(
+                LandwalkType::BasicType(SubType("Island".to_string())),
+            )),
+        )
+        .object(ObjectSpec::creature(p2, "Island Blocker", 2, 2))
+        .object(
+            ObjectSpec::land(p2, "Island")
+                .with_subtypes(vec![SubType("Island".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Merfolk Scout");
+    let blocker_id = find_object(&state, "Island Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Islandwalk creature should be unblockable when defender controls an Island"
+    );
+}
+
+#[test]
+/// CR 702.14c (multiplayer) — Landwalk checks the DEFENDING player's lands only.
+/// A third player controlling a Swamp is irrelevant; the blocking player (who
+/// controls no Swamp) may block the swampwalk creature.
+fn test_702_14_landwalk_checks_defending_player_only() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let p3 = PlayerId(3);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .object(ObjectSpec::creature(p1, "Bog Raider", 2, 2).with_keyword(
+            KeywordAbility::Landwalk(LandwalkType::BasicType(SubType("Swamp".to_string()))),
+        ))
+        .object(ObjectSpec::creature(p2, "Plains Blocker", 2, 2))
+        .object(
+            // p2 has only a Plains — no Swamp.
+            ObjectSpec::land(p2, "Plains")
+                .with_subtypes(vec![SubType("Plains".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .object(
+            // p3 has a Swamp, but p3 is NOT the defending player.
+            ObjectSpec::land(p3, "Swamp")
+                .with_subtypes(vec![SubType("Swamp".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Bog Raider");
+    let blocker_id = find_object(&state, "Plains Blocker");
+
+    // p1 attacks p2; p3's Swamp is irrelevant.
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "p2 should be able to block swampwalk creature; p3's Swamp is irrelevant: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.14c (nonbasic variant) — A creature with nonbasic landwalk can't be blocked
+/// if the defending player controls a land WITHOUT the Basic supertype.
+fn test_702_14_nonbasic_landwalk_unblockable_when_defender_has_nonbasic() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Dryad Sophisticate", 2, 1)
+                .with_keyword(KeywordAbility::Landwalk(LandwalkType::Nonbasic)),
+        )
+        .object(ObjectSpec::creature(p2, "Nonbasic Blocker", 2, 2))
+        .object(
+            // A nonbasic land: no Basic supertype.
+            ObjectSpec::land(p2, "Exotic Land"),
+            // subtypes and supertypes left empty — no Basic supertype.
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Dryad Sophisticate");
+    let blocker_id = find_object(&state, "Nonbasic Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Nonbasic landwalk creature should be unblockable when defender controls a nonbasic land"
+    );
+}
+
+#[test]
+/// CR 702.14c (nonbasic negative) — Nonbasic landwalk does NOT prevent blocking
+/// if all of the defending player's lands are basic (have the Basic supertype).
+fn test_702_14_nonbasic_landwalk_blockable_when_all_lands_basic() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Dryad Sophisticate", 2, 1)
+                .with_keyword(KeywordAbility::Landwalk(LandwalkType::Nonbasic)),
+        )
+        .object(ObjectSpec::creature(p2, "Basic Blocker", 2, 2))
+        .object(
+            // p2 controls only a basic Plains — nonbasic landwalk does NOT apply.
+            ObjectSpec::land(p2, "Plains")
+                .with_subtypes(vec![SubType("Plains".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Dryad Sophisticate");
+    let blocker_id = find_object(&state, "Basic Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "Nonbasic landwalk should not prevent blocking when defender has only basic lands: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.14c + CR 702.9a — A creature with both flying and swampwalk is still
+/// unblockable when the defender controls a Swamp, even when the blocker has flying.
+/// Landwalk is an independent evasion restriction — either restriction alone suffices
+/// to prevent blocking.
+fn test_702_14_landwalk_plus_flying_both_checked() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Attacker has both Flying and Swampwalk.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Flying Swamp Terror", 3, 2)
+                .with_keyword(KeywordAbility::Flying)
+                .with_keyword(KeywordAbility::Landwalk(LandwalkType::BasicType(SubType(
+                    "Swamp".to_string(),
+                )))),
+        )
+        .object(
+            // Blocker has flying (satisfies flying restriction) but defender has a Swamp.
+            ObjectSpec::creature(p2, "Flying Blocker", 2, 2).with_keyword(KeywordAbility::Flying),
+        )
+        .object(
+            ObjectSpec::land(p2, "Swamp")
+                .with_subtypes(vec![SubType("Swamp".to_string())])
+                .with_supertypes(vec![SuperType::Basic]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Flying Swamp Terror");
+    let blocker_id = find_object(&state, "Flying Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    // The flying blocker can satisfy the flying restriction, but the swampwalk
+    // restriction is independent and still prevents blocking.
+    assert!(
+        result.is_err(),
+        "Flying+swampwalk creature should be unblockable when defender has a Swamp, \
+         even if the blocker has flying"
     );
 }

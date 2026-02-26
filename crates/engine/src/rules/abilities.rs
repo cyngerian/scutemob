@@ -144,13 +144,15 @@ pub fn handle_activate_ability(
 
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
     if ability_cost.sacrifice_self {
-        let (is_creature, owner) = {
+        let (is_creature, owner, pre_death_controller) = {
             let obj = state.object(source)?;
             (
                 obj.characteristics
                     .card_types
                     .contains(&crate::state::types::CardType::Creature),
                 obj.owner,
+                // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
+                obj.controller,
             )
         };
         let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
@@ -158,6 +160,7 @@ pub fn handle_activate_ability(
             events.push(GameEvent::CreatureDied {
                 object_id: source,
                 new_grave_id: new_id,
+                controller: pre_death_controller,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
@@ -372,7 +375,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
 
             GameEvent::AttackersDeclared { attackers, .. } => {
-                // SelfAttacks: fires on each creature that is attacking (CR 603.5).
+                // SelfAttacks: fires on each creature that is declared as an attacker (CR 508.1m, CR 508.3a).
                 for (attacker_id, _) in attackers {
                     collect_triggers_for_event(
                         state,
@@ -421,6 +424,47 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         for t in &mut triggers[pre_len..] {
                             t.targeting_stack_id = Some(*targeting_stack_id);
                         }
+                    }
+                }
+            }
+
+            GameEvent::CreatureDied {
+                new_grave_id,
+                controller: death_controller,
+                ..
+            } => {
+                // CR 603.6c / CR 603.10a / CR 700.4: "When ~ dies" triggers look back in time.
+                // The creature is now in the graveyard, but its characteristics (including
+                // triggered_abilities) are preserved by move_object_to_zone. Check the graveyard
+                // object for SelfDies triggers rather than trying to find the battlefield object
+                // (which no longer exists at trigger-check time).
+                if let Some(obj) = state.objects.get(new_grave_id) {
+                    for (idx, trigger_def) in
+                        obj.characteristics.triggered_abilities.iter().enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SelfDies {
+                            continue;
+                        }
+
+                        // CR 603.4: Check intervening-if clause at trigger time.
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, *death_controller) {
+                                continue;
+                            }
+                        }
+
+                        triggers.push(PendingTrigger {
+                            source: *new_grave_id,
+                            ability_index: idx,
+                            // CR 603.3a: use the controller captured at death time (before
+                            // move_object_to_zone reset it to owner). This correctly handles
+                            // stolen creatures — if Player A controls Player B's creature and
+                            // it dies, the trigger is controlled by Player A.
+                            controller: *death_controller,
+                            triggering_event: Some(TriggerEvent::SelfDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                        });
                     }
                 }
             }

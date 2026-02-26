@@ -701,6 +701,12 @@ pub fn resolve_pending_zone_change(
                 _ => dest,
             };
 
+            // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
+            let pre_move_controller = state
+                .objects
+                .get(&pending.object_id)
+                .map(|o| o.controller)
+                .unwrap_or(pending.affected_player);
             // Do the zone move
             if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
                 events.extend(zone_change_events(
@@ -709,6 +715,7 @@ pub fn resolve_pending_zone_change(
                     new_id,
                     final_dest,
                     pending.affected_player,
+                    pre_move_controller,
                 ));
             }
         }
@@ -940,6 +947,8 @@ fn emit_etb_modification(
 /// Produce appropriate GameEvents for a zone change based on the destination.
 ///
 /// `owner` is used for the `ObjectExiled` player field and `CommanderZoneRedirect`.
+/// `pre_move_controller` is the controller captured before `move_object_to_zone` reset it to
+/// owner — required for CR 603.3a correctness in `CreatureDied`.
 /// `card_types` is used to choose `CreatureDied` vs `PermanentDestroyed` for graveyard moves.
 fn zone_change_events(
     state: &GameState,
@@ -947,6 +956,7 @@ fn zone_change_events(
     new_id: ObjectId,
     dest: ZoneId,
     owner: PlayerId,
+    pre_move_controller: PlayerId,
 ) -> Vec<GameEvent> {
     match dest {
         ZoneId::Graveyard(_) => {
@@ -960,6 +970,9 @@ fn zone_change_events(
                 vec![GameEvent::CreatureDied {
                     object_id: old_id,
                     new_grave_id: new_id,
+                    // CR 603.3a: use pre-move controller, not owner (which is what
+                    // move_object_to_zone resets controller to).
+                    controller: pre_move_controller,
                 }]
             } else {
                 vec![GameEvent::PermanentDestroyed {

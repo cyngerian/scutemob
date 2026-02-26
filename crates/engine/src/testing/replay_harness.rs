@@ -21,7 +21,7 @@ use crate::testing::script_schema::{ActionTarget, InitialState};
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility, ManaColor,
-    ObjectSpec, PlayerId, Step, ZoneId,
+    ObjectSpec, PlayerId, Step, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -402,6 +402,67 @@ pub fn enrich_spec_from_def(
                 };
                 spec = spec.with_activated_ability(ab);
             }
+        }
+    }
+
+    // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDies,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SelfDies,
+                intervening_if: None,
+                description: "When ~ dies (CR 700.4)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 508.1m / CR 508.3a: Convert "Whenever ~ attacks" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential attack triggers (e.g. Audacious Thief).
+    // Note: CR 508.4 — creatures put onto the battlefield attacking do NOT trigger
+    // "whenever ~ attacks"; they were never declared as attackers. The engine correctly
+    // dispatches SelfAttacks only from AttackersDeclared events (not from any other
+    // mechanism), so this enrichment path is safe.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenAttacks,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SelfAttacks,
+                intervening_if: None,
+                description: "Whenever ~ attacks (CR 508.3a)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 509.1: Convert "Whenever ~ blocks" card-definition triggers into runtime
+    // TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential block triggers (e.g. a creature with "Whenever ~ blocks").
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenBlocks,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SelfBlocks,
+                intervening_if: None,
+                description: "Whenever ~ blocks (CR 509.1)".to_string(),
+                effect: Some(effect.clone()),
+            });
         }
     }
 

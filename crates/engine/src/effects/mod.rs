@@ -300,16 +300,18 @@ fn execute_effect_inner(
                     if indestructible {
                         continue;
                     }
-                    let card_types = state
+                    let (card_types, owner, pre_death_controller) = state
                         .objects
                         .get(&id)
-                        .map(|o| o.characteristics.card_types.clone())
-                        .unwrap_or_default();
-                    let owner = state
-                        .objects
-                        .get(&id)
-                        .map(|o| o.owner)
-                        .unwrap_or(ctx.controller);
+                        .map(|o| {
+                            (
+                                o.characteristics.card_types.clone(),
+                                o.owner,
+                                // CR 603.3a: capture controller before move_object_to_zone resets it.
+                                o.controller,
+                            )
+                        })
+                        .unwrap_or_else(|| (Default::default(), ctx.controller, ctx.controller));
 
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
@@ -345,6 +347,7 @@ fn execute_effect_inner(
                                             events.push(GameEvent::CreatureDied {
                                                 object_id: id,
                                                 new_grave_id: new_id,
+                                                controller: pre_death_controller,
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -385,6 +388,7 @@ fn execute_effect_inner(
                                     events.push(GameEvent::CreatureDied {
                                         object_id: id,
                                         new_grave_id: new_id,
+                                        controller: pre_death_controller,
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
