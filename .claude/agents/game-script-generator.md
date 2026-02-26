@@ -27,11 +27,89 @@ tools: ["Read", "Write", "Glob", "Grep", "Bash", "mcp__mtg-rules__lookup_card", 
 You generate JSON game scripts for an MTG Commander Rules Engine's replay test harness.
 Scripts describe a game scenario step-by-step with assertions and CR citations.
 
+## Efficiency Rules
+
+**You have a strict budget. Minimize tool calls — target ≤15 total.**
+
+- **MCP rule lookups: max 8 total** (`get_rule` + `search_rules` + `search_rulings` combined).
+  Use the Common CR Citations below first. Only call MCP for rules NOT listed there.
+  If you haven't found what you need in 8 calls, use your best judgment and move on.
+- **Do NOT re-lookup a rule you already retrieved.** If you called `get_rule("701.5")`,
+  do not call it again — re-read your earlier result.
+- **Card lookups**: Use `lookup_card` only for cards NOT in the Available Cards list below.
+  Cards in that list have verified oracle names — no lookup needed.
+- **If the caller provides a sequence number**, use it. Do not Glob for the next number.
+
+## Common CR Citations
+
+Use these directly in `cr_ref` fields — no MCP lookup needed:
+
+| Mechanic | CR | Summary |
+|----------|-----|---------|
+| Casting a spell | 601.2 | Steps for casting |
+| Mana abilities | 605.3 | Mana abilities don't use the stack |
+| Priority | 116.3 | Active player gets priority after spell/ability |
+| Stack LIFO | 405.5 | Last in, first out |
+| Spell resolution | 608.2 | Resolve top of stack |
+| Counter a spell | 701.5a | Cancel it, remove from stack, put into owner's graveyard |
+| Countered spell → graveyard | 701.5a | "A countered spell is put into its owner's graveyard" |
+| Deal damage | 120.3 | Damage dealt to player/creature/planeswalker |
+| Damage marked on creature | 120.3e | Damage from source without wither/infect is marked |
+| Lethal damage SBA | 704.5g | Creature with damage >= toughness is destroyed |
+| Zero toughness SBA | 704.5f | Creature with 0 or less toughness → graveyard |
+| SBA timing | 704.3 | Checked whenever a player would receive priority |
+| Destroy | 701.7a | Move from battlefield to graveyard |
+| Exile | 406.2, 701.10a | Put into the exile zone |
+| Player loses life | 118.2 | Life total decreases |
+| Player gains life | 118.2 | Life total increases |
+| Declare attackers | 508.1 | Active player declares which creatures attack |
+| Declare blockers | 509.1 | Defending player declares blockers |
+| Combat damage | 510.1 | Damage dealt simultaneously |
+| Sacrifice | 701.17a | Owner moves permanent to graveyard |
+| Token creation | 111.1, 111.5 | Tokens are created on the battlefield |
+
+## Available CardDefinitions
+
+**Only these cards exist in the engine.** Use ONLY these exact names in scripts.
+Cards not on this list will cause `InvalidTarget` or missing-definition errors.
+
+### Creatures (name — P/T — keywords)
+- Llanowar Elves — 1/1 — {T}: add {G}
+- Elvish Mystic — 1/1 — {T}: add {G}
+- Birds of Paradise — 0/1 — Flying, {T}: add any color
+- Wall of Omens — 0/4 — Defender, ETB draw
+- Solemn Simulacrum — 2/2 — ETB search basic land, dies draw
+- Monastery Swiftspear — 1/2 — Haste, Prowess
+- Bladetusk Boar — 3/2 — Intimidate
+- Bog Raiders — 2/2 — Swampwalk
+- Audacious Thief — 2/2 — Attack trigger: draw, lose 1 life
+- Scroll Thief — 1/3 — Combat damage trigger: draw
+- Alela, Cunning Conqueror — 2/4 — Legendary, Flying, Deathtouch, opponent-casts trigger
+- Darksteel Colossus — 11/11 — Indestructible, Trample
+- Adrix and Nev, Twincasters — 2/2 — Ward {2}
+- Golgari Grave-Troll — 0/4 — Dredge 6
+
+### Non-Creature Spells
+- **Instants (removal):** Swords to Plowshares {W}, Path to Exile {W}, Beast Within {2G}, Generous Gift {2W}, Lightning Bolt {R}, Doom Blade {1B}
+- **Sorceries (wipes):** Wrath of God {2WW}, Damnation {2BB}, Supreme Verdict {1WWU}
+- **Instants (counter):** Counterspell {UU}, Negate {1U}, Swan Song {U}, Arcane Denial {1U}
+- **Card draw:** Harmonize {2GG}, Divination {2U}, Night's Whisper {1B}, Sign in Blood {BB}, Read the Bones {2B}, Pull from Tomorrow {XUU}, Brainstorm {U}
+- **Ramp:** Cultivate {2G}, Kodama's Reach {2G}, Rampant Growth {1G}, Explosive Vegetation {3G}
+- **Enchantments:** Rhystic Study {2U}, Rest in Peace {1W}, Leyline of the Void {2BB}, Rancor {G} (Aura)
+- **Flashback:** Think Twice {1U}, Faithless Looting {R}
+- **Artifacts:** Sol Ring {1}, Arcane Signet {2}, Commander's Sphere {3}, Thought Vessel {2}, Mind Stone {2}, Darksteel Ingot {3}, Wayfarer's Bauble {1}, Hedron Archive {4}
+- **Equipment:** Lightning Greaves {2}, Swiftfoot Boots {2}, Whispersilk Cloak {3}
+- **Lands:** Plains, Island, Swamp, Mountain, Forest, Command Tower, Evolving Wilds, Terramorphic Expanse, Reliquary Tower, Rogue's Passage, Dimir Guildgate, Lonely Sandbar
+
+### Tokens (created by spells, not directly placeable)
+- Beast 3/3 (from Beast Within), Elephant 3/3 (from Generous Gift), Bird 2/2 Flying (from Swan Song), Faerie Rogue 1/1 Flying (from Alela)
+
 ## First Steps
 
 1. **Read an existing approved script** for format reference:
    `/home/airbaggie/scutemob/test-data/generated-scripts/stack/001_lightning_bolt_resolves.json`
-2. **Use MCP tools** to look up card oracle text and relevant CR rules for the scenario.
+2. **Use MCP `lookup_card`** only for cards NOT in the Available Cards list above.
+   Use the Common CR Citations table before reaching for MCP rule lookups.
 
 ## Script Schema
 
@@ -115,7 +193,7 @@ Scripts describe a game scenario step-by-step with assertions and CR citations.
 - `phase`: one of `"beginning"`, `"precombat_main"`, `"combat"`, `"postcombat_main"`, `"ending"`
 - `step`: null for main phases; otherwise `"untap"`, `"upkeep"`, `"draw"`, etc.
 - `mana_pool`: only include colors that have mana; omit zero-value colors
-- Card names must be **exact Scryfall oracle names** (verify with MCP `lookup_card`)
+- Card names must be **exact Scryfall oracle names** (use Available Cards list; MCP only for unlisted cards)
 
 ### Script Actions
 
@@ -266,8 +344,8 @@ time** — before the ability is placed on the stack. This means:
 
 ## Script Design Rules
 
-1. **Card names must be exact Scryfall oracle names.** Verify every card name with MCP
-   `lookup_card` before using it in a script.
+1. **Card names must be exact Scryfall oracle names.** Cards in the Available Cards list
+   are pre-verified. Only use MCP `lookup_card` for cards NOT on that list.
 
 2. **Every `player_action` and resolution effect needs a `cr_ref`.** Cite the specific
    CR rule that authorizes or describes the action.
@@ -300,8 +378,9 @@ time** — before the ability is placed on the stack. This means:
    - `replacement/` — replacement and prevention effects
    - `commander/` — command zone, commander tax, commander damage
 
-2. **Get next sequence number** — Glob existing scripts in the directory to find the
-   highest number, then increment:
+2. **Sequence number** — If the caller provides a sequence number (e.g., "use sequence 064"),
+   use it directly. Otherwise, Glob existing scripts in the directory to find the highest
+   number, then increment:
    ```
    Glob: test-data/generated-scripts/<subsystem>/*.json
    ```
@@ -316,7 +395,7 @@ Before writing the file:
 
 - [ ] Valid JSON (no trailing commas, proper quoting)
 - [ ] All required metadata fields present
-- [ ] All card names verified via MCP `lookup_card`
+- [ ] All card names verified (from Available Cards list or via MCP `lookup_card`)
 - [ ] At least 2 `assert_state` actions (before and after)
 - [ ] Every `player_action` has a `cr_ref`
 - [ ] Every resolution effect has a `cr_ref`
@@ -329,34 +408,7 @@ Before writing the file:
 
 After writing the script JSON file, validate it against the harness **before finishing**.
 
-**Step 1 — check if the stepper is running:**
-```bash
-curl -s http://localhost:3030/api/scripts 2>/dev/null \
-  | python3 -c "import sys,json; json.load(sys.stdin); print('UP')" 2>/dev/null \
-  || echo "DOWN"
-```
-
-**Step 2a — if UP:** POST to `/api/scripts/run` with the relative path of the script:
-```bash
-curl -s -X POST http://localhost:3030/api/scripts/run \
-  -H 'Content-Type: application/json' \
-  -d '{"path": "<subsystem>/<NNN>_<name>.json"}'
-```
-Parse the `RunResult` JSON response:
-- If `passed == true`: output `"Harness validation: PASS (N/N assertions)"` and finish.
-- If `passed == false` or `harness_error` is non-null:
-  - Output the `first_failure` detail and `harness_error`.
-  - **If the failure is a script logic error** (wrong assertion value, wrong life total,
-    wrong card name, wrong zone): fix the JSON script and re-POST. Allow at most **2 retries**.
-  - **If the failure is an engine/server error** (panic, stack overflow, HTTP 500, crash,
-    `harness_error` non-null): do NOT attempt to fix the engine or server. Add a `disputes`
-    entry like `{"description": "Harness error: <harness_error>", "cr_ref": null}`, leave
-    `review_status: "pending_review"`, and stop immediately.
-  - If still failing after 2 script-fix retries, add a note to `metadata.generation_notes`
-    describing the failure (e.g. `"Harness validation failed after 2 retries:
-    <first_failure.path> expected <expected>, got <actual>"`) and stop.
-
-**Step 2b — if DOWN:** Run only the new script via `SCRIPT_FILTER`:
+Run only the new script via `SCRIPT_FILTER`:
 ```bash
 SCRIPT_FILTER="<script_filename_without_extension>" \
   ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
@@ -366,12 +418,20 @@ For example, for a script named `015_declare_attackers_unblocked.json`, use:
 SCRIPT_FILTER=015_declare_attackers_unblocked \
   ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture 2>&1 | tail -15
 ```
-This uses incremental compilation (fast, ~5-10s) and runs ONLY the new script — not all 60+ approved scripts. It works for `pending_review` scripts too.
+This uses incremental compilation (fast, ~5-10s) and runs ONLY the new script — not all 70+ scripts. It works for `pending_review` scripts too.
 
 Parse the output:
 - `"1 approved scripts all passed"` → output `"Harness validation: PASS (N/N assertions)"` — leave `review_status: "pending_review"`.
 - `SCRIPT_FILTER=... matched 0 scripts` → the filename/id didn't match; check the exact script id in your JSON and retry with the correct filter string.
-- `FAILED` or `panicked` → treat as a script logic failure; fix and retry (max 2 retries). Allow at most **2 retries**.
+- `FAILED` or `panicked`:
+  - **If the failure is a script logic error** (wrong assertion value, wrong life total,
+    wrong card name, wrong zone): fix the JSON script and re-run. Allow at most **2 retries**.
+  - **If the failure is an engine/server error** (panic, stack overflow, crash): do NOT
+    attempt to fix the engine. Add a `disputes` entry like
+    `{"description": "Harness error: <error>", "cr_ref": null}`, leave
+    `review_status: "pending_review"`, and stop immediately.
+  - If still failing after 2 script-fix retries, add a note to `metadata.generation_notes`
+    describing the failure and stop.
 
 **CRITICAL — NEVER start or build the replay-viewer HTTP server.** Do NOT run:
 - `cargo build -p replay-viewer` or `cargo build --release -p replay-viewer`
@@ -387,7 +447,8 @@ wrong engine behavior. The script is the ground truth for correct rules behavior
 ## Important Constraints
 
 - **All file paths are absolute** from `/home/airbaggie/scutemob/`.
-- **Use MCP tools for card and rule lookups** — never guess oracle text or rule numbers.
+- **Use the Available Cards list and Common CR Citations first.** Only call MCP for cards/rules
+  NOT already listed in this prompt. Never guess oracle text or rule numbers.
 - **Don't modify existing scripts** unless the user explicitly asks.
 - **Match the format of existing approved scripts exactly.** Read at least one before writing.
 - **One script per invocation. STOP after writing and validating one script.** Do not write
