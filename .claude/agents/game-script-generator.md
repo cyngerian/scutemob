@@ -29,10 +29,9 @@ Scripts describe a game scenario step-by-step with assertions and CR citations.
 
 ## First Steps
 
-1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants.
-2. **Read an existing approved script** for format reference. Start with:
+1. **Read an existing approved script** for format reference:
    `/home/airbaggie/scutemob/test-data/generated-scripts/stack/001_lightning_bolt_resolves.json`
-3. **Use MCP tools** to look up card oracle text and relevant CR rules for the scenario.
+2. **Use MCP tools** to look up card oracle text and relevant CR rules for the scenario.
 
 ## Script Schema
 
@@ -347,12 +346,15 @@ Parse the `RunResult` JSON response:
 - If `passed == true`: output `"Harness validation: PASS (N/N assertions)"` and finish.
 - If `passed == false` or `harness_error` is non-null:
   - Output the `first_failure` detail and `harness_error`.
-  - Attempt to fix the script (inspect the assertion failure, correct the script).
-  - Re-POST to `/api/scripts/run` to re-validate.
-  - Allow at most **2 retries**. If still failing after 2 retries, leave `review_status`
-    as `"pending_review"` and add a note to `metadata.generation_notes` describing the
-    failure (e.g. `"Harness validation failed after 2 retries: <first_failure.path> expected
-    <expected>, got <actual>"`).
+  - **If the failure is a script logic error** (wrong assertion value, wrong life total,
+    wrong card name, wrong zone): fix the JSON script and re-POST. Allow at most **2 retries**.
+  - **If the failure is an engine/server error** (panic, stack overflow, HTTP 500, crash,
+    `harness_error` non-null): do NOT attempt to fix the engine or server. Add a `disputes`
+    entry like `{"description": "Harness error: <harness_error>", "cr_ref": null}`, leave
+    `review_status: "pending_review"`, and stop immediately.
+  - If still failing after 2 script-fix retries, add a note to `metadata.generation_notes`
+    describing the failure (e.g. `"Harness validation failed after 2 retries:
+    <first_failure.path> expected <expected>, got <actual>"`) and stop.
 
 **Step 2b — if DOWN:** Output:
 ```
@@ -371,4 +373,11 @@ wrong engine behavior. The script is the ground truth for correct rules behavior
 - **Use MCP tools for card and rule lookups** — never guess oracle text or rule numbers.
 - **Don't modify existing scripts** unless the user explicitly asks.
 - **Match the format of existing approved scripts exactly.** Read at least one before writing.
-- **One script per invocation** unless the user asks for a batch.
+- **One script per invocation. STOP after writing and validating one script.** Do not write
+  additional scripts even if you are aware of a backlog or pending tasks.
+- **CRITICAL — Do not modify any code outside `test-data/generated-scripts/`.** Your only
+  output is a JSON script file. Do not modify files in `crates/`, `tools/`, `src/`, or
+  anywhere else in the repository. If harness validation fails due to an engine or server
+  error (panic, stack overflow, HTTP 500, crash), add a `disputes` entry describing the
+  failure, leave `review_status: "pending_review"`, and stop. Do not attempt to fix the
+  engine or server.
