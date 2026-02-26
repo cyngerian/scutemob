@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: Engine Core Complete checkpoint (2026-02-23)
+# Rules Gotchas — Last verified: M9.5 + 10 abilities (2026-02-26)
 
 ## MTG Rules Gotchas
 
@@ -23,6 +23,24 @@
 - **Tokens cease to exist when they leave the battlefield** — but they DO briefly exist in
   the new zone first (long enough to trigger "when this dies" etc.).
 
+- **Dredge is a replacement effect, not a trigger or activated ability (CR 702.52a).** It
+  modifies the "would draw" event using the existing `check_would_draw_replacement` infrastructure.
+  Wire it into BOTH the draw-step path (`turn_actions.rs`) and the effect-draw path
+  (`effects/mod.rs`). Dredge does NOT increment `cards_drawn_this_turn` — it is a replacement,
+  not a draw. `draw_card_skipping_dredge` is a helper that bypasses the replacement check to
+  avoid re-offering the choice after the player declines.
+- **Flashback must exile at ALL departure points (CR 702.34a).** The card must be exiled when
+  it leaves the stack for ANY reason: (1) normal resolution, (2) fizzle (all targets illegal),
+  (3) countered by a spell/ability, AND (4) the `CounterSpell` effect path in `effects/mod.rs`.
+  Missing any one of the 4 paths causes the card to go to the graveyard instead of exile.
+- **Cycling is instant-speed (CR 702.29a).** No sorcery restriction — cycling can be activated
+  any time you could cast an instant. The discard is the cost (paid before the draw ability
+  hits the stack); the draw ability can be countered. Do not add `TimingRestriction::SorcerySpeed`
+  to cycling activated abilities.
+- **Combat damage trigger infrastructure: `check_triggers` must fire on TBA events (CR 510.3a).**
+  `enter_step` processes turn-based actions (like assigning combat damage). Triggers from those
+  TBAs must be checked inside `enter_step` itself — `check_triggers()` called only after player
+  commands will miss triggers that originate in step-entry TBAs.
 - **CR text overrides card rulings — always.** Card rulings (Gatherer/Scryfall) are dated
   annotations written at print time. When the CR changes, old rulings become stale and are
   never retroactively updated. Example: the June 2025 CR 714.4 update changed Blood Moon +

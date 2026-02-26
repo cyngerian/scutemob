@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Prowess (2026-02-25)
+# Infra & Testing Gotchas — Last verified: M9.5 + 10 abilities (2026-02-26)
 
 ## Rust / im-rs Gotchas
 
@@ -99,8 +99,30 @@
 - **DrawCards on empty library is silently a no-op.** If a sacrifice-draw script asserts
   `zones.hand.p1.count: 1` after resolution, the library must have at least 1 card in initial_state.
 
+## Agent Workflow Gotchas (ability pipeline)
+
+- **`card-definition-author` agent silent exit**: The agent sometimes returns only an `agentId`
+  with no content (no tool calls, no output). Resume with the same `agentId` — the second
+  invocation usually also exits silently, but the card was often written on the first run.
+  Verify by reading `definitions.rs` directly and running `cargo test` to confirm compilation.
+  Do NOT spawn a new agent without first verifying the card wasn't already inserted.
+- **`game-script-generator` stale binary validation**: The generator validates scripts using the
+  running replay-viewer binary, not the compiled library. If card definitions were added after
+  the binary was last built, the binary won't find them and validation will fail with
+  `InvalidCommand`. Always validate scripts via `cargo test -p mtg-engine --test run_all_scripts`
+  which uses the library directly. Approve the script if library tests pass.
+- **`TimingRestriction` import in `definitions.rs`**: When adding `AbilityDefinition::Activated`
+  with `timing_restriction: Some(TimingRestriction::SorcerySpeed)`, `TimingRestriction` must be
+  added to the `super::card_definition` import. The card-definition-author agent may omit this.
+  Compile error: `use of undeclared type TimingRestriction`.
+
 ## Script Harness Gotchas
 
+- **New harness action types added for abilities**: `cycle_card` (CycleCard command, finds card
+  in hand, pays mana), `choose_dredge` (ChooseDredge command, finds named card in player's
+  graveyard), `cast_spell_flashback` (CastSpell with flashback cost, card must be in graveyard).
+  When the generator reports a harness gap for a new action type, add the arm to
+  `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
 - **`priority_player` field in action scripts must be set correctly** or the harness routes
   the action to the wrong player.
 - **Mana abilities do NOT reset `players_passed`** (CR 605.3a — mana abilities don't use

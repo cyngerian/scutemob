@@ -12,8 +12,8 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 588 tests passing; 63 scripts (61 approved, 2 pending_review); Prowess P1 validated (29/42 P1); 0 HIGH/MEDIUM; ~43 LOW deferred
-- **Last Updated**: 2026-02-25
+- **Status**: 675 tests passing; 67 scripts (all approved); 39/42 P1 validated; 3/N P2 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
+- **Last Updated**: 2026-02-26
 
 ### What Exists (M9.5 complete, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 55 hand-authored cards (all definitions correct — no simplifications), CardRegistry
