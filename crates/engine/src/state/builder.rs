@@ -24,7 +24,12 @@ use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
-use crate::cards::card_definition::{Cost, Effect, EffectTarget, PlayerTarget};
+use crate::cards::card_definition::{
+    ContinuousEffectDef, Cost, Effect, EffectTarget, PlayerTarget,
+};
+use crate::state::continuous_effect::{
+    EffectDuration as CEDuration, EffectFilter as CEFilter, EffectLayer, LayerModification,
+};
 
 /// Builder for constructing `GameState` values in tests.
 pub struct GameStateBuilder {
@@ -365,6 +370,25 @@ impl GameStateBuilder {
                             )),
                             or_else: Box::new(Effect::CounterSpell {
                                 target: EffectTarget::DeclaredTarget { index: 0 },
+                            }),
+                        }),
+                    });
+                }
+
+                // CR 702.108a: Prowess — "Whenever you cast a noncreature spell, this
+                // creature gets +1/+1 until end of turn."
+                // Each keyword instance generates one TriggeredAbilityDef.
+                if matches!(kw, KeywordAbility::Prowess) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::ControllerCastsNoncreatureSpell,
+                        intervening_if: None,
+                        description: "Prowess (CR 702.108a): Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.".to_string(),
+                        effect: Some(Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyBoth(1),
+                                filter: CEFilter::Source,
+                                duration: CEDuration::UntilEndOfTurn,
                             }),
                         }),
                     });

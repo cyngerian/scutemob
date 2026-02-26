@@ -545,6 +545,7 @@ impl HashInto for EffectFilter {
                 11u8.hash_into(hasher);
                 index.hash_into(hasher);
             }
+            EffectFilter::Source => 12u8.hash_into(hasher),
         }
     }
 }
@@ -874,6 +875,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfBlocks => 5u8.hash_into(hasher),
             // CR 702.21a: Ward trigger — discriminant 6
             TriggerEvent::SelfBecomesTargetByOpponent => 6u8.hash_into(hasher),
+            // CR 702.108a: Prowess trigger — discriminant 7
+            TriggerEvent::ControllerCastsNoncreatureSpell => 7u8.hash_into(hasher),
         }
     }
 }

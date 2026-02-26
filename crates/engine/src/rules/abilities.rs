@@ -311,7 +311,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 );
             }
 
-            GameEvent::SpellCast { .. } => {
+            GameEvent::SpellCast {
+                player,
+                source_object_id,
+                ..
+            } => {
                 // AnySpellCast: fires on all permanents that watch for spell casts.
                 collect_triggers_for_event(
                     state,
@@ -320,6 +324,40 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,
                     None,
                 );
+
+                // CR 702.108a: Prowess — "Whenever you cast a noncreature spell."
+                // Check if the cast spell is noncreature by inspecting the source object's
+                // card types. Only fire if the spell lacks CardType::Creature.
+                let is_noncreature = state
+                    .objects
+                    .get(source_object_id)
+                    .map(|obj| {
+                        !obj.characteristics
+                            .card_types
+                            .contains(&crate::state::types::CardType::Creature)
+                    })
+                    .unwrap_or(false);
+
+                if is_noncreature {
+                    // Collect triggers only for permanents controlled by the caster.
+                    // Prowess says "whenever YOU cast" -- only the controller's creatures trigger.
+                    let prowess_sources: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                        .map(|obj| obj.id)
+                        .collect();
+
+                    for obj_id in prowess_sources {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::ControllerCastsNoncreatureSpell,
+                            Some(obj_id),
+                            None,
+                        );
+                    }
+                }
             }
 
             GameEvent::PermanentTapped { object_id, .. } => {

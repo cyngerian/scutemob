@@ -115,6 +115,11 @@ pub enum TriggerEvent {
     /// ability controlled by an opponent. Used exclusively by the Ward keyword.
     /// The opponent check is done at trigger-collection time in `rules/abilities.rs`.
     SelfBecomesTargetByOpponent,
+    /// CR 702.108a: Triggers when the controller of this permanent casts a
+    /// noncreature spell. Used by the Prowess keyword. The noncreature check
+    /// and controller-match are verified at trigger-collection time in
+    /// `rules/abilities.rs`.
+    ControllerCastsNoncreatureSpell,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

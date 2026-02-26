@@ -47,8 +47,24 @@ struct Cli {
     host: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
+    // Build a custom tokio runtime with 8 MB worker thread stacks.
+    //
+    // The MTG rules engine uses deep call chains when resolving triggered abilities
+    // (prowess, ward, ETB cascades). In debug builds these chains exceed the default
+    // tokio worker thread stack (2 MB), causing stack overflows in `ReplaySession::from_script`.
+    // 8 MB matches the OS default for regular threads (used by `cargo test`).
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
+        .thread_stack_size(8 * 1024 * 1024) // 8 MB
+        .enable_all()
+        .build()
+        .expect("Failed to build tokio runtime");
+
+    runtime.block_on(async_main())
+}
+
+async fn async_main() -> Result<()> {
     let cli = Cli::parse();
 
     // Resolve scripts_dir to an absolute path.

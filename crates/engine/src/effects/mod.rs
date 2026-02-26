@@ -893,6 +893,9 @@ fn execute_effect_inner(
                         None => return, // No valid target; skip effect.
                     }
                 }
+                // CR 702.108a: Prowess and similar "this permanent" effects use Source
+                // as a placeholder. Resolve it to the source object at execution time.
+                CEFilter::Source => CEFilter::SingleObject(ctx.source),
                 other => other.clone(),
             };
             // Build a ContinuousEffect from the definition and add it to state.

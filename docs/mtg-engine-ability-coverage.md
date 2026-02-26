@@ -30,11 +30,11 @@
 
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
-| P1       | 41    | 28        | 3        | 10      | 0    | 0   |
+| P1       | 42    | 29        | 3        | 10      | 0    | 0   |
 | P2       | 17    | 0         | 0        | 0       | 17   | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **198**| **28**   | **3**    | **10**  | **145**| **12** |
+| **Total**| **199**| **29**   | **3**    | **10**  | **145**| **12** |
 
 ---
 
@@ -312,7 +312,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Food tokens | — | P3 | `none` | — | — | — | — | Predefined token: {2}, tap, sacrifice → gain 3 life |
 | Clue tokens | — | P3 | `none` | — | — | — | — | Predefined token: {2}, sacrifice → draw a card |
 | Blood tokens | — | P4 | `none` | — | — | — | — | Predefined token: {1}, tap, discard, sacrifice → draw |
-| Prowess | 702.108 | P1 | `partial` | `state/types.rs` (enum only) | — | — | — | In enum; no trigger on noncreature spell cast |
+| Prowess | 702.108 | P1 | `validated` | `state/types.rs`, `state/hash.rs`, `state/game_object.rs`, `state/builder.rs`, `state/continuous_effect.rs`, `rules/abilities.rs`, `effects/mod.rs` | Monastery Swiftspear | `stack/056` | — | KeywordAbility::Prowess enum + TriggerEvent::ControllerCastsNoncreatureSpell dispatch; EffectFilter::Source in continuous_effect.rs; TriggeredAbilityDef auto-expansion in builder.rs; 8 unit tests in `tests/prowess.rs`; game script 056 (pending_review, all assertions pass) |
 | Regenerate | 701.15 | P3 | `none` | — | — | — | — | Keyword action (not ability): replace destruction with tap+remove from combat |
 | Proliferate | 701.27 | P3 | `none` | — | — | — | — | Keyword action: add counter to any permanent/player with counters |
 | Transform | 701.28 | P3 | `none` | — | — | — | — | Keyword action: flip DFC to other face |
@@ -465,12 +465,11 @@ Top unresolved gaps ordered by priority.
 1. **Equip activation** — Static keyword grant works, but no `Command::EquipCreature` exists. Equipment can't be moved between creatures via player action. Blocks combat scripts involving equipment.
 2. **Intimidate blocking rule** — In enum but no combat restriction enforced.
 3. **Landwalk unblockability** — In enum but no blocking check.
-4. **Prowess trigger** — In enum but no noncreature-spell trigger dispatch.
-5. **Dies trigger dispatch** — `WhenDies` condition defined but `check_triggers` doesn't fire it.
-6. **Attack trigger dispatch** — `WhenAttacks` condition defined but no runtime dispatch.
-7. **Combat damage trigger dispatch** — `WhenDealsCombatDamageToPlayer` defined but dispatch incomplete.
-8. **Opponent-casts trigger dispatch** — `WheneverOpponentCastsSpell` defined but partial.
-9. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
+4. **Dies trigger dispatch** — `WhenDies` condition defined but `check_triggers` doesn't fire it.
+5. **Attack trigger dispatch** — `WhenAttacks` condition defined but no runtime dispatch.
+6. **Combat damage trigger dispatch** — `WhenDealsCombatDamageToPlayer` defined but dispatch incomplete.
+7. **Opponent-casts trigger dispatch** — `WheneverOpponentCastsSpell` defined but partial.
+8. **Declare attackers/blockers harness action** — Combat works but scripts can't issue the action.
 
 ### P2 Gaps (Commander staples)
 

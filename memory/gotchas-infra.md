@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 post-fix (2026-02-24)
+# Infra & Testing Gotchas — Last verified: M9.5 + Ward (2026-02-25)
 
 ## Rust / im-rs Gotchas
 
@@ -70,6 +70,14 @@
   Using the wrong field silently passes all targets or rejects all targets.
 - **`CardEffectTarget` is the re-exported name** for `cards::EffectTarget` in `lib.rs`. Tests must
   use `mtg_engine::CardEffectTarget`, not `mtg_engine::EffectTarget` (which doesn't exist at root).
+
+## Command Handler Pattern Gotchas
+
+- **Every `Command` handler that can produce triggers must call `check_triggers()` +
+  `flush_pending_triggers()` after its action.** `CastSpell` does this; `ActivateAbility`
+  was missing it until M9.5 Ward work — activated abilities could not fire triggers at all.
+  When adding a new command variant, verify it ends with the trigger flush pair, or triggers
+  on the resulting state will silently never fire.
 
 ## Activated Ability Harness Gotchas (M9.5+)
 
@@ -145,3 +153,12 @@
 - **`pending_review` game scripts are unvalidated** — auto-generated scripts often misattribute triggers (ETB vs. death vs. activated) and omit interactive commands (e.g. `SearchLibrary` requires an explicit player command the generator doesn't emit). Use the replay viewer to validate before approving.
 - **Svelte 5 keyed `{#each entries as e (e.id)}` crashes silently on duplicate keys.** The entire component's reactivity breaks — buttons stop responding, no error shown. Root cause is always a duplicate `metadata.id` across scripts. The `api.rs` `get_scripts` handler now deduplicates and logs a warning, but fix the source script first.
 - **`metadata.id` must be unique across all scripts.** Copy-pasted scripts inherit the source's `id` — always update it. Pattern: `script_<subdir>_<NNN>` matching the filename number (e.g., `054_mind_stone...json` → `id: "script_stack_054"`).
+- **Tokio worker thread stack overflow with trigger-heavy scripts**: The default tokio worker
+  thread stack is 2 MB. In debug builds, the MTG rules engine's deep call chains during
+  triggered ability resolution (prowess, ward, ETB cascades) can exceed this limit, causing
+  `thread 'tokio-runtime-worker' has overflowed its stack` and aborting the process. Fix:
+  replace `#[tokio::main]` in `main.rs` with a custom `tokio::runtime::Builder` that sets
+  `.thread_stack_size(8 * 1024 * 1024)` to match the OS default for regular threads. This
+  issue affects the HTTP harness only — `cargo test` uses regular threads (8 MB) and passes.
+  The `api.rs` `post_run_script` and `post_load` handlers also use `spawn_blocking` to further
+  insulate against deep call chains in async handlers.

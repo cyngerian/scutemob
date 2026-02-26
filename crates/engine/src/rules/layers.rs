@@ -215,6 +215,10 @@ fn effect_applies_to(
         // If it somehow reaches here unresolved, treat it as non-matching.
         EffectFilter::DeclaredTarget { .. } => false,
 
+        // Source should be resolved to SingleObject(ctx.source) at ApplyContinuousEffect
+        // execution time. If it somehow reaches here unresolved, treat it as non-matching.
+        EffectFilter::Source => false,
+
         // CR 301.5 / CR 702.6a: Equipment static ability applies only to the equipped
         // creature. The source object's `attached_to` field identifies that creature.
         // If the equipment is not attached to anything, the filter matches nothing.

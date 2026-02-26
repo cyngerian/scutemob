@@ -297,13 +297,24 @@ pub async fn post_load(
             )
         })?;
 
-    // Build the replay session (runs the whole script through the engine).
-    let session = ReplaySession::from_script(&script).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to build replay session: {e}"),
-        )
-    })?;
+    // Build the replay session on a dedicated blocking thread with a full stack.
+    // Trigger-heavy scripts (prowess, ward) require deep call chains that overflow
+    // tokio worker threads (2 MB default stack). spawn_blocking uses a thread with
+    // the OS default stack size (typically 8 MB). CR 702.108a / CR 702.21.
+    let session = tokio::task::spawn_blocking(move || ReplaySession::from_script(&script))
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Replay session panicked: {e}"),
+            )
+        })?
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to build replay session: {e}"),
+            )
+        })?;
 
     let players: Vec<String> = session.player_map.keys().cloned().collect();
     let review_status = review_status_str(&session.script.metadata.review_status).to_string();
@@ -470,15 +481,27 @@ pub async fn post_run_script(
             )
         })?;
 
-    let run_result = match ReplaySession::from_script(&script) {
-        Ok(session) => compute_run_result(&session),
-        Err(e) => RunResult {
+    // Build the replay session on a dedicated blocking thread with a full stack.
+    // Prowess and other trigger-heavy scripts overflow tokio worker thread stacks (2 MB).
+    let run_result = match tokio::task::spawn_blocking(move || ReplaySession::from_script(&script))
+        .await
+    {
+        Ok(Ok(session)) => compute_run_result(&session),
+        Ok(Err(e)) => RunResult {
             passed: false,
             total_assertions: 0,
             passed_count: 0,
             failed_count: 0,
             first_failure: None,
             harness_error: Some(e.to_string()),
+        },
+        Err(e) => RunResult {
+            passed: false,
+            total_assertions: 0,
+            passed_count: 0,
+            failed_count: 0,
+            first_failure: None,
+            harness_error: Some(format!("Replay session panicked: {e}")),
         },
     };
 

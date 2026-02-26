@@ -95,6 +95,11 @@ pub enum EffectFilter {
         /// Index into the declared targets list (0-indexed).
         index: usize,
     },
+    /// Applies to the source object of the effect (e.g., "this creature gets +1/+1").
+    ///
+    /// Resolved at `ApplyContinuousEffect` execution time to `SingleObject(ctx.source)`.
+    /// Used by keyword abilities like Prowess where the effect targets the source creature.
+    Source,
 }
 
 /// What a continuous effect does when applied.
