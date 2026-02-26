@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + 10 abilities (2026-02-26)
+# Rules Gotchas — Last verified: M9.5 + 16 abilities (2026-02-26)
 
 ## MTG Rules Gotchas
 
@@ -37,6 +37,29 @@
   any time you could cast an instant. The discard is the cost (paid before the draw ability
   hits the stack); the draw ability can be countered. Do not add `TimingRestriction::SorcerySpeed`
   to cycling activated abilities.
+- **Aura WhenDies triggers fire on `AuraFellOff`, not `CreatureDied` (CR 704.5m).** When an
+  Aura is put into the graveyard by SBA (because its enchanted permanent left the battlefield),
+  the engine emits `GameEvent::AuraFellOff`. The `check_triggers` function in `abilities.rs`
+  must have an explicit arm for `AuraFellOff` — the `CreatureDied` arm does NOT cover it.
+  Missing this arm causes WhenDies triggers on Auras (e.g., Rancor's return-to-hand trigger)
+  to silently never fire.
+- **Enchant is enforced at TWO checkpoints (CR 702.5b, 303.4a, 303.4c, 303.4d, 704.5m):**
+  (1) **Cast-time** (`casting.rs`): the named target must already be on the battlefield AND
+  match the `EnchantTarget` type. (2) **SBA** (`sba.rs`): if the Aura's target is no longer
+  legal (left battlefield, changed type, or Aura is enchanting itself — CR 303.4d), the Aura
+  goes to the graveyard. Use a typed `EnchantTarget` enum (not a boolean `enchants_creatures`)
+  so SBA helpers can re-check legality for any target type. Aura attachment (setting
+  `attached_to` / `attachments`) must happen BEFORE `register_static_continuous_effects` in
+  `resolution.rs` — otherwise the Aura's static effects fire before the attachment is recorded
+  and they will find no target to modify.
+- **Convoke, Delve, and Kicker are NOT additional costs (CR 702.51b, 702.66b, 702.33b).** They
+  apply AFTER the total cost is determined (including commander tax, flashback alternative cost,
+  etc.). The cost-modifier pipeline order in `casting.rs`: base mana cost → flashback alt cost →
+  commander tax → kicker → convoke → delve → payment. Any future cost-reduction keyword must
+  insert after tax/before payment.
+- **Convoke does NOT require summoning sickness exemption** (ruling under CR 702.51a). Tapping
+  a creature for convoke is not an activated ability tap cost — summoning sickness only prevents
+  `{T}` activated abilities. A creature that entered this turn can still convoke.
 - **Combat damage trigger infrastructure: `check_triggers` must fire on TBA events (CR 510.3a).**
   `enter_step` processes turn-based actions (like assigning combat damage). Triggers from those
   TBAs must be checked inside `enter_step` itself — `check_triggers()` called only after player

@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 10 abilities (2026-02-26)
+# Infra & Testing Gotchas — Last verified: M9.5 + 16 abilities (2026-02-26)
 
 ## Rust / im-rs Gotchas
 
@@ -106,11 +106,26 @@
   invocation usually also exits silently, but the card was often written on the first run.
   Verify by reading `definitions.rs` directly and running `cargo test` to confirm compilation.
   Do NOT spawn a new agent without first verifying the card wasn't already inserted.
+- **`card-definition-author` adds TODO comments for freshly-implemented keywords.** The agent's
+  knowledge cutoff means it doesn't know about `KeywordAbility` variants added earlier in the
+  same pipeline run. It will write `// TODO: KeywordAbility::Delve not yet implemented` even
+  when the keyword IS implemented. Always verify the generated definition includes the keyword
+  ability variant (`AbilityDefinition::Keyword(KeywordAbility::X)`) and delete any stale TODO
+  comments before committing.
 - **`game-script-generator` stale binary validation**: The generator validates scripts using the
   running replay-viewer binary, not the compiled library. If card definitions were added after
   the binary was last built, the binary won't find them and validation will fail with
   `InvalidCommand`. Always validate scripts via `cargo test -p mtg-engine --test run_all_scripts`
   which uses the library directly. Approve the script if library tests pass.
+- **`game-script-generator` SCRIPT_FILTER**: When the HTTP server is DOWN, the agent uses
+  `SCRIPT_FILTER=<script_name_without_ext> ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture`
+  (run from `crates/engine/`). This runs ONLY the named script (including `pending_review`) and
+  takes ~5-10s. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
+  not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
+  kills (SIGKILL/137) from the Sonnet agent context.
+- **Aura attachment order in `resolution.rs`**: `set attached_to/attachments` MUST happen
+  BEFORE `register_static_continuous_effects`. If continuous effects register before attachment,
+  `EffectFilter::AttachedCreature` finds no target and the Aura's static effects never apply.
 - **`TimingRestriction` import in `definitions.rs`**: When adding `AbilityDefinition::Activated`
   with `timing_restriction: Some(TimingRestriction::SorcerySpeed)`, `TimingRestriction` must be
   added to the `super::card_definition` import. The card-definition-author agent may omit this.
@@ -120,9 +135,14 @@
 
 - **New harness action types added for abilities**: `cycle_card` (CycleCard command, finds card
   in hand, pays mana), `choose_dredge` (ChooseDredge command, finds named card in player's
-  graveyard), `cast_spell_flashback` (CastSpell with flashback cost, card must be in graveyard).
+  graveyard), `cast_spell_flashback` (CastSpell with flashback cost, card must be in graveyard),
+  `declare_attackers` (DeclareAttackers command, `attackers: [{card, target_player}]` array),
+  `declare_blockers` (DeclareBlockers command, `blockers: [{card, blocking}]` array).
   When the generator reports a harness gap for a new action type, add the arm to
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
+- **Convoke scripts: duplicate creature names resolve to the same ObjectId** — rejected as
+  "duplicate ObjectId in convoke_creatures." Use distinct card names (e.g., Llanowar Elves,
+  Elvish Mystic, Birds of Paradise) rather than three identical "Llanowar Elves" entries.
 - **`priority_player` field in action scripts must be set correctly** or the harness routes
   the action to the wrong player.
 - **Mana abilities do NOT reset `players_passed`** (CR 605.3a — mana abilities don't use
