@@ -15,7 +15,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .constraints([
             Constraint::Length(3), // summary
             Constraint::Min(0),    // table
-            Constraint::Length(3), // detail
+            Constraint::Length(4), // detail (2 content lines + 2 borders)
         ])
         .split(area);
 
@@ -148,26 +148,41 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
         .collect();
 
     let sel = app.scripts_table_state.selected().unwrap_or(0);
-    let line = if let Some(entry) = entries.get(sel) {
+    let text = if let Some(entry) = entries.get(sel) {
         let (sym, sym_style) = match entry.status.as_str() {
             "approved" => ("✓", Style::default().fg(theme::GREEN)),
             "pending_review" => ("●", Style::default().fg(theme::GOLD)),
             _ => ("?", Style::default().fg(Color::DarkGray)),
         };
-        Line::from(vec![
+        let chk_label = if entry.assertion_count == 1 {
+            "1 check".to_string()
+        } else {
+            format!("{} checks", entry.assertion_count)
+        };
+        // Line 1: symbol + path + assertion count
+        let line1 = Line::from(vec![
             Span::styled(format!("{} ", sym), sym_style),
             Span::styled(
                 format!("{}/{}  ", entry.directory, entry.filename),
                 Style::default().fg(Color::Gray),
             ),
+            Span::styled(chk_label, Style::default().fg(Color::DarkGray)),
+        ]);
+        // Line 2: indented full scenario name
+        let line2 = Line::from(vec![
+            Span::raw("  "),
             Span::styled(&entry.name, Style::default().fg(Color::White)),
-        ])
+        ]);
+        Text::from(vec![line1, line2])
     } else {
-        Line::from(Span::styled("—", Style::default().fg(Color::DarkGray)))
+        Text::from(Line::from(Span::styled(
+            "—",
+            Style::default().fg(Color::DarkGray),
+        )))
     };
 
     f.render_widget(
-        Paragraph::new(Text::from(line))
+        Paragraph::new(text)
             .block(Block::default().borders(Borders::ALL).title(" Description ")),
         area,
     );
