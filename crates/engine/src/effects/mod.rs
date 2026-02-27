@@ -322,7 +322,7 @@ fn execute_effect_inner(
                     if indestructible {
                         continue;
                     }
-                    let (card_types, owner, pre_death_controller) = state
+                    let (card_types, owner, pre_death_controller, pre_death_counters) = state
                         .objects
                         .get(&id)
                         .map(|o| {
@@ -331,9 +331,18 @@ fn execute_effect_inner(
                                 o.owner,
                                 // CR 603.3a: capture controller before move_object_to_zone resets it.
                                 o.controller,
+                                // CR 702.79a: capture counters before move_object_to_zone resets them.
+                                o.counters.clone(),
                             )
                         })
-                        .unwrap_or_else(|| (Default::default(), ctx.controller, ctx.controller));
+                        .unwrap_or_else(|| {
+                            (
+                                Default::default(),
+                                ctx.controller,
+                                ctx.controller,
+                                Default::default(),
+                            )
+                        });
 
                     // CR 614: Check replacement effects before moving to graveyard.
                     let action = crate::rules::replacement::check_zone_change_replacement(
@@ -370,6 +379,8 @@ fn execute_effect_inner(
                                                 object_id: id,
                                                 new_grave_id: new_id,
                                                 controller: pre_death_controller,
+                                                // CR 702.79a: last-known counter state.
+                                                pre_death_counters: pre_death_counters.clone(),
                                             });
                                         } else {
                                             events.push(GameEvent::PermanentDestroyed {
@@ -411,6 +422,8 @@ fn execute_effect_inner(
                                         object_id: id,
                                         new_grave_id: new_id,
                                         controller: pre_death_controller,
+                                        // CR 702.79a: last-known counter state.
+                                        pre_death_counters: pre_death_counters.clone(),
                                     });
                                 } else {
                                     events.push(GameEvent::PermanentDestroyed {
@@ -746,6 +759,12 @@ fn execute_effect_inner(
                         if let Some(idx) = idx_opt {
                             ctx.target_remaps.insert(idx, new_id);
                         }
+                        // CR 702.79a / CR 702.93a: If the moved object was the ability source
+                        // (e.g. persist/undying moving from graveyard to battlefield), update
+                        // ctx.source so subsequent effects (AddCounter) can find the new object.
+                        if id == ctx.source {
+                            ctx.source = new_id;
+                        }
                         let event = match dest {
                             ZoneId::Exile => GameEvent::ObjectExiled {
                                 player: ctx.controller,
@@ -1022,6 +1041,136 @@ fn execute_effect_inner(
         Effect::MayPayOrElse { or_else, .. } => {
             // M9+: interactive choice to pay or not. For M7, don't pay → apply or_else.
             execute_effect_inner(state, or_else, ctx, events);
+        }
+
+        // CR 701.17a: Sacrifice permanents — the specified player sacrifices N permanents.
+        //
+        // Sacrifice is NOT destruction: it bypasses indestructible (CR 701.17a).
+        // The player chooses which permanents to sacrifice; deterministic fallback
+        // (M10+ will support interactive choice): sacrifice in ObjectId ascending order.
+        // If the player controls fewer than N permanents, they sacrifice all they control.
+        // Sacrifice is a zone change to the owner's graveyard; "dies" triggers fire normally.
+        Effect::SacrificePermanents { player, count } => {
+            let player_ids = resolve_player_target_list(state, player, ctx);
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            for pid in player_ids {
+                // Collect the player's battlefield permanents sorted by ObjectId ascending
+                // for deterministic ordering (interactive choice deferred to M10+).
+                let mut controlled: Vec<ObjectId> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.controller == pid)
+                    .map(|(id, _)| *id)
+                    .collect();
+                controlled.sort_unstable();
+
+                // Sacrifice min(n, count) permanents.
+                let to_sacrifice = controlled.into_iter().take(n).collect::<Vec<_>>();
+                for id in to_sacrifice {
+                    // CR 701.17a: sacrifice is NOT destruction — no indestructible check.
+                    let (card_types, owner, pre_sacrifice_controller, pre_death_counters) =
+                        match state.objects.get(&id) {
+                            Some(obj) => (
+                                obj.characteristics.card_types.clone(),
+                                obj.owner,
+                                obj.controller,
+                                // CR 702.79a: capture counters before move_object_to_zone resets them.
+                                obj.counters.clone(),
+                            ),
+                            None => continue,
+                        };
+
+                    // CR 614: Check replacement effects before moving to graveyard.
+                    let action = crate::rules::replacement::check_zone_change_replacement(
+                        state,
+                        id,
+                        ZoneType::Battlefield,
+                        ZoneType::Graveyard,
+                        owner,
+                        &std::collections::HashSet::new(),
+                    );
+
+                    match action {
+                        crate::rules::replacement::ZoneChangeAction::Redirect {
+                            to: dest,
+                            events: repl_events,
+                            ..
+                        } => {
+                            events.extend(repl_events);
+                            if let Ok((new_id, _old)) = state.move_object_to_zone(id, dest) {
+                                match dest {
+                                    ZoneId::Exile => {
+                                        events.push(GameEvent::ObjectExiled {
+                                            player: owner,
+                                            object_id: id,
+                                            new_exile_id: new_id,
+                                        });
+                                    }
+                                    ZoneId::Command(_) => {
+                                        // Commander redirected to command zone — no sacrifice event.
+                                    }
+                                    _ => {
+                                        if card_types.contains(&CardType::Creature) {
+                                            events.push(GameEvent::CreatureDied {
+                                                object_id: id,
+                                                new_grave_id: new_id,
+                                                controller: pre_sacrifice_controller,
+                                                // CR 702.79a: last-known counter state.
+                                                pre_death_counters: pre_death_counters.clone(),
+                                            });
+                                        } else {
+                                            events.push(GameEvent::PermanentDestroyed {
+                                                object_id: id,
+                                                new_grave_id: new_id,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                            player,
+                            choices,
+                            event_description,
+                        } => {
+                            use crate::state::replacement_effect::PendingZoneChange;
+                            state.pending_zone_changes.push_back(PendingZoneChange {
+                                object_id: id,
+                                original_from: ZoneType::Battlefield,
+                                original_destination: ZoneType::Graveyard,
+                                affected_player: player,
+                                already_applied: Vec::new(),
+                            });
+                            events.push(GameEvent::ReplacementChoiceRequired {
+                                player,
+                                event_description,
+                                choices,
+                            });
+                        }
+                        crate::rules::replacement::ZoneChangeAction::Proceed => {
+                            // No replacement — sacrifice to graveyard normally.
+                            if let Ok((new_id, _old)) =
+                                state.move_object_to_zone(id, ZoneId::Graveyard(owner))
+                            {
+                                if card_types.contains(&CardType::Creature) {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: id,
+                                        new_grave_id: new_id,
+                                        controller: pre_sacrifice_controller,
+                                        // CR 702.79a: last-known counter state.
+                                        pre_death_counters: pre_death_counters.clone(),
+                                    });
+                                } else {
+                                    events.push(GameEvent::PermanentDestroyed {
+                                        object_id: id,
+                                        new_grave_id: new_id,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // CR 701.15a: Goad — mark the target creature as goaded until the start of

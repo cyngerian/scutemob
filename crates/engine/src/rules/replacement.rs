@@ -751,11 +751,12 @@ pub fn resolve_pending_zone_change(
             };
 
             // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
-            let pre_move_controller = state
+            // CR 702.79a: capture counters before move_object_to_zone resets them.
+            let (pre_move_controller, pre_death_counters) = state
                 .objects
                 .get(&pending.object_id)
-                .map(|o| o.controller)
-                .unwrap_or(pending.affected_player);
+                .map(|o| (o.controller, o.counters.clone()))
+                .unwrap_or((pending.affected_player, Default::default()));
             // Do the zone move
             if let Ok((new_id, _old)) = state.move_object_to_zone(pending.object_id, final_dest) {
                 events.extend(zone_change_events(
@@ -765,6 +766,7 @@ pub fn resolve_pending_zone_change(
                     final_dest,
                     pending.affected_player,
                     pre_move_controller,
+                    &pre_death_counters,
                 ));
             }
         }
@@ -1006,6 +1008,8 @@ fn emit_etb_modification(
 /// `owner` is used for the `ObjectExiled` player field and `CommanderZoneRedirect`.
 /// `pre_move_controller` is the controller captured before `move_object_to_zone` reset it to
 /// owner — required for CR 603.3a correctness in `CreatureDied`.
+/// `pre_death_counters` is the counter state captured before `move_object_to_zone` reset it —
+/// required for CR 702.79a persist/undying intervening-if check in `check_triggers`.
 /// `card_types` is used to choose `CreatureDied` vs `PermanentDestroyed` for graveyard moves.
 fn zone_change_events(
     state: &GameState,
@@ -1014,6 +1018,7 @@ fn zone_change_events(
     dest: ZoneId,
     owner: PlayerId,
     pre_move_controller: PlayerId,
+    pre_death_counters: &im::OrdMap<crate::state::types::CounterType, u32>,
 ) -> Vec<GameEvent> {
     match dest {
         ZoneId::Graveyard(_) => {
@@ -1030,6 +1035,8 @@ fn zone_change_events(
                     // CR 603.3a: use pre-move controller, not owner (which is what
                     // move_object_to_zone resets controller to).
                     controller: pre_move_controller,
+                    // CR 702.79a: last-known counter state for persist/undying check.
+                    pre_death_counters: pre_death_counters.clone(),
                 }]
             } else {
                 vec![GameEvent::PermanentDestroyed {

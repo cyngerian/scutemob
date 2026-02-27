@@ -6,14 +6,14 @@ use ratatui::{
     Frame,
 };
 
-use crate::theme;
 use super::super::app::App;
+use crate::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Split vertically: table (top) + deliverable detail (bottom)
     let sel = app.milestone_table_state.selected().unwrap_or(0);
-    let has_detail = sel < app.data.milestones.len()
-        && app.data.milestones[sel].total_deliverables > 0;
+    let has_detail =
+        sel < app.data.milestones.len() && app.data.milestones[sel].total_deliverables > 0;
 
     let chunks = if has_detail {
         Layout::default()
@@ -58,7 +58,12 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
             );
 
             let status_cell = if m.is_active {
-                Cell::from(Span::styled("ACTIVE", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)))
+                Cell::from(Span::styled(
+                    "ACTIVE",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ))
             } else if pct >= 1.0 {
                 Cell::from(Span::styled("✓ DONE", Style::default().fg(theme::GREEN)))
             } else if pct > 0.0 {
@@ -68,7 +73,9 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
             };
 
             let id_style = if m.is_active {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else if pct >= 1.0 {
                 Style::default().fg(theme::GREEN)
             } else {
@@ -80,12 +87,19 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
                 "REVIEWED" => Style::default().fg(theme::GREEN),
                 _ => Style::default().fg(Color::DarkGray),
             };
-            let review_text = if m.review_status.is_empty() { "—" } else { &m.review_status };
+            let review_text = if m.review_status.is_empty() {
+                "—"
+            } else {
+                &m.review_status
+            };
 
             Row::new(vec![
                 Cell::from(Span::styled(m.id.clone(), id_style)),
                 Cell::from(m.name.clone()),
-                Cell::from(Span::styled(deliverables_str, Style::default().fg(Color::Gray))),
+                Cell::from(Span::styled(
+                    deliverables_str,
+                    Style::default().fg(Color::Gray),
+                )),
                 Cell::from(Span::styled(review_text.to_owned(), review_style)),
                 status_cell,
             ])
@@ -103,7 +117,11 @@ fn render_milestone_table(f: &mut Frame, area: Rect, app: &mut App) {
     let table = Table::new(rows, widths)
         .header(header)
         .block(Block::default().borders(Borders::ALL).title(" Milestones "))
-        .row_highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD))
+        .row_highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        )
         .highlight_symbol("→ ");
 
     f.render_stateful_widget(table, area, &mut app.milestone_table_state);
@@ -116,16 +134,28 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App, sel: usize) {
     // Show a summary instead.
     let mut lines: Vec<Line> = vec![
         Line::from(vec![
-            Span::styled(format!("{}: ", m.id), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(&m.name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(vec![
             Span::styled(
-                format!("  {}/{} deliverables complete  ({:.0}%)",
-                    m.completed_deliverables, m.total_deliverables, m.completion_pct() * 100.0),
-                Style::default().fg(Color::Gray),
+                format!("{}: ", m.id),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                &m.name,
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
+        Line::from(vec![Span::styled(
+            format!(
+                "  {}/{} deliverables complete  ({:.0}%)",
+                m.completed_deliverables,
+                m.total_deliverables,
+                m.completion_pct() * 100.0
+            ),
+            Style::default().fg(Color::Gray),
+        )]),
     ];
 
     if !m.review_status.is_empty() {

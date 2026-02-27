@@ -3,6 +3,7 @@
 //! Events are the single source of truth for "what happened." The network
 //! layer broadcasts them; the UI consumes them; the history log records them.
 
+use im::OrdMap;
 use serde::{Deserialize, Serialize};
 
 use crate::state::combat::AttackTarget;
@@ -10,7 +11,7 @@ use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::turn::{Phase, Step};
-use crate::state::types::ManaColor;
+use crate::state::types::{CounterType, ManaColor};
 use crate::state::zone::{ZoneId, ZoneType};
 
 /// The target of a combat damage assignment: a creature, player, or planeswalker.
@@ -241,6 +242,11 @@ pub enum GameEvent {
         /// the controller must be captured before the move and carried through
         /// this event to the trigger dispatch in `check_triggers`.
         controller: PlayerId,
+        /// CR 702.79a / CR 702.93a: counters on the creature just before it left
+        /// the battlefield (last known information). Used by persist (checks -1/-1)
+        /// and undying (checks +1/+1) to evaluate the intervening-if condition at
+        /// trigger time. Captured before `move_object_to_zone` resets counters.
+        pre_death_counters: OrdMap<CounterType, u32>,
     },
 
     /// A planeswalker was put into its owner's graveyard because its loyalty

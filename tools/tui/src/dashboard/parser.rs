@@ -1,7 +1,4 @@
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 
 use super::data::*;
 
@@ -73,18 +70,11 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
             // Try to extract the advancing-to milestone.
             if let Some(idx) = rest.find("advancing to ") {
                 let after = &rest[idx + "advancing to ".len()..];
-                state.active_milestone = after
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(rest)
-                    .to_string();
+                state.active_milestone =
+                    after.split_whitespace().next().unwrap_or(rest).to_string();
             } else {
                 // Just take the first token.
-                state.active_milestone = rest
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(rest)
-                    .to_string();
+                state.active_milestone = rest.split_whitespace().next().unwrap_or(rest).to_string();
             }
         } else if let Some(rest) = line.strip_prefix("- **Status**: ") {
             state.status_line = rest.to_string();
@@ -108,9 +98,7 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
 // ─── ability-coverage.md ───────────────────────────────────────────────────
 
 fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
-    let content = fs::read_to_string(
-        root.join("docs/mtg-engine-ability-coverage.md"),
-    )?;
+    let content = fs::read_to_string(root.join("docs/mtg-engine-ability-coverage.md"))?;
     let mut coverage = AbilityCoverage::default();
     let mut mode = ParseMode::None;
     let mut current_section: Option<AbilitySection> = None;
@@ -132,15 +120,16 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
             if let Some(sec) = current_section.take() {
                 coverage.sections.push(sec);
             }
-            let name = line
-                .trim_start_matches("## ")
-                .to_string();
+            let name = line.trim_start_matches("## ").to_string();
             current_section = Some(AbilitySection { name, rows: vec![] });
             mode = ParseMode::Section;
             continue;
         }
 
-        if line.starts_with("## ") && !line.starts_with("## Section ") && !line.starts_with("## Summary") {
+        if line.starts_with("## ")
+            && !line.starts_with("## Section ")
+            && !line.starts_with("## Summary")
+        {
             // Different top-level section — stop section parsing.
             if let Some(sec) = current_section.take() {
                 coverage.sections.push(sec);
@@ -152,14 +141,24 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
         match mode {
             ParseMode::None => {}
             ParseMode::Summary => {
-                if !line.starts_with('|') { continue; }
-                if is_separator(line) { continue; }
+                if !line.starts_with('|') {
+                    continue;
+                }
+                if is_separator(line) {
+                    continue;
+                }
                 let cells = table_cells(line);
-                if cells.len() < 7 { continue; }
+                if cells.len() < 7 {
+                    continue;
+                }
                 // Header row: "Priority", skip
-                if cells[0].to_lowercase() == "priority" { continue; }
+                if cells[0].to_lowercase() == "priority" {
+                    continue;
+                }
                 // Total row: starts with "Total"
-                if cells[0].to_lowercase().contains("total") { continue; }
+                if cells[0].to_lowercase().contains("total") {
+                    continue;
+                }
                 let row = PrioritySummary {
                     priority: cells[0].clone(),
                     total: cells[1].parse().unwrap_or(0),
@@ -172,13 +171,21 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
                 coverage.summary.push(row);
             }
             ParseMode::Section => {
-                if !line.starts_with('|') { continue; }
-                if is_separator(line) { continue; }
+                if !line.starts_with('|') {
+                    continue;
+                }
+                if is_separator(line) {
+                    continue;
+                }
                 let cells = table_cells(line);
-                if cells.len() < 2 { continue; }
+                if cells.len() < 2 {
+                    continue;
+                }
                 // Header row: first cell is "Ability", "Pattern", etc.
                 let first_lower = cells[0].to_lowercase();
-                if first_lower == "ability" || first_lower == "pattern" { continue; }
+                if first_lower == "ability" || first_lower == "pattern" {
+                    continue;
+                }
                 let row = AbilityRow {
                     name: cells.first().cloned().unwrap_or_default(),
                     cr: cells.get(1).cloned().unwrap_or_default(),
@@ -207,12 +214,14 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
 // ─── corner-case-audit.md ──────────────────────────────────────────────────
 
 fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
-    let content = fs::read_to_string(
-        root.join("docs/mtg-engine-corner-case-audit.md"),
-    )?;
+    let content = fs::read_to_string(root.join("docs/mtg-engine-corner-case-audit.md"))?;
     let mut audit = CornerCaseAudit::default();
 
-    enum ParseMode { None, Summary, Table }
+    enum ParseMode {
+        None,
+        Summary,
+        Table,
+    }
     let mut mode = ParseMode::None;
 
     for line in content.lines() {
@@ -232,11 +241,19 @@ fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
         match mode {
             ParseMode::None => {}
             ParseMode::Summary => {
-                if !line.starts_with('|') { continue; }
-                if is_separator(line) { continue; }
+                if !line.starts_with('|') {
+                    continue;
+                }
+                if is_separator(line) {
+                    continue;
+                }
                 let cells = table_cells(line);
-                if cells.len() < 2 { continue; }
-                if cells[0].to_lowercase() == "status" { continue; }
+                if cells.len() < 2 {
+                    continue;
+                }
+                if cells[0].to_lowercase() == "status" {
+                    continue;
+                }
                 let count: u32 = cells[1].parse().unwrap_or(0);
                 match cells[0].to_lowercase().as_str() {
                     "covered" => audit.covered = count,
@@ -247,14 +264,24 @@ fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
                 }
             }
             ParseMode::Table => {
-                if !line.starts_with('|') { continue; }
-                if is_separator(line) { continue; }
+                if !line.starts_with('|') {
+                    continue;
+                }
+                if is_separator(line) {
+                    continue;
+                }
                 let cells = table_cells(line);
-                if cells.len() < 4 { continue; }
+                if cells.len() < 4 {
+                    continue;
+                }
                 // Header: "#", skip
-                if cells[0] == "#" { continue; }
+                if cells[0] == "#" {
+                    continue;
+                }
                 let number: u32 = cells[0].parse().unwrap_or(0);
-                if number == 0 { continue; }
+                if number == 0 {
+                    continue;
+                }
 
                 // Status cell may be "**COVERED**" etc — already cleaned by clean_cell.
                 let status = cells.get(3).cloned().unwrap_or_default();
@@ -277,9 +304,7 @@ fn parse_corner_case_audit(root: &Path) -> anyhow::Result<CornerCaseAudit> {
 // ─── milestone-reviews.md ──────────────────────────────────────────────────
 
 fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
-    let content = fs::read_to_string(
-        root.join("docs/mtg-engine-milestone-reviews.md"),
-    )?;
+    let content = fs::read_to_string(root.join("docs/mtg-engine-milestone-reviews.md"))?;
     let mut stats = ReviewStatistics::default();
     let mut in_stats = false;
 
@@ -288,8 +313,12 @@ fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
             in_stats = true;
             continue;
         }
-        if !in_stats { continue; }
-        if line.starts_with("## ") { break; }
+        if !in_stats {
+            continue;
+        }
+        if line.starts_with("## ") {
+            break;
+        }
 
         // Parse LOC lines like "**Engine source LOC (M0-M9.4)**: ~17,800 lines"
         if line.starts_with("**Engine source LOC") {
@@ -316,11 +345,19 @@ fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
         }
 
         // Table rows
-        if !line.starts_with('|') { continue; }
-        if is_separator(line) { continue; }
+        if !line.starts_with('|') {
+            continue;
+        }
+        if is_separator(line) {
+            continue;
+        }
         let cells = table_cells(line);
-        if cells.len() < 2 { continue; }
-        if cells[0].to_lowercase() == "metric" { continue; }
+        if cells.len() < 2 {
+            continue;
+        }
+        if cells[0].to_lowercase() == "metric" {
+            continue;
+        }
 
         let metric = cells[0].as_str();
         let value = &cells[1];
@@ -355,7 +392,9 @@ pub fn parse_reviews_for_review_status(root: &Path) -> std::collections::HashMap
 
     for line in content.lines() {
         // Lines like: `- [M0: ...](#...) **(RE-REVIEWED)**`
-        if !line.starts_with("- [M") { continue; }
+        if !line.starts_with("- [M") {
+            continue;
+        }
         // Extract milestone ID: between "[M" and ":"
         if let Some(start) = line.find("[M") {
             let rest = &line[start + 1..]; // "M0: ..."
@@ -428,15 +467,19 @@ fn parse_roadmap(
             continue;
         }
 
-        if line.starts_with("**Acceptance") || line.starts_with("**Dependencies")
-            || line.starts_with("**Tests") || line.starts_with("**Goal")
+        if line.starts_with("**Acceptance")
+            || line.starts_with("**Dependencies")
+            || line.starts_with("**Tests")
+            || line.starts_with("**Goal")
             || (line.starts_with("**") && in_deliverables)
         {
             in_deliverables = false;
             continue;
         }
 
-        if !in_deliverables { continue; }
+        if !in_deliverables {
+            continue;
+        }
 
         if let Some(m) = current.as_mut() {
             if line.starts_with("- [x]") {
@@ -469,7 +512,9 @@ fn count_scripts(root: &Path) -> anyhow::Result<ScriptCounts> {
 
     for entry in fs::read_dir(&scripts_dir)? {
         let entry = entry?;
-        if !entry.file_type()?.is_dir() { continue; }
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
         let dir_name = entry.file_name().to_string_lossy().into_owned();
         let mut dir_count = 0u32;
         for script in fs::read_dir(entry.path())? {

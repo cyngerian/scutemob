@@ -109,7 +109,9 @@ impl App {
 
     pub fn load_selected(&mut self) {
         self.scroll = 0;
-        self.content = self.selected_file().and_then(|f| fs::read_to_string(&f.path).ok());
+        self.content = self
+            .selected_file()
+            .and_then(|f| fs::read_to_string(&f.path).ok());
         self.content_lines = self
             .content
             .as_deref()
@@ -121,7 +123,9 @@ impl App {
 
     pub fn list_down(&mut self) {
         let len = self.list_map.len();
-        if len == 0 { return; }
+        if len == 0 {
+            return;
+        }
         let sel = self.list_state.selected().unwrap_or(0);
         // Find next file entry (skip headers)
         let mut next = sel + 1;
@@ -136,7 +140,9 @@ impl App {
 
     pub fn list_up(&mut self) {
         let sel = self.list_state.selected().unwrap_or(0);
-        if sel == 0 { return; }
+        if sel == 0 {
+            return;
+        }
         // Find previous file entry (skip headers)
         let mut prev = sel - 1;
         while prev > 0 && self.list_map[prev].is_none() {
@@ -172,10 +178,19 @@ impl App {
         } else {
             // Select first file entry (skip any leading header)
             let first_file = self.list_map.iter().position(|e| e.is_some()).unwrap_or(0);
-            let sel = self.list_state.selected().unwrap_or(first_file).min(self.list_map.len() - 1);
+            let sel = self
+                .list_state
+                .selected()
+                .unwrap_or(first_file)
+                .min(self.list_map.len() - 1);
             // If clamped selection landed on a header, advance to next file
             let sel = if self.list_map.get(sel).copied().flatten().is_none() {
-                self.list_map.iter().skip(sel).position(|e| e.is_some()).map(|offset| sel + offset).unwrap_or(first_file)
+                self.list_map
+                    .iter()
+                    .skip(sel)
+                    .position(|e| e.is_some())
+                    .map(|offset| sel + offset)
+                    .unwrap_or(first_file)
             } else {
                 sel
             };
@@ -221,8 +236,7 @@ fn discover_docs(root: &PathBuf) -> Vec<DocFile> {
         let mut root_files: Vec<_> = entries
             .flatten()
             .filter(|e| {
-                e.path().is_file()
-                    && e.path().extension().and_then(|x| x.to_str()) == Some("md")
+                e.path().is_file() && e.path().extension().and_then(|x| x.to_str()) == Some("md")
             })
             .collect();
         root_files.sort_by_key(|e| e.file_name());

@@ -10,9 +10,7 @@ pub enum AppEvent {
 pub fn poll_event(timeout: Duration) -> anyhow::Result<Option<AppEvent>> {
     if event::poll(timeout)? {
         match event::read()? {
-            Event::Key(key) if key.kind == KeyEventKind::Press => {
-                Ok(Some(AppEvent::Key(key)))
-            }
+            Event::Key(key) if key.kind == KeyEventKind::Press => Ok(Some(AppEvent::Key(key))),
             Event::Resize(_, _) => Ok(Some(AppEvent::Resize((), ()))),
             _ => Ok(None),
         }
@@ -24,7 +22,6 @@ pub fn poll_event(timeout: Duration) -> anyhow::Result<Option<AppEvent>> {
 pub fn should_quit(key: &KeyEvent) -> bool {
     matches!(
         (key.code, key.modifiers),
-        (KeyCode::Char('q'), KeyModifiers::NONE)
-            | (KeyCode::Char('c'), KeyModifiers::CONTROL)
+        (KeyCode::Char('q'), KeyModifiers::NONE) | (KeyCode::Char('c'), KeyModifiers::CONTROL)
     )
 }

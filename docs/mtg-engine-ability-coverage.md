@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-26 (Kicker validated; KeywordAbility::Kicker enum + AbilityDefinition::Kicker, Condition::WasKicked, kicker_times_paid on StackObject/GameObject, get_kicker_cost + validation in casting.rs, kicker propagation in resolution.rs, harness kicked:bool, 10 unit tests in kicker.rs, Burst Lightning + Torch Slinger card defs, script stack/065)
+> Last audited: 2026-02-26 (Persist validated; KeywordAbility::Persist enum, InterveningIf::SourceHadNoCounterOfType in game_object.rs, pre_death_counters on CreatureDied event (7 emission sites), check_intervening_if in abilities.rs, builder keyword-to-trigger (SelfDies + intervening-if + Sequence(MoveZone, AddCounter)), ctx.source update after MoveZone in effects/mod.rs, 6 unit tests in persist.rs, Kitchen Finks card def, script combat/069)
 
 ---
 
@@ -31,10 +31,10 @@
 | Priority | Total | Validated | Complete | Partial | None | N/A |
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
-| P2       | 17    | 6         | 0        | 0       | 11   | 0   |
+| P2       | 17    | 10        | 0        | 0       | 7    | 0   |
 | P3       | 40    | 0         | 0        | 0       | 40   | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **46**   | **2**    | **0**   | **139**| **12** |
+| **Total**| **199**| **50**   | **2**    | **0**   | **135**| **12** |
 
 ---
 
@@ -157,7 +157,7 @@ Keywords that modify how spells are cast, copied, or resolved.
 | Spree | 702.165 | P4 | `none` | — | — | — | — | Choose modes, pay cost for each |
 | Cleave | 702.148 | P4 | `none` | — | — | — | — | Pay cleave cost → remove bracketed text |
 | Escalate | 702.121 | P4 | `none` | — | — | — | — | Pay escalate cost for each mode beyond the first |
-| Split Second | 702.61 | P2 | `none` | — | — | — | — | No spells or activated abilities while on stack |
+| Split Second | 702.61 | P2 | `validated` | `state/types.rs:250-255`, `state/hash.rs:347-348`, `rules/casting.rs:66-72,1060-1074`, `rules/abilities.rs:63-70,388-395` | Krosan Grip | `stack/066` | — | KeywordAbility::SplitSecond enum + has_split_second_on_stack helper; CastSpell gate (CR 702.61a), ActivateAbility gate (CR 702.61a), CycleCard gate (CR 702.61a); mana abilities exempt (CR 702.61b); triggered abilities still fire (CR 702.61b); uses calculate_characteristics for layer-aware keyword check; 8 unit tests in `tests/split_second.rs`; game script pending_review |
 | Gravestorm | 702.69 | P4 | `none` | — | — | — | Storm | Copy for each permanent put into graveyard this turn |
 
 ---
@@ -171,12 +171,12 @@ Keywords that modify combat or trigger during combat.
 | Flanking | 702.25 | P4 | `none` | — | — | — | — | Blocking creature without flanking gets -1/-1 |
 | Bushido | 702.45 | P4 | `none` | — | — | — | — | +N/+N when blocks or becomes blocked |
 | Provoke | 702.39 | P4 | `none` | — | — | — | — | Force target creature to block this |
-| Exalted | 702.83 | P2 | `none` | — | — | — | — | +1/+1 when a creature attacks alone |
+| Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |
 | Battle Cry | 702.91 | P3 | `none` | — | — | — | — | Attacking creatures get +1/+0 |
 | Myriad | 702.116 | P3 | `none` | — | — | — | — | Create token copies attacking each other opponent |
 | Melee | 702.122 | P4 | `none` | — | — | — | — | +1/+1 for each opponent attacked this combat |
 | Enlist | 702.155 | P4 | `none` | — | — | — | — | Tap non-attacking creature to add its power |
-| Annihilator | 702.86 | P2 | `none` | — | — | — | — | Defending player sacrifices N permanents |
+| Annihilator | 702.86 | P2 | `validated` | `state/types.rs:269`, `state/hash.rs:351+2223`, `state/stubs.rs:83`, `state/builder.rs:418-435`, `rules/abilities.rs:657-677,1000-1003`, `cards/card_definition.rs:349-354`, `effects/mod.rs:1034` | Ulamog's Crusher | `combat/068` | — | KeywordAbility::Annihilator(u32) enum + Effect::SacrificePermanents; defending_player_id on PendingTrigger; builder keyword-to-trigger translation (WhenAttacks + SacrificePermanents); check_triggers dispatch + flush_pending_triggers Target::Player wiring; 8 unit tests in `tests/annihilator.rs`; game script pending_review; TODO: "attacks each combat if able" static ability on Ulamog's Crusher is cosmetic only |
 | Dethrone | 702.105 | P3 | `none` | — | — | — | — | +1/+1 counter when attacking player with most life |
 | Rampage | 702.23 | P4 | `none` | — | — | — | — | +N/+N for each creature blocking beyond first |
 | Banding | 702.22 | P4 | `n/a` | — | — | — | — | Extremely complex, rarely used; intentionally deferred |
@@ -191,7 +191,7 @@ Keywords triggered by creatures entering, leaving, or dying.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Persist | 702.79 | P2 | `none` | — | — | — | — | Dies without -1/-1 counter → return with -1/-1 counter |
+| Persist | 702.79 | P2 | `validated` | `state/types.rs:277`, `state/game_object.rs:154-163`, `state/hash.rs:357`, `state/builder.rs:438-470`, `rules/events.rs:249`, `rules/abilities.rs:778-784,1175-1191`, `rules/sba.rs:301-356`, `rules/replacement.rs:754-769,1011-1039`, `effects/mod.rs:325-426,762-767,1071-1161` | Kitchen Finks | `combat/069` | — | KeywordAbility::Persist enum; InterveningIf::SourceHadNoCounterOfType(MinusOneMinusOne) in game_object.rs; pre_death_counters field on CreatureDied event (7 emission sites in sba.rs, effects/mod.rs, replacement.rs); check_intervening_if extended in abilities.rs; builder keyword-to-trigger translation (SelfDies + intervening-if + Sequence(MoveZone, AddCounter)); ctx.source update after MoveZone in effects/mod.rs:762-767; 6 unit tests in `tests/persist.rs`; game script pending_review |
 | Undying | 702.93 | P2 | `none` | — | — | — | — | Dies without +1/+1 counter → return with +1/+1 counter |
 | Riot | 702.136 | P3 | `none` | — | — | — | — | ETB: choose haste or +1/+1 counter |
 | Afterlife | 702.135 | P3 | `none` | — | — | — | — | Dies → create N 1/1 flying Spirit tokens |
@@ -466,9 +466,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P2 Gaps (Commander staples)
 
-1. **Split Second** (CR 702.61) — Priority restriction; no implementation.
-2. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
-3. **Crew** (CR 702.122) — Vehicle animation; no implementation.
-4. **Exalted** (CR 702.83) — Voltron staple; no implementation.
+1. **Changeling** (CR 702.73) — Tribal synergy staple; no implementation.
+2. **Crew** (CR 702.122) — Vehicle animation; no implementation.
 
-**Resolved**: Declare attackers/blockers harness action — validated 2026-02-26 (scripts combat/015+016, 6 unit tests in combat_harness.rs). Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll). Convoke (CR 702.51) — validated 2026-02-26 (script stack/063, Siege Wurm, 12 unit tests in convoke.rs). Delve (CR 702.66) — validated 2026-02-26 (script stack/064, Treasure Cruise, 10 unit tests in delve.rs). Kicker (CR 702.33) — validated 2026-02-26 (script stack/065, Burst Lightning + Torch Slinger, 10 unit tests in kicker.rs).
+**Resolved**: Declare attackers/blockers harness action — validated 2026-02-26 (scripts combat/015+016, 6 unit tests in combat_harness.rs). Flashback (CR 702.34) — validated 2026-02-26 (script 060, Think Twice + Faithless Looting). Cycling (CR 702.29) — validated 2026-02-26 (script 061, Lonely Sandbar). Dredge (CR 702.52) — validated 2026-02-26 (script replacement/014, Golgari Grave-Troll). Convoke (CR 702.51) — validated 2026-02-26 (script stack/063, Siege Wurm, 12 unit tests in convoke.rs). Delve (CR 702.66) — validated 2026-02-26 (script stack/064, Treasure Cruise, 10 unit tests in delve.rs). Kicker (CR 702.33) — validated 2026-02-26 (script stack/065, Burst Lightning + Torch Slinger, 10 unit tests in kicker.rs). Split Second (CR 702.61) — validated 2026-02-26 (script stack/066, Krosan Grip, 8 unit tests in split_second.rs). Exalted (CR 702.83) — validated 2026-02-26 (script combat/067, Akrasan Squire, 8 unit tests in exalted.rs). Annihilator (CR 702.86) — validated 2026-02-26 (script combat/068, Ulamog's Crusher, 8 unit tests in annihilator.rs). Persist (CR 702.79) — validated 2026-02-26 (script combat/069, Kitchen Finks, 6 unit tests in persist.rs).

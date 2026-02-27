@@ -789,6 +789,33 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
+        // 26a. Krosan Grip — {2G}, Instant; split second; destroy target artifact
+        //      or enchantment.
+        //      TODO: No TargetArtifactOrEnchantment variant exists; using TargetPermanent
+        //      as an approximation. A combined variant (or has_any_of_card_types on
+        //      TargetFilter) would be needed for precise targeting enforcement.
+        CardDefinition {
+            card_id: cid("krosan-grip"),
+            name: "Krosan Grip".to_string(),
+            mana_cost: Some(ManaCost { green: 1, generic: 2, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nDestroy target artifact or enchantment.".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::SplitSecond),
+                AbilityDefinition::Spell {
+                    // TODO: target should be TargetArtifactOrEnchantment (no such variant);
+                    // TargetPermanent is used as the closest approximation.
+                    effect: Effect::DestroyPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    targets: vec![TargetRequirement::TargetPermanent],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
         // ── Mass removal ─────────────────────────────────────────────────────
 
         // 26. Wrath of God — {2WW}, Sorcery; destroy all creatures. They can't be
@@ -1656,6 +1683,64 @@ pub fn all_cards() -> Vec<CardDefinition> {
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Convoke),
                 AbilityDefinition::Keyword(KeywordAbility::Trample),
+            ],
+        },
+
+        // 61. Akrasan Squire — {W}, Creature — Human Soldier 1/1; Exalted (CR 702.83).
+        CardDefinition {
+            card_id: cid("akrasan-squire"),
+            name: "Akrasan Squire".to_string(),
+            mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Soldier"]),
+            oracle_text: "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)".to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Exalted)],
+        },
+
+        // 62. Ulamog's Crusher — {8}, Creature — Eldrazi 8/8.
+        //     Annihilator 2 (CR 702.86a): whenever this creature attacks, the defending
+        //     player sacrifices two permanents. Engine support: builder.rs registers the
+        //     WhenAttacks triggered ability from KeywordAbility::Annihilator(n).
+        //     "This creature attacks each combat if able." — no DSL variant exists for
+        //     the compelled-attack static ability; tracked below as a TODO.
+        CardDefinition {
+            card_id: cid("ulamogs-crusher"),
+            name: "Ulamog's Crusher".to_string(),
+            mana_cost: Some(ManaCost { generic: 8, ..Default::default() }),
+            types: creature_types(&["Eldrazi"]),
+            oracle_text: "Annihilator 2 (Whenever this creature attacks, defending player sacrifices two permanents.)\nThis creature attacks each combat if able.".to_string(),
+            power: Some(8),
+            toughness: Some(8),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Annihilator(2)),
+                // TODO: Add a KeywordAbility::AttacksEachCombatIfAble variant (or a Static
+                // ContinuousEffectDef) to enforce the compelled-attack rule (CR 508.1d).
+                // Until then the "attacks each combat if able" text is cosmetic only.
+            ],
+        },
+
+        // 63. Kitchen Finks — {1}{G/W}{G/W}, Creature — Ouphe 3/2; ETB gain 2 life. Persist.
+        //     Oracle cost is {1}{G/W}{G/W} (hybrid); simplified here to {1}{W}{G} because
+        //     the ManaCost struct does not support hybrid mana symbols.
+        CardDefinition {
+            card_id: cid("kitchen-finks"),
+            name: "Kitchen Finks".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, white: 1, green: 1, ..Default::default() }),
+            types: creature_types(&["Ouphe"]),
+            oracle_text: "When this creature enters, you gain 2 life.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)".to_string(),
+            power: Some(3),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(2),
+                    },
+                    intervening_if: None,
+                },
+                AbilityDefinition::Keyword(KeywordAbility::Persist),
             ],
         },
 

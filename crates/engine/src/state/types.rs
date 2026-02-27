@@ -246,4 +246,33 @@ pub enum KeywordAbility {
     /// This variant is a marker for quick presence-checking (`keywords.contains`).
     /// The kicker cost itself is stored in `AbilityDefinition::Kicker { cost, is_multikicker }`.
     Kicker,
+    /// CR 702.61: Split second — as long as this spell is on the stack,
+    /// players can't cast other spells or activate abilities that aren't
+    /// mana abilities.
+    /// CR 702.61b: Mana abilities and special actions are still allowed.
+    /// CR 702.61b: Triggered abilities still trigger and resolve normally.
+    /// CR 702.61c: Multiple instances are redundant.
+    SplitSecond,
+    /// CR 702.83: Exalted — "Whenever a creature you control attacks alone,
+    /// that creature gets +1/+1 until end of turn."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances on different permanents each trigger separately.
+    Exalted,
+    /// CR 702.86: Annihilator N — "Whenever this creature attacks, defending
+    /// player sacrifices N permanents."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.86b).
+    Annihilator(u32),
+    /// CR 702.79: Persist — "When this permanent is put into a graveyard from
+    /// the battlefield, if it had no -1/-1 counters on it, return it to the
+    /// battlefield under its owner's control with a -1/-1 counter on it."
+    ///
+    /// Translated to a TriggeredAbilityDef at object-construction time in
+    /// `state/builder.rs`. The trigger fires on SelfDies events; the
+    /// intervening-if checks pre-death counters via the CreatureDied event.
+    Persist,
 }

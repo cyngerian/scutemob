@@ -13,8 +13,8 @@ use crate::cards::CardRegistry;
 use super::continuous_effect::ContinuousEffect;
 use super::error::GameStateError;
 use super::game_object::{
-    ActivatedAbility, Characteristics, GameObject, ManaAbility, ManaCost, ObjectId, ObjectStatus,
-    TriggerEvent, TriggeredAbilityDef,
+    ActivatedAbility, Characteristics, GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId,
+    ObjectStatus, TriggerEvent, TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -25,7 +25,7 @@ use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperT
 use super::zone::{Zone, ZoneId};
 use super::GameState;
 use crate::cards::card_definition::{
-    ContinuousEffectDef, Cost, Effect, EffectTarget, PlayerTarget,
+    ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, PlayerTarget,
 };
 use crate::state::continuous_effect::{
     EffectDuration as CEDuration, EffectFilter as CEFilter, EffectLayer, LayerModification,
@@ -391,6 +391,80 @@ impl GameStateBuilder {
                                 duration: CEDuration::UntilEndOfTurn,
                             }),
                         }),
+                    });
+                }
+
+                // CR 702.83a: Exalted — "Whenever a creature you control attacks alone,
+                // that creature gets +1/+1 until end of turn."
+                // Each keyword instance generates one TriggeredAbilityDef.
+                // The +1/+1 targets the lone attacker (DeclaredTarget { index: 0 }),
+                // not the permanent with exalted (which may not even be a creature).
+                if matches!(kw, KeywordAbility::Exalted) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::ControllerCreatureAttacksAlone,
+                        intervening_if: None,
+                        description: "Exalted (CR 702.83a): Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.".to_string(),
+                        effect: Some(Effect::ApplyContinuousEffect {
+                            effect_def: Box::new(ContinuousEffectDef {
+                                layer: EffectLayer::PtModify,
+                                modification: LayerModification::ModifyBoth(1),
+                                filter: CEFilter::DeclaredTarget { index: 0 },
+                                duration: CEDuration::UntilEndOfTurn,
+                            }),
+                        }),
+                    });
+                }
+
+                // CR 702.86a: Annihilator N — "Whenever this creature attacks, defending
+                // player sacrifices N permanents."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.86b).
+                // The effect targets the defending player (DeclaredTarget { index: 0 }),
+                // which is resolved at flush time via PendingTrigger.defending_player_id.
+                if let KeywordAbility::Annihilator(n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: format!(
+                            "Annihilator {n} (CR 702.86a): Whenever this creature attacks, \
+                             defending player sacrifices {n} permanents."
+                        ),
+                        effect: Some(Effect::SacrificePermanents {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            count: EffectAmount::Fixed(*n as i32),
+                        }),
+                    });
+                }
+
+                // CR 702.79a: Persist — "When this permanent is put into a graveyard from
+                // the battlefield, if it had no -1/-1 counters on it, return it to the
+                // battlefield under its owner's control with a -1/-1 counter on it."
+                // Each keyword instance generates one TriggeredAbilityDef.
+                // The intervening-if is checked at trigger time against pre_death_counters
+                // carried by the CreatureDied event (last known information, CR 603.10a).
+                if matches!(kw, KeywordAbility::Persist) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfDies,
+                        intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
+                            CounterType::MinusOneMinusOne,
+                        )),
+                        description: "Persist (CR 702.79a): When this permanent dies, \
+                                      if it had no -1/-1 counters on it, return it to the \
+                                      battlefield under its owner's control with a -1/-1 \
+                                      counter on it."
+                            .to_string(),
+                        effect: Some(Effect::Sequence(vec![
+                            Effect::MoveZone {
+                                target: EffectTarget::Source,
+                                to: crate::cards::card_definition::ZoneTarget::Battlefield {
+                                    tapped: false,
+                                },
+                            },
+                            Effect::AddCounter {
+                                target: EffectTarget::Source,
+                                counter: CounterType::MinusOneMinusOne,
+                                count: 1,
+                            },
+                        ])),
                     });
                 }
             }

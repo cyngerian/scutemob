@@ -3,7 +3,7 @@
 //! Replaces `tui-markdown` to support tables, code blocks, and proper list formatting.
 //! Uses `pulldown-cmark` for parsing.
 
-use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd, CodeBlockKind, HeadingLevel};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
@@ -123,10 +123,8 @@ impl MdRenderer {
                 };
                 let prefix = "#".repeat(self.heading_level as usize);
                 let style = heading_style(self.heading_level);
-                self.current_spans.push(Span::styled(
-                    format!("{} ", prefix),
-                    style,
-                ));
+                self.current_spans
+                    .push(Span::styled(format!("{} ", prefix), style));
                 self.push_style(style);
             }
             Tag::Paragraph => {
@@ -141,7 +139,11 @@ impl MdRenderer {
                 self.in_code_block = true;
                 let lang = match kind {
                     CodeBlockKind::Fenced(lang) => {
-                        if lang.is_empty() { "" } else { lang.as_ref() }
+                        if lang.is_empty() {
+                            ""
+                        } else {
+                            lang.as_ref()
+                        }
                     }
                     CodeBlockKind::Indented => "",
                 };
@@ -276,7 +278,8 @@ impl MdRenderer {
                 self.table_rows.push(std::mem::take(&mut self.current_row));
             }
             TagEnd::TableCell => {
-                self.current_row.push(std::mem::take(&mut self.current_cell));
+                self.current_row
+                    .push(std::mem::take(&mut self.current_cell));
             }
             _ => {}
         }
@@ -293,10 +296,7 @@ impl MdRenderer {
             for line in text.lines() {
                 self.lines.push(Line::from(vec![
                     Span::styled("  │ ", Style::default().fg(Color::DarkGray)),
-                    Span::styled(
-                        line.to_string(),
-                        Style::default().fg(Color::Green),
-                    ),
+                    Span::styled(line.to_string(), Style::default().fg(Color::Green)),
                 ]));
             }
             return;
@@ -312,7 +312,8 @@ impl MdRenderer {
                 ));
             }
         }
-        self.current_spans.push(Span::styled(text.to_string(), style));
+        self.current_spans
+            .push(Span::styled(text.to_string(), style));
     }
 
     fn handle_inline_code(&mut self, code: &pulldown_cmark::CowStr) {
@@ -327,13 +328,17 @@ impl MdRenderer {
     }
 
     fn handle_soft_break(&mut self) {
-        if self.in_table { return; }
+        if self.in_table {
+            return;
+        }
         // Soft break = space (word wrapping handles the rest)
         self.current_spans.push(Span::raw(" "));
     }
 
     fn handle_hard_break(&mut self) {
-        if self.in_table { return; }
+        if self.in_table {
+            return;
+        }
         self.flush_line();
     }
 
@@ -352,7 +357,11 @@ impl MdRenderer {
         // Replace the bullet that was already added by Item start
         if let Some(last) = self.current_spans.last_mut() {
             *last = Span::styled(
-                format!("{}{}", last.content.trim_end_matches("• ").trim_end_matches(". "), marker),
+                format!(
+                    "{}{}",
+                    last.content.trim_end_matches("• ").trim_end_matches(". "),
+                    marker
+                ),
                 Style::default().fg(color),
             );
         }
@@ -360,10 +369,14 @@ impl MdRenderer {
 
     /// Render accumulated table rows with box-drawing borders.
     fn render_table(&mut self) {
-        if self.table_rows.is_empty() { return; }
+        if self.table_rows.is_empty() {
+            return;
+        }
 
         let num_cols = self.table_rows.iter().map(|r| r.len()).max().unwrap_or(0);
-        if num_cols == 0 { return; }
+        if num_cols == 0 {
+            return;
+        }
 
         // Calculate column widths (min 3, max 40)
         let mut col_widths: Vec<usize> = vec![3; num_cols];
@@ -376,13 +389,16 @@ impl MdRenderer {
         }
 
         let border_style = Style::default().fg(Color::DarkGray);
-        let header_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+        let header_style = Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD);
         let cell_style = Style::default().fg(Color::White);
 
         // Top border
         let top = format!(
             "┌{}┐",
-            col_widths.iter()
+            col_widths
+                .iter()
                 .map(|w| "─".repeat(w + 2))
                 .collect::<Vec<_>>()
                 .join("┬")
@@ -392,7 +408,11 @@ impl MdRenderer {
         for (row_idx, row) in self.table_rows.iter().enumerate() {
             // Row content
             let mut spans: Vec<Span<'static>> = vec![Span::styled("│", border_style)];
-            let style = if row_idx == 0 { header_style } else { cell_style };
+            let style = if row_idx == 0 {
+                header_style
+            } else {
+                cell_style
+            };
             for (i, width) in col_widths.iter().enumerate() {
                 let cell = row.get(i).map(|s| s.trim()).unwrap_or("");
                 let truncated = if cell.len() > *width {
@@ -409,7 +429,8 @@ impl MdRenderer {
             if row_idx == 0 {
                 let sep = format!(
                     "├{}┤",
-                    col_widths.iter()
+                    col_widths
+                        .iter()
                         .map(|w| "─".repeat(w + 2))
                         .collect::<Vec<_>>()
                         .join("┼")
@@ -421,20 +442,30 @@ impl MdRenderer {
         // Bottom border
         let bottom = format!(
             "└{}┘",
-            col_widths.iter()
+            col_widths
+                .iter()
                 .map(|w| "─".repeat(w + 2))
                 .collect::<Vec<_>>()
                 .join("┴")
         );
-        self.lines.push(Line::from(Span::styled(bottom, border_style)));
+        self.lines
+            .push(Line::from(Span::styled(bottom, border_style)));
     }
 }
 
 fn heading_style(level: u8) -> Style {
     match level {
-        1 => Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
-        2 => Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        3 => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-        _ => Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+        1 => Style::default()
+            .fg(Color::Magenta)
+            .add_modifier(Modifier::BOLD),
+        2 => Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+        3 => Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+        _ => Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
     }
 }

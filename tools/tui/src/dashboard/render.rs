@@ -23,10 +23,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .split(area);
 
     // ─── tabs bar ───────────────────────────────────────────────────────────
-    let tab_titles: Vec<Span> = TAB_NAMES
-        .iter()
-        .map(|t| Span::raw(*t))
-        .collect();
+    let tab_titles: Vec<Span> = TAB_NAMES.iter().map(|t| Span::raw(*t)).collect();
 
     let tabs_widget = Tabs::new(tab_titles)
         .block(

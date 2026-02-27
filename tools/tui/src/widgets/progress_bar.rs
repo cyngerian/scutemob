@@ -15,7 +15,10 @@ pub fn progress_bar(ratio: f64, width: u16, label: &str, color: Color) -> Line<'
 
     Line::from(vec![
         Span::styled("█".repeat(filled as usize), Style::default().fg(color)),
-        Span::styled("░".repeat(empty as usize), Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            "░".repeat(empty as usize),
+            Style::default().fg(Color::DarkGray),
+        ),
         Span::raw(" "),
         Span::raw(label),
     ])

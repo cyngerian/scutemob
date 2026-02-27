@@ -63,6 +63,14 @@ pub fn handle_cast_spell(
         });
     }
 
+    // CR 702.61a: If a spell with split second is on the stack, no spells
+    // can be cast (mana abilities and special actions are still allowed).
+    if has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; no spells can be cast (CR 702.61a)".into(),
+        ));
+    }
+
     // Fetch the card and validate it is in the player's hand, command zone, or graveyard
     // (with flashback). CR 903.8: A player may cast their commander from the command zone.
     // CR 702.34a: A card with flashback may be cast from its owner's graveyard.
@@ -1038,6 +1046,31 @@ pub fn can_pay_cost(
         + (pool.colorless - cost.colorless);
 
     remaining >= cost.generic
+}
+
+/// CR 702.61a: Check if any spell on the stack has split second.
+///
+/// While a spell with split second is on the stack, players can't cast other
+/// spells or activate abilities that aren't mana abilities (CR 702.61a).
+/// Mana abilities and special actions are still allowed (CR 702.61b).
+/// Triggered abilities still trigger and resolve normally (CR 702.61b).
+///
+/// Uses `calculate_characteristics` to respect continuous effects that might
+/// grant or remove split second (layer system, CR 613).
+pub fn has_split_second_on_stack(state: &GameState) -> bool {
+    state.stack_objects.iter().any(|stack_obj| {
+        if let StackObjectKind::Spell { source_object } = &stack_obj.kind {
+            let chars = calculate_characteristics(state, *source_object).unwrap_or_else(|| {
+                state
+                    .object(*source_object)
+                    .map(|o| o.characteristics.clone())
+                    .unwrap_or_default()
+            });
+            chars.keywords.contains(&KeywordAbility::SplitSecond)
+        } else {
+            false
+        }
+    })
 }
 
 /// Deduct a mana cost from the mana pool. Caller must verify `can_pay_cost` first.

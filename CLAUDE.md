@@ -12,10 +12,10 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 729 tests passing; 71 approved + 3 pending_review scripts; 42/42 P1 validated; 6/17 P2 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
+- **Status**: 759 tests passing; 71 approved + 7 pending_review scripts; 42/42 P1 validated; 10/17 P2 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
 - **Last Updated**: 2026-02-26
 
-### What Exists (M9.5 complete + 16 abilities, includes M0-M9 + Engine Core Complete checkpoint)
+### What Exists (M9.5 complete + 20 abilities, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 56 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Goad, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting, resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA)

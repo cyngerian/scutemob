@@ -594,5 +594,9 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Convoke => "Convoke".to_string(),
         KeywordAbility::Delve => "Delve".to_string(),
         KeywordAbility::Kicker => "Kicker".to_string(),
+        KeywordAbility::SplitSecond => "Split Second".to_string(),
+        KeywordAbility::Exalted => "Exalted".to_string(),
+        KeywordAbility::Annihilator(n) => format!("Annihilator {n}"),
+        KeywordAbility::Persist => "Persist".to_string(),
     }
 }

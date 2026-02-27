@@ -63,6 +63,24 @@ pub struct PendingTrigger {
     /// `None` for all other trigger types.
     #[serde(default)]
     pub triggering_player: Option<PlayerId>,
+    /// CR 702.83a: The lone attacker's ObjectId for Exalted triggers.
+    ///
+    /// Populated when a `ControllerCreatureAttacksAlone` trigger fires. At flush
+    /// time, this ID is set as `Target::Object(attacker_id)` at index 0 so the
+    /// effect's `CEFilter::DeclaredTarget { index: 0 }` resolves to the correct
+    /// creature (the lone attacker, not the exalted source).
+    /// `None` for all other trigger types.
+    #[serde(default)]
+    pub exalted_attacker_id: Option<ObjectId>,
+    /// CR 508.5 / CR 702.86a: The defending player for SelfAttacks triggers.
+    ///
+    /// Populated when a `SelfAttacks` trigger fires. At flush time, this PlayerId
+    /// is set as `Target::Player` at index 0 so the annihilator effect's
+    /// `PlayerTarget::DeclaredTarget { index: 0 }` resolves to the correct
+    /// defending player. Also usable by any future "whenever this attacks,
+    /// [effect on defending player]" trigger. `None` for all other trigger types.
+    #[serde(default)]
+    pub defending_player_id: Option<PlayerId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

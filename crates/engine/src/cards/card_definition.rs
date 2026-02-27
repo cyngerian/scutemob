@@ -341,6 +341,17 @@ pub enum Effect {
         payer: PlayerTarget,
         or_else: Box<Effect>,
     },
+    /// CR 701.17a: The specified player sacrifices `count` permanents they control.
+    ///
+    /// If the player controls fewer than `count` permanents, they sacrifice all
+    /// permanents they control. The player chooses which permanents to sacrifice
+    /// (deterministic fallback: sacrifice in ObjectId ascending order). Sacrifice
+    /// ignores indestructible (CR 701.17a). Used by Annihilator (CR 702.86a) and
+    /// other "target player sacrifices N permanents" effects.
+    SacrificePermanents {
+        player: PlayerTarget,
+        count: EffectAmount,
+    },
     /// CR 701.38: Goad — target creature must attack each combat if able, and
     /// must attack a player other than the goading player if able.
     ///

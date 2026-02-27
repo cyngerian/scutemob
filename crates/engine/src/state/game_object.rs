@@ -138,6 +138,12 @@ pub enum TriggerEvent {
     /// (CR 102.2 two-player, CR 102.3 multiplayer FFA = Commander default).
     /// The opponent check is done at trigger-collection time in `rules/abilities.rs`.
     OpponentCastsSpell,
+    /// CR 702.83a: Triggers on each permanent controlled by the attacking player
+    /// when exactly one creature is declared as an attacker ("attacks alone").
+    /// Used by the Exalted keyword. The "attacks alone" check is done at
+    /// trigger-collection time in `rules/abilities.rs`. The +1/+1 effect targets
+    /// the lone attacker (not the source), resolved via DeclaredTarget { index: 0 }.
+    ControllerCreatureAttacksAlone,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -148,6 +154,13 @@ pub enum TriggerEvent {
 pub enum InterveningIf {
     /// "if your life total is [N] or more" — for testing conditional triggers.
     ControllerLifeAtLeast(u32),
+    /// "if it had no [counter type] counters on it" — checked against pre-death
+    /// counter state for persist/undying (CR 702.79a, CR 702.93a).
+    /// At trigger time: checks `CreatureDied.pre_death_counters`.
+    /// At resolution time: the condition passes unconditionally (the source is
+    /// in the graveyard with no counters; MoveZone will simply find nothing if
+    /// the source has since left the graveyard).
+    SourceHadNoCounterOfType(crate::state::types::CounterType),
 }
 
 /// A triggered ability definition on a game object (CR 603).

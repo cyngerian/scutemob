@@ -4,13 +4,13 @@ mod parser;
 mod render;
 mod tabs;
 
-use std::{io, path::PathBuf, time::Duration};
 use anyhow::Result;
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
+use std::{io, path::PathBuf, time::Duration};
 
 use crate::event::{poll_event, should_quit, AppEvent};
 use app::App;
@@ -40,10 +40,7 @@ pub fn run(_watch: bool) -> Result<()> {
     result
 }
 
-fn main_loop(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    app: &mut App,
-) -> Result<()> {
+fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| render::render(f, app))?;
 

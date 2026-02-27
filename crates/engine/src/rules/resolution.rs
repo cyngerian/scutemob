@@ -365,10 +365,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .intervening_if
                                 .as_ref()
                                 .map(|cond| {
+                                    // CR 603.4: At resolution, pass None for pre_death_counters.
+                                    // For persist/undying, the source is now in the graveyard
+                                    // with no counters; the MoveZone effect will no-op if the
+                                    // source has since left the graveyard.
                                     abilities::check_intervening_if(
                                         state,
                                         cond,
                                         stack_obj.controller,
+                                        None,
                                     )
                                 })
                                 .unwrap_or(true),

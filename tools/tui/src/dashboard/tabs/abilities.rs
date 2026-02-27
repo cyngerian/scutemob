@@ -6,8 +6,8 @@ use ratatui::{
     Frame,
 };
 
-use crate::theme;
 use super::super::app::App;
+use crate::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Split: summary (top, fixed) + scrollable list (bottom)
@@ -29,16 +29,31 @@ fn render_summary(f: &mut Frame, area: Rect, app: &App) {
     let mut lines: Vec<Line> = vec![];
 
     for row in &app.data.abilities.summary {
-        if row.priority.to_lowercase().contains("total") || row.priority.is_empty() { continue; }
-        let ratio = if row.total > 0 { row.validated as f64 / row.total as f64 } else { 0.0 };
-        let label = format!("{}: {:>2}/{:<2} validated", row.priority, row.validated, row.total);
+        if row.priority.to_lowercase().contains("total") || row.priority.is_empty() {
+            continue;
+        }
+        let ratio = if row.total > 0 {
+            row.validated as f64 / row.total as f64
+        } else {
+            0.0
+        };
+        let label = format!(
+            "{}: {:>2}/{:<2} validated",
+            row.priority, row.validated, row.total
+        );
         let filled = ((ratio.clamp(0.0, 1.0) * bar_width as f64) as u16).min(bar_width);
         let empty = bar_width - filled;
         lines.push(Line::from(vec![
             Span::styled(format!("{:<20}", label), Style::default().fg(Color::White)),
             Span::raw(" "),
-            Span::styled("█".repeat(filled as usize), Style::default().fg(theme::GREEN)),
-            Span::styled("░".repeat(empty as usize), Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "█".repeat(filled as usize),
+                Style::default().fg(theme::GREEN),
+            ),
+            Span::styled(
+                "░".repeat(empty as usize),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]));
     }
 
@@ -58,12 +73,12 @@ fn render_ability_list(f: &mut Frame, area: Rect, app: &mut App) {
 
     for section in &app.data.abilities.sections {
         // Section header
-        items.push(ListItem::new(Line::from(vec![
-            Span::styled(
-                format!("§ {}", section.name),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            ),
-        ])));
+        items.push(ListItem::new(Line::from(vec![Span::styled(
+            format!("§ {}", section.name),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )])));
 
         // Two-column layout: pair rows side by side
         let rows = &section.rows;
@@ -99,7 +114,11 @@ fn render_ability_list(f: &mut Frame, area: Rect, app: &mut App) {
     }
 
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Abilities (j/k to scroll) "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Abilities (j/k to scroll) "),
+        )
         .highlight_style(Style::default().bg(Color::DarkGray));
 
     f.render_stateful_widget(list, area, &mut app.ability_list_state);
@@ -116,8 +135,14 @@ fn ability_row_spans(row: &crate::dashboard::data::AbilityRow) -> Vec<Span<'stat
     };
     vec![
         Span::styled(name, Style::default().fg(Color::White)),
-        Span::styled(format!("{:>2} ", row.priority), Style::default().fg(Color::Gray)),
+        Span::styled(
+            format!("{:>2} ", row.priority),
+            Style::default().fg(Color::Gray),
+        ),
         Span::styled(format!("{} ", symbol), Style::default().fg(status_color)),
-        Span::styled(format!("{:<10}", row.status), Style::default().fg(status_color)),
+        Span::styled(
+            format!("{:<10}", row.status),
+            Style::default().fg(status_color),
+        ),
     ]
 }

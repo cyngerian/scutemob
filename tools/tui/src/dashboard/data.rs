@@ -64,7 +64,7 @@ pub struct AbilityRow {
 /// Parsed from `docs/mtg-engine-roadmap.md`.
 #[derive(Debug, Default)]
 pub struct MilestoneStatus {
-    pub id: String,         // "M0", "M1", "M9.5"
+    pub id: String, // "M0", "M1", "M9.5"
     pub name: String,
     pub total_deliverables: u32,
     pub completed_deliverables: u32,

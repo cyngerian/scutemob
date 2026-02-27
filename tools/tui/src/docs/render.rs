@@ -38,14 +38,12 @@ fn render_file_list(f: &mut Frame, area: Rect, app: &mut App) {
         // Group header when group changes
         if file.group != last_group {
             last_group = file.group.clone();
-            items.push(ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!(" {} ", file.group),
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ])));
+            items.push(ListItem::new(Line::from(vec![Span::styled(
+                format!(" {} ", file.group),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )])));
         }
 
         // Strip the "group/" prefix from display name
@@ -142,8 +140,7 @@ fn render_status(f: &mut Frame, area: Rect, app: &App) {
     );
 
     f.render_widget(
-        Paragraph::new(padded)
-            .style(Style::default().fg(Color::White).bg(Color::DarkGray)),
+        Paragraph::new(padded).style(Style::default().fg(Color::White).bg(Color::DarkGray)),
         area,
     );
 }

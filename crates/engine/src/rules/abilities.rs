@@ -60,6 +60,15 @@ pub fn handle_activate_ability(
         });
     }
 
+    // CR 702.61a: If a spell with split second is on the stack, no non-mana
+    // abilities can be activated. (Mana abilities are handled in mana.rs and
+    // are exempt from this check per CR 702.61b.)
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; non-mana abilities cannot be activated (CR 702.61a)".into(),
+        ));
+    }
+
     // Source must be on the battlefield.
     {
         let obj = state.object(source)?;
@@ -221,7 +230,7 @@ pub fn handle_activate_ability(
 
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.
     if ability_cost.sacrifice_self {
-        let (is_creature, owner, pre_death_controller) = {
+        let (is_creature, owner, pre_death_controller, pre_death_counters) = {
             let obj = state.object(source)?;
             (
                 obj.characteristics
@@ -230,6 +239,8 @@ pub fn handle_activate_ability(
                 obj.owner,
                 // CR 603.3a: capture controller before move_object_to_zone resets it to owner.
                 obj.controller,
+                // CR 702.79a: capture counters before move_object_to_zone resets them.
+                obj.counters.clone(),
             )
         };
         let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
@@ -238,6 +249,7 @@ pub fn handle_activate_ability(
                 object_id: source,
                 new_grave_id: new_id,
                 controller: pre_death_controller,
+                pre_death_counters,
             });
         } else {
             events.push(GameEvent::PermanentDestroyed {
@@ -374,6 +386,15 @@ pub fn handle_cycle_card(
             expected: state.turn.priority_holder,
             actual: player,
         });
+    }
+
+    // CR 702.61a: Cycling is an activated ability, not a mana ability.
+    // It cannot be activated while a spell with split second is on the stack.
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; cycling cannot be activated (CR 702.61a)"
+                .into(),
+        ));
     }
 
     // 2. Zone check (CR 702.29a): card must be in Hand(player).
@@ -631,9 +652,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 );
             }
 
-            GameEvent::AttackersDeclared { attackers, .. } => {
+            GameEvent::AttackersDeclared {
+                attacking_player,
+                attackers,
+            } => {
                 // SelfAttacks: fires on each creature that is declared as an attacker (CR 508.1m, CR 508.3a).
-                for (attacker_id, _) in attackers {
+                // CR 702.86a / CR 508.5: tag each SelfAttacks trigger with the defending player
+                // so annihilator (and any future "defending player" attack triggers) can resolve
+                // the correct player in multiplayer games (CR 508.5a).
+                for (attacker_id, attack_target) in attackers {
+                    let pre_len = triggers.len();
                     collect_triggers_for_event(
                         state,
                         &mut triggers,
@@ -641,6 +669,48 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(*attacker_id),
                         None,
                     );
+                    // Resolve defending player from AttackTarget (CR 508.5).
+                    let defending_player = match attack_target {
+                        crate::state::combat::AttackTarget::Player(pid) => Some(*pid),
+                        crate::state::combat::AttackTarget::Planeswalker(pw_id) => {
+                            state.objects.get(pw_id).map(|obj| obj.controller)
+                        }
+                    };
+                    for t in &mut triggers[pre_len..] {
+                        t.defending_player_id = defending_player;
+                    }
+                }
+
+                // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
+                // If exactly one creature is declared as an attacker, fire exalted triggers
+                // on ALL permanents controlled by the attacking player (not just the attacker).
+                // CR 702.83b: "attacks alone" = exactly one creature declared as attacker.
+                if attackers.len() == 1 {
+                    let (lone_attacker_id, _) = &attackers[0];
+                    let exalted_sources: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield && obj.controller == *attacking_player
+                        })
+                        .map(|obj| obj.id)
+                        .collect();
+
+                    let pre_len = triggers.len();
+                    for obj_id in exalted_sources {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::ControllerCreatureAttacksAlone,
+                            Some(obj_id),
+                            None,
+                        );
+                    }
+                    // Tag exalted triggers with the lone attacker's ObjectId so
+                    // flush_pending_triggers can set Target::Object(attacker_id) at index 0.
+                    for t in &mut triggers[pre_len..] {
+                        t.exalted_attacker_id = Some(*lone_attacker_id);
+                    }
                 }
             }
 
@@ -688,6 +758,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             GameEvent::CreatureDied {
                 new_grave_id,
                 controller: death_controller,
+                pre_death_counters,
                 ..
             } => {
                 // CR 603.6c / CR 603.10a / CR 700.4: "When ~ dies" triggers look back in time.
@@ -704,8 +775,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
 
                         // CR 603.4: Check intervening-if clause at trigger time.
+                        // Pass pre_death_counters for persist/undying counter checks (CR 702.79a).
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, *death_controller) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                *death_controller,
+                                Some(pre_death_counters),
+                            ) {
                                 continue;
                             }
                         }
@@ -722,6 +799,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
                         });
                     }
                 }
@@ -744,7 +823,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 
                         // CR 603.4: Check intervening-if clause at trigger time.
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller) {
+                            if !check_intervening_if(state, cond, controller, None) {
                                 continue;
                             }
                         }
@@ -757,6 +836,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
                         });
                     }
                 }
@@ -833,7 +914,7 @@ fn collect_triggers_for_event(
             // CR 603.4: Check intervening-if at trigger time.
             // If the condition is false, the ability does not trigger.
             if let Some(ref cond) = trigger_def.intervening_if {
-                if !check_intervening_if(state, cond, obj.controller) {
+                if !check_intervening_if(state, cond, obj.controller, None) {
                     continue;
                 }
             }
@@ -846,6 +927,8 @@ fn collect_triggers_for_event(
                 entering_object_id: entering_object,
                 targeting_stack_id: None,
                 triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
             });
         }
     }
@@ -922,6 +1005,22 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         } else if let Some(pid) = trigger.triggering_player {
             vec![SpellTarget {
                 target: Target::Player(pid),
+                zone_at_cast: None,
+            }]
+        } else if let Some(dp) = trigger.defending_player_id {
+            // CR 702.86a / CR 508.5: Annihilator triggers carry the defending player ID.
+            // Set as Target::Player at index 0 so PlayerTarget::DeclaredTarget { index: 0 }
+            // resolves to the correct defending player for the SacrificePermanents effect.
+            vec![SpellTarget {
+                target: Target::Player(dp),
+                zone_at_cast: None,
+            }]
+        } else if let Some(attacker_id) = trigger.exalted_attacker_id {
+            // CR 702.83a: Exalted triggers carry the lone attacker's ObjectId.
+            // Set it as Target::Object at index 0 so CEFilter::DeclaredTarget { index: 0 }
+            // resolves to the attacking creature (not the exalted source permanent).
+            vec![SpellTarget {
+                target: Target::Object(attacker_id),
                 zone_at_cast: None,
             }]
         } else {
@@ -1069,12 +1168,28 @@ fn doubler_applies_to_trigger(
 }
 
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
-pub fn check_intervening_if(state: &GameState, cond: &InterveningIf, controller: PlayerId) -> bool {
+///
+/// `pre_death_counters` — counters captured from the creature just before it left
+/// the battlefield. Required for `SourceHadNoCounterOfType` checks (persist/undying).
+/// Pass `None` for all non-death trigger contexts.
+pub fn check_intervening_if(
+    state: &GameState,
+    cond: &InterveningIf,
+    controller: PlayerId,
+    pre_death_counters: Option<&im::OrdMap<crate::state::types::CounterType, u32>>,
+) -> bool {
     match cond {
         InterveningIf::ControllerLifeAtLeast(n) => state
             .players
             .get(&controller)
             .map(|p| p.life_total >= *n as i32)
             .unwrap_or(false),
+        // CR 702.79a / CR 702.93a: "if it had no [counter type] counters on it"
+        // Checked against last-known-information (pre-death counters) at trigger time.
+        // At resolution time, caller passes None; the condition is treated as true
+        // (the MoveZone effect will silently no-op if the source left the graveyard).
+        InterveningIf::SourceHadNoCounterOfType(ct) => pre_death_counters
+            .map(|counters| !counters.contains_key(ct))
+            .unwrap_or(true),
     }
 }

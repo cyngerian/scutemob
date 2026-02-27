@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 16 abilities (2026-02-26)
+# Infra & Testing Gotchas — Last verified: M9.5 + 20 abilities (2026-02-26)
 
 ## Rust / im-rs Gotchas
 
@@ -126,6 +126,18 @@
 - **Aura attachment order in `resolution.rs`**: `set attached_to/attachments` MUST happen
   BEFORE `register_static_continuous_effects`. If continuous effects register before attachment,
   `EffectFilter::AttachedCreature` finds no target and the Aura's static effects never apply.
+- **`ctx.source` is stale after `MoveZone` moves the source object.** `move_object_to_zone`
+  creates a new `ObjectId` for the destination object (CR 400.7). Any subsequent effect in a
+  `Sequence` that references `EffectTarget::Source` will fail silently unless `ctx.source` is
+  updated. Fix: after `MoveZone` resolves for a `Source` target, set `ctx.source = new_id`.
+  Applies to persist/undying/blink-style effects where a `Sequence([MoveZone, AddCounter])`
+  or similar is used. See `effects/mod.rs:762-767`.
+- **Last-known-information for die triggers: capture counters BEFORE `move_object_to_zone`.**
+  After the zone move, the old `ObjectId` is dead and `counters` are reset to `OrdMap::new()`.
+  For persist/undying-style intervening-if checks, capture `pre_death_counters` from the live
+  object before moving, and carry them through the `CreatureDied` event. All 8 `CreatureDied`
+  emission sites (sba.rs, abilities.rs, effects/mod.rs, replacement.rs) must do this capture.
+  See `rules/events.rs:249` and the `InterveningIf::SourceHadNoCounterOfType` pattern.
 - **`TimingRestriction` import in `definitions.rs`**: When adding `AbilityDefinition::Activated`
   with `timing_restriction: Some(TimingRestriction::SorcerySpeed)`, `TimingRestriction` must be
   added to the `super::card_definition` import. The card-definition-author agent may omit this.

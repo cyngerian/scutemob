@@ -344,6 +344,17 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Delve => 31u8.hash_into(hasher),
             // Kicker (discriminant 32) — CR 702.33
             KeywordAbility::Kicker => 32u8.hash_into(hasher),
+            // SplitSecond (discriminant 33) — CR 702.61
+            KeywordAbility::SplitSecond => 33u8.hash_into(hasher),
+            // Exalted (discriminant 34) — CR 702.83
+            KeywordAbility::Exalted => 34u8.hash_into(hasher),
+            // Annihilator (discriminant 35) — CR 702.86
+            KeywordAbility::Annihilator(n) => {
+                35u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Persist (discriminant 36) — CR 702.79
+            KeywordAbility::Persist => 36u8.hash_into(hasher),
         }
     }
 }
@@ -897,6 +908,10 @@ impl HashInto for PendingTrigger {
         self.targeting_stack_id.hash_into(hasher);
         // CR 603.2 / CR 102.2: triggering_player — the opponent who cast the spell
         self.triggering_player.hash_into(hasher);
+        // CR 702.83a: exalted_attacker_id — the lone attacker for Exalted triggers
+        self.exalted_attacker_id.hash_into(hasher);
+        // CR 508.5 / CR 702.86a: defending_player_id — the defending player for SelfAttacks triggers
+        self.defending_player_id.hash_into(hasher);
     }
 }
 
@@ -937,6 +952,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfDealsCombatDamageToPlayer => 9u8.hash_into(hasher),
             // CR 603.2 / CR 102.2: Opponent-casts trigger — discriminant 10
             TriggerEvent::OpponentCastsSpell => 10u8.hash_into(hasher),
+            // CR 702.83a: Exalted "attacks alone" trigger — discriminant 11
+            TriggerEvent::ControllerCreatureAttacksAlone => 11u8.hash_into(hasher),
         }
     }
 }
@@ -989,6 +1006,10 @@ impl HashInto for InterveningIf {
             InterveningIf::ControllerLifeAtLeast(n) => {
                 0u8.hash_into(hasher);
                 n.hash_into(hasher);
+            }
+            InterveningIf::SourceHadNoCounterOfType(ct) => {
+                1u8.hash_into(hasher);
+                ct.hash_into(hasher);
             }
         }
     }
@@ -1286,11 +1307,17 @@ impl HashInto for GameEvent {
                 object_id,
                 new_grave_id,
                 controller,
+                pre_death_counters,
             } => {
                 27u8.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_grave_id.hash_into(hasher);
                 controller.hash_into(hasher);
+                // Hash counter map for determinism (CR 702.79a — persist counter check)
+                for (ct, count) in pre_death_counters.iter() {
+                    ct.hash_into(hasher);
+                    count.hash_into(hasher);
+                }
             }
             GameEvent::PlaneswalkerDied {
                 object_id,
@@ -2204,6 +2231,12 @@ impl HashInto for Effect {
             Effect::Goad { target } => {
                 29u8.hash_into(hasher);
                 target.hash_into(hasher);
+            }
+            // CR 701.17a: SacrificePermanents (discriminant 31) — used by Annihilator
+            Effect::SacrificePermanents { player, count } => {
+                31u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
             }
             // CR 702.6a / CR 701.3a: AttachEquipment (discriminant 30)
             Effect::AttachEquipment { equipment, target } => {

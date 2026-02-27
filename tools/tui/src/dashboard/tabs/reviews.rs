@@ -6,8 +6,8 @@ use ratatui::{
     Frame,
 };
 
-use crate::theme;
 use super::super::app::App;
+use crate::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::default()
@@ -26,21 +26,38 @@ fn render_open_issues(f: &mut Frame, area: Rect, app: &App) {
 
     // HIGH
     lines.push(Line::from(vec![
-        Span::styled("HIGH", Style::default().fg(theme::RED).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "HIGH",
+            Style::default().fg(theme::RED).add_modifier(Modifier::BOLD),
+        ),
         Span::raw(format!("  {} open / {} closed", r.high_open, r.high_closed)),
     ]));
     if r.high_open == 0 {
-        lines.push(Line::from(Span::styled("  ✓ All resolved", Style::default().fg(theme::GREEN))));
+        lines.push(Line::from(Span::styled(
+            "  ✓ All resolved",
+            Style::default().fg(theme::GREEN),
+        )));
     }
     lines.push(Line::from(""));
 
     // MEDIUM
     lines.push(Line::from(vec![
-        Span::styled("MEDIUM", Style::default().fg(theme::GOLD).add_modifier(Modifier::BOLD)),
-        Span::raw(format!("  {} open / {} closed", r.medium_open, r.medium_closed)),
+        Span::styled(
+            "MEDIUM",
+            Style::default()
+                .fg(theme::GOLD)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(format!(
+            "  {} open / {} closed",
+            r.medium_open, r.medium_closed
+        )),
     ]));
     if r.medium_open == 0 {
-        lines.push(Line::from(Span::styled("  ✓ All resolved", Style::default().fg(theme::GREEN))));
+        lines.push(Line::from(Span::styled(
+            "  ✓ All resolved",
+            Style::default().fg(theme::GREEN),
+        )));
     } else {
         lines.push(Line::from(Span::styled(
             "  MR-M7-09, MR-M7-12 (deferred to M10+)",
@@ -51,7 +68,12 @@ fn render_open_issues(f: &mut Frame, area: Rect, app: &App) {
 
     // LOW
     lines.push(Line::from(vec![
-        Span::styled("LOW", Style::default().fg(theme::ARTIFACT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "LOW",
+            Style::default()
+                .fg(theme::ARTIFACT)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(format!("  {} open / {} closed", r.low_open, r.low_closed)),
     ]));
     if r.low_open > 0 {
@@ -64,13 +86,21 @@ fn render_open_issues(f: &mut Frame, area: Rect, app: &App) {
 
     // INFO
     lines.push(Line::from(vec![
-        Span::styled("INFO", Style::default().fg(theme::BLUE).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "INFO",
+            Style::default()
+                .fg(theme::BLUE)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(format!("  {} total", r.info)),
     ]));
 
     f.render_widget(
-        Paragraph::new(Text::from(lines))
-            .block(Block::default().borders(Borders::ALL).title(" Issue Summary ")),
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Issue Summary "),
+        ),
         area,
     );
 }
@@ -84,13 +114,22 @@ fn render_stats(f: &mut Frame, area: Rect, app: &App) {
     let lines = vec![
         Line::from(vec![
             Span::styled("Total issues: ", Style::default().fg(Color::Gray)),
-            Span::styled(r.total_issues.to_string(), Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                r.total_issues.to_string(),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]),
         Line::from(vec![
             Span::styled("Open:   ", Style::default().fg(Color::Gray)),
             Span::styled(
                 total_open.to_string(),
-                if total_open > 0 { Style::default().fg(theme::GOLD) } else { Style::default().fg(theme::GREEN) },
+                if total_open > 0 {
+                    Style::default().fg(theme::GOLD)
+                } else {
+                    Style::default().fg(theme::GREEN)
+                },
             ),
         ]),
         Line::from(vec![
@@ -100,16 +139,25 @@ fn render_stats(f: &mut Frame, area: Rect, app: &App) {
         Line::from(""),
         Line::from(vec![
             Span::styled("Milestones reviewed: ", Style::default().fg(Color::Gray)),
-            Span::styled(r.milestones_reviewed.to_string(), Style::default().fg(Color::White)),
+            Span::styled(
+                r.milestones_reviewed.to_string(),
+                Style::default().fg(Color::White),
+            ),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Engine source: ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("~{} LOC", r.engine_loc), Style::default().fg(Color::White)),
+            Span::styled(
+                format!("~{} LOC", r.engine_loc),
+                Style::default().fg(Color::White),
+            ),
         ]),
         Line::from(vec![
             Span::styled("Engine tests:  ", Style::default().fg(Color::Gray)),
-            Span::styled(format!("~{} LOC", r.test_loc), Style::default().fg(Color::White)),
+            Span::styled(
+                format!("~{} LOC", r.test_loc),
+                Style::default().fg(Color::White),
+            ),
         ]),
     ];
 

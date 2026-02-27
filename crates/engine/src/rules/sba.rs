@@ -298,8 +298,8 @@ fn check_creature_sbas(
             continue;
         }
 
-        let (owner, pre_death_controller) = match state.objects.get(&id) {
-            Some(obj) => (obj.owner, obj.controller),
+        let (owner, pre_death_controller, pre_death_counters) = match state.objects.get(&id) {
+            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
             None => continue, // Already removed in a previous SBA this pass.
         };
 
@@ -322,6 +322,8 @@ fn check_creature_sbas(
                         new_grave_id: new_id,
                         // CR 603.3a: capture controller before move_object_to_zone resets it.
                         controller: pre_death_controller,
+                        // CR 702.79a: capture counters before move_object_to_zone resets them.
+                        pre_death_counters: pre_death_counters.clone(),
                     });
                 }
             }
@@ -350,6 +352,8 @@ fn check_creature_sbas(
                                 new_grave_id: new_id,
                                 // CR 603.3a: capture controller before move_object_to_zone resets it.
                                 controller: pre_death_controller,
+                                // CR 702.79a: capture counters before move_object_to_zone resets them.
+                                pre_death_counters: pre_death_counters.clone(),
                             });
                         }
                     }

@@ -1,22 +1,22 @@
-# Ability WIP: Kicker
+# Ability WIP: Persist
 
-ability: Kicker
-cr: 702.33
+ability: Persist
+cr: 702.79
 priority: P2
 started: 2026-02-26
 phase: closed
-plan_file: memory/ability-plan-kicker.md
-
-## Review
-findings: 7 (0 HIGH, 1 MEDIUM, 6 LOW)
-review_file: memory/ability-review-kicker.md
-verdict: needs-fix
+plan_file: memory/ability-plan-persist.md
 
 ## Step Checklist
-- [x] 1. Enum variant (state/types.rs:248, cards/card_definition.rs:152+581, state/stack.rs:51, state/game_object.rs:260, state/hash.rs, rules/command.rs:80)
-- [x] 2. Rule enforcement (rules/casting.rs: get_kicker_cost, kicker validation, cost addition, StackObject population)
-- [x] 3. Trigger wiring (rules/resolution.rs: kicker_times_paid to permanent + EffectContext; rules/replacement.rs: ETB trigger context; effects/mod.rs: Condition::WasKicked, EffectContext::new_with_kicker)
-- [x] 4. Unit tests (crates/engine/tests/kicker.rs: 10 tests)
-- [x] 5. Card definition — Burst Lightning (definitions.rs:2067), Torch Slinger (definitions.rs:2106)
-- [x] 6. Game script — stack/065_burst_lightning_kicked_vs_unkicked.json
-- [x] 7. Coverage doc update — Kicker: none→validated; P2 validated 5→6
+- [x] 1. Enum variant — `crates/engine/src/state/types.rs:270`, hash.rs:355, view_model.rs:599
+- [x] 2. Rule enforcement — `InterveningIf::SourceHadNoCounterOfType` in game_object.rs:157, hash.rs:1008, `CreatureDied.pre_death_counters` in events.rs:244, updated 8 emission sites across sba.rs/effects/mod.rs/abilities.rs/replacement.rs, extended `check_intervening_if` in abilities.rs:1163, resolution.rs:368
+- [x] 3. Trigger wiring — `KeywordAbility::Persist` block in builder.rs:437, `ctx.source` update in MoveZone handler in effects/mod.rs:748
+- [x] 4. Unit tests — `crates/engine/tests/persist.rs` (6 tests: basic return, no trigger with counter, second death, token, APNAP, counter annihilation)
+## Review
+findings: 2 (0 HIGH, 0 MEDIUM, 2 LOW)
+review_file: memory/ability-review-persist.md
+verdict: clean
+
+- [x] 5. Card definition — Kitchen Finks (definitions.rs)
+- [x] 6. Game script — combat/069_persist_kitchen_finks_returns_then_stays_dead.json
+- [x] 7. Coverage doc update — Persist: none→validated; P2 validated 9→10

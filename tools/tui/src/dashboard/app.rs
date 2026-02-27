@@ -78,27 +78,36 @@ impl App {
 
     pub fn milestone_scroll_down(&mut self) {
         let len = self.milestones_len();
-        if len == 0 { return; }
+        if len == 0 {
+            return;
+        }
         let sel = self.milestone_table_state.selected().unwrap_or(0);
-        self.milestone_table_state.select(Some((sel + 1).min(len - 1)));
+        self.milestone_table_state
+            .select(Some((sel + 1).min(len - 1)));
     }
 
     pub fn milestone_scroll_up(&mut self) {
         let sel = self.milestone_table_state.selected().unwrap_or(0);
-        self.milestone_table_state.select(Some(sel.saturating_sub(1)));
+        self.milestone_table_state
+            .select(Some(sel.saturating_sub(1)));
     }
 
     // ─── abilities tab scroll ────────────────────────────────────────────
 
     pub fn ability_items_len(&self) -> usize {
-        self.data.abilities.sections.iter()
+        self.data
+            .abilities
+            .sections
+            .iter()
             .map(|s| s.rows.len() + 1) // +1 for section header
             .sum()
     }
 
     pub fn ability_scroll_down(&mut self) {
         let len = self.ability_items_len();
-        if len == 0 { return; }
+        if len == 0 {
+            return;
+        }
         let sel = self.ability_list_state.selected().unwrap_or(0);
         self.ability_list_state.select(Some((sel + 1).min(len - 1)));
     }
@@ -112,7 +121,10 @@ impl App {
 
     pub fn corner_case_items(&self) -> usize {
         if self.show_gaps_only {
-            self.data.corner_cases.cases.iter()
+            self.data
+                .corner_cases
+                .cases
+                .iter()
                 .filter(|c| c.status == "GAP")
                 .count()
         } else {
@@ -122,14 +134,18 @@ impl App {
 
     pub fn corner_case_scroll_down(&mut self) {
         let len = self.corner_case_items();
-        if len == 0 { return; }
+        if len == 0 {
+            return;
+        }
         let sel = self.corner_case_table_state.selected().unwrap_or(0);
-        self.corner_case_table_state.select(Some((sel + 1).min(len - 1)));
+        self.corner_case_table_state
+            .select(Some((sel + 1).min(len - 1)));
     }
 
     pub fn corner_case_scroll_up(&mut self) {
         let sel = self.corner_case_table_state.selected().unwrap_or(0);
-        self.corner_case_table_state.select(Some(sel.saturating_sub(1)));
+        self.corner_case_table_state
+            .select(Some(sel.saturating_sub(1)));
     }
 
     pub fn toggle_gaps_only(&mut self) {

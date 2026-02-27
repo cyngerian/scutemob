@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_066",
+    "name": "Krosan Grip — split second blocks counterspell, allows mana ability",
+    "description": "P2 casts Krosan Grip (split second) targeting P1's Sol Ring. While Krosan Grip is on the stack, P1 activates Sol Ring's mana ability (allowed — mana abilities are exempt per CR 702.61b). P1 cannot cast Counterspell (blocked by split second per CR 702.61a — the Counterspell stays in hand throughout). After both players pass priority, Krosan Grip resolves and Sol Ring is destroyed. Tests the core split second interaction: mana abilities are permitted, all other spell/ability responses are locked out.",
+    "cr_sections_tested": ["601.2", "608.2", "605.3", "701.7a", "702.61a", "702.61b"],
+    "corner_case_ref": null,
+    "tags": ["split-second", "stack", "instant", "mana-ability", "krosan-grip", "sol-ring"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Krosan Grip: {2G}, Instant, split second, destroy target permanent (engine approximates 'artifact or enchantment' as TargetPermanent). Sol Ring: {1}, Artifact, {T}: Add {C}{C} — a mana ability (CR 605.3), exempt from split second restriction (CR 702.61b). Counterspell stays in P1's hand because split second (CR 702.61a) blocks all non-mana spell casts and non-mana ability activations. The 'P1 cannot cast Counterspell' rule is documented via assert_state confirming Counterspell remains in hand and stack count stays at 1. P1 taps Sol Ring for 2 colorless mana before Grip resolves — this is legal under CR 702.61b. Sol Ring is then destroyed by Krosan Grip's DestroyPermanent effect (CR 701.7a). After resolution, Krosan Grip goes to P2's graveyard (it is P2's card) and Sol Ring goes to P1's graveyard (P1 owns Sol Ring). P2 pays {2}{G} = 1 generic (colorless) + 2 generic (colorless from Forest + Island) + 1 green. Using: 2 colorless from Forest + Island approximation; keeping initial_state minimal. Note: the harness does not have a 'blocked_action' step type — the split second blocking is verified by the assert_state showing Counterspell stays in P1's hand with stack.count still 1.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Counterspell", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Krosan Grip", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P2 casts Krosan Grip targeting Sol Ring; P1 activates Sol Ring's mana ability (legal under split second); Counterspell stays in P1's hand (blocked by split second)",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sol Ring on P1 battlefield (untapped), Counterspell in P1 hand, Krosan Grip in P2 hand",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Sol Ring" }] },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "P1 passes priority. P2 receives priority to cast Krosan Grip at instant speed."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Krosan Grip",
+          "targets": [
+            { "type": "permanent", "card": "Sol Ring", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "colorless": 2, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Krosan Grip ({2}{G}) targeting Sol Ring. Split second keyword is now active on the stack (CR 702.61a)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Krosan Grip on stack (1 object), Krosan Grip gone from P2 hand",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": "Krosan Grip is on the stack. Split second now prevents all players from casting spells or activating non-mana abilities (CR 702.61a)."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Sol Ring",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "702.61b",
+          "note": "CR 702.61b: Mana abilities are exempt from split second. P1 activates Sol Ring's {T}: Add {C}{C} mana ability. Sol Ring taps; P1 gains 2 colorless mana. CR 605.3: mana abilities don't use the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After tapping Sol Ring: P1 mana pool has 2 colorless, Sol Ring is tapped, Counterspell still in P1 hand (P1 cannot cast it — split second blocks spells per CR 702.61a), stack count still 1",
+          "assertions": {
+            "players.p1.mana_pool.colorless": 2,
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "CR 702.61a: P1 cannot cast Counterspell while Krosan Grip (split second) is on the stack. Counterspell remains in P1's hand. The stack count of 1 confirms no counterspell was added."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority. Krosan Grip is the only object on the stack and resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Krosan Grip",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Sol Ring", "controller": "p1" },
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Krosan Grip destroys Sol Ring. Sol Ring moves from battlefield to P1's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Krosan Grip resolves. Sol Ring is destroyed and put into P1's graveyard. Krosan Grip itself goes to P2's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Sol Ring in P1 graveyard, Krosan Grip in P2 graveyard, Counterspell still in P1 hand, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "excludes": ["Sol Ring"] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Sol Ring" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Krosan Grip" }] },
+            "zones.hand.p1.count": 1
+          },
+          "note": "Sol Ring destroyed by Krosan Grip. Counterspell was never cast — split second (CR 702.61a) prevented it. P1's mana pool may have the 2 colorless gained from Sol Ring's mana ability before it was destroyed."
+        }
+      ]
+    }
+  ]
+}

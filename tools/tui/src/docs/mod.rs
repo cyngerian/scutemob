@@ -34,10 +34,7 @@ pub fn run(file: Option<String>) -> Result<()> {
     result
 }
 
-fn main_loop(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    app: &mut App,
-) -> Result<()> {
+fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| render::render(f, f.area(), app))?;
 
