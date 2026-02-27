@@ -1,5 +1,7 @@
 use std::{fs, path::Path};
 
+use serde_json;
+
 use super::data::*;
 
 // ─── public entry point ────────────────────────────────────────────────────
@@ -82,8 +84,9 @@ fn parse_claude_md(root: &Path) -> anyhow::Result<CurrentState> {
                 let part = part.trim();
                 if part.contains("tests passing") {
                     state.test_count = first_number(part);
-                } else if part.contains("approved") && !part.contains("pending_review") {
-                    // "71 approved" or "71 approved + 3 pending_review scripts"
+                } else if part.contains("approved") {
+                    // "71 approved" or "~78 approved + 10 pending_review scripts"
+                    // first_number finds the leading count before "approved"
                     state.script_count = first_number(part);
                 }
             }
@@ -530,6 +533,7 @@ fn count_scripts(root: &Path) -> anyhow::Result<ScriptCounts> {
     }
 
     let mut by_dir: Vec<(String, u32)> = vec![];
+    let mut entries: Vec<super::data::ScriptEntry> = vec![];
 
     for entry in fs::read_dir(&scripts_dir)? {
         let entry = entry?;
@@ -538,18 +542,100 @@ fn count_scripts(root: &Path) -> anyhow::Result<ScriptCounts> {
         }
         let dir_name = entry.file_name().to_string_lossy().into_owned();
         let mut dir_count = 0u32;
+
+        let mut dir_scripts: Vec<super::data::ScriptEntry> = vec![];
         for script in fs::read_dir(entry.path())? {
             let script = script?;
-            if script.path().extension().and_then(|e| e.to_str()) == Some("json") {
-                dir_count += 1;
+            let path = script.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            dir_count += 1;
+            if let Some(se) = parse_script_entry(&path, &dir_name) {
+                dir_scripts.push(se);
             }
         }
+        // Sort each directory's scripts alphabetically by filename
+        dir_scripts.sort_by(|a, b| a.filename.cmp(&b.filename));
         counts.total += dir_count;
         by_dir.push((dir_name, dir_count));
+        entries.extend(dir_scripts);
     }
 
     by_dir.sort_by(|a, b| b.1.cmp(&a.1)); // sort descending by count
     counts.by_directory = by_dir;
 
+    // Sort entries: pending_review first, then by dir+filename
+    entries.sort_by(|a, b| {
+        let a_pending = a.status == "pending_review";
+        let b_pending = b.status == "pending_review";
+        b_pending
+            .cmp(&a_pending)
+            .then(a.directory.cmp(&b.directory))
+            .then(a.filename.cmp(&b.filename))
+    });
+
+    counts.approved = entries.iter().filter(|e| e.status == "approved").count() as u32;
+    counts.pending_review = entries
+        .iter()
+        .filter(|e| e.status == "pending_review")
+        .count() as u32;
+    counts.entries = entries;
+
     Ok(counts)
+}
+
+fn parse_script_entry(path: &Path, dir: &str) -> Option<super::data::ScriptEntry> {
+    let content = fs::read_to_string(path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    let metadata = json.get("metadata")?;
+    let id = metadata
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let name = metadata
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let status = metadata
+        .get("review_status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let filename = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let assertion_count = count_assert_states(&json);
+
+    Some(super::data::ScriptEntry {
+        id,
+        name,
+        directory: dir.to_string(),
+        filename,
+        status,
+        assertion_count,
+    })
+}
+
+fn count_assert_states(json: &serde_json::Value) -> u32 {
+    let script = match json.get("script").and_then(|s| s.as_array()) {
+        Some(s) => s,
+        None => return 0,
+    };
+    let mut count = 0u32;
+    for step in script {
+        if let Some(actions) = step.get("actions").and_then(|a| a.as_array()) {
+            for action in actions {
+                if action.get("type").and_then(|t| t.as_str()) == Some("assert_state") {
+                    count += 1;
+                }
+            }
+        }
+    }
+    count
 }

@@ -5,13 +5,14 @@ use ratatui::widgets::{ListState, TableState};
 use super::data::DashboardData;
 use super::parser;
 
-pub const TAB_COUNT: usize = 5;
+pub const TAB_COUNT: usize = 6;
 pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "1:Overview",
     "2:Milestones",
     "3:Abilities",
     "4:Corner Cases",
     "5:Reviews",
+    "6:Scripts",
 ];
 
 pub struct App {
@@ -28,6 +29,10 @@ pub struct App {
     // Tab 4: Corner Cases
     pub corner_case_table_state: TableState,
     pub show_gaps_only: bool,
+
+    // Tab 6: Scripts
+    pub scripts_table_state: TableState,
+    pub scripts_show_pending_only: bool,
 
     pub root: PathBuf,
 }
@@ -48,6 +53,8 @@ impl App {
             ability_list_state: ListState::default(),
             corner_case_table_state,
             show_gaps_only: false,
+            scripts_table_state: TableState::default(),
+            scripts_show_pending_only: false,
             root,
         }
     }
@@ -151,5 +158,39 @@ impl App {
     pub fn toggle_gaps_only(&mut self) {
         self.show_gaps_only = !self.show_gaps_only;
         self.corner_case_table_state.select(Some(0));
+    }
+
+    // ─── scripts tab scroll ──────────────────────────────────────────────
+
+    pub fn scripts_items_len(&self) -> usize {
+        if self.scripts_show_pending_only {
+            self.data
+                .scripts
+                .entries
+                .iter()
+                .filter(|e| e.status == "pending_review")
+                .count()
+        } else {
+            self.data.scripts.entries.len()
+        }
+    }
+
+    pub fn scripts_scroll_down(&mut self) {
+        let len = self.scripts_items_len();
+        if len == 0 {
+            return;
+        }
+        let sel = self.scripts_table_state.selected().unwrap_or(0);
+        self.scripts_table_state.select(Some((sel + 1).min(len - 1)));
+    }
+
+    pub fn scripts_scroll_up(&mut self) {
+        let sel = self.scripts_table_state.selected().unwrap_or(0);
+        self.scripts_table_state.select(Some(sel.saturating_sub(1)));
+    }
+
+    pub fn toggle_scripts_pending_only(&mut self) {
+        self.scripts_show_pending_only = !self.scripts_show_pending_only;
+        self.scripts_table_state.select(Some(0));
     }
 }

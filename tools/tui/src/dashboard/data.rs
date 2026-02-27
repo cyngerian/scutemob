@@ -125,9 +125,28 @@ pub struct ReviewStatistics {
     pub test_loc: u32,
 }
 
-/// Script counts by subdirectory.
+/// One parsed game script entry.
+#[derive(Debug, Default)]
+pub struct ScriptEntry {
+    #[allow(dead_code)]
+    pub id: String,
+    pub name: String,
+    /// Subdirectory name: "stack", "combat", "baseline", etc.
+    pub directory: String,
+    /// Filename without .json extension.
+    pub filename: String,
+    /// "approved" | "pending_review" | "unknown"
+    pub status: String,
+    /// Number of `assert_state` action blocks in the script.
+    pub assertion_count: u32,
+}
+
+/// Script counts by subdirectory, plus full entry list.
 #[derive(Debug, Default)]
 pub struct ScriptCounts {
     pub total: u32,
+    pub approved: u32,
+    pub pending_review: u32,
     pub by_directory: Vec<(String, u32)>,
+    pub entries: Vec<ScriptEntry>,
 }

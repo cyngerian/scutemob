@@ -47,16 +47,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
         2 => tabs::abilities::render(f, chunks[1], app),
         3 => tabs::corner_cases::render(f, chunks[1], app),
         4 => tabs::reviews::render(f, chunks[1], app),
+        5 => tabs::scripts::render(f, chunks[1], app),
         _ => {}
     }
 
     // ─── status bar ─────────────────────────────────────────────────────────
     let help = match app.current_tab {
-        0 => "q:quit  Tab:next  1-5:jump  r:refresh",
+        0 => "q:quit  Tab:next  1-6:jump  r:refresh",
         1 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         2 => "q:quit  Tab:next  j/k:scroll  r:refresh",
         3 => "q:quit  Tab:next  j/k:scroll  g:gaps only  r:refresh",
         4 => "q:quit  Tab:next  r:refresh",
+        5 => "q:quit  Tab:next  j/k:scroll  p:pending only  a:all  r:refresh",
         _ => "q:quit",
     };
     let status_text = format!(
@@ -64,7 +66,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         help,
         app.data.current_state.active_milestone,
         app.data.current_state.test_count,
-        app.data.current_state.script_count,
+        app.data.scripts.total,
     );
     f.render_widget(
         ratatui::widgets::Paragraph::new(status_text)

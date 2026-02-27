@@ -75,22 +75,35 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('3') => app.jump_to_tab(2),
         KeyCode::Char('4') => app.jump_to_tab(3),
         KeyCode::Char('5') => app.jump_to_tab(4),
+        KeyCode::Char('6') => app.jump_to_tab(5),
         KeyCode::Char('r') => app.reload(),
         KeyCode::Down | KeyCode::Char('j') => match app.current_tab {
             1 => app.milestone_scroll_down(),
             2 => app.ability_scroll_down(),
             3 => app.corner_case_scroll_down(),
+            5 => app.scripts_scroll_down(),
             _ => {}
         },
         KeyCode::Up | KeyCode::Char('k') => match app.current_tab {
             1 => app.milestone_scroll_up(),
             2 => app.ability_scroll_up(),
             3 => app.corner_case_scroll_up(),
+            5 => app.scripts_scroll_up(),
             _ => {}
         },
         KeyCode::Char('g') => {
             if app.current_tab == 3 {
                 app.toggle_gaps_only();
+            }
+        }
+        KeyCode::Char('p') => {
+            if app.current_tab == 5 && !app.scripts_show_pending_only {
+                app.toggle_scripts_pending_only();
+            }
+        }
+        KeyCode::Char('a') => {
+            if app.current_tab == 5 && app.scripts_show_pending_only {
+                app.toggle_scripts_pending_only();
             }
         }
         _ => {}
