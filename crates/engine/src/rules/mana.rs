@@ -9,7 +9,7 @@
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
-use crate::state::types::{CardType, KeywordAbility};
+use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -92,8 +92,49 @@ pub fn handle_tap_for_mana(
         });
     }
 
-    // 7. Add produced mana to the player's pool.
-    {
+    // 7. Pay sacrifice cost if required (CR 111.10a: Treasure tokens).
+    //    Sacrifice is a cost paid before mana is produced (CR 602.2c).
+    //    After the zone move, `source` is a dead ObjectId (CR 400.7).
+    if ability.sacrifice_self {
+        let (is_creature, owner, pre_death_controller, pre_death_counters) = {
+            let obj = state.object(source)?;
+            (
+                obj.characteristics.card_types.contains(&CardType::Creature),
+                obj.owner,
+                obj.controller,
+                obj.counters.clone(),
+            )
+        };
+        let (new_id, _) = state.move_object_to_zone(source, ZoneId::Graveyard(owner))?;
+        if is_creature {
+            events.push(GameEvent::CreatureDied {
+                object_id: source,
+                new_grave_id: new_id,
+                controller: pre_death_controller,
+                pre_death_counters,
+            });
+        } else {
+            events.push(GameEvent::PermanentDestroyed {
+                object_id: source,
+                new_grave_id: new_id,
+            });
+        }
+    }
+
+    // 8. Add produced mana to the player's pool.
+    //    CR 111.10a: `any_color` produces 1 mana of any color.
+    //    Simplified: colorless until interactive color choice is implemented
+    //    (consistent with Effect::AddManaAnyColor in effects/mod.rs).
+    if ability.any_color {
+        // CR 111.10a: "Add one mana of any color."
+        let player_state = state.player_mut(player)?;
+        player_state.mana_pool.add(ManaColor::Colorless, 1);
+        events.push(GameEvent::ManaAdded {
+            player,
+            color: ManaColor::Colorless,
+            amount: 1,
+        });
+    } else {
         let player_state = state.player_mut(player)?;
         for (color, amount) in &ability.produces {
             player_state.mana_pool.add(*color, *amount);
@@ -105,7 +146,7 @@ pub fn handle_tap_for_mana(
         }
     }
 
-    // 8. Player retains priority. players_passed is unchanged.
+    // 9. Player retains priority. players_passed is unchanged.
     //    (CR 605.5: mana abilities are special actions; they do not reset priority.)
 
     Ok(events)

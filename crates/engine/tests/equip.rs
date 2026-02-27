@@ -334,8 +334,10 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             card: instant_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

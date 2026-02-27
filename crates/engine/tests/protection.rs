@@ -74,8 +74,10 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             card: bolt_id,
             targets: vec![Target::Object(target_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -142,8 +144,10 @@ fn test_protection_from_red_allows_green_spell() {
             card: vines_id,
             targets: vec![Target::Object(target_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -220,8 +224,10 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             card: spell_id,
             targets: vec![Target::Object(target_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -281,8 +287,10 @@ fn test_protection_from_all_blocks_all_targeting() {
             card: spell_id,
             targets: vec![Target::Object(target_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 

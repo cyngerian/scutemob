@@ -192,8 +192,10 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![elf1, elf2, elf3, elf4, elf5],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -283,8 +285,10 @@ fn test_convoke_colored_mana_match() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![elf1, elf2],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -367,8 +371,10 @@ fn test_convoke_generic_mana_any_creature() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![g1, g2, g3],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -436,8 +442,10 @@ fn test_convoke_reject_no_keyword() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![elf_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -487,8 +495,10 @@ fn test_convoke_reject_tapped_creature() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![elf_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -537,8 +547,10 @@ fn test_convoke_reject_not_creature() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![artifact_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -588,8 +600,10 @@ fn test_convoke_reject_not_controlled() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![opp_elf_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -650,8 +664,10 @@ fn test_convoke_reject_too_many_creatures() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![id1, id2, id3, id4],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -752,8 +768,10 @@ fn test_convoke_with_commander_tax() {
             card: cmd_obj_id,
             targets: vec![],
             convoke_creatures: vec![id1, id2, id3, id4, id5],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -834,8 +852,10 @@ fn test_convoke_no_summoning_sickness() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![creature_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -891,8 +911,10 @@ fn test_convoke_zero_creatures() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![], // No convoke
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -963,8 +985,10 @@ fn test_convoke_multicolored_creature_pays_colored() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![token_id],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

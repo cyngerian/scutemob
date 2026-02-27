@@ -202,6 +202,7 @@ impl ReplaySession {
                         attackers,
                         blockers,
                         convoke,
+                        improvise,
                         delve,
                         kicked,
                         ..
@@ -216,6 +217,7 @@ impl ReplaySession {
                                 attackers,
                                 blockers,
                                 convoke,
+                                improvise,
                                 delve,
                                 *kicked,
                                 &current_state,

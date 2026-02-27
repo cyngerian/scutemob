@@ -259,6 +259,46 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 702.101a: Extort drain — each opponent loses `amount` life and the
+        // controller gains life equal to the total life actually lost.
+        //
+        // Gain is based on actual life-total delta (not opponent count * amount),
+        // so if an opponent's life total cannot change, the gain is reduced
+        // accordingly (per ruling 2024-01-12: Platinum Emperion case).
+        Effect::DrainLife { amount } => {
+            // Clamp negative amounts to 0.
+            let loss = resolve_amount(state, amount, ctx).max(0) as u32;
+            if loss == 0 {
+                return;
+            }
+            // Collect opponents of the controller (non-eliminated, non-controller players).
+            let opponents = resolve_player_target_list(state, &PlayerTarget::EachOpponent, ctx);
+            let mut total_lost: u32 = 0;
+            for &p in &opponents {
+                if let Some(ps) = state.players.get_mut(&p) {
+                    let before = ps.life_total;
+                    ps.life_total -= loss as i32;
+                    // Actual loss = pre-loss total minus post-loss total, clamped to >=0.
+                    let actual = (before - ps.life_total).max(0) as u32;
+                    total_lost += actual;
+                }
+                events.push(GameEvent::LifeLost {
+                    player: p,
+                    amount: loss,
+                });
+            }
+            // Controller gains life equal to total actually lost by all opponents.
+            if total_lost > 0 {
+                if let Some(ps) = state.players.get_mut(&ctx.controller) {
+                    ps.life_total += total_lost as i32;
+                }
+                events.push(GameEvent::LifeGained {
+                    player: ctx.controller,
+                    amount: total_lost,
+                });
+            }
+        }
+
         // ── Cards ──────────────────────────────────────────────────────────
         Effect::DrawCards { player, count } => {
             // MR-M7-05: clamp negative amounts to 0 before cast to avoid wrapping.
@@ -910,6 +950,44 @@ fn execute_effect_inner(
                 events.push(GameEvent::Scried {
                     player: p,
                     count: n as u32,
+                });
+            }
+        }
+
+        // CR 701.25: Surveil N -- deterministic fallback: put top N cards into graveyard
+        // (interactive selection deferred to M10+).
+        Effect::Surveil { player, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                // CR 701.25c: surveil 0 produces no event
+                if n == 0 {
+                    continue;
+                }
+                let lib_zone = ZoneId::Library(p);
+                let graveyard_zone = ZoneId::Graveyard(p);
+                // Collect the top N cards of the library (ordered from top).
+                let top_ids: Vec<ObjectId> = state
+                    .zones
+                    .get(&lib_zone)
+                    .map(|z| z.object_ids())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .take(n)
+                    .collect();
+                // Deterministic fallback: move all looked-at cards to graveyard.
+                // Sort by ObjectId ascending for determinism.
+                let mut to_graveyard = top_ids.clone();
+                to_graveyard.sort_by_key(|id| id.0);
+                let actual_count = to_graveyard.len();
+                for id in to_graveyard {
+                    let _ = state.move_object_to_zone(id, graveyard_zone);
+                }
+                // CR 701.25d: event fires even if some actions were impossible
+                // (e.g., library had fewer than N cards).
+                events.push(GameEvent::Surveilled {
+                    player: p,
+                    count: actual_count as u32,
                 });
             }
         }
@@ -1659,6 +1737,11 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         colors.insert(*c);
     }
 
+    let mut mana_abilities = im::Vector::new();
+    for ma in &spec.mana_abilities {
+        mana_abilities.push_back(ma.clone());
+    }
+
     let characteristics = Characteristics {
         name: spec.name.clone(),
         power: Some(spec.power),
@@ -1667,6 +1750,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         keywords,
         subtypes,
         colors,
+        mana_abilities,
         ..Characteristics::default()
     };
 
@@ -1693,6 +1777,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         has_summoning_sickness: true, // tokens have summoning sickness (CR 302.6)
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
+        was_evoked: false,
     }
 }
 
@@ -1946,5 +2031,21 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .filter(|(_, obj)| matches!(obj.zone, ZoneId::Graveyard(_)))
             .map(|(&id, _)| id)
             .collect(),
+
+        // CR 702.91a: All attacking creatures except the source (battle cry source).
+        // Queries combat.attackers at resolution time, excludes ctx.source so the
+        // battle cry creature itself does not receive the bonus.
+        ForEachTarget::EachOtherAttackingCreature => {
+            if let Some(ref combat) = state.combat {
+                combat
+                    .attackers
+                    .keys()
+                    .filter(|&&id| id != ctx.source)
+                    .copied()
+                    .collect()
+            } else {
+                vec![]
+            }
+        }
     }
 }

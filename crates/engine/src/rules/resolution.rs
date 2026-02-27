@@ -182,9 +182,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // (move_object_to_zone resets controller to owner; restore it here).
                 // CR 702.33d: Transfer kicked status from stack to permanent so ETB
                 // triggers can check Condition::WasKicked.
+                // CR 702.74a: Transfer evoked status from stack to permanent so the
+                // ETB sacrifice trigger can check was_evoked.
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
                     obj.kicker_times_paid = stack_obj.kicker_times_paid;
+                    obj.was_evoked = stack_obj.was_evoked;
                 }
 
                 // CR 303.4a / 303.4b: If the resolved permanent is an Aura, attach it
@@ -445,6 +448,108 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.74a: Evoke sacrifice trigger resolves — sacrifice the source permanent.
+        //
+        // "When this permanent enters, if its evoke cost was paid, its controller
+        // sacrifices it." If the source has left the battlefield by resolution time
+        // (blinked, bounced, etc.), the sacrifice does nothing — CR 400.7 ensures
+        // the source is now a new object and is no longer the evoked permanent.
+        StackObjectKind::EvokeSacrificeTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source is still on the battlefield (CR 400.7).
+            let source_info = state.objects.get(&source_object).and_then(|obj| {
+                if obj.zone == ZoneId::Battlefield {
+                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info {
+                // CR 701.17a: Sacrifice is NOT destruction — no indestructible check.
+                // CR 614: Check replacement effects before moving to graveyard.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    source_object,
+                    crate::state::zone::ZoneType::Battlefield,
+                    crate::state::zone::ZoneType::Graveyard,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, dest) {
+                            match dest {
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: owner,
+                                        object_id: source_object,
+                                        new_exile_id: new_id,
+                                    });
+                                }
+                                ZoneId::Command(_) => {
+                                    // Commander redirected — no sacrifice event.
+                                }
+                                _ => {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: source_object,
+                                        new_grave_id: new_id,
+                                        controller: pre_sacrifice_controller,
+                                        pre_death_counters,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_grave_id, _old)) =
+                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                        {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: source_object,
+                                new_grave_id,
+                                controller: pre_sacrifice_controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        // CR 616.1: Multiple replacement effects — defer to player choice.
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: source_object,
+                            original_from: crate::state::zone::ZoneType::Battlefield,
+                            original_destination: crate::state::zone::ZoneType::Graveyard,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                }
+            }
+            // If source is not on the battlefield, the trigger does nothing (CR 400.7).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -538,7 +643,8 @@ pub fn counter_stack_object(
         StackObjectKind::ActivatedAbility { .. }
         | StackObjectKind::TriggeredAbility { .. }
         | StackObjectKind::CascadeTrigger { .. }
-        | StackObjectKind::StormTrigger { .. } => {
+        | StackObjectKind::StormTrigger { .. }
+        | StackObjectKind::EvokeSacrificeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

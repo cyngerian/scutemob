@@ -355,6 +355,28 @@ impl HashInto for KeywordAbility {
             }
             // Persist (discriminant 36) — CR 702.79
             KeywordAbility::Persist => 36u8.hash_into(hasher),
+            // Undying (discriminant 37) -- CR 702.93
+            KeywordAbility::Undying => 37u8.hash_into(hasher),
+            // Changeling (discriminant 38) -- CR 702.73
+            KeywordAbility::Changeling => 38u8.hash_into(hasher),
+            // Evoke (discriminant 39) -- CR 702.74
+            KeywordAbility::Evoke => 39u8.hash_into(hasher),
+            // Crew (discriminant 40) -- CR 702.122
+            KeywordAbility::Crew(n) => {
+                40u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // BattleCry (discriminant 41) -- CR 702.91
+            KeywordAbility::BattleCry => 41u8.hash_into(hasher),
+            // Afterlife (discriminant 42) -- CR 702.135
+            KeywordAbility::Afterlife(n) => {
+                42u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Extort (discriminant 43) -- CR 702.101
+            KeywordAbility::Extort => 43u8.hash_into(hasher),
+            // Improvise (discriminant 44) -- CR 702.126
+            KeywordAbility::Improvise => 44u8.hash_into(hasher),
         }
     }
 }
@@ -454,6 +476,8 @@ impl HashInto for ManaAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.produces.hash_into(hasher);
         self.requires_tap.hash_into(hasher);
+        self.sacrifice_self.hash_into(hasher);
+        self.any_color.hash_into(hasher);
     }
 }
 
@@ -499,6 +523,8 @@ impl HashInto for GameObject {
         self.goaded_by.hash_into(hasher);
         // Kicker (CR 702.33d) — times kicker was paid when this permanent was cast
         self.kicker_times_paid.hash_into(hasher);
+        // Evoke (CR 702.74a) — permanent was cast by paying its evoke cost
+        self.was_evoked.hash_into(hasher);
     }
 }
 
@@ -687,6 +713,8 @@ impl HashInto for LayerModification {
                 d.hash_into(hasher);
             }
             LayerModification::SwitchPowerToughness => 19u8.hash_into(hasher),
+            // AddAllCreatureTypes (discriminant 20) -- CR 702.73a, 205.3m
+            LayerModification::AddAllCreatureTypes => 20u8.hash_into(hasher),
         }
     }
 }
@@ -912,6 +940,8 @@ impl HashInto for PendingTrigger {
         self.exalted_attacker_id.hash_into(hasher);
         // CR 508.5 / CR 702.86a: defending_player_id — the defending player for SelfAttacks triggers
         self.defending_player_id.hash_into(hasher);
+        // CR 702.74a: is_evoke_sacrifice — evoke sacrifice trigger marker
+        self.is_evoke_sacrifice.hash_into(hasher);
     }
 }
 
@@ -954,6 +984,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::OpponentCastsSpell => 10u8.hash_into(hasher),
             // CR 702.83a: Exalted "attacks alone" trigger — discriminant 11
             TriggerEvent::ControllerCreatureAttacksAlone => 11u8.hash_into(hasher),
+            // CR 701.25d: Surveil trigger — discriminant 12
+            TriggerEvent::ControllerSurveils => 12u8.hash_into(hasher),
+            // CR 702.101a: Controller-casts-any-spell trigger — discriminant 13
+            TriggerEvent::ControllerCastsSpell => 13u8.hash_into(hasher),
         }
     }
 }
@@ -1067,6 +1101,11 @@ impl HashInto for StackObjectKind {
                 original_stack_id.hash_into(hasher);
                 storm_count.hash_into(hasher);
             }
+            // EvokeSacrificeTrigger (discriminant 5) — CR 702.74a
+            StackObjectKind::EvokeSacrificeTrigger { source_object } => {
+                5u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
         }
     }
 }
@@ -1106,6 +1145,8 @@ impl HashInto for StackObject {
         self.cast_with_flashback.hash_into(hasher);
         // Kicker (CR 702.33d) — times kicker cost was paid at cast time
         self.kicker_times_paid.hash_into(hasher);
+        // Evoke (CR 702.74a) — spell was cast by paying its evoke cost
+        self.was_evoked.hash_into(hasher);
     }
 }
 
@@ -1729,6 +1770,12 @@ impl HashInto for GameEvent {
                 target_id.hash_into(hasher);
                 controller.hash_into(hasher);
             }
+            // CR 701.25: Surveilled (discriminant 75)
+            GameEvent::Surveilled { player, count } => {
+                75u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }
@@ -1811,6 +1858,7 @@ impl HashInto for TokenSpec {
         self.count.hash_into(hasher);
         self.tapped.hash_into(hasher);
         self.mana_color.hash_into(hasher);
+        self.mana_abilities.hash_into(hasher);
     }
 }
 
@@ -1936,6 +1984,8 @@ impl HashInto for ForEachTarget {
                 filter.hash_into(hasher);
             }
             ForEachTarget::EachCardInAllGraveyards => 6u8.hash_into(hasher),
+            // CR 702.91a: All attacking creatures except the source (battle cry source).
+            ForEachTarget::EachOtherAttackingCreature => 7u8.hash_into(hasher),
         }
     }
 }
@@ -1982,6 +2032,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WheneverYouDrawACard => 16u8.hash_into(hasher),
             // CR 702.21a: Ward trigger condition — discriminant 17
             TriggerCondition::WhenBecomesTargetByOpponent => 17u8.hash_into(hasher),
+            // CR 701.25d: "Whenever you surveil" — discriminant 18
+            TriggerCondition::WheneverYouSurveil => 18u8.hash_into(hasher),
         }
     }
 }
@@ -2244,6 +2296,17 @@ impl HashInto for Effect {
                 equipment.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            // CR 701.25: Surveil (discriminant 32)
+            Effect::Surveil { player, count } => {
+                32u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // CR 702.101a: DrainLife (discriminant 33)
+            Effect::DrainLife { amount } => {
+                33u8.hash_into(hasher);
+                amount.hash_into(hasher);
+            }
         }
     }
 }
@@ -2329,6 +2392,11 @@ impl HashInto for AbilityDefinition {
                 10u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 is_multikicker.hash_into(hasher);
+            }
+            // Evoke (discriminant 11) — CR 702.74
+            AbilityDefinition::Evoke { cost } => {
+                11u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

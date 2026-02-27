@@ -428,6 +428,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::StormTrigger { source_object, .. } => {
             ("storm_trigger", Some(*source_object))
         }
+        StackObjectKind::EvokeSacrificeTrigger { source_object } => {
+            ("evoke_sacrifice_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -598,5 +601,13 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Exalted => "Exalted".to_string(),
         KeywordAbility::Annihilator(n) => format!("Annihilator {n}"),
         KeywordAbility::Persist => "Persist".to_string(),
+        KeywordAbility::Undying => "Undying".to_string(),
+        KeywordAbility::Changeling => "Changeling".to_string(),
+        KeywordAbility::Evoke => "Evoke".to_string(),
+        KeywordAbility::Crew(n) => format!("Crew {n}"),
+        KeywordAbility::BattleCry => "Battle Cry".to_string(),
+        KeywordAbility::Afterlife(n) => format!("Afterlife {n}"),
+        KeywordAbility::Extort => "Extort".to_string(),
+        KeywordAbility::Improvise => "Improvise".to_string(),
     }
 }

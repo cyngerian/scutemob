@@ -72,6 +72,13 @@ pub struct PendingTrigger {
     /// `None` for all other trigger types.
     #[serde(default)]
     pub exalted_attacker_id: Option<ObjectId>,
+    /// CR 702.74a: If true, this pending trigger is the evoke sacrifice trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::EvokeSacrificeTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The `ability_index`
+    /// field is unused when this is true.
+    #[serde(default)]
+    pub is_evoke_sacrifice: bool,
     /// CR 508.5 / CR 702.86a: The defending player for SelfAttacks triggers.
     ///
     /// Populated when a `SelfAttacks` trigger fires. At flush time, this PlayerId

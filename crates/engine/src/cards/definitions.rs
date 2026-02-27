@@ -26,9 +26,9 @@ use crate::state::{
 };
 
 use super::card_definition::{
-    AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget, ForEachTarget, PlayerTarget, TargetFilter, TargetRequirement, TimingRestriction,
-    TriggerCondition, TypeLine, ZoneTarget,
+    treasure_token_spec, AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost,
+    Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget, TargetFilter,
+    TargetRequirement, TimingRestriction, TriggerCondition, TypeLine, ZoneTarget,
 };
 use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
@@ -704,6 +704,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             count: 1,
                             tapped: false,
                             mana_color: None,
+                            mana_abilities: vec![],
                         },
                     },
                 ]),
@@ -739,6 +740,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             count: 1,
                             tapped: false,
                             mana_color: None,
+                            mana_abilities: vec![],
                         },
                     },
                 ]),
@@ -950,6 +952,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             count: 1,
                             tapped: false,
                             mana_color: None,
+                            mana_abilities: vec![],
                         },
                     },
                 ]),
@@ -1035,6 +1038,28 @@ pub fn all_cards() -> Vec<CardDefinition> {
             oracle_text: "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.".to_string(),
             abilities: vec![
                 AbilityDefinition::Keyword(KeywordAbility::Delve),
+                AbilityDefinition::Spell {
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(3),
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // Reverse Engineer — {3UU}, Sorcery; improvise, draw 3 cards.
+        CardDefinition {
+            card_id: cid("reverse-engineer"),
+            name: "Reverse Engineer".to_string(),
+            mana_cost: Some(ManaCost { blue: 2, generic: 3, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nDraw three cards.".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Improvise),
                 AbilityDefinition::Spell {
                     effect: Effect::DrawCards {
                         player: PlayerTarget::Controller,
@@ -1175,6 +1200,32 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         from: super::card_definition::ZoneTarget::Hand {
                             owner: PlayerTarget::Controller,
                         },
+                    },
+                ]),
+                targets: vec![],
+                modes: None,
+                cant_be_countered: false,
+            }],
+            ..Default::default()
+        },
+
+        // Consider — {U}, Instant; surveil 1, then draw a card.
+        //     CR 701.25: Surveil 1 before drawing.
+        CardDefinition {
+            card_id: cid("consider"),
+            name: "Consider".to_string(),
+            mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\nDraw a card.".to_string(),
+            abilities: vec![AbilityDefinition::Spell {
+                effect: Effect::Sequence(vec![
+                    Effect::Surveil {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
                     },
                 ]),
                 targets: vec![],
@@ -1744,6 +1795,141 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
+        // 64. Young Wolf — {G}, Creature — Wolf 1/1; Undying.
+        CardDefinition {
+            card_id: cid("young-wolf"),
+            name: "Young Wolf".to_string(),
+            mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+            types: creature_types(&["Wolf"]),
+            oracle_text: "Undying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)".to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Undying),
+            ],
+        },
+
+        // 65. Universal Automaton — {1}, Artifact Creature — Shapeshifter 1/1; Changeling.
+        CardDefinition {
+            card_id: cid("universal-automaton"),
+            name: "Universal Automaton".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Artifact, CardType::Creature], &["Shapeshifter"]),
+            oracle_text: "Changeling (This card is every creature type.)".to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Changeling),
+            ],
+        },
+
+        // 66. Mulldrifter — {4}{U}, Creature — Elemental 2/2; Flying; ETB draw two cards;
+        //     Evoke {2}{U}.
+        CardDefinition {
+            card_id: cid("mulldrifter"),
+            name: "Mulldrifter".to_string(),
+            mana_cost: Some(ManaCost { generic: 4, blue: 1, ..Default::default() }),
+            types: creature_types(&["Elemental"]),
+            oracle_text: "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Flying),
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(2),
+                    },
+                    intervening_if: None,
+                },
+                AbilityDefinition::Evoke {
+                    cost: ManaCost { generic: 2, blue: 1, ..Default::default() },
+                },
+            ],
+        },
+
+        // 67. Smuggler's Copter — {2}, Artifact — Vehicle 3/3; Flying; Crew 1;
+        //     Whenever it attacks or blocks, you may draw a card. If you do, discard a card.
+        CardDefinition {
+            card_id: cid("smugglers-copter"),
+            name: "Smuggler's Copter".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, ..Default::default() }),
+            types: TypeLine {
+                card_types: [CardType::Artifact].iter().copied().collect(),
+                subtypes: ["Vehicle".to_string()].iter().cloned().map(SubType).collect(),
+                ..Default::default()
+            },
+            oracle_text: "Flying\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)\nWhenever Smuggler's Copter attacks or blocks, you may draw a card. If you do, discard a card.".to_string(),
+            power: Some(3),
+            toughness: Some(3),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Flying),
+                AbilityDefinition::Keyword(KeywordAbility::Crew(1)),
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenAttacks,
+                    effect: Effect::Sequence(vec![
+                        Effect::DrawCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
+                        Effect::DiscardCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
+                    ]),
+                    intervening_if: None,
+                },
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenBlocks,
+                    effect: Effect::Sequence(vec![
+                        Effect::DrawCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
+                        Effect::DiscardCards { player: PlayerTarget::Controller, count: EffectAmount::Fixed(1) },
+                    ]),
+                    intervening_if: None,
+                },
+            ],
+        },
+
+        // 68. Signal Pest — {1}, Artifact Creature — Pest 0/1;
+        //     Battle cry (CR 702.91). Blocking restriction (flying/reach only) deferred — no DSL variant.
+        CardDefinition {
+            card_id: cid("signal-pest"),
+            name: "Signal Pest".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Artifact, CardType::Creature], &["Pest"]),
+            oracle_text: "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nThis creature can't be blocked except by creatures with flying or reach."
+                .to_string(),
+            power: Some(0),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::BattleCry),
+                // TODO: blocking restriction ("can't be blocked except by flying/reach") deferred
+            ],
+        },
+
+        // 69. Ministrant of Obligation — {2}{W}, Creature — Human Cleric 2/1; Afterlife 2.
+        CardDefinition {
+            card_id: cid("ministrant-of-obligation"),
+            name: "Ministrant of Obligation".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, white: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Cleric"]),
+            oracle_text: "Afterlife 2 (When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.)".to_string(),
+            power: Some(2),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Afterlife(2)),
+            ],
+        },
+
+        // 70. Syndic of Tithes — {1}{W}, Creature — Human Cleric 2/2; Extort.
+        CardDefinition {
+            card_id: cid("syndic-of-tithes"),
+            name: "Syndic of Tithes".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Cleric"]),
+            oracle_text: "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Extort),
+            ],
+        },
+
         // ── Replacement-effect cards (M8 Session 6) ──────────────────────────
 
         // 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
@@ -1795,6 +1981,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             count: 1,
                             tapped: false,
                             mana_color: None,
+                            mana_abilities: vec![],
                         },
                     },
                     intervening_if: None,
@@ -2219,6 +2406,43 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     intervening_if: None,
                 },
             ],
+        },
+
+        // ── Flashback cards ───────────────────────────────────────────────────────────
+
+        // Strike It Rich {R}
+        // Sorcery
+        // Create a Treasure token. (It's an artifact with "{T}, Sacrifice this token: Add one mana of any color.")
+        // Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
+        //
+        // CR 702.34a: Flashback marker enables casting from graveyard. The flashback cost {2}{R}
+        // replaces the mana cost when cast via flashback. The card is exiled on any stack departure
+        // when cast via flashback.
+        // CR 111.10a: Treasure token — colorless Artifact — Treasure with mana ability.
+        CardDefinition {
+            card_id: cid("strike-it-rich"),
+            name: "Strike It Rich".to_string(),
+            mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)".to_string(),
+            abilities: vec![
+                // CR 702.34a: Flashback marker — enables casting from graveyard in casting.rs.
+                AbilityDefinition::Keyword(KeywordAbility::Flashback),
+                // CR 702.34a: The flashback cost itself ({2}{R}).
+                AbilityDefinition::Flashback {
+                    cost: ManaCost { generic: 2, red: 1, ..Default::default() },
+                },
+                // The spell effect: create one Treasure token.
+                AbilityDefinition::Spell {
+                    effect: Effect::CreateToken {
+                        spec: treasure_token_spec(1),
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
         },
 
     ]

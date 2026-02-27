@@ -72,8 +72,10 @@ pub fn process_command(
             card,
             targets,
             convoke_creatures,
+            improvise_artifacts,
             delve_cards,
             kicker_times,
+            cast_with_evoke,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -84,8 +86,10 @@ pub fn process_command(
                 card,
                 targets,
                 convoke_creatures,
+                improvise_artifacts,
                 delve_cards,
                 kicker_times,
+                cast_with_evoke,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -219,6 +223,27 @@ pub fn process_command(
             let mut events = replacement::handle_choose_dredge(&mut state, player, card)?;
             // CR 603.2: Check for triggers after dredge (milled cards may trigger effects;
             // the dredge card returning to hand is not an ETB, so no ETB triggers fire).
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Crew (CR 702.122) ────────────────────────────────────────────
+        Command::CrewVehicle {
+            player,
+            vehicle,
+            crew_creatures,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: crewing a vehicle is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                abilities::handle_crew_vehicle(&mut state, player, vehicle, crew_creatures)?;
+            // CR 603.3: Check for triggered abilities arising from crewing.
             let new_triggers = abilities::check_triggers(&state, &events);
             for t in new_triggers {
                 state.pending_triggers.push_back(t);

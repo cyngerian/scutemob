@@ -10,6 +10,7 @@
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 
+use crate::state::game_object::ManaAbility;
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
     CardId, CardType, Color, CounterType, KeywordAbility, ManaColor, ManaCost, ManaPool, SubType,
@@ -164,6 +165,14 @@ pub enum AbilityDefinition {
         #[serde(default)]
         is_multikicker: bool,
     },
+    /// CR 702.74: Evoke [cost]. The card may be cast by paying this cost instead of
+    /// its mana cost (alternative cost, CR 118.9). When the permanent enters the
+    /// battlefield, if evoke was paid, its controller sacrifices it.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Evoke)` for quick
+    /// presence-checking without scanning all abilities.
+    Evoke { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -212,6 +221,16 @@ pub enum Effect {
         player: PlayerTarget,
         amount: EffectAmount,
     },
+    /// CR 702.101a: Each opponent of the controller loses `amount` life, and the
+    /// controller gains life equal to the total life actually lost by all opponents.
+    ///
+    /// This is NOT the same as LoseLife + GainLife because the gain depends on
+    /// the actual life change, not the intended loss (relevant when an opponent's
+    /// life total can't change, e.g., Platinum Emperion).
+    ///
+    /// The "controller" is the controller of the spell or ability that created
+    /// this effect (from EffectContext).
+    DrainLife { amount: EffectAmount },
 
     // ── Cards ───────────────────────────────────────────────────────────────
     /// CR 121: A player draws one or more cards.
@@ -287,6 +306,17 @@ pub enum Effect {
     /// puts them on the bottom in ObjectId ascending order (interactive
     /// ordering deferred to M10+).
     Scry {
+        player: PlayerTarget,
+        count: EffectAmount,
+    },
+    /// CR 701.25: Surveil N -- look at the top N cards of your library, then put
+    /// any number of them into your graveyard and the rest on top in any order.
+    ///
+    /// Deterministic fallback: puts ALL top N cards into the graveyard
+    /// (interactive ordering deferred to M10+). This mirrors the Scry fallback
+    /// but sends cards to the graveyard instead of the bottom of the library.
+    /// CR 701.25c: Surveil 0 produces no event.
+    Surveil {
         player: PlayerTarget,
         count: EffectAmount,
     },
@@ -563,6 +593,12 @@ pub enum TriggerCondition {
     /// CR 702.21a: "Whenever this permanent becomes the target of a spell or ability
     /// an opponent controls." Used by the Ward keyword.
     WhenBecomesTargetByOpponent,
+    /// CR 701.25d: "Whenever you surveil."
+    ///
+    /// Fires after the surveil action is complete (CR 701.25d), once per surveil
+    /// action regardless of how many cards were looked at. Does NOT fire when
+    /// surveilling 0 (CR 701.25c — no surveil event occurs).
+    WheneverYouSurveil,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -623,6 +659,10 @@ pub struct TokenSpec {
     pub tapped: bool,
     /// Color override: all created under the controller's control.
     pub mana_color: Option<ManaColor>,
+    /// Mana abilities to populate on each created token (CR 605).
+    /// Used by Treasure tokens (CR 111.10a), Gold tokens (CR 111.10c), etc.
+    #[serde(default)]
+    pub mana_abilities: Vec<ManaAbility>,
 }
 
 impl Default for TokenSpec {
@@ -638,7 +678,28 @@ impl Default for TokenSpec {
             count: 1,
             tapped: false,
             mana_color: None,
+            mana_abilities: Vec::new(),
         }
+    }
+}
+
+/// CR 111.10a: Predefined Treasure token specification.
+///
+/// A colorless Treasure artifact token with "{T}, Sacrifice this artifact:
+/// Add one mana of any color."
+pub fn treasure_token_spec(count: u32) -> TokenSpec {
+    TokenSpec {
+        name: "Treasure".to_string(),
+        power: 0,
+        toughness: 0,
+        colors: OrdSet::new(),
+        card_types: [CardType::Artifact].into_iter().collect(),
+        subtypes: [SubType("Treasure".to_string())].into_iter().collect(),
+        keywords: OrdSet::new(),
+        mana_abilities: vec![ManaAbility::treasure()],
+        count,
+        tapped: false,
+        mana_color: None,
     }
 }
 
@@ -694,6 +755,12 @@ pub enum ForEachTarget {
     ///
     /// Used by Rest in Peace ETB: "exile all cards from all graveyards" (CR 614.1).
     EachCardInAllGraveyards,
+    /// Every other attacking creature (excluding the source of the effect).
+    ///
+    /// Used by Battle Cry (CR 702.91a): "each other attacking creature gets
+    /// +1/+0 until end of turn." Queries `state.combat.attackers` and
+    /// excludes `ctx.source`.
+    EachOtherAttackingCreature,
 }
 
 // ── Timing Restriction ────────────────────────────────────────────────────────

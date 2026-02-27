@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + 16 abilities (2026-02-26)
+# Rules Gotchas — Last verified: M9.5 + 30 abilities (2026-02-26)
 
 ## MTG Rules Gotchas
 
@@ -52,11 +52,14 @@
   `attached_to` / `attachments`) must happen BEFORE `register_static_continuous_effects` in
   `resolution.rs` — otherwise the Aura's static effects fire before the attachment is recorded
   and they will find no target to modify.
-- **Convoke, Delve, and Kicker are NOT additional costs (CR 702.51b, 702.66b, 702.33b).** They
+- **Convoke, Delve, Improvise are NOT additional costs (CR 702.51b, 702.66b, 702.126a).** They
   apply AFTER the total cost is determined (including commander tax, flashback alternative cost,
   etc.). The cost-modifier pipeline order in `casting.rs`: base mana cost → flashback alt cost →
-  commander tax → kicker → convoke → delve → payment. Any future cost-reduction keyword must
-  insert after tax/before payment.
+  commander tax → kicker → convoke → improvise → delve → payment. Any future cost-reduction
+  keyword must insert after tax/before payment.
+  **Improvise reduces generic mana only** (unlike Convoke which reduces any color). Each tapped
+  artifact reduces the generic cost by 1. Validate: artifact is on battlefield, controlled by
+  caster, untapped, IS an artifact, no duplicates, count ≤ generic remaining.
 - **Convoke does NOT require summoning sickness exemption** (ruling under CR 702.51a). Tapping
   a creature for convoke is not an activated ability tap cost — summoning sickness only prevents
   `{T}` activated abilities. A creature that entered this turn can still convoke.

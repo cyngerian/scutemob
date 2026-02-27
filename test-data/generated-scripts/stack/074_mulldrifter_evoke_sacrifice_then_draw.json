@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_074",
+    "name": "Mulldrifter evoke — ETB draw 2 resolves inline, then evoke sacrifice trigger",
+    "description": "P1 casts Mulldrifter for its evoke cost ({2}{U}). Mulldrifter enters the battlefield. Its ETB 'draw 2 cards' effect fires inline during resolution (via fire_when_enters_triggered_effects, not via the stack). The evoke sacrifice trigger (CR 702.74a) then goes on the stack as a separate trigger. Both players pass priority; the evoke sacrifice trigger resolves and Mulldrifter is sacrificed to P1's graveyard. Net result: Mulldrifter is in the graveyard, P1 drew 2 cards — the classic 'sorcery that draws 2 for {2}{U}' effect.",
+    "cr_sections_tested": ["702.74a", "601.2", "603.2", "608.2", "701.17a", "120.2"],
+    "corner_case_ref": null,
+    "tags": ["evoke", "triggered-ability", "etb", "sacrifice", "draw", "alternative-cost", "mulldrifter"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Mulldrifter oracle: '2/2 Elemental — Flying. When Mulldrifter enters, draw 2 cards. Evoke {2}{U}.' CR 702.74a: Evoke represents two abilities: (1) a static alternative-cost ability ('may cast for evoke cost instead of mana cost') and (2) a triggered ability ('when this permanent enters, if evoke cost was paid, sacrifice it'). Engine implementation detail: Mulldrifter's ETB draw-2 ability is executed inline during resolution via fire_when_enters_triggered_effects (resolution.rs:290-297), which runs WhenEntersBattlefield effects from the card definition immediately at resolution time — NOT as a separate stackable trigger. This means P1 draws 2 cards before the evoke sacrifice trigger is placed on the stack. The evoke sacrifice trigger is collected by check_triggers from the PermanentEnteredBattlefield event (abilities.rs:573-588) and placed on the stack as a EvokeSacrificeTrigger. Result: after Mulldrifter resolves, the stack has 1 item (evoke sacrifice trigger), P1 already has 2 cards in hand. After the evoke trigger resolves, Mulldrifter is in the graveyard and the stack is empty. Initial state: P1 has Mulldrifter in hand, {2}{U} in pool (colorless:2 + blue:1), and 2 cards in library for the draw-2 effect. The harness action 'cast_spell_evoke' sets cast_with_evoke: true so the engine uses the evoke cost ({2}{U}) instead of the normal cost ({4}{U}).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Mulldrifter", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Mulldrifter for its evoke cost; ETB draw fires inline, then evoke sacrifice trigger goes on stack",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Mulldrifter in P1 hand, battlefield empty, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_evoke",
+          "card": "Mulldrifter",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "702.74a",
+          "note": "CR 702.74a + CR 601.2: P1 casts Mulldrifter for its evoke cost {2}{U} (alternative cost). cast_spell_evoke sets cast_with_evoke: true so the engine pays the evoke cost instead of the normal {4}{U}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Mulldrifter on stack, P1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Mulldrifter is on the stack as an evoke spell."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Mulldrifter resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Mulldrifter",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Mulldrifter",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Mulldrifter resolves and enters the battlefield under P1's control."
+            },
+            {
+              "effect": "draw_card",
+              "player": "p1",
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "603.2",
+              "note": "CR 603.2: ETB draw-2 effect fires inline during resolution (fire_when_enters_triggered_effects). P1 draws 2 cards immediately. This is not a separate stackable trigger in the current engine implementation."
+            },
+            {
+              "effect": "trigger_fired",
+              "source": "Mulldrifter",
+              "trigger_condition": "evoke_sacrifice",
+              "cr_ref": "702.74a",
+              "note": "CR 702.74a: Evoke sacrifice trigger fires after ETB — 'When this permanent enters, if its evoke cost was paid, sacrifice it.' Goes onto the stack as EvokeSacrificeTrigger."
+            }
+          ],
+          "note": "CR 608.2: Mulldrifter enters battlefield. ETB draw-2 executes inline (P1 draws 2 cards). Evoke sacrifice trigger is placed on the stack (1 trigger total)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Mulldrifter resolves: evoke sacrifice trigger on stack, Mulldrifter on battlefield, P1 already drew 2 cards",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Mulldrifter" }] },
+            "zones.hand.p1.count": 2
+          },
+          "note": "Stack has 1 item: the evoke sacrifice trigger. P1 has 2 cards in hand (Island and Forest drawn inline by ETB effect). Mulldrifter is still on battlefield until the sacrifice trigger resolves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — evoke sacrifice trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Mulldrifter evoke trigger",
+          "resolution": [
+            {
+              "effect": "sacrifice",
+              "card": "Mulldrifter",
+              "controller": "p1",
+              "cr_ref": "701.17a",
+              "note": "CR 701.17a: P1 sacrifices Mulldrifter — it moves from the battlefield to P1's graveyard."
+            }
+          ],
+          "note": "CR 702.74a + CR 608.2: Evoke sacrifice trigger resolves; Mulldrifter is sacrificed to P1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Mulldrifter in graveyard, P1 has 2 cards in hand, battlefield empty, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Mulldrifter" }] },
+            "zones.hand.p1.count": 2
+          },
+          "note": "Net result: Mulldrifter is in P1's graveyard; P1 has 2 cards in hand. This is the 'sorcery that draws 2 for {2}{U}' effect of evoke. CR 702.74a fulfilled: evoke cost was paid, creature entered, draw-2 fired, sacrifice trigger resolved."
+        }
+      ]
+    }
+  ]
+}

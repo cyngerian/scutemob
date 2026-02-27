@@ -16,7 +16,7 @@ use crate::state::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
     },
     game_object::{Characteristics, ObjectId},
-    types::{CardType, CounterType, SubType, SuperType},
+    types::{CardType, CounterType, KeywordAbility, SubType, SuperType},
     zone::ZoneId,
     GameState,
 };
@@ -59,6 +59,18 @@ pub fn calculate_characteristics(
     ];
 
     for &layer in &layers_in_order {
+        // CR 702.73a + CR 613.3: Changeling is a characteristic-defining ability that adds
+        // all creature subtypes in Layer 4 (TypeChange), before any non-CDA Layer 4 effects.
+        // CDAs apply first within each layer (CR 613.3), so this runs before gathering
+        // layer_effects. A subsequent SetTypeLine effect (e.g., Blood Moon) will correctly
+        // override the Changeling subtypes because it runs after the CDA within Layer 4.
+        if layer == EffectLayer::TypeChange && chars.keywords.contains(&KeywordAbility::Changeling)
+        {
+            for s in crate::state::types::ALL_CREATURE_TYPES.iter() {
+                chars.subtypes.insert(s.clone());
+            }
+        }
+
         // Gather effects for this layer that apply to this object.
         // The filter is evaluated against `chars` as modified by earlier layers —
         // this is correct because type changes from layer 4 affect whether "AllCreatures"
@@ -311,6 +323,14 @@ fn apply_layer_modification(
 
         LayerModification::LoseAllSubtypes => {
             chars.subtypes = OrdSet::new();
+        }
+
+        // CR 702.73a, CR 205.3m: Adds every creature type (used by Changeling CDA and
+        // Maskwood Nexus-style "is every creature type" continuous effects).
+        LayerModification::AddAllCreatureTypes => {
+            for s in crate::state::types::ALL_CREATURE_TYPES.iter() {
+                chars.subtypes.insert(s.clone());
+            }
         }
 
         // Layer 5: Color-changing

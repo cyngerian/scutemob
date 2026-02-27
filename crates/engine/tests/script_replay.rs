@@ -141,6 +141,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     attackers,
                     blockers,
                     convoke,
+                    improvise,
                     delve,
                     kicked,
                     ..
@@ -155,6 +156,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             attackers,
                             blockers,
                             convoke,
+                            improvise,
                             delve,
                             *kicked,
                             &state,

@@ -201,8 +201,10 @@ fn test_panharmonicon_doubles_etb_trigger() {
             card: entering_hand_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -352,8 +354,10 @@ fn test_two_panharmonicons_triple_triggers() {
             card: entering_hand_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -485,8 +489,10 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             card: entering_hand_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

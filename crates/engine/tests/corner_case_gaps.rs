@@ -77,8 +77,10 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             card: kill_spell_id,
             targets: vec![Target::Object(original_creature_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

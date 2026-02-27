@@ -200,6 +200,7 @@ pub fn translate_player_action(
     attackers_decl: &[AttackerDeclaration],
     blockers_decl: &[BlockerDeclaration],
     convoke_names: &[String],
+    improvise_names: &[String],
     delve_names: &[String],
     kicked: bool,
     state: &GameState,
@@ -224,6 +225,11 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
                 .collect();
+            // CR 702.126: Resolve each improvise artifact name to an ObjectId on the battlefield.
+            let improvise_ids: Vec<crate::state::game_object::ObjectId> = improvise_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
             // CR 702.66: Resolve each delve card name to an ObjectId in the caster's graveyard.
             let delve_ids: Vec<crate::state::game_object::ObjectId> = delve_names
                 .iter()
@@ -234,8 +240,10 @@ pub fn translate_player_action(
                 card: card_id,
                 targets: target_list,
                 convoke_creatures: convoke_ids,
+                improvise_artifacts: improvise_ids,
                 delve_cards: delve_ids,
                 kicker_times: if kicked { 1 } else { 0 },
+                cast_with_evoke: false,
             })
         }
 
@@ -252,8 +260,27 @@ pub fn translate_player_action(
                 card: card_id,
                 targets: target_list,
                 convoke_creatures: vec![],
+                improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
+                cast_with_evoke: false,
+            })
+        }
+
+        // CR 702.74a: Cast a spell with evoke from the player's hand.
+        // The evoke cost (an alternative cost) is paid instead of the mana cost.
+        "cast_spell_evoke" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: true,
             })
         }
 
@@ -381,6 +408,22 @@ pub fn translate_player_action(
             Some(Command::LeaveCommanderInZone {
                 player,
                 object_id: obj_id,
+            })
+        }
+
+        // CR 702.122a: Crew a vehicle by tapping creatures.
+        // `card_name` is the vehicle's display name; `crew_creatures` field (reusing
+        // `convoke_names` for harness re-use) is a JSON array of crew creature names.
+        "crew_vehicle" => {
+            let vehicle_id = find_on_battlefield(state, player, card_name?)?;
+            let crew_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
+            Some(Command::CrewVehicle {
+                player,
+                vehicle: vehicle_id,
+                crew_creatures: crew_ids,
             })
         }
 
@@ -632,6 +675,25 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 701.25d: Convert "Whenever you surveil" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Surveilled events.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouSurveil,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerSurveils,
+                intervening_if: None,
+                description: "Whenever you surveil (CR 701.25d)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
     spec
 }
 
@@ -778,6 +840,8 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
         return Some(ManaAbility {
             produces,
             requires_tap: true,
+            sacrifice_self: false,
+            any_color: false,
         });
     }
     None

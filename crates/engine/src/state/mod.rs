@@ -276,6 +276,8 @@ impl GameState {
             // CR 400.7: kicked status is not preserved across zone changes
             // (a permanent re-entering is not kicked).
             kicker_times_paid: 0,
+            // CR 400.7: evoke status is not preserved across zone changes.
+            was_evoked: false,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -346,6 +348,8 @@ impl GameState {
             goaded_by: im::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes.
             kicker_times_paid: 0,
+            // CR 400.7: evoke status is not preserved across zone changes.
+            was_evoked: false,
         };
 
         // Insert at the front (= bottom) of the destination zone.

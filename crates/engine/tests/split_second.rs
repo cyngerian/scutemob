@@ -164,8 +164,10 @@ fn test_split_second_blocks_casting_spells() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -190,8 +192,10 @@ fn test_split_second_blocks_casting_spells() {
             card: plain_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -261,8 +265,10 @@ fn test_split_second_blocks_activated_abilities() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -345,8 +351,10 @@ fn test_split_second_blocks_cycling() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -422,8 +430,10 @@ fn test_split_second_allows_mana_abilities() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -506,8 +516,10 @@ fn test_split_second_allows_pass_priority() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -577,8 +589,10 @@ fn test_split_second_blocks_caster_too() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -596,8 +610,10 @@ fn test_split_second_blocks_caster_too() {
             card: second_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -667,8 +683,10 @@ fn test_split_second_restriction_ends_after_resolution() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -700,8 +718,10 @@ fn test_split_second_restriction_ends_after_resolution() {
             card: plain_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -765,8 +785,10 @@ fn test_split_second_triggered_abilities_still_fire() {
             card: ss_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

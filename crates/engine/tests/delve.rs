@@ -180,8 +180,10 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![id1, id2, id3, id4, id5, id6, id7],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with delve failed: {:?}", e));
@@ -281,8 +283,10 @@ fn test_delve_partial_reduction() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![id1, id2, id3],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Partial delve cast failed: {:?}", e));
@@ -360,8 +364,10 @@ fn test_delve_object_exiled_events() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![id1, id2, id3],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Delve cast failed: {:?}", e));
@@ -446,8 +452,10 @@ fn test_delve_reject_no_keyword() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![card_id],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -512,8 +520,10 @@ fn test_delve_reject_too_many_cards() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![id1, id2, id3],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -564,8 +574,10 @@ fn test_delve_reject_card_not_in_graveyard() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![creature_id],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -616,8 +628,10 @@ fn test_delve_reject_opponents_graveyard() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![opp_card_id],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -668,8 +682,10 @@ fn test_delve_reject_duplicate_cards() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![card_id, card_id],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -729,8 +745,10 @@ fn test_delve_zero_cards_normal_cast() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![], // No delve
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of delve spell failed: {:?}", e));
@@ -845,8 +863,10 @@ fn test_delve_with_commander_tax() {
             card: cmd_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![id1, id2, id3, id4, id5, id6],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander delve cast failed: {:?}", e));

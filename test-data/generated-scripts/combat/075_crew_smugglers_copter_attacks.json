@@ -1,0 +1,262 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_075",
+    "name": "Crew — Smuggler's Copter crewed by Llanowar Elves becomes artifact creature, attacks",
+    "description": "P1 controls Smuggler's Copter (a non-creature artifact Vehicle, 3/3 printed P/T, Crew 1, Flying) and Llanowar Elves (1/1). P1 activates the Crew 1 ability by tapping Llanowar Elves (power 1 >= Crew cost 1). The crew ability goes on the stack. Both players pass priority. The ability resolves: Smuggler's Copter becomes an artifact creature until end of turn (CR 702.122a, Layer 4 type change). After resolution, assert: Copter has Creature card type, Elves is tapped, Copter is 3/3. P1 then advances to the DeclareAttackers step and attacks p2 with the now-crewed Copter (Flying — p2 has no creatures to block). P2 takes 3 combat damage; p2 life: 40 → 37.",
+    "cr_sections_tested": ["702.122a", "602.2", "601.2", "405.5", "608.2", "116.3", "508.1", "509.1", "510.1b", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["combat", "crew", "vehicle", "artifact-creature", "type-change", "layer-4", "flying", "declare-attackers"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Smuggler's Copter oracle text (Scryfall verified): 'Flying. Whenever Smuggler's Copter attacks or blocks, you may draw a card. If you do, discard a card. Crew 1 (Tap any number of creatures you control with total power 1 or greater: This Vehicle becomes an artifact creature until end of turn.)' Type: Artifact — Vehicle. P/T: 3/3. Mana cost: {2}. IMPORTANT: Smuggler's Copter is NOT in the engine Available Cards list and has no CardDefinition in definitions.rs. This script requires a CardDefinition for Smuggler's Copter before harness validation can pass. The loot trigger (draw/discard when attacks or blocks) is deferred from the card definition (needs 'when attacks or blocks' trigger condition implementation). CR 702.122a: 'Crew N means Tap any number of other untapped creatures you control with total power N or greater: This permanent becomes an artifact creature until end of turn.' The crew action uses action='crew_vehicle', card='Smuggler's Copter', convoke=['Llanowar Elves'] (the harness reuses the convoke field for crew creature names per replay_harness.rs:406-407 comment). Llanowar Elves (power 1) meets the Crew 1 threshold. The ability is placed on the stack (CR 602.2: activated abilities use the stack). After both players pass, it resolves adding CardType::Creature to Smuggler's Copter via Layer 4 AddCardTypes continuous effect (UntilEndOfTurn). The Vehicle's printed P/T 3/3 becomes active once it is a creature (CR 301.7b: 'If a Vehicle becomes a creature, it immediately has its printed power and toughness.'). The engine stores power: Some(3), toughness: Some(3) on the object from the card definition; these become relevant when Creature type is active. After crewing: Llanowar Elves is tapped (cost paid at activation time per CR 702.122b), Copter is an artifact creature. Turn_number 4 is used so Smuggler's Copter has no summoning sickness (placed in initial state via builder which sets has_summoning_sickness: false). Note: summoning sickness DOES apply to Vehicles once crewed (ruling). For the initial_state we use turn_number 4 and place the Copter already on the battlefield (pre-existing, no summoning sickness). Initial phase is precombat_main to allow crewing before combat. Priority passes advance to DeclareAttackers. Copter has Flying — p2 has no creatures, so it is unblocked. P2 takes 3 damage (CR 510.1b). No SBAs from combat (p2 has 37 life, Copter took no damage). The beginning_of_combat step is skipped in the script (no actions needed there) — the script starts in precombat_main and the crew happens there, then priority_round advances through beginning_of_combat to declare_attackers automatically.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "game-script-generator",
+        "description": "Smuggler's Copter is not in the engine Available Cards list and has no CardDefinition in crates/engine/src/cards/definitions.rs. This script will fail harness validation until Smuggler's Copter is authored with CardType::Artifact, subtype Vehicle, Crew(1) keyword, Flying keyword, power: Some(3), toughness: Some(3). Without the CardDefinition, the engine cannot enrich the initial-state object with the Crew keyword, the crew_vehicle command will fail to find KeywordAbility::Crew on the object, and the crew ability will not resolve. This is a step-5 gap from ability-wip.md (card definition pending).",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Smuggler's Copter", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 activates Smuggler's Copter's Crew 1 ability by tapping Llanowar Elves (power 1 >= 1). Crew ability goes on the stack. CR 702.122a.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Smuggler's Copter and Llanowar Elves untapped on p1 battlefield. Copter is a non-creature artifact. Stack is empty. Life totals 40/40.",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Smuggler's Copter" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "permanent.Llanowar Elves.tapped": false,
+            "permanent.Smuggler's Copter.tapped": false,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Smuggler's Copter begins as a non-creature artifact (Artifact — Vehicle, no Creature type). Llanowar Elves is untapped with power 1, satisfying Crew 1 cost. No summoning sickness issues: both permanents were placed in initial state at turn 4 (builder sets has_summoning_sickness: false for initial-state permanents). Crewing does NOT require a creature to be free of summoning sickness (ruling: any untapped creature you control can be tapped to pay crew cost)."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "crew_vehicle",
+          "card": "Smuggler's Copter",
+          "convoke": ["Llanowar Elves"],
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "702.122a",
+          "note": "CR 702.122a: P1 activates Crew 1 ability of Smuggler's Copter. Taps Llanowar Elves (power 1 >= Crew cost 1) as the crew cost. CR 702.122b: Llanowar Elves 'crews a Vehicle' when tapped to pay this cost. The crew ability is placed onto the stack (CR 602.2: activated abilities use the stack). Priority resets to active player p1 (CR 116.3)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After crew activation: crew ability on stack (count 1), Llanowar Elves is tapped (cost paid at activation), Copter still untapped on battlefield.",
+          "assertions": {
+            "zones.stack.count": 1,
+            "permanent.Llanowar Elves.tapped": true,
+            "permanent.Smuggler's Copter.tapped": false
+          },
+          "note": "CR 702.122a: Tapping the crew creatures is a cost paid at activation time, before the ability is placed on the stack. Llanowar Elves is now tapped. Smuggler's Copter itself is not tapped by the crew cost — the crew ability's effect (becoming a creature) has not resolved yet. The crew ability sits on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: P1 holds priority after activation; p1 passes, then p2 passes. Stack resolves top object (crew ability). CR 405.5: LIFO — crew ability is the only stack object."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Smuggler's Copter crew ability",
+          "resolution": [
+            {
+              "effect": "apply_continuous_effect",
+              "target": { "type": "permanent", "card": "Smuggler's Copter", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.122a",
+              "note": "CR 702.122a: The crew ability resolves — Smuggler's Copter becomes an artifact creature until end of turn. This is a Layer 4 (type-changing) continuous effect: AddCardTypes({Creature}), duration UntilEndOfTurn. CR 301.7b: Smuggler's Copter immediately has its printed power and toughness (3/3) now that it is a creature."
+            }
+          ],
+          "note": "CR 608.2: Activated ability resolves. Smuggler's Copter gains Creature card type until end of turn. No ETB trigger fires (the Copter was already on the battlefield — becoming a creature is not entering the battlefield; ruling: 'When a Vehicle becomes a creature, that does not count as having a creature enter the battlefield.')."
+        },
+        {
+          "type": "assert_state",
+          "description": "After crew resolves: Smuggler's Copter is now an artifact creature (3/3), Llanowar Elves remains tapped, stack is empty.",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "permanent.Llanowar Elves.tapped": true,
+            "permanent.Smuggler's Copter.tapped": false,
+            "permanent.Smuggler's Copter.power": 3,
+            "permanent.Smuggler's Copter.toughness": 3,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Smuggler's Copter" },
+                { "card": "Llanowar Elves" }
+              ]
+            }
+          },
+          "note": "CR 702.122a + CR 301.7b: Smuggler's Copter is now an artifact creature with power 3 and toughness 3. Llanowar Elves remains on the battlefield in a tapped state (it was tapped as the crew cost). The crew ability resolved — stack is empty. P1 now has an artifact creature with Flying that can attack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance from PreCombatMain through BeginningOfCombat to DeclareAttackers step. P1 receives priority in DeclareAttackers."
+        }
+      ]
+    },
+    {
+      "step": "declare_attackers",
+      "step_note": "P1 declares Smuggler's Copter (now an artifact creature with Flying, 3/3) as an attacker targeting p2. P2 has no creatures to block. Copter is unblocked.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Smuggler's Copter", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: P1 declares Smuggler's Copter as an attacking creature targeting p2. CR 508.1a: Smuggler's Copter is untapped and free of summoning sickness (it was placed in initial state at turn 4 — builder sets has_summoning_sickness: false). CR 508.1f: Smuggler's Copter becomes tapped as a side effect of attacking. CR 508.1k: Smuggler's Copter becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Smuggler's Copter is tapped (attacking), stack empty.",
+          "assertions": {
+            "permanent.Smuggler's Copter.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Smuggler's Copter is tapped as part of the attack declaration. P1 holds priority. Note: Smuggler's Copter's loot trigger ('whenever attacks or blocks, you may draw a card...') is deferred from the card definition implementation."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack → advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "P2 declares no blockers (controls no creatures). Smuggler's Copter (Flying) also could not be blocked by non-flying/non-reach creatures. Copter becomes unblocked.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: P2 declares no blockers (no creatures to block with). CR 509.1h: Smuggler's Copter has no creatures declared as blockers → it becomes an unblocked attacker. CR 702.9a: Flying — Copter can only be blocked by creatures with Flying or Reach; p2 has neither."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority → advance to CombatDamage step. Engine executes combat damage as a turn-based action on entering CombatDamage."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Smuggler's Copter (power 3, unblocked) assigns 3 combat damage to p2 (CR 510.1b). P2 life: 40 → 37. SBAs: p2 has 37 life (no SBA 704.5a). Copter took no damage (no SBA 704.5g).",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 37 life (above 0) — no player-death SBA. CR 704.5g: Smuggler's Copter (3/3 artifact creature) took no damage — no lethal-damage SBA. No SBAs apply."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty → advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: p2 at 37 life (took 3 damage from unblocked Copter), Smuggler's Copter still on p1 battlefield (tapped from attacking), Llanowar Elves on battlefield (tapped from crew cost).",
+          "assertions": {
+            "players.p2.life": 37,
+            "players.p1.life": 40,
+            "permanent.Smuggler's Copter.tapped": true,
+            "permanent.Smuggler's Copter.power": 3,
+            "permanent.Smuggler's Copter.toughness": 3,
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Smuggler's Copter" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Smuggler's Copter (power 3) dealt 3 combat damage to p2. P2 life: 40 → 37. Smuggler's Copter remains on battlefield as an artifact creature (the UntilEndOfTurn continuous effect persists until cleanup step). Llanowar Elves remains on battlefield, tapped from paying the crew cost."
+        }
+      ]
+    }
+  ]
+}

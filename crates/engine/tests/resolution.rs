@@ -67,8 +67,10 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -133,8 +135,10 @@ fn test_608_1_instant_resolves_to_graveyard() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -187,8 +191,10 @@ fn test_608_3a_creature_enters_battlefield() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -260,8 +266,10 @@ fn test_608_3a_artifact_enters_battlefield() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -313,8 +321,10 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -387,8 +397,10 @@ fn test_608_1_lifo_resolves_top_first() {
             card: sorcery_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -402,8 +414,10 @@ fn test_608_1_lifo_resolves_top_first() {
             card: instant_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -506,8 +520,10 @@ fn test_counter_stack_object_spell_to_graveyard() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -582,8 +598,10 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -647,8 +665,10 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

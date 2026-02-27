@@ -56,6 +56,13 @@ pub struct StackObject {
     /// (CR ruling: copies of kicked spells are also kicked).
     #[serde(default)]
     pub kicker_times_paid: u32,
+    /// CR 702.74a: If true, this spell was cast by paying its evoke cost
+    /// (an alternative cost). When the permanent enters the battlefield,
+    /// the evoke sacrifice trigger fires.
+    ///
+    /// Must always be false for copies (`is_copy: true`) — copies are not cast.
+    #[serde(default)]
+    pub was_evoked: bool,
 }
 
 /// The kind of object on the stack.
@@ -122,4 +129,15 @@ pub enum StackObjectKind {
         original_stack_id: ObjectId,
         storm_count: u32,
     },
+
+    /// CR 702.74a: Evoke sacrifice trigger on the stack.
+    ///
+    /// When an evoked permanent enters the battlefield, this trigger fires:
+    /// "When this permanent enters, if its evoke cost was paid, its controller
+    /// sacrifices it." Resolves to sacrifice the source permanent.
+    ///
+    /// If the source has left the battlefield by resolution time (blinked,
+    /// bounced, etc.), the trigger does nothing per CR 400.7 — the source
+    /// is a new object and is no longer the evoked permanent.
+    EvokeSacrificeTrigger { source_object: ObjectId },
 }

@@ -191,8 +191,10 @@ fn test_ward_basic_counter_on_targeting() {
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -312,8 +314,10 @@ fn test_ward_does_not_trigger_for_controller() {
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -398,8 +402,10 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             card: spell_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -581,8 +587,10 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -741,8 +749,10 @@ fn test_ward_multiple_targets_trigger_separately() {
             card: spell_id,
             targets: vec![Target::Object(a_id), Target::Object(b_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -830,8 +840,10 @@ fn test_ward_multiplayer_opponent_check() {
             card: spell_id,
             targets: vec![Target::Object(creature_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

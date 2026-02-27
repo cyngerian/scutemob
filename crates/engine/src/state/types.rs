@@ -275,4 +275,120 @@ pub enum KeywordAbility {
     /// `state/builder.rs`. The trigger fires on SelfDies events; the
     /// intervening-if checks pre-death counters via the CreatureDied event.
     Persist,
+    /// CR 702.93: Undying -- "When this permanent is put into a graveyard from
+    /// the battlefield, if it had no +1/+1 counters on it, return it to the
+    /// battlefield under its owner's control with a +1/+1 counter on it."
+    ///
+    /// Translated to a TriggeredAbilityDef at object-construction time in
+    /// `state/builder.rs`. The trigger fires on SelfDies events; the
+    /// intervening-if checks pre-death counters via the CreatureDied event.
+    Undying,
+    /// CR 702.73: Changeling -- "This object is every creature type."
+    ///
+    /// Characteristic-defining ability (CDA). Applied as a type-change in Layer 4
+    /// before non-CDA effects (CR 613.3). Functions in all zones (CR 604.3).
+    /// The full creature type list (CR 205.3m) is added to the object's subtypes
+    /// inline in `calculate_characteristics` when this keyword is present.
+    Changeling,
+    /// CR 702.74: Evoke [cost] — alternative cost; sacrifice on ETB if evoked.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The evoke cost itself is stored in `AbilityDefinition::Evoke { cost }`.
+    ///
+    /// Casting with evoke pays the evoke cost instead of the mana cost (CR 118.9).
+    /// When the permanent enters the battlefield, if its evoke cost was paid, its
+    /// controller sacrifices it (CR 702.74a).
+    Evoke,
+    /// CR 702.122: Crew N — "Tap any number of other untapped creatures you control
+    /// with total power N or greater: This permanent becomes an artifact creature
+    /// until end of turn."
+    ///
+    /// Marker keyword for quick presence-checking. The crew cost (N) is the
+    /// minimum total power of creatures that must be tapped.
+    /// The actual command is `Command::CrewVehicle`, handled in `handle_crew_vehicle`.
+    Crew(u32),
+    /// CR 702.91: Battle Cry -- "Whenever this creature attacks, each other
+    /// attacking creature gets +1/+0 until end of turn."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.91b).
+    BattleCry,
+    /// CR 702.135: Afterlife N -- "When this permanent is put into a graveyard
+    /// from the battlefield, create N 1/1 white and black Spirit creature tokens
+    /// with flying."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.135b).
+    Afterlife(u32),
+    /// CR 702.101: Extort -- "Whenever you cast a spell, you may pay {W/B}.
+    /// If you do, each opponent loses 1 life and you gain life equal to the
+    /// total life lost this way."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.101b).
+    Extort,
+    /// CR 702.126: Improvise -- tap artifacts to pay generic mana costs.
+    /// "For each generic mana in this spell's total cost, you may tap an untapped
+    /// artifact you control rather than pay that mana."
+    /// CR 702.126b: Not an additional or alternative cost; applies after total cost determined.
+    /// CR 702.126c: Multiple instances are redundant.
+    Improvise,
 }
+
+/// All creature subtypes from CR 205.3m.
+///
+/// Used by Changeling (CR 702.73a) and "is every creature type" effects such as
+/// Maskwood Nexus. Lazily initialized on first use; `im::OrdSet` clones are O(1)
+/// due to structural sharing.
+pub static ALL_CREATURE_TYPES: std::sync::LazyLock<im::OrdSet<SubType>> =
+    std::sync::LazyLock::new(|| {
+        #[rustfmt::skip]
+        let types: &[&str] = &[
+            "Advisor", "Aetherborn", "Alien", "Ally", "Angel", "Antelope", "Ape",
+            "Archer", "Archon", "Army", "Artificer", "Assassin", "Assembly-Worker",
+            "Atog", "Aurochs", "Avatar", "Azra", "Badger", "Balloon", "Barbarian",
+            "Bard", "Bear", "Beast", "Beaver", "Beeble", "Beholder", "Berserker",
+            "Bird", "Blinkmoth", "Boar", "Bringer", "Brushwagg", "Camarid", "Camel",
+            "Caribou", "Carrier", "Cat", "Centaur", "Cephalid", "Child", "Chimera",
+            "Citizen", "Cleric", "Cockroach", "Construct", "Coward", "Crab",
+            "Crocodile", "Cyclops", "Dauthi", "Demigod", "Demon", "Deserter",
+            "Detective", "Devil", "Dinosaur", "Djinn", "Dog", "Dragon", "Drake",
+            "Dreadnought", "Drone", "Druid", "Dryad", "Dwarf", "Efreet", "Egg",
+            "Elder", "Eldrazi", "Elemental", "Elephant", "Elf", "Elves", "Elk",
+            "Employee", "Eye", "Faerie", "Ferret", "Fish", "Flagbearer", "Fox",
+            "Fractal", "Frog", "Fungus", "Gargoyle", "Germ", "Giant", "Gith",
+            "Gnoll", "Gnome", "Goat", "Goblin", "God", "Golem", "Gorgon", "Graveborn",
+            "Gremlin", "Griffin", "Guest", "Hag", "Halfling", "Hamster", "Harpy",
+            "Hellion", "Hippo", "Hippogriff", "Homarid", "Homunculus", "Horror",
+            "Horse", "Human", "Hydra", "Hyena", "Illusion", "Imp", "Incarnation",
+            "Inkling", "Inquisitor", "Insect", "Jackal", "Jellyfish", "Juggernaut",
+            "Kavu", "Kirin", "Kithkin", "Knight", "Kobold", "Kor", "Kraken", "Lamia",
+            "Lammasu", "Leech", "Leviathan", "Lhurgoyf", "Licid", "Lizard", "Manticore",
+            "Masticore", "Mercenary", "Merfolk", "Metathran", "Minion", "Minotaur",
+            "Mite", "Mole", "Monger", "Mongoose", "Monk", "Monkey", "Moonfolk",
+            "Mouse", "Mutant", "Myr", "Mystic", "Naga", "Nautilus", "Nephilim",
+            "Nightmare", "Nightstalker", "Ninja", "Noble", "Noggle", "Nomad", "Nymph",
+            "Octopus", "Ogre", "Ooze", "Orb", "Orc", "Orgg", "Otter", "Ouphe", "Ox",
+            "Oyster", "Pangolin", "Peasant", "Pegasus", "Pentavite", "Performer",
+            "Pest", "Phelddagrif", "Phoenix", "Phyrexian", "Pilot", "Pincher",
+            "Pirate", "Plant", "Praetor", "Primarch", "Prism", "Processor",
+            "Rabbit", "Raccoon", "Ranger", "Rat", "Rebel", "Reflection", "Rhino",
+            "Rigger", "Robot", "Rogue", "Sable", "Salamander", "Samurai", "Sand",
+            "Saproling", "Satyr", "Scarecrow", "Scientist", "Scion", "Scorpion",
+            "Scout", "Sculpture", "Serf", "Serpent", "Servo", "Shade", "Shaman",
+            "Shapeshifter", "Shark", "Sheep", "Siren", "Skeleton", "Slith",
+            "Sliver", "Slug", "Snake", "Soldier", "Soltari", "Spawn", "Specter",
+            "Spellshaper", "Sphinx", "Spider", "Spike", "Spirit", "Splinter",
+            "Sponge", "Squid", "Squirrel", "Starfish", "Surrakar", "Survivor",
+            "Tentacle", "Tetravite", "Thalakos", "Thopter", "Thrull", "Tiefling",
+            "Time Lord", "Treefolk", "Trilobite", "Triskelavite", "Troll", "Turtle",
+            "Tyranid", "Unicorn", "Vampire", "Vedalken", "Viashino", "Volver",
+            "Wall", "Walrus", "Warlock", "Warrior", "Weird", "Werewolf", "Whale",
+            "Wizard", "Wolf", "Wolverine", "Wombat", "Worm", "Wraith", "Wurm",
+            "Yeti", "Zombie", "Zubera",
+        ];
+        types.iter().map(|s| SubType(s.to_string())).collect()
+    });

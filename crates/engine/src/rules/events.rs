@@ -675,6 +675,14 @@ pub enum GameEvent {
     /// moved to bottom in ObjectId order).
     Scried { player: PlayerId, count: u32 },
 
+    // ── Surveil event ─────────────────────────────────────────────────────
+    /// A player performed a surveil action (CR 701.25).
+    ///
+    /// Emitted by `Effect::Surveil` when the player looks at the top N cards
+    /// of their library and puts some into the graveyard, rest on top.
+    /// CR 701.25c: NOT emitted when surveilling 0.
+    Surveilled { player: PlayerId, count: u32 },
+
     // ── M9.4: Goaded event ────────────────────────────────────────────────
     /// A permanent was goaded (CR 701.38).
     ///

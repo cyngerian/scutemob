@@ -13,9 +13,9 @@ pub mod registry;
 
 pub use card_definition::Effect;
 pub use card_definition::{
-    AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost, EffectAmount,
-    EffectTarget, ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, TargetController,
-    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
-    ZoneTarget,
+    treasure_token_spec, AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost,
+    EffectAmount, EffectTarget, ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget,
+    TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
+    TriggerCondition, TypeLine, ZoneTarget,
 };
 pub use registry::CardRegistry;

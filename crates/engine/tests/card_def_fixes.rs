@@ -105,8 +105,10 @@ fn test_read_the_bones_scry_then_draw() {
             card: rtb_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -273,8 +275,10 @@ fn test_path_to_exile_optional_search() {
             card: path_id,
             targets: vec![mtg_engine::Target::Object(goblin_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -693,8 +697,10 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             card: rip_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .expect("casting Rest in Peace failed");

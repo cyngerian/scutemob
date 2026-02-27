@@ -414,6 +414,7 @@ fn test_commander_damage_survives_zone_change() {
                 has_summoning_sickness: false,
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
+                was_evoked: false,
             },
             ZoneId::Battlefield,
         )

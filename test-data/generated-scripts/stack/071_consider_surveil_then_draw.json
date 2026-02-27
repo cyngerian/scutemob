@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_071",
+    "name": "Consider \u2014 surveil 1 to graveyard then draw a card",
+    "description": "p1 casts Consider ({U} Instant: Surveil 1, draw a card). On resolution, p1 looks at the top card of their library (Lightning Bolt), chooses to put it into the graveyard per CR 701.25a, then draws the next card (Plains). Tests the full Surveil 1 effect: the surveiled card ends up in the graveyard, the library top changes, and the player's hand size is net-zero relative to the start (spent Consider, drew Plains).",
+    "cr_sections_tested": ["601.2", "608.2", "701.25a", "701.25d", "120.2"],
+    "corner_case_ref": null,
+    "tags": ["surveil", "stack", "instant", "draw", "library-manipulation", "consider"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Consider oracle text: 'Surveil 1. (Look at the top card of your library. You may put it into your graveyard.) Draw a card.' Cost {U}. CR 701.25a: Surveil N = look at top N cards, put any number into graveyard, rest on top in any order. For Surveil 1, p1 puts the top card (Lightning Bolt) into their graveyard. Then draws a card per the second clause. Initial library: [Lightning Bolt (top), Plains]. After surveil: Lightning Bolt goes to graveyard, library = [Plains]. After draw: Plains moves to hand, library = []. Hand count math: start 1 (Consider), cast (-1 = 0), surveil 0 hand change, draw +1 = 1. Net hand same as start. CR 701.25d: the Surveilled event fires even with a non-empty library of the surveiled card count. Consider itself goes to p1's graveyard as a resolved instant (CR 608.2). Final graveyard has both Consider and Lightning Bolt. p1 draws Plains from the library.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Consider", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Consider, surveils Lightning Bolt to graveyard, then draws Plains.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Consider in p1 hand, 2 cards in library, graveyard empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Consider",
+          "targets": [],
+          "mana_paid": { "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Consider; {U} paid from pool. No targets required."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Consider on stack, p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Consider moved from hand to stack on cast."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Consider resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Consider",
+          "resolution": [
+            {
+              "effect": "surveil",
+              "player": "p1",
+              "amount": 1,
+              "choice": "p1 puts Lightning Bolt (top of library) into graveyard",
+              "cr_ref": "701.25a",
+              "note": "CR 701.25a: Surveil 1 \u2014 p1 looks at top card (Lightning Bolt) and chooses to put it into their graveyard. Library: [Plains]."
+            },
+            {
+              "effect": "draw_cards",
+              "player": "p1",
+              "amount": 1,
+              "cr_ref": "120.2",
+              "note": "CR 120.2: p1 draws 1 card (Plains from top of library). Hand: 1 card."
+            }
+          ],
+          "note": "CR 608.2: Consider resolves. Surveil 1 sends Lightning Bolt to graveyard; then p1 draws Plains. Consider itself goes to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p1 hand has 1 card (Plains drawn), Lightning Bolt in graveyard, Consider in graveyard, library empty, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 1,
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Lightning Bolt" },
+                { "card": "Consider" }
+              ]
+            }
+          },
+          "note": "Surveil put Lightning Bolt into graveyard (CR 701.25a). p1 then drew Plains (hand = 1). Net hand count: start 1, cast -1, draw +1 = 1. Library is now empty. Consider in graveyard as resolved instant (CR 608.2)."
+        }
+      ]
+    }
+  ]
+}

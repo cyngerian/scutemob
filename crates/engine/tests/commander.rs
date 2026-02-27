@@ -123,8 +123,10 @@ fn test_cast_commander_from_command_zone_first_time() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -211,8 +213,10 @@ fn test_cast_commander_from_command_zone_second_time() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -288,8 +292,10 @@ fn test_cast_commander_from_command_zone_third_time() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -363,8 +369,10 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -417,8 +425,10 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -466,8 +476,10 @@ fn test_cast_commander_sorcery_speed_enforced() {
             card: card_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
 
@@ -969,8 +981,10 @@ fn test_partner_commanders_separate_tax_tracking() {
             card: cmd_a_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -1042,8 +1056,10 @@ fn test_partner_commanders_separate_tax_tracking() {
             card: cmd_a_obj_id2,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -1966,8 +1982,10 @@ fn test_full_four_player_commander_game() {
             card: beta_cmd_obj_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

@@ -220,6 +220,11 @@ pub enum ScriptAction {
         /// Example: ["Llanowar Elves", "Saproling Token", "Saproling Token"]
         #[serde(default)]
         convoke: Vec<String>,
+        /// CR 702.126: For `cast_spell` with improvise. Names of untapped artifacts on the
+        /// battlefield to tap as part of cost payment. Empty for non-improvise casts.
+        /// Example: ["Sol Ring", "Mana Vault", "Signet"]
+        #[serde(default)]
+        improvise: Vec<String>,
         /// CR 702.66: For `cast_spell` with delve. Names of cards in the caster's graveyard
         /// to exile as part of cost payment. Empty for non-delve casts.
         /// Example: ["Lightning Bolt", "Mountain", "Grizzly Bears"]

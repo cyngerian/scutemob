@@ -25,7 +25,7 @@ use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperT
 use super::zone::{Zone, ZoneId};
 use super::GameState;
 use crate::cards::card_definition::{
-    ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, PlayerTarget,
+    ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget,
 };
 use crate::state::continuous_effect::{
     EffectDuration as CEDuration, EffectFilter as CEFilter, EffectLayer, LayerModification,
@@ -435,6 +435,32 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.91a: Battle Cry — "Whenever this creature attacks, each
+                // other attacking creature gets +1/+0 until end of turn."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.91b).
+                // The ForEach iterates over all other attacking creatures at resolution
+                // time and applies a +1/+0 ModifyPower continuous effect to each.
+                if matches!(kw, KeywordAbility::BattleCry) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: "Battle Cry (CR 702.91a): Whenever this creature attacks, \
+                                      each other attacking creature gets +1/+0 until end of turn."
+                            .to_string(),
+                        effect: Some(Effect::ForEach {
+                            over: ForEachTarget::EachOtherAttackingCreature,
+                            effect: Box::new(Effect::ApplyContinuousEffect {
+                                effect_def: Box::new(ContinuousEffectDef {
+                                    layer: EffectLayer::PtModify,
+                                    modification: LayerModification::ModifyPower(1),
+                                    filter: CEFilter::DeclaredTarget { index: 0 },
+                                    duration: CEDuration::UntilEndOfTurn,
+                                }),
+                            }),
+                        }),
+                    });
+                }
+
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."
@@ -465,6 +491,91 @@ impl GameStateBuilder {
                                 count: 1,
                             },
                         ])),
+                    });
+                }
+
+                // CR 702.93a: Undying -- "When this permanent is put into a graveyard from
+                // the battlefield, if it had no +1/+1 counters on it, return it to the
+                // battlefield under its owner's control with a +1/+1 counter on it."
+                // Each keyword instance generates one TriggeredAbilityDef.
+                // The intervening-if is checked at trigger time against pre_death_counters
+                // carried by the CreatureDied event (last known information, CR 603.10a).
+                if matches!(kw, KeywordAbility::Undying) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfDies,
+                        intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
+                            CounterType::PlusOnePlusOne,
+                        )),
+                        description: "Undying (CR 702.93a): When this permanent dies, \
+                                      if it had no +1/+1 counters on it, return it to the \
+                                      battlefield under its owner's control with a +1/+1 \
+                                      counter on it."
+                            .to_string(),
+                        effect: Some(Effect::Sequence(vec![
+                            Effect::MoveZone {
+                                target: EffectTarget::Source,
+                                to: crate::cards::card_definition::ZoneTarget::Battlefield {
+                                    tapped: false,
+                                },
+                            },
+                            Effect::AddCounter {
+                                target: EffectTarget::Source,
+                                counter: CounterType::PlusOnePlusOne,
+                                count: 1,
+                            },
+                        ])),
+                    });
+                }
+
+                // CR 702.135a: Afterlife N -- "When this permanent is put into a
+                // graveyard from the battlefield, create N 1/1 white and black Spirit
+                // creature tokens with flying."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.135b).
+                // No intervening-if: the trigger always fires on death regardless of counters.
+                if let KeywordAbility::Afterlife(n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfDies,
+                        intervening_if: None,
+                        description: format!(
+                            "Afterlife {n} (CR 702.135a): When this permanent dies, \
+                             create {n} 1/1 white and black Spirit creature token(s) \
+                             with flying."
+                        ),
+                        effect: Some(Effect::CreateToken {
+                            spec: crate::cards::card_definition::TokenSpec {
+                                name: "Spirit".to_string(),
+                                power: 1,
+                                toughness: 1,
+                                colors: [Color::White, Color::Black].into_iter().collect(),
+                                card_types: [CardType::Creature].into_iter().collect(),
+                                subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
+                                keywords: [KeywordAbility::Flying].into_iter().collect(),
+                                count: *n,
+                                tapped: false,
+                                mana_color: None,
+                                mana_abilities: vec![],
+                            },
+                        }),
+                    });
+                }
+
+                // CR 702.101a: Extort — "Whenever you cast a spell, you may pay
+                // {W/B}. If you do, each opponent loses 1 life and you gain life
+                // equal to the total life lost this way."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.101b).
+                // The "may pay" optional cost is deferred to interactive mode (M10+);
+                // deterministic fallback always resolves the drain effect.
+                if matches!(kw, KeywordAbility::Extort) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::ControllerCastsSpell,
+                        intervening_if: None,
+                        description: "Extort (CR 702.101a): Whenever you cast a spell, \
+                                      you may pay {W/B}. If you do, each opponent loses 1 \
+                                      life and you gain that much life."
+                            .to_string(),
+                        effect: Some(Effect::DrainLife {
+                            amount: EffectAmount::Fixed(1),
+                        }),
                     });
                 }
             }
@@ -520,6 +631,7 @@ impl GameStateBuilder {
                 has_summoning_sickness: false,
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
+                was_evoked: false,
             };
 
             state.add_object(object, zone)?;

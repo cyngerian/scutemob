@@ -47,6 +47,17 @@ pub struct ManaAbility {
     /// True if activating this ability requires tapping the source permanent.
     /// Most land mana abilities require tapping. Some do not (future milestone).
     pub requires_tap: bool,
+    /// CR 111.10a / CR 602.2c: If true, the source permanent is sacrificed as
+    /// part of this ability's activation cost (moved to the graveyard before
+    /// mana is added). Used by Treasure tokens: "{T}, Sacrifice this artifact:
+    /// Add one mana of any color."
+    #[serde(default)]
+    pub sacrifice_self: bool,
+    /// CR 111.10a: If true, this ability produces 1 mana of any color (player's
+    /// choice). Overrides `produces`. Simplified: defaults to colorless until
+    /// interactive color choice is implemented.
+    #[serde(default)]
+    pub any_color: bool,
 }
 
 impl ManaAbility {
@@ -57,6 +68,19 @@ impl ManaAbility {
         Self {
             produces,
             requires_tap: true,
+            sacrifice_self: false,
+            any_color: false,
+        }
+    }
+
+    /// CR 111.10a: Treasure token mana ability — "{T}, Sacrifice this artifact:
+    /// Add one mana of any color."
+    pub fn treasure() -> Self {
+        Self {
+            produces: OrdMap::new(),
+            requires_tap: true,
+            sacrifice_self: true,
+            any_color: true,
         }
     }
 }
@@ -144,6 +168,15 @@ pub enum TriggerEvent {
     /// trigger-collection time in `rules/abilities.rs`. The +1/+1 effect targets
     /// the lone attacker (not the source), resolved via DeclaredTarget { index: 0 }.
     ControllerCreatureAttacksAlone,
+    /// CR 701.25d: Triggers when the controller of this permanent surveils.
+    /// Used by Dimir Spybug and similar "whenever you surveil" cards.
+    /// The controller match is done at trigger-collection time in `rules/abilities.rs`.
+    ControllerSurveils,
+    /// CR 702.101a: Triggers when the controller of this permanent casts a spell
+    /// (any spell, including creature spells). Used by the Extort keyword.
+    /// The controller-match is verified at trigger-collection time in
+    /// `rules/abilities.rs`.
+    ControllerCastsSpell,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -280,4 +313,11 @@ pub struct GameObject {
     /// "If you put a permanent onto the battlefield without casting it, you can't kick it.").
     #[serde(default)]
     pub kicker_times_paid: u32,
+    /// CR 702.74a: If true, this permanent was cast by paying its evoke cost.
+    /// The evoke sacrifice trigger checks this flag at ETB time.
+    ///
+    /// Set during spell resolution when the permanent enters the battlefield.
+    /// Reset to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub was_evoked: bool,
 }

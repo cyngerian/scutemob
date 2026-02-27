@@ -50,8 +50,10 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -110,8 +112,10 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(result.is_ok());
@@ -157,8 +161,10 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -203,8 +209,10 @@ fn test_cast_spell_flash_at_instant_speed() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(
@@ -252,8 +260,10 @@ fn test_cast_spell_lifo_stack_order() {
             card: first_card,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -274,8 +284,10 @@ fn test_cast_spell_lifo_stack_order() {
             card: second_card,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -322,8 +334,10 @@ fn test_cast_spell_not_priority_holder_fails() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(
@@ -365,8 +379,10 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -402,8 +418,10 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -456,8 +474,10 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             card: instant_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -477,8 +497,10 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             card: sorcery_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -512,8 +534,10 @@ fn test_cast_spell_land_fails() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -550,8 +574,10 @@ fn test_cast_spell_card_not_in_hand_fails() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -592,8 +618,10 @@ fn test_cast_spell_priority_resets_to_active_player() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();

@@ -333,6 +333,7 @@ pub fn handle_activate_ability(
         is_copy: false,
         cast_with_flashback: false,
         kicker_times_paid: 0,
+        was_evoked: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -483,6 +484,7 @@ pub fn handle_cycle_card(
         is_copy: false,
         cast_with_flashback: false,
         kicker_times_paid: 0,
+        was_evoked: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -562,6 +564,29 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     None,             // Check all battlefield permanents
                     Some(*object_id), // entering_object_id: the permanent that entered
                 );
+
+                // CR 702.74a: If the permanent was evoked, generate the evoke sacrifice trigger.
+                // "When this permanent enters, if its evoke cost was paid, its controller
+                // sacrifices it." This goes on the stack as a separate triggered ability,
+                // allowing the controller to order it relative to other ETB triggers
+                // (e.g., Mulldrifter can resolve draw before sacrifice).
+                if let Some(obj) = state.objects.get(object_id) {
+                    if obj.was_evoked {
+                        let evoke_trigger = PendingTrigger {
+                            source: *object_id,
+                            ability_index: 0, // unused for evoke sacrifice
+                            controller: obj.controller,
+                            triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
+                            entering_object_id: Some(*object_id),
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            is_evoke_sacrifice: true,
+                        };
+                        triggers.push(evoke_trigger);
+                    }
+                }
             }
 
             GameEvent::SpellCast {
@@ -606,6 +631,29 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             state,
                             &mut triggers,
                             TriggerEvent::ControllerCastsNoncreatureSpell,
+                            Some(obj_id),
+                            None,
+                        );
+                    }
+                }
+
+                // CR 702.101a: Extort — "Whenever you cast a spell."
+                // Collect triggers only for permanents controlled by the caster.
+                // No type restriction (unlike Prowess which requires noncreature).
+                // Each extort instance triggers separately (CR 702.101b).
+                {
+                    let controller_sources: Vec<ObjectId> = state
+                        .objects
+                        .values()
+                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                        .map(|obj| obj.id)
+                        .collect();
+
+                    for obj_id in controller_sources {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::ControllerCastsSpell,
                             Some(obj_id),
                             None,
                         );
@@ -801,6 +849,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
+                            is_evoke_sacrifice: false,
                         });
                     }
                 }
@@ -838,8 +887,30 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
+                            is_evoke_sacrifice: false,
                         });
                     }
+                }
+            }
+
+            GameEvent::Surveilled { player, .. } => {
+                // CR 701.25d: "Whenever you surveil" triggers on all permanents
+                // controlled by the surveilling player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                    .map(|obj| obj.id)
+                    .collect();
+
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerSurveils,
+                        Some(obj_id),
+                        None,
+                    );
                 }
             }
 
@@ -929,6 +1000,7 @@ fn collect_triggers_for_event(
                 triggering_player: None,
                 exalted_attacker_id: None,
                 defending_player_id: None,
+                is_evoke_sacrifice: false,
             });
         }
     }
@@ -1030,18 +1102,28 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // Push the triggered ability onto the stack (1 + additional_count) times.
         for _ in 0..=(additional_count) {
             let stack_id = state.next_object_id();
+            // CR 702.74a: Evoke sacrifice triggers use EvokeSacrificeTrigger kind
+            // instead of TriggeredAbility to distinguish them at resolution time.
+            let kind = if trigger.is_evoke_sacrifice {
+                StackObjectKind::EvokeSacrificeTrigger {
+                    source_object: trigger.source,
+                }
+            } else {
+                StackObjectKind::TriggeredAbility {
+                    source_object: trigger.source,
+                    ability_index: trigger.ability_index,
+                }
+            };
             let stack_obj = StackObject {
                 id: stack_id,
                 controller: trigger.controller,
-                kind: StackObjectKind::TriggeredAbility {
-                    source_object: trigger.source,
-                    ability_index: trigger.ability_index,
-                },
+                kind,
                 targets: trigger_targets.clone(),
                 cant_be_countered: false,
                 is_copy: false,
                 cast_with_flashback: false,
                 kicker_times_paid: 0,
+                was_evoked: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -1165,6 +1247,238 @@ fn doubler_applies_to_trigger(
                 .unwrap_or(false)
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Crew handler (CR 702.122)
+// ---------------------------------------------------------------------------
+
+/// Handle a CrewVehicle command: validate, tap crew creatures, push crew ability onto the stack.
+///
+/// CR 702.122a: "Tap any number of other untapped creatures you control with total power N
+/// or greater: This permanent becomes an artifact creature until end of turn."
+///
+/// When the crew ability resolves, an `AddCardTypes({Creature})` continuous effect is
+/// registered in Layer 4 (TypeChange) with `UntilEndOfTurn` duration.
+///
+/// Notable rulings:
+/// - Summoning sickness does NOT prevent crewing (ruling): tapping for crew cost is not
+///   a {T} activated ability — summoning sickness only prevents those.
+/// - Crewing an already-crewed Vehicle is legal but has no effect (ruling).
+/// - Becoming a creature via crew does NOT trigger ETB effects (ruling).
+pub fn handle_crew_vehicle(
+    state: &mut GameState,
+    player: PlayerId,
+    vehicle: ObjectId,
+    crew_creatures: Vec<ObjectId>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use std::collections::HashSet;
+
+    use crate::cards::card_definition::ContinuousEffectDef;
+    use crate::rules::layers::calculate_characteristics;
+    use crate::state::continuous_effect::{
+        EffectDuration, EffectFilter, EffectLayer, LayerModification,
+    };
+    use crate::state::types::CardType;
+
+    // CR 602.2: Crewing requires priority.
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // CR 702.61a: If a spell with split second is on the stack, no non-mana
+    // abilities can be activated.
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; crew ability cannot be activated (CR 702.61a)".into(),
+        ));
+    }
+
+    // Validate the Vehicle: must be on the battlefield, controlled by the player,
+    // and must have KeywordAbility::Crew(n). Use calculate_characteristics for
+    // layer correctness (e.g., Humility may have removed the keyword).
+    let crew_cost_n: u32 = {
+        let obj = state.object(vehicle)?;
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::ObjectNotOnBattlefield(vehicle));
+        }
+        if obj.controller != player {
+            return Err(GameStateError::NotController {
+                player,
+                object_id: vehicle,
+            });
+        }
+        // Use layer-computed characteristics to account for continuous effects.
+        let chars = calculate_characteristics(state, vehicle).or_else(|| {
+            state
+                .objects
+                .get(&vehicle)
+                .map(|o| o.characteristics.clone())
+        });
+        let crew_n = chars.as_ref().and_then(|c| {
+            c.keywords.iter().find_map(|kw| {
+                if let KeywordAbility::Crew(n) = kw {
+                    Some(*n)
+                } else {
+                    None
+                }
+            })
+        });
+        crew_n.ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "object {:?} does not have the Crew keyword (CR 702.122a)",
+                vehicle
+            ))
+        })?
+    };
+
+    // Validate crew_creatures is non-empty (you must tap at least one creature).
+    if crew_creatures.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "must provide at least one creature to crew the vehicle (CR 702.122a)".into(),
+        ));
+    }
+
+    // CR 702.122a: Validate uniqueness — no duplicates in crew_creatures.
+    let mut seen: HashSet<ObjectId> = HashSet::new();
+    for &id in &crew_creatures {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate creature {:?} in crew_creatures (CR 702.122a)",
+                id
+            )));
+        }
+    }
+
+    // CR 702.122a: Validate each crew creature — must be an untapped creature
+    // you control on the battlefield, and must not be the vehicle itself.
+    // Also sum total power for the crew cost threshold check.
+    // Note: summoning sickness does NOT prevent crewing (ruling under CR 702.122a);
+    // tapping for crew cost is not a {T} activated ability.
+    let mut total_power: i32 = 0;
+    for &id in &crew_creatures {
+        // CR 702.122a: "other" — vehicle cannot crew itself.
+        if id == vehicle {
+            return Err(GameStateError::InvalidCommand(
+                "a vehicle cannot be used to crew itself (CR 702.122a: 'other untapped creatures')"
+                    .into(),
+            ));
+        }
+
+        let obj = state
+            .objects
+            .get(&id)
+            .ok_or(GameStateError::ObjectNotFound(id))?;
+
+        // Must be on the battlefield.
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::ObjectNotOnBattlefield(id));
+        }
+
+        // Must be controlled by the player.
+        if obj.controller != player {
+            return Err(GameStateError::NotController {
+                player,
+                object_id: id,
+            });
+        }
+
+        // Must be untapped (CR 702.122a: "untapped creatures").
+        if obj.status.tapped {
+            return Err(GameStateError::InvalidCommand(format!(
+                "creature {:?} is already tapped and cannot be used to crew (CR 702.122a)",
+                id
+            )));
+        }
+
+        // Must be a creature (use layer-computed characteristics).
+        let chars = calculate_characteristics(state, id)
+            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()));
+        let is_creature = chars
+            .as_ref()
+            .map(|c| c.card_types.contains(&CardType::Creature))
+            .unwrap_or(false);
+        if !is_creature {
+            return Err(GameStateError::InvalidCommand(format!(
+                "object {:?} is not a creature and cannot be used to crew (CR 702.122a)",
+                id
+            )));
+        }
+
+        // Accumulate power for the total power check.
+        let power = chars.and_then(|c| c.power).unwrap_or(0);
+        total_power = total_power.saturating_add(power);
+    }
+
+    // CR 702.122a: Total power of tapped creatures must be >= N.
+    if total_power < crew_cost_n as i32 {
+        return Err(GameStateError::InvalidCommand(format!(
+            "total power of crew creatures ({}) is less than Crew {} cost (CR 702.122a)",
+            total_power, crew_cost_n
+        )));
+    }
+
+    // Pay the cost: tap all crew creatures (CR 602.2b analog for crew cost).
+    let mut events = Vec::new();
+    for &id in &crew_creatures {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.status.tapped = true;
+        }
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: id,
+        });
+    }
+
+    // Push the crew ability onto the stack as an activated ability.
+    // The embedded effect is `ApplyContinuousEffect` that adds `Creature` type
+    // in Layer 4 with `UntilEndOfTurn` duration, targeting the vehicle (source).
+    let stack_id = state.next_object_id();
+
+    // Build the embedded effect: AddCardTypes({Creature}) in Layer 4, on the source.
+    let effect_def = ContinuousEffectDef {
+        layer: EffectLayer::TypeChange,
+        modification: LayerModification::AddCardTypes(im::OrdSet::from(vec![CardType::Creature])),
+        filter: EffectFilter::Source, // resolved to SingleObject(vehicle) at execution
+        duration: EffectDuration::UntilEndOfTurn,
+    };
+    let embedded_effect = crate::cards::card_definition::Effect::ApplyContinuousEffect {
+        effect_def: Box::new(effect_def),
+    };
+
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::ActivatedAbility {
+            source_object: vehicle,
+            ability_index: 0, // synthetic — crew ability has no index in activated_abilities
+            embedded_effect: Some(Box::new(embedded_effect)),
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: vehicle,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
 }
 
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).

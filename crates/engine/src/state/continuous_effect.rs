@@ -137,6 +137,12 @@ pub enum LayerModification {
     AddSubtypes(OrdSet<SubType>),
     /// Removes all subtypes from the object.
     LoseAllSubtypes,
+    /// Adds every creature type from CR 205.3m to the object's subtypes.
+    ///
+    /// Used by Changeling CDA (CR 702.73a) and effects like Maskwood Nexus
+    /// ("creatures you control are every creature type").
+    /// No payload needed — the engine's `ALL_CREATURE_TYPES` constant supplies the list.
+    AddAllCreatureTypes,
 
     // --- Layer 5: Color-changing ---
     /// Replaces all colors with the given set.

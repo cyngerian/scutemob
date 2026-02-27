@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_073",
+    "name": "Strike It Rich creates Treasure token; token tapped and sacrificed for mana",
+    "description": "p1 casts Strike It Rich ({R} Sorcery), it resolves and creates a Treasure token on the battlefield per CR 111.10a. p1 then activates the Treasure's mana ability ({T}, Sacrifice this token: Add one mana of any color) by issuing a tap_for_mana command. The mana ability resolves immediately without using the stack (CR 605.3b). The Treasure token is tapped and sacrificed as a cost (CR 602.2c), moving to the graveyard, then ceasing to exist as a state-based action (CR 111.7). One colorless mana is added to p1's pool (any-color defaults to colorless per engine implementation).",
+    "cr_sections_tested": ["111.10a", "111.1", "111.5", "601.2", "608.2", "605.1a", "605.3b", "602.2c", "111.7", "704.5d"],
+    "corner_case_ref": null,
+    "tags": ["treasure", "token", "mana-ability", "sacrifice", "flashback", "stack"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Strike It Rich is a Sorcery (not Instant) costing {R} (verified via MCP lookup_card). Its only effect is CreateToken with treasure_token_spec(1) per definitions.rs:2307-2314. The Treasure token has a mana ability (sacrifice_self: true, any_color: true, requires_tap: true) per ManaAbility::treasure() — CR 111.10a: '{T}, Sacrifice this token: Add one mana of any color.' Because this is a mana ability (CR 605.1a: no target, adds mana, not loyalty), it does NOT go on the stack and cannot be countered (CR 605.3b). The sacrifice is a cost paid at activation time (CR 602.2c), so the token is in the graveyard before any mana is added. The token then ceases to exist as a state-based action (CR 111.7 / 704.5d: tokens in non-battlefield zones cease to exist). The engine currently defaults 'any color' to colorless (consistent with AddManaAnyColor in effects/mod.rs and the ability-plan), so mana_pool ends with colorless: 1. The tap_for_mana action targets the Treasure token on the battlefield (ability_index 0 = the single mana ability). Strike It Rich then goes to p1's graveyard (cast normally, not via flashback, so it goes to graveyard not exile). Sorcery timing: p1 is active player in precombat main phase with an empty stack — valid sorcery window per CR 307.1.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Strike It Rich", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Strike It Rich from hand",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: Strike It Rich in p1 hand, battlefield empty (except Mountain), stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 1
+          },
+          "note": "p1 has {R} in pool from initial_state; Mountain is tapped implicitly by mana_pool setup"
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Strike It Rich",
+          "targets": [],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Strike It Rich (Sorcery {R}); valid sorcery timing — active player, main phase, empty stack (CR 307.1). {R} paid from mana pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Strike It Rich on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Strike It Rich moved from hand to stack as a spell object"
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Strike It Rich",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": "Treasure",
+              "owner": "p1",
+              "cr_ref": "111.10a",
+              "note": "CR 111.10a: Creates one colorless Treasure artifact token with '{T}, Sacrifice this token: Add one mana of any color.' Token enters battlefield under p1's control (CR 111.1, 111.5)."
+            }
+          ],
+          "note": "CR 608.2: Sorcery resolves; CreateToken effect executes; Strike It Rich moves to p1's graveyard (cast normally, not via flashback, so not exiled)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Treasure token on p1's battlefield, Strike It Rich in p1 graveyard, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Strike It Rich" }] },
+            "zones.battlefield.p1.count": 2
+          },
+          "note": "Battlefield now has Mountain + Treasure token. Strike It Rich in graveyard (not exiled — normal cast, not flashback cast)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 taps and sacrifices Treasure token for mana",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Treasure",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3b",
+          "note": "CR 605.3b: Treasure's '{T}, Sacrifice this token: Add one mana of any color' is a mana ability (CR 605.1a: no target, adds mana, not loyalty). It does NOT go on the stack and resolves immediately. Sacrifice is a cost paid at activation (CR 602.2c): Treasure moves to graveyard before mana is added. Engine defaults 'any color' to colorless."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "token_ceases_to_exist",
+              "target": { "card": "Treasure", "controller": "p1" },
+              "cr_ref": "704.5d",
+              "note": "CR 704.5d / CR 111.7: A token in a zone other than the battlefield ceases to exist as a state-based action. The Treasure token was moved to the graveyard as the sacrifice cost, so it now ceases to exist."
+            }
+          ],
+          "note": "SBAs checked after mana ability activation (CR 704.3: checked whenever a player would receive priority)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: Treasure token sacrificed and gone; p1 has 1 colorless mana in pool",
+          "assertions": {
+            "zones.battlefield.p1.count": 1,
+            "players.p1.mana_pool.colorless": 1
+          },
+          "note": "Battlefield has only Mountain remaining (Treasure token was sacrificed as cost and then ceased to exist per SBA). p1 mana pool has 1 colorless mana from Treasure activation. Any-color mana defaults to colorless in the engine per ability-plan-treasure-tokens.md Decision 3 / mana.rs implementation."
+        }
+      ]
+    }
+  ]
+}

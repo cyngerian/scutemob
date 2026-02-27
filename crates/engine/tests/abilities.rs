@@ -527,8 +527,10 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -594,8 +596,10 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -664,8 +668,10 @@ fn test_triggered_ability_apnap_ordering() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -738,8 +744,10 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -795,8 +803,10 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -854,8 +864,10 @@ fn test_triggered_ability_resolves_after_all_pass() {
             card: card_id,
             targets: vec![],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .unwrap();
@@ -1753,8 +1765,10 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             card: bolt_id,
             targets: vec![Target::Object(solemn_id)],
             convoke_creatures: vec![],
+            improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
+            cast_with_evoke: false,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

@@ -44,16 +44,21 @@ use super::events::GameEvent;
 ///
 /// `convoke_creatures` is a list of creature ObjectIds to tap for convoke cost
 /// reduction (CR 702.51). Pass an empty vec for non-convoke spells.
+/// `improvise_artifacts` is a list of artifact ObjectIds to tap for improvise cost
+/// reduction (CR 702.126). Pass an empty vec for non-improvise spells.
 /// `delve_cards` is a list of card ObjectIds in the caster's graveyard to exile for
 /// delve cost reduction (CR 702.66). Pass an empty vec for non-delve spells.
+#[allow(clippy::too_many_arguments)]
 pub fn handle_cast_spell(
     state: &mut GameState,
     player: PlayerId,
     card: ObjectId,
     targets: Vec<Target>,
     convoke_creatures: Vec<ObjectId>,
+    improvise_artifacts: Vec<ObjectId>,
     delve_cards: Vec<ObjectId>,
     kicker_times: u32,
+    cast_with_evoke: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -150,18 +155,45 @@ pub fn handle_cast_spell(
         }
     }
 
-    // CR 702.34a / CR 903.8: Determine the cost to pay.
+    // CR 702.74a / CR 702.34a / CR 903.8: Determine the cost to pay.
+    // - Evoke: pay the evoke cost (alternative cost, CR 118.9) instead of mana cost.
+    //   Cannot combine with flashback (CR 118.9a: only one alternative cost).
     // - Flashback: pay the flashback cost (alternative cost, CR 118.9) instead of mana cost.
-    // - Command zone: pay mana cost + commander tax (additional cost, CR 903.8).
     // - Otherwise: pay the printed mana cost.
-    // CR 118.9d: additional costs apply on top of the alternative cost — commander tax
-    // applies on top of flashback if applicable (rare, but handled correctly here).
-    let mana_cost: Option<ManaCost> = if casting_with_flashback {
-        // CR 702.34a: Pay flashback cost instead of mana cost.
+    // CR 118.9d: additional costs (commander tax) apply ON TOP of any alternative cost.
+    // This means casting a commander with evoke from the command zone costs evoke + tax.
+
+    // Step 1: Validate evoke (CR 702.74a / CR 118.9a).
+    let casting_with_evoke = if cast_with_evoke {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine evoke with flashback (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_evoke_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have evoke".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
+    // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
+    let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
+        // CR 702.74a: Pay evoke cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_evoke_cost(&card_id, &state.card_registry)
+    } else if casting_with_flashback {
+        // CR 702.34a: Pay flashback cost instead of mana cost.
         get_flashback_cost(&card_id, &state.card_registry)
-    } else if casting_from_command_zone {
-        // CR 903.8: Apply commander tax (additional cost on top of mana cost).
+    } else {
+        base_mana_cost
+    };
+
+    // Step 3: Apply commander tax ON TOP of the selected base cost (CR 118.9d / CR 903.8).
+    let mana_cost: Option<ManaCost> = if casting_from_command_zone {
         let tax = {
             let player_state = state.player(player)?;
             card_id
@@ -169,9 +201,9 @@ pub fn handle_cast_spell(
                 .and_then(|cid| player_state.commander_tax.get(cid).copied())
                 .unwrap_or(0)
         };
-        base_mana_cost.map(|cost| apply_commander_tax(&cost, tax))
+        base_cost_before_tax.map(|cost| apply_commander_tax(&cost, tax))
     } else {
-        base_mana_cost
+        base_cost_before_tax
     };
 
     // CR 702.33a / 601.2b: If the player declared intention to pay kicker, validate
@@ -325,9 +357,30 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.126a / 702.126b: Apply improvise cost reduction AFTER total cost is determined.
+    // Improvise is not an additional or alternative cost — it applies to the total cost.
+    // Order: base_mana_cost → commander_tax → flashback → convoke → IMPROVISE → delve → pay.
+    let mut improvise_events: Vec<GameEvent> = Vec::new();
+    let mana_cost = if !improvise_artifacts.is_empty() {
+        if !chars.keywords.contains(&KeywordAbility::Improvise) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have improvise".into(),
+            ));
+        }
+        apply_improvise_reduction(
+            state,
+            player,
+            &improvise_artifacts,
+            mana_cost,
+            &mut improvise_events,
+        )?
+    } else {
+        mana_cost
+    };
+
     // CR 702.66a / 702.66b: Apply delve cost reduction AFTER total cost is determined.
     // Delve is not an additional or alternative cost — it applies to the total cost.
-    // Order: base_mana_cost → commander_tax → flashback → convoke → DELVE → pay.
+    // Order: base_mana_cost → commander_tax → flashback → convoke → improvise → DELVE → pay.
     let mut delve_events: Vec<GameEvent> = Vec::new();
     let mana_cost = if !delve_cards.is_empty() {
         if !chars.keywords.contains(&KeywordAbility::Delve) {
@@ -362,6 +415,10 @@ pub fn handle_cast_spell(
     // CR 702.51a / CR 601.2h: Emit PermanentTapped events for convoke creatures.
     // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(convoke_events);
+
+    // CR 702.126a / CR 601.2h: Emit PermanentTapped events for improvise artifacts.
+    // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
+    events.extend(improvise_events);
 
     // CR 702.66a / CR 601.2h: Emit ObjectExiled events for delve cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
@@ -399,6 +456,8 @@ pub fn handle_cast_spell(
         is_copy: false,
         cast_with_flashback: casting_with_flashback,
         kicker_times_paid,
+        // CR 702.74a: Record whether this spell was cast by paying its evoke cost.
+        was_evoked: casting_with_evoke,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -471,6 +530,7 @@ pub fn handle_cast_spell(
             is_copy: false,
             cast_with_flashback: false,
             kicker_times_paid: 0,
+            was_evoked: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -505,6 +565,7 @@ pub fn handle_cast_spell(
             is_copy: false,
             cast_with_flashback: false,
             kicker_times_paid: 0,
+            was_evoked: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -571,6 +632,27 @@ fn get_kicker_cost(
                 } = a
                 {
                     Some((cost.clone(), *is_multikicker))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.74a: Look up the evoke cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Evoke { cost }`, or `None`
+/// if the card has no definition or no evoke ability defined.
+fn get_evoke_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Evoke { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }
@@ -702,6 +784,120 @@ fn apply_convoke_reduction(
 
     // Tap each convoke creature and emit PermanentTapped events.
     for &id in convoke_creatures {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.status.tapped = true;
+        }
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: id,
+        });
+    }
+
+    // If the original cost was Some, return Some(reduced); if it was None, return None.
+    if had_cost {
+        Ok(Some(reduced))
+    } else {
+        Ok(None)
+    }
+}
+
+/// CR 702.126a: Validate improvise artifacts and compute the reduced mana cost.
+///
+/// For each artifact in `improvise_artifacts`:
+/// - Must exist in `state.objects` on the battlefield.
+/// - Must be controlled by `player`.
+/// - Must be an artifact (by current characteristics via `calculate_characteristics`).
+/// - Must be untapped (`status.tapped == false`).
+/// - Must not appear twice in the list (no duplicates).
+///
+/// Reduction (CR 702.126a):
+/// - Each artifact reduces one generic pip. Cannot exceed total generic mana.
+///   Improvise can ONLY reduce generic mana — never colored or colorless ({C}).
+///
+/// Taps each artifact in `state.objects` and emits a `PermanentTapped` event.
+/// Returns the reduced `Option<ManaCost>`.
+///
+/// CR 702.126b: Improvise is not an additional or alternative cost — it applies
+/// after the total cost (including commander tax, convoke) is determined.
+fn apply_improvise_reduction(
+    state: &mut GameState,
+    player: PlayerId,
+    improvise_artifacts: &[ObjectId],
+    cost: Option<ManaCost>,
+    events: &mut Vec<GameEvent>,
+) -> Result<Option<ManaCost>, GameStateError> {
+    // Validate uniqueness (no duplicates in improvise_artifacts).
+    let mut seen = std::collections::HashSet::new();
+    for &id in improvise_artifacts {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate artifact {:?} in improvise_artifacts",
+                id
+            )));
+        }
+    }
+
+    // Validate each artifact before mutably borrowing state for tapping.
+    for &id in improvise_artifacts {
+        let obj = state
+            .objects
+            .get(&id)
+            .ok_or(GameStateError::ObjectNotFound(id))?;
+
+        // Must be on the battlefield.
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(format!(
+                "improvise artifact {:?} is not on the battlefield",
+                id
+            )));
+        }
+        // Must be controlled by the caster.
+        if obj.controller != player {
+            return Err(GameStateError::InvalidCommand(format!(
+                "improvise artifact {:?} is not controlled by the caster",
+                id
+            )));
+        }
+        // Must be untapped.
+        if obj.status.tapped {
+            return Err(GameStateError::InvalidCommand(format!(
+                "improvise artifact {:?} is already tapped",
+                id
+            )));
+        }
+
+        // Must be an artifact (use calculate_characteristics for layer-correct check).
+        let chars = calculate_characteristics(state, id)
+            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()))
+            .unwrap_or_default();
+        if !chars
+            .card_types
+            .contains(&crate::state::types::CardType::Artifact)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "improvise artifact {:?} is not an artifact",
+                id
+            )));
+        }
+    }
+
+    // Apply cost reduction: each artifact reduces one generic pip (CR 702.126a).
+    // Improvise can ONLY reduce generic mana — it cannot pay for colored or colorless ({C}) pips.
+    let had_cost = cost.is_some();
+    let mut reduced = cost.unwrap_or_default();
+
+    // Validate that we don't tap more artifacts than the generic portion allows.
+    if improvise_artifacts.len() as u32 > reduced.generic {
+        return Err(GameStateError::InvalidCommand(format!(
+            "improvise_artifacts.len() ({}) exceeds generic mana in cost ({})",
+            improvise_artifacts.len(),
+            reduced.generic
+        )));
+    }
+    reduced.generic -= improvise_artifacts.len() as u32;
+
+    // Tap each improvise artifact and emit PermanentTapped events.
+    for &id in improvise_artifacts {
         if let Some(obj) = state.objects.get_mut(&id) {
             obj.status.tapped = true;
         }

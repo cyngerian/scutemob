@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 20 abilities (2026-02-26)
+# Infra & Testing Gotchas — Last verified: M9.5 + 30 abilities (2026-02-26)
 
 ## Rust / im-rs Gotchas
 
@@ -101,6 +101,18 @@
 
 ## Agent Workflow Gotchas (ability pipeline)
 
+- **Keyword actions (Surveil, Scry, etc.) are Effects, NOT `KeywordAbility` enum variants.**
+  They produce a game event and optional trigger, but the "do N things and optionally X" logic
+  lives in `Effect::Surveil { player, count }` / `Effect::Scry { player, count }`. Adding
+  them as `KeywordAbility` variants would not give the ability pipeline (builder.rs triggers)
+  a mechanism to encode the count parameter. Card definitions use `AbilityDefinition::Activated`
+  or `AbilityDefinition::Triggered` that calls the Effect directly.
+- **CDA (Characteristic-Defining Abilities, CR 604.3) must be inlined in `calculate_characteristics`
+  at Layer 4**, not registered as `ContinuousEffect`. CDAs like Changeling ("is every creature
+  type") apply in ALL zones. If modeled as a `ContinuousEffect`, they only apply on the
+  battlefield. Inline check: `if chars.keywords.contains(Changeling) { chars.sub_types = ALL_CREATURE_TYPES.clone(); }`.
+  This also automatically handles Humility: Layer 6 removes the keyword → Layer 4 already ran,
+  subtypes stay. But if Humility was in effect first (no keyword), Layer 4 check skips. Correct.
 - **`card-definition-author` agent silent exit**: The agent sometimes returns only an `agentId`
   with no content (no tool calls, no output). Resume with the same `agentId` — the second
   invocation usually also exits silently, but the card was often written on the first run.
@@ -149,7 +161,9 @@
   in hand, pays mana), `choose_dredge` (ChooseDredge command, finds named card in player's
   graveyard), `cast_spell_flashback` (CastSpell with flashback cost, card must be in graveyard),
   `declare_attackers` (DeclareAttackers command, `attackers: [{card, target_player}]` array),
-  `declare_blockers` (DeclareBlockers command, `blockers: [{card, blocking}]` array).
+  `declare_blockers` (DeclareBlockers command, `blockers: [{card, blocking}]` array),
+  `crew_vehicle` (CrewVehicle command, `vehicle`, `crew_creatures: [name, ...]` array),
+  `improvise` (CastSpell with `improvise_names: [name, ...]`; maps to `improvise_artifacts`).
   When the generator reports a harness gap for a new action type, add the arm to
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
 - **Convoke scripts: duplicate creature names resolve to the same ObjectId** — rejected as

@@ -69,6 +69,17 @@ pub enum Command {
         /// Colored creatures pay for one colored mana of their color;
         /// any creature pays for {1} generic. Validated in handle_cast_spell.
         convoke_creatures: Vec<ObjectId>,
+        /// CR 702.126: Artifacts to tap for improvise cost reduction.
+        /// Empty vec for non-improvise spells. Each artifact must be:
+        /// - Untapped, on the battlefield, controlled by the caster
+        /// - An artifact (by current characteristics)
+        /// - Not duplicated (no ObjectId appears twice)
+        ///
+        /// Each artifact pays for {1} generic mana. Cannot exceed the generic
+        /// mana component of the spell's total cost (after convoke reduction).
+        /// Validated in handle_cast_spell -> apply_improvise_reduction.
+        #[serde(default)]
+        improvise_artifacts: Vec<ObjectId>,
         /// CR 702.66: Cards in the caster's graveyard to exile for delve cost reduction.
         /// Empty vec for non-delve spells. Each card must be:
         /// - In the caster's graveyard (not opponent's)
@@ -86,6 +97,12 @@ pub enum Command {
         /// Ignored for spells without kicker.
         #[serde(default)]
         kicker_times: u32,
+        /// CR 702.74a: If true, cast this spell by paying its evoke cost instead
+        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
+        /// combine with flashback or other alternative costs.
+        /// Ignored for spells without evoke.
+        #[serde(default)]
+        cast_with_evoke: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///
@@ -223,5 +240,26 @@ pub enum Command {
         player: PlayerId,
         /// The dredge card to return from graveyard to hand, or None to draw normally.
         card: Option<ObjectId>,
+    },
+
+    // ── Crew (CR 702.122) ────────────────────────────────────────────────
+    /// Crew a Vehicle by tapping creatures (CR 702.122a).
+    ///
+    /// Tap any number of untapped creatures you control with total power >= N
+    /// to activate the Vehicle's crew ability. The ability goes on the stack;
+    /// when it resolves, the Vehicle becomes an artifact creature until end of turn.
+    ///
+    /// Unlike `ActivateAbility`, this command explicitly names the creatures tapped
+    /// as part of the crew cost (similar to how `CastSpell` names `convoke_creatures`).
+    /// The `ActivationCost` struct cannot express a multi-creature tap cost, so Crew
+    /// uses a dedicated command.
+    CrewVehicle {
+        player: PlayerId,
+        /// The Vehicle to crew.
+        vehicle: ObjectId,
+        /// Creatures to tap as the crew cost. Must be untapped creatures you control
+        /// with total power >= the Vehicle's Crew N value. The Vehicle itself cannot
+        /// be in this list ("other untapped creatures" per CR 702.122a).
+        crew_creatures: Vec<ObjectId>,
     },
 }
