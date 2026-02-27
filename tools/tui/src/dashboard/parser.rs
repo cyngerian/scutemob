@@ -102,6 +102,9 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
     let mut coverage = AbilityCoverage::default();
     let mut mode = ParseMode::None;
     let mut current_section: Option<AbilitySection> = None;
+    // Sections 1-12: | Ability | CR | Priority | Status | Engine File(s) | ...
+    // Section 13:    | Pattern | Priority | Status | Engine File(s) | ...  (no CR column)
+    let mut has_cr_col = true;
 
     enum ParseMode {
         None,
@@ -123,6 +126,7 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
             let name = line.trim_start_matches("## ").to_string();
             current_section = Some(AbilitySection { name, rows: vec![] });
             mode = ParseMode::Section;
+            has_cr_col = true; // reset; header row will correct this
             continue;
         }
 
@@ -181,20 +185,37 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
                 if cells.len() < 2 {
                     continue;
                 }
-                // Header row: first cell is "Ability", "Pattern", etc.
+                // Header row: first cell is "Ability" (sections 1-12) or "Pattern" (section 13).
+                // Detect column layout: sections with a "CR" column have it at index 1.
                 let first_lower = cells[0].to_lowercase();
                 if first_lower == "ability" || first_lower == "pattern" {
+                    has_cr_col = cells
+                        .get(1)
+                        .map(|c| c.trim().to_lowercase() == "cr")
+                        .unwrap_or(true);
                     continue;
                 }
+                // Apply correct column offsets based on layout.
+                // With CR:    [0]=name [1]=cr [2]=priority [3]=status [4]=engine [5]=card [6]=script [7]=notes
+                // Without CR: [0]=name [1]=priority [2]=status [3]=engine [4]=card [5]=script [6]=depends [7]=notes
+                let (cr_idx, prio_idx, status_idx, engine_idx, card_idx, script_idx) =
+                    if has_cr_col {
+                        (Some(1usize), 2usize, 3usize, 4usize, 5usize, 6usize)
+                    } else {
+                        (None, 1, 2, 3, 4, 5)
+                    };
                 let row = AbilityRow {
                     name: cells.first().cloned().unwrap_or_default(),
-                    cr: cells.get(1).cloned().unwrap_or_default(),
-                    priority: cells.get(2).cloned().unwrap_or_default(),
-                    status: cells.get(3).cloned().unwrap_or_default(),
-                    engine_files: cells.get(4).cloned().unwrap_or_default(),
-                    card_def: cells.get(5).cloned().unwrap_or_default(),
-                    script: cells.get(6).cloned().unwrap_or_default(),
-                    notes: cells.get(8).cloned().unwrap_or_default(),
+                    cr: cr_idx
+                        .and_then(|i| cells.get(i))
+                        .cloned()
+                        .unwrap_or_default(),
+                    priority: cells.get(prio_idx).cloned().unwrap_or_default(),
+                    status: cells.get(status_idx).cloned().unwrap_or_default(),
+                    engine_files: cells.get(engine_idx).cloned().unwrap_or_default(),
+                    card_def: cells.get(card_idx).cloned().unwrap_or_default(),
+                    script: cells.get(script_idx).cloned().unwrap_or_default(),
+                    notes: cells.get(7).cloned().unwrap_or_default(),
                 };
                 if let Some(sec) = current_section.as_mut() {
                     sec.rows.push(row);

@@ -133,16 +133,21 @@ fn ability_row_spans(row: &crate::dashboard::data::AbilityRow) -> Vec<Span<'stat
     } else {
         format!("{:<24}", row.name)
     };
+    // Truncate priority to 2 chars and status to 12 chars defensively
+    let priority = if row.priority.len() > 2 {
+        format!("{:.2}", row.priority)
+    } else {
+        format!("{:>2}", row.priority)
+    };
+    let status = if row.status.len() > 12 {
+        format!("{:.12}", row.status)
+    } else {
+        format!("{:<12}", row.status)
+    };
     vec![
         Span::styled(name, Style::default().fg(Color::White)),
-        Span::styled(
-            format!("{:>2} ", row.priority),
-            Style::default().fg(Color::Gray),
-        ),
+        Span::styled(format!("{} ", priority), Style::default().fg(Color::Gray)),
         Span::styled(format!("{} ", symbol), Style::default().fg(status_color)),
-        Span::styled(
-            format!("{:<10}", row.status),
-            Style::default().fg(status_color),
-        ),
+        Span::styled(status, Style::default().fg(status_color)),
     ]
 }
