@@ -16,7 +16,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         .constraints([
             Constraint::Length(5), // headline + milestone gauge
             Constraint::Length(8), // ability coverage + corner cases
-            Constraint::Min(5),    // reviews + scripts + engine size
+            Constraint::Min(8),    // reviews+engine + scripts + card authoring
         ])
         .split(area);
 
@@ -252,17 +252,25 @@ fn render_bottom_row(f: &mut Frame, area: Rect, app: &App) {
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Length(30), // Code Reviews (compact)
+            Constraint::Length(30), // Code Reviews / Engine Size (stacked)
             Constraint::Min(20),    // Scripts (fill remaining)
-            Constraint::Length(24), // Engine Size (compact)
-            Constraint::Length(28), // Card Authoring
+            Constraint::Min(30),    // Card Authoring (fill remaining)
         ])
         .split(area);
 
-    render_reviews_summary(f, cols[0], app);
+    // Stack Reviews and Engine Size vertically in the left column
+    let left_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(4),    // Code Reviews
+            Constraint::Length(4), // Engine Size (2 lines + 2 borders)
+        ])
+        .split(cols[0]);
+
+    render_reviews_summary(f, left_rows[0], app);
+    render_engine_size(f, left_rows[1], app);
     render_scripts(f, cols[1], app);
-    render_engine_size(f, cols[2], app);
-    render_card_authoring(f, cols[3], app);
+    render_card_authoring(f, cols[2], app);
 }
 
 fn render_reviews_summary(f: &mut Frame, area: Rect, app: &App) {
@@ -312,10 +320,10 @@ fn render_reviews_summary(f: &mut Frame, area: Rect, app: &App) {
                 Style::default().fg(Color::DarkGray),
             ),
         ]),
-        Line::from(vec![Span::styled(
+        Line::from(Span::styled(
             format!("{} milestones reviewed", r.milestones_reviewed),
             Style::default().fg(Color::DarkGray),
-        )]),
+        )),
     ];
 
     f.render_widget(
@@ -323,6 +331,35 @@ fn render_reviews_summary(f: &mut Frame, area: Rect, app: &App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(" Code Reviews "),
+        ),
+        area,
+    );
+}
+
+fn render_engine_size(f: &mut Frame, area: Rect, app: &App) {
+    let r = &app.data.reviews;
+    let lines = vec![
+        Line::from(vec![
+            Span::styled("Src: ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                format!("~{} LOC", r.engine_loc),
+                Style::default().fg(Color::White),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("Test: ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                format!("~{} LOC", r.test_loc),
+                Style::default().fg(Color::White),
+            ),
+        ]),
+    ];
+
+    f.render_widget(
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Engine Size "),
         ),
         area,
     );
@@ -388,47 +425,11 @@ fn render_scripts(f: &mut Frame, area: Rect, app: &App) {
     );
 }
 
-fn render_engine_size(f: &mut Frame, area: Rect, app: &App) {
-    let r = &app.data.reviews;
-    let lines = vec![
-        Line::from(vec![
-            Span::styled("Source: ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                format!("~{:>6} LOC", r.engine_loc),
-                Style::default().fg(Color::White),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("Tests:  ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                format!("~{:>6} LOC", r.test_loc),
-                Style::default().fg(Color::White),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("Scripts: ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                format!("{} JSON", app.data.scripts.total),
-                Style::default().fg(Color::White),
-            ),
-        ]),
-    ];
-
-    f.render_widget(
-        Paragraph::new(Text::from(lines)).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Engine Size "),
-        ),
-        area,
-    );
-}
-
 fn render_card_authoring(f: &mut Frame, area: Rect, app: &App) {
     let c = &app.data.cards;
     let total = c.total;
     let ratio = if total > 0 {
-        c.ready as f64 / total as f64
+        c.authored as f64 / total as f64
     } else {
         0.0
     };
@@ -437,24 +438,29 @@ fn render_card_authoring(f: &mut Frame, area: Rect, app: &App) {
     let bar = progress_bar(
         ratio,
         inner_width,
-        &format!("{}/{} ({:.0}%)", c.ready, total, ratio * 100.0),
-        Color::Green,
+        &format!("{}/{} ({:.0}%)", c.authored, total, ratio * 100.0),
+        Color::Cyan,
     );
 
     let lines = vec![
         bar,
         Line::from(vec![
             Span::styled(
-                format!("Ready: {:>4}", c.ready),
-                Style::default().fg(theme::GREEN),
+                format!("Authored: {:>3}", c.authored),
+                Style::default().fg(Color::Cyan),
             ),
             Span::raw("  "),
             Span::styled(
-                format!("Blocked: {:>2}", c.blocked),
-                Style::default().fg(theme::RED),
+                format!("Ready: {:>4}", c.ready),
+                Style::default().fg(theme::GREEN),
             ),
         ]),
         Line::from(vec![
+            Span::styled(
+                format!("Blocked: {:>3}", c.blocked),
+                Style::default().fg(theme::RED),
+            ),
+            Span::raw("  "),
             Span::styled(
                 format!("Deferred: {:>2}", c.deferred),
                 Style::default().fg(theme::ARTIFACT),

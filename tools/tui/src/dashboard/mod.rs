@@ -107,6 +107,16 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             6 => app.cards_scroll_up(),
             _ => {}
         },
+        KeyCode::Char('J') => {
+            if app.current_tab == 6 {
+                app.cards_detail_scroll_down();
+            }
+        }
+        KeyCode::Char('K') => {
+            if app.current_tab == 6 {
+                app.cards_detail_scroll_up();
+            }
+        }
         KeyCode::Char('g') => {
             if app.current_tab == 3 {
                 app.toggle_gaps_only();
@@ -125,6 +135,11 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('b') => {
             if app.current_tab == 6 {
                 app.set_cards_filter("blocked");
+            }
+        }
+        KeyCode::Char('c') => {
+            if app.current_tab == 6 {
+                app.set_cards_filter("authored");
             }
         }
         KeyCode::Char('d') => {

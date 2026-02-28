@@ -15,7 +15,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
         .constraints([
             Constraint::Length(3), // summary
             Constraint::Min(0),    // table
-            Constraint::Length(5), // detail (3 content lines + 2 borders)
+            Constraint::Min(8),    // detail (DSL view, scrollable)
         ])
         .split(area);
 
@@ -28,13 +28,17 @@ fn render_summary(f: &mut Frame, area: Rect, app: &App) {
     let c = &app.data.cards;
 
     let filter_hint = match app.cards_filter.as_str() {
-        "ready" => " [r:ready  b:blocked  d:deferred  a:all]",
-        "blocked" => " [r:ready  b:blocked  d:deferred  a:all]",
-        "deferred" => " [r:ready  b:blocked  d:deferred  a:all]",
-        _ => " [r:ready  b:blocked  d:deferred]",
+        "all" => " [c:authored  r:ready  b:blocked  d:deferred]",
+        _ => " [c:authored  r:ready  b:blocked  d:deferred  a:all]",
     };
 
     let line = Line::from(vec![
+        Span::styled("Authored: ", Style::default().fg(Color::Gray)),
+        Span::styled(
+            c.authored.to_string(),
+            Style::default().fg(Color::Cyan),
+        ),
+        Span::raw("   "),
         Span::styled("Ready: ", Style::default().fg(Color::Gray)),
         Span::styled(c.ready.to_string(), Style::default().fg(theme::GREEN)),
         Span::raw("   "),
@@ -48,16 +52,6 @@ fn render_summary(f: &mut Frame, area: Rect, app: &App) {
         Span::styled(
             c.deferred.to_string(),
             Style::default().fg(theme::ARTIFACT),
-        ),
-        Span::raw("   "),
-        Span::styled("Unknown: ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            c.unknown.to_string(),
-            if c.unknown > 0 {
-                Style::default().fg(theme::GOLD)
-            } else {
-                Style::default().fg(Color::DarkGray)
-            },
         ),
         Span::styled(filter_hint, Style::default().fg(Color::DarkGray)),
     ]);
@@ -96,13 +90,15 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
         .iter()
         .map(|e| {
             let (symbol, sym_style) = match e.status.as_str() {
-                "ready" => ("\u{2713}", Style::default().fg(theme::GREEN)),    // ✓
-                "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),     // ✗
-                "deferred" => ("\u{25CC}", Style::default().fg(theme::ARTIFACT)), // ◌
+                "authored" => ("\u{2713}", Style::default().fg(Color::Cyan)),     // ✓ cyan
+                "ready" => ("\u{25CB}", Style::default().fg(theme::GREEN)),       // ○ green
+                "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),       // ✗ red
+                "deferred" => ("\u{25CC}", Style::default().fg(theme::ARTIFACT)), // ◌ gray
                 _ => ("?", Style::default().fg(theme::GOLD)),
             };
 
             let name_style = match e.status.as_str() {
+                "authored" => Style::default().fg(Color::Cyan),
                 "blocked" => Style::default().fg(theme::RED),
                 "deferred" => Style::default().fg(theme::ARTIFACT),
                 _ => Style::default().fg(Color::White),
@@ -168,90 +164,133 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
         .collect();
 
     let sel = app.cards_table_state.selected().unwrap_or(0);
-    let text = if let Some(entry) = entries.get(sel) {
-        let (sym, sym_style) = match entry.status.as_str() {
-            "ready" => ("\u{2713}", Style::default().fg(theme::GREEN)),
-            "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),
-            "deferred" => ("\u{25CC}", Style::default().fg(theme::ARTIFACT)),
-            _ => ("?", Style::default().fg(theme::GOLD)),
+    let (text, has_dsl) = if let Some(entry) = entries.get(sel) {
+        // Check if this authored card has DSL source
+        let dsl = if entry.status == "authored" {
+            app.data.cards.card_dsl.get(&entry.name)
+        } else {
+            None
         };
 
-        // Line 1: symbol + name + types + deck count
-        let line1 = Line::from(vec![
-            Span::styled(format!("{} ", sym), sym_style),
-            Span::styled(
-                &entry.name,
-                Style::default()
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(
-                format!("  [{}]", entry.types.join(", ")),
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::styled(
-                format!("  in {} deck(s)", entry.appears_in_decks),
-                Style::default().fg(Color::Gray),
-            ),
-        ]);
-
-        // Line 2: keyword statuses
-        let kw_spans: Vec<Span> = if entry.keyword_statuses.is_empty() {
-            vec![Span::styled(
-                "  No keywords",
-                Style::default().fg(Color::DarkGray),
-            )]
-        } else {
-            let mut spans = vec![Span::styled("  Keywords: ", Style::default().fg(Color::Gray))];
-            for (i, (kw, st)) in entry.keyword_statuses.iter().enumerate() {
-                if i > 0 {
-                    spans.push(Span::raw(", "));
-                }
-                let color = if st.contains("validated") || st == "ready" {
-                    theme::GREEN
-                } else if st.contains("deferred") {
-                    theme::ARTIFACT
-                } else if st.contains("none") {
-                    theme::RED
+        if let Some(dsl_src) = dsl {
+            // Show DSL source code with syntax highlighting:
+            // keys (before ':') in cyan, values in white
+            let mut lines: Vec<Line> = Vec::new();
+            for src_line in dsl_src.lines() {
+                let line = if let Some(colon_pos) = src_line.find(':') {
+                    let key_part = &src_line[..=colon_pos];
+                    let val_part = &src_line[colon_pos + 1..];
+                    Line::from(vec![
+                        Span::styled(key_part.to_string(), Style::default().fg(Color::Cyan)),
+                        Span::styled(val_part.to_string(), Style::default().fg(Color::White)),
+                    ])
                 } else {
-                    theme::GOLD
+                    // Lines without ':' (braces, .., etc.)
+                    Line::from(Span::styled(
+                        src_line.to_string(),
+                        Style::default().fg(Color::White),
+                    ))
                 };
-                spans.push(Span::styled(
-                    format!("{} ({})", kw, st),
-                    Style::default().fg(color),
-                ));
+                lines.push(line);
             }
-            spans
-        };
-        let line2 = Line::from(kw_spans);
-
-        // Line 3: blockers (if any)
-        let line3 = if !entry.blocking_keywords.is_empty() {
-            Line::from(vec![
-                Span::styled("  Blocked by: ", Style::default().fg(theme::RED)),
-                Span::styled(
-                    entry.blocking_keywords.join(", "),
-                    Style::default().fg(theme::RED),
-                ),
-            ])
+            (Text::from(lines), true)
         } else {
-            Line::from(Span::raw(""))
-        };
+            // Non-authored card: show keyword/blocker info (existing behavior)
+            let (sym, sym_style) = match entry.status.as_str() {
+                "authored" => ("\u{2713}", Style::default().fg(Color::Cyan)),
+                "ready" => ("\u{25CB}", Style::default().fg(theme::GREEN)),
+                "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),
+                "deferred" => ("\u{25CC}", Style::default().fg(theme::ARTIFACT)),
+                _ => ("?", Style::default().fg(theme::GOLD)),
+            };
 
-        Text::from(vec![line1, line2, line3])
+            let line1 = Line::from(vec![
+                Span::styled(format!("{} ", sym), sym_style),
+                Span::styled(
+                    &entry.name,
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("  [{}]", entry.types.join(", ")),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!("  in {} deck(s)", entry.appears_in_decks),
+                    Style::default().fg(Color::Gray),
+                ),
+            ]);
+
+            let kw_spans: Vec<Span> = if entry.keyword_statuses.is_empty() {
+                vec![Span::styled(
+                    "  No keywords",
+                    Style::default().fg(Color::DarkGray),
+                )]
+            } else {
+                let mut spans =
+                    vec![Span::styled("  Keywords: ", Style::default().fg(Color::Gray))];
+                for (i, (kw, st)) in entry.keyword_statuses.iter().enumerate() {
+                    if i > 0 {
+                        spans.push(Span::raw(", "));
+                    }
+                    let color = if st.contains("validated") || st == "ready" {
+                        theme::GREEN
+                    } else if st.contains("deferred") {
+                        theme::ARTIFACT
+                    } else if st.contains("none") {
+                        theme::RED
+                    } else {
+                        theme::GOLD
+                    };
+                    spans.push(Span::styled(
+                        format!("{} ({})", kw, st),
+                        Style::default().fg(color),
+                    ));
+                }
+                spans
+            };
+            let line2 = Line::from(kw_spans);
+
+            let line3 = if !entry.blocking_keywords.is_empty() {
+                Line::from(vec![
+                    Span::styled("  Blocked by: ", Style::default().fg(theme::RED)),
+                    Span::styled(
+                        entry.blocking_keywords.join(", "),
+                        Style::default().fg(theme::RED),
+                    ),
+                ])
+            } else {
+                Line::from(Span::raw(""))
+            };
+
+            (Text::from(vec![line1, line2, line3]), false)
+        }
     } else {
-        Text::from(Line::from(Span::styled(
-            "\u{2014}",
-            Style::default().fg(Color::DarkGray),
-        )))
+        (
+            Text::from(Line::from(Span::styled(
+                "\u{2014}",
+                Style::default().fg(Color::DarkGray),
+            ))),
+            false,
+        )
     };
 
-    f.render_widget(
-        Paragraph::new(text).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Detail "),
-        ),
-        area,
+    let title = if has_dsl {
+        " Detail \u{2014} J/K scroll "
+    } else {
+        " Detail "
+    };
+
+    let mut paragraph = Paragraph::new(text).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(title),
     );
+
+    if has_dsl {
+        paragraph = paragraph.scroll((app.cards_detail_scroll, 0));
+    }
+
+    f.render_widget(paragraph, area);
 }

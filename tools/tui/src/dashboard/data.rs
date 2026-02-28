@@ -146,13 +146,17 @@ pub struct ScriptEntry {
 
 /// Parsed from `test-data/test-decks/_authoring_worklist.json`.
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct CardWorklist {
     pub total: u32,
+    pub authored: u32,
     pub ready: u32,
     pub blocked: u32,
     pub deferred: u32,
     pub unknown: u32,
     pub entries: Vec<CardWorklistEntry>,
+    /// Raw Rust DSL source for each authored card, keyed by card name.
+    pub card_dsl: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -45,6 +45,8 @@ pub struct App {
     pub cards_table_state: TableState,
     /// "all", "ready", "blocked", "deferred"
     pub cards_filter: String,
+    /// Scroll offset for the detail pane (DSL view)
+    pub cards_detail_scroll: u16,
 
     pub root: PathBuf,
 
@@ -72,6 +74,7 @@ impl App {
             scripts_show_pending_only: false,
             cards_table_state: TableState::default(),
             cards_filter: "all".to_string(),
+            cards_detail_scroll: 0,
             live_test_count: LiveTestCount::Loading,
             test_count_rx: None,
             root,
@@ -251,18 +254,29 @@ impl App {
         }
         let sel = self.cards_table_state.selected().unwrap_or(0);
         self.cards_table_state.select(Some((sel + 1).min(len - 1)));
+        self.cards_detail_scroll = 0;
     }
 
     pub fn cards_scroll_up(&mut self) {
         let sel = self.cards_table_state.selected().unwrap_or(0);
         self.cards_table_state.select(Some(sel.saturating_sub(1)));
+        self.cards_detail_scroll = 0;
     }
 
     pub fn set_cards_filter(&mut self, filter: &str) {
         if self.cards_filter != filter {
             self.cards_filter = filter.to_string();
             self.cards_table_state.select(Some(0));
+            self.cards_detail_scroll = 0;
         }
+    }
+
+    pub fn cards_detail_scroll_down(&mut self) {
+        self.cards_detail_scroll = self.cards_detail_scroll.saturating_add(1);
+    }
+
+    pub fn cards_detail_scroll_up(&mut self) {
+        self.cards_detail_scroll = self.cards_detail_scroll.saturating_sub(1);
     }
 }
 

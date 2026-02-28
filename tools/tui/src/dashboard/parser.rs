@@ -682,15 +682,17 @@ fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
     let summary = json.get("summary").unwrap_or(&serde_json::Value::Null);
     let mut wl = CardWorklist {
         total: summary.get("total_cards").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        authored: summary.get("authored").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         ready: summary.get("ready").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         blocked: summary.get("blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         deferred: summary.get("deferred").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         unknown: summary.get("unknown").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         entries: vec![],
+        card_dsl: parse_card_dsl(root),
     };
 
     // Parse each category
-    for (status_key, status_label) in &[("ready", "ready"), ("blocked", "blocked"), ("deferred", "deferred")] {
+    for (status_key, status_label) in &[("authored", "authored"), ("ready", "ready"), ("blocked", "blocked"), ("deferred", "deferred")] {
         if let Some(arr) = json.get(*status_key).and_then(|v| v.as_array()) {
             for item in arr {
                 wl.entries.push(parse_card_entry(item, status_label));
@@ -705,6 +707,90 @@ fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
     });
 
     Ok(wl)
+}
+
+/// Extract `CardDefinition { ... }` blocks from `definitions.rs`, keyed by card name.
+fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let path = root.join("crates/engine/src/cards/definitions.rs");
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return map,
+    };
+
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Look for lines starting a CardDefinition block
+        if trimmed.contains("CardDefinition {") || trimmed.contains("CardDefinition{") {
+            // Capture the block from this line onward, tracking brace depth
+            let start = i;
+            let mut depth: i32 = 0;
+            let mut end = i;
+            for (j, line) in lines.iter().enumerate().skip(start) {
+                for ch in line.chars() {
+                    match ch {
+                        '{' => depth += 1,
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if depth <= 0 {
+                    end = j;
+                    break;
+                }
+            }
+            // Extract the block text, dedented
+            let block: String = lines[start..=end].join("\n");
+            let dedented = dedent_block(&block);
+            // Find card name: `name: "Some Card"` within the block
+            if let Some(name) = extract_card_name(&block) {
+                map.insert(name, dedented);
+            }
+            i = end + 1;
+        } else {
+            i += 1;
+        }
+    }
+    map
+}
+
+/// Strip common leading whitespace from all lines in a block.
+fn dedent_block(block: &str) -> String {
+    let min_indent = block
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    if min_indent == 0 {
+        return block.to_string();
+    }
+    block
+        .lines()
+        .map(|l| {
+            if l.len() >= min_indent {
+                &l[min_indent..]
+            } else {
+                l.trim()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Extract the card name from a `name: "..."` line inside a CardDefinition block.
+fn extract_card_name(block: &str) -> Option<String> {
+    for line in block.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("name: \"") {
+            if let Some(end) = rest.find('"') {
+                return Some(rest[..end].to_string());
+            }
+        }
+    }
+    None
 }
 
 fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry {
