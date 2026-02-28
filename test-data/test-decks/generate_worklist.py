@@ -20,6 +20,78 @@ from datetime import datetime, timezone
 
 
 # ---------------------------------------------------------------------------
+# DSL gap patterns — oracle text patterns that require engine primitives that
+# do not yet exist. Cards matching any pattern are blocked regardless of
+# keyword status.
+#
+# Policy: a card is "ready" only when its full oracle text is faithfully
+# expressible in the DSL. No simplifications are permitted.
+# ---------------------------------------------------------------------------
+DSL_GAP_PATTERNS = {
+    # Shock lands: "As ~ enters, you may pay 2 life. If you don't, it enters tapped."
+    # Requires: MayPay replacement effect (not in ReplacementModification enum).
+    "shock_etb": (
+        re.compile(r"you may pay \d+ life\.\s*if you don't", re.IGNORECASE),
+        "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)",
+    ),
+    # Named fetchlands + non-basic ramp: "search for a Forest card",
+    # "search for a Mountain or Forest card", "search for a Plains, Island, Swamp, or Mountain card".
+    # These can find nonbasic dual lands — basic_land_filter() only finds basics.
+    # Requires: subtype-OR TargetFilter in SearchLibrary (not expressible in current TargetFilter).
+    "nonbasic_land_search": (
+        re.compile(
+            r"search your library for (?:a|an) (?!basic\s)"
+            r"(?:(?:plains|island|swamp|mountain|forest)"
+            r"(?:,?\s+(?:or\s+)?)?)+card",
+            re.IGNORECASE,
+        ),
+        "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter",
+    ),
+    # Triggered abilities that declare a target: "Whenever X, target player/creature/permanent Y".
+    # AbilityDefinition::Triggered has no targets vec; only AbilityDefinition::Spell does.
+    # Requires: declared-target support on triggered abilities.
+    "targeted_trigger": (
+        re.compile(
+            r"^(?:when(?:ever)?|at\s+the\s+beginning\s+of)\b[^.]*,"
+            r"\s*[^.]*\btarget\s+"
+            r"(?:player|creature|permanent|card|spell|opponent|artifact|enchantment|land)\b",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+        "trigger with declared target: triggered abilities cannot declare targets in current DSL",
+    ),
+    # "Return target card from your graveyard to your hand" — no such Effect variant exists.
+    # Requires: ReturnFromGraveyardToHand effect (not in Effect enum).
+    "return_from_graveyard": (
+        re.compile(
+            r"return [^.\n]*from [^.\n]*graveyard[^.\n]*to [^.\n]*hand",
+            re.IGNORECASE,
+        ),
+        "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL",
+    ),
+    # "Then if you control four or more lands, untap it." — no count-threshold Condition.
+    # Requires: Condition::YouControlAtLeastN (not in Condition enum).
+    "count_threshold": (
+        re.compile(
+            r"if you control (?:two|three|four|five|six|seven|eight|nine|ten|\d+) or more",
+            re.IGNORECASE,
+        ),
+        "count threshold: 'control N or more' Condition not in DSL",
+    ),
+}
+
+
+def check_oracle_dsl_gaps(oracle_text: str) -> list[tuple[str, str]]:
+    """Return list of (gap_id, description) for any DSL gaps found in oracle_text."""
+    if not oracle_text:
+        return []
+    gaps = []
+    for gap_id, (pattern, description) in DSL_GAP_PATTERNS.items():
+        if pattern.search(oracle_text):
+            gaps.append((gap_id, description))
+    return gaps
+
+
+# ---------------------------------------------------------------------------
 # Category 2: Scryfall keyword name -> coverage doc name aliases
 # ---------------------------------------------------------------------------
 KEYWORD_ALIASES = {
@@ -201,14 +273,15 @@ def classify_card(card, coverage):
     """Classify a card as ready/blocked/deferred/unknown.
 
     Returns (classification, details_dict).
+
+    A card is "ready" only when ALL of the following hold:
+      1. No deferred keywords (Morph, Mutate, etc.)
+      2. No blocking keywords (status=none/partial in coverage doc)
+      3. No DSL gaps — every sentence of oracle text maps to an existing
+         Effect/Cost/TriggerCondition/ReplacementModification primitive.
     """
     keywords = card.get("keywords", [])
-
-    # Cards with no keywords are always ready
-    if not keywords:
-        return ("ready", {
-            "keyword_statuses": {},
-        })
+    oracle_text = card.get("oracle_text", "")
 
     keyword_statuses = {}
     deferred_kws = []
@@ -229,7 +302,10 @@ def classify_card(card, coverage):
             blocking_kws.append(kw)
         # else: ready (validated, complete, n/a, ability_word, keyword_action)
 
-    # Classification priority: deferred > unknown > blocked > ready
+    # Check DSL gaps in oracle text
+    dsl_gaps = check_oracle_dsl_gaps(oracle_text)
+
+    # Classification priority: deferred > unknown > blocked (keyword or DSL) > ready
     if deferred_kws:
         return ("deferred", {
             "deferred_keywords": deferred_kws,
@@ -240,11 +316,16 @@ def classify_card(card, coverage):
             "unknown_keywords": unknown_kws,
             "keyword_statuses": keyword_statuses,
         })
-    if blocking_kws:
-        return ("blocked", {
-            "blocking_keywords": blocking_kws,
-            "keyword_statuses": keyword_statuses,
-        })
+    if blocking_kws or dsl_gaps:
+        details = {"keyword_statuses": keyword_statuses}
+        if blocking_kws:
+            details["blocking_keywords"] = blocking_kws
+        if dsl_gaps:
+            details["blocking_dsl_gaps"] = [
+                {"gap": gap_id, "reason": desc}
+                for gap_id, desc in dsl_gaps
+            ]
+        return ("blocked", details)
 
     return ("ready", {
         "keyword_statuses": keyword_statuses,
@@ -252,25 +333,31 @@ def classify_card(card, coverage):
 
 
 def parse_authored_cards(project_root):
-    """Extract card names from definitions.rs that already have CardDefinitions.
+    """Extract card names from per-file defs/ directory.
 
-    Looks for lines matching: name: "Card Name".to_string(),
+    Scans crates/engine/src/cards/defs/*.rs for lines matching:
+        name: "Card Name".to_string(),
     Returns a set of card names.
     """
-    definitions_path = os.path.join(
-        project_root, "crates", "engine", "src", "cards", "definitions.rs"
+    defs_path = os.path.join(
+        project_root, "crates", "engine", "src", "cards", "defs"
     )
     authored = set()
     pattern = re.compile(r'name:\s*"([^"]+)"\.to_string\(\)')
 
     try:
-        with open(definitions_path, "r") as f:
-            for line in f:
-                m = pattern.search(line)
-                if m:
-                    authored.add(m.group(1))
+        for filename in os.listdir(defs_path):
+            if not filename.endswith(".rs") or filename == "mod.rs":
+                continue
+            filepath = os.path.join(defs_path, filename)
+            with open(filepath, "r") as f:
+                for line in f:
+                    m = pattern.search(line)
+                    if m:
+                        authored.add(m.group(1))
+                        break  # one card per file
     except FileNotFoundError:
-        print(f"WARNING: {definitions_path} not found", file=sys.stderr)
+        print(f"WARNING: {defs_path} not found", file=sys.stderr)
 
     return authored
 
@@ -303,6 +390,7 @@ def scan_all_deck_cards(deck_dir):
                     "appears_in_decks": 0,
                     "types": card.get("types", []),
                     "keywords": card.get("keywords", []),
+                    "oracle_text": card.get("oracle_text", ""),
                 }
             cards[name]["appears_in_decks"] += 1
 
@@ -428,9 +516,23 @@ def main():
         for entry in blocked:
             for kw in entry.get("blocking_keywords", []):
                 blocking_counts[kw] = blocking_counts.get(kw, 0) + 1
-        print(f"\nTop blocking keywords:", file=sys.stderr)
-        for kw, count in sorted(blocking_counts.items(), key=lambda x: -x[1]):
-            print(f"  - {kw}: {count} cards", file=sys.stderr)
+        if blocking_counts:
+            print(f"\nTop blocking keywords:", file=sys.stderr)
+            for kw, count in sorted(blocking_counts.items(), key=lambda x: -x[1]):
+                print(f"  - {kw}: {count} cards", file=sys.stderr)
+
+    # Print top blocking DSL gaps
+    if blocked:
+        gap_counts = {}
+        for entry in blocked:
+            for gap in entry.get("blocking_dsl_gaps", []):
+                gid = gap["gap"]
+                gap_counts[gid] = gap_counts.get(gid, 0) + 1
+        if gap_counts:
+            print(f"\nTop blocking DSL gaps:", file=sys.stderr)
+            for gid, count in sorted(gap_counts.items(), key=lambda x: -x[1]):
+                desc = DSL_GAP_PATTERNS[gid][1]
+                print(f"  - {gid} ({count} cards): {desc}", file=sys.stderr)
 
     print(f"\nOutput written to: {output_path}", file=sys.stderr)
 

@@ -1,10 +1,10 @@
 {
-  "generated": "2026-02-28T20:59:35.757831+00:00",
+  "generated": "2026-02-28T23:11:47.318970+00:00",
   "summary": {
     "total_cards": 1174,
-    "authored": 51,
-    "ready": 1061,
-    "blocked": 42,
+    "authored": 59,
+    "ready": 947,
+    "blocked": 148,
     "deferred": 20,
     "unknown": 0
   },
@@ -113,6 +113,15 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Ancient Tomb",
+      "appears_in_decks": 6,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Birds of Paradise",
       "appears_in_decks": 6,
       "types": [
@@ -151,10 +160,48 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Heroic Intervention",
+      "appears_in_decks": 5,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Path to Exile",
       "appears_in_decks": 5,
       "types": [
         "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Viscera Seer",
+      "appears_in_decks": 5,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Scry"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Anguished Unmaking",
+      "appears_in_decks": 4,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Ashnod's Altar",
+      "appears_in_decks": 4,
+      "types": [
+        "Artifact"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -179,6 +226,15 @@
     },
     {
       "name": "Llanowar Elves",
+      "appears_in_decks": 4,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Zulaport Cutthroat",
       "appears_in_decks": 4,
       "types": [
         "Creature"
@@ -214,10 +270,28 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Prismatic Vista",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Rhystic Study",
       "appears_in_decks": 3,
       "types": [
         "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Sakura-Tribe Elder",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -516,42 +590,6 @@
       }
     },
     {
-      "name": "Ancient Tomb",
-      "appears_in_decks": 6,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Wooded Foothills",
-      "appears_in_decks": 6,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Blood Artist",
-      "appears_in_decks": 5,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Bloodstained Mire",
-      "appears_in_decks": 5,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Cavern of Souls",
       "appears_in_decks": 5,
       "types": [
@@ -579,46 +617,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Godless Shrine",
-      "appears_in_decks": 5,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Heroic Intervention",
-      "appears_in_decks": 5,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Misty Rainforest",
-      "appears_in_decks": 5,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Viscera Seer",
-      "appears_in_decks": 5,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Scry"
-      ],
-      "keyword_statuses": {
-        "Scry": "ready"
-      }
-    },
-    {
       "name": "Worldly Tutor",
       "appears_in_decks": 5,
       "types": [
@@ -628,55 +626,10 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Anguished Unmaking",
-      "appears_in_decks": 4,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Arid Mesa",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Ashnod's Altar",
-      "appears_in_decks": 4,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Blasphemous Act",
       "appears_in_decks": 4,
       "types": [
         "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Blood Crypt",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Bojuka Bog",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -695,33 +648,6 @@
       "appears_in_decks": 4,
       "types": [
         "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Eternal Witness",
-      "appears_in_decks": 4,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Fabled Passage",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Farseek",
-      "appears_in_decks": 4,
-      "types": [
-        "Sorcery"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -754,24 +680,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Marsh Flats",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Overgrown Tomb",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Phyrexian Altar",
       "appears_in_decks": 4,
       "types": [
@@ -785,24 +693,6 @@
       "appears_in_decks": 4,
       "types": [
         "Artifact"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Windswept Heath",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Zulaport Cutthroat",
-      "appears_in_decks": 4,
-      "types": [
-        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -861,15 +751,6 @@
       "appears_in_decks": 3,
       "types": [
         "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Breeding Pool",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -982,15 +863,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Hallowed Fountain",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Impact Tremors",
       "appears_in_decks": 3,
       "types": [
@@ -1080,15 +952,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Nature's Lore",
-      "appears_in_decks": 3,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Path of Ancestry",
       "appears_in_decks": 3,
       "types": [
@@ -1113,15 +976,6 @@
       "keyword_statuses": {
         "Treasure": "validated (P2)"
       }
-    },
-    {
-      "name": "Prismatic Vista",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Putrefy",
@@ -1151,34 +1005,7 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Reclamation Sage",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Reflecting Pool",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Sakura-Tribe Elder",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Scalding Tarn",
       "appears_in_decks": 3,
       "types": [
         "Land"
@@ -1191,15 +1018,6 @@
       "appears_in_decks": 3,
       "types": [
         "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Stomping Ground",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -1236,21 +1054,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Takenuma, Abandoned Mire",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [
-        "Channel",
-        "Mill"
-      ],
-      "keyword_statuses": {
-        "Channel": "ready",
-        "Mill": "ready"
-      }
-    },
-    {
       "name": "Talisman of Conviction",
       "appears_in_decks": 3,
       "types": [
@@ -1264,24 +1067,6 @@
       "appears_in_decks": 3,
       "types": [
         "Artifact"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Temple Garden",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Three Visits",
-      "appears_in_decks": 3,
-      "types": [
-        "Sorcery"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -1309,24 +1094,6 @@
       "appears_in_decks": 3,
       "types": [
         "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Verdant Catacombs",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Watery Grave",
-      "appears_in_decks": 3,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -1429,20 +1196,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Athreos, God of Passage",
-      "appears_in_decks": 2,
-      "types": [
-        "Creature",
-        "Enchantment"
-      ],
-      "keywords": [
-        "Indestructible"
-      ],
-      "keyword_statuses": {
-        "Indestructible": "validated (P1)"
-      }
     },
     {
       "name": "Avenger of Zendikar",
@@ -1559,24 +1312,6 @@
       "appears_in_decks": 2,
       "types": [
         "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Buried Ruin",
-      "appears_in_decks": 2,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Carpet of Flowers",
-      "appears_in_decks": 2,
-      "types": [
-        "Enchantment"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -1860,15 +1595,6 @@
       "appears_in_decks": 2,
       "types": [
         "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Flooded Strand",
-      "appears_in_decks": 2,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -2373,15 +2099,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Ravenous Chupacabra",
-      "appears_in_decks": 2,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Reconnaissance",
       "appears_in_decks": 2,
       "types": [
@@ -2395,15 +2112,6 @@
       "appears_in_decks": 2,
       "types": [
         "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Regrowth",
-      "appears_in_decks": 2,
-      "types": [
-        "Sorcery"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -2432,15 +2140,6 @@
       }
     },
     {
-      "name": "Sacred Foundry",
-      "appears_in_decks": 2,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Scavenger Grounds",
       "appears_in_decks": 2,
       "types": [
@@ -2448,19 +2147,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Scute Swarm",
-      "appears_in_decks": 2,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Landfall"
-      ],
-      "keyword_statuses": {
-        "Landfall": "ready"
-      }
     },
     {
       "name": "Sea of Clouds",
@@ -2500,15 +2186,6 @@
     },
     {
       "name": "Spire Garden",
-      "appears_in_decks": 2,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Steam Vents",
       "appears_in_decks": 2,
       "types": [
         "Land"
@@ -2839,15 +2516,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Abstergo Entertainment",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Abundance",
       "appears_in_decks": 1,
       "types": [
@@ -2932,15 +2600,6 @@
         "Flash": "validated (P1)",
         "Menace": "validated (P1)"
       }
-    },
-    {
-      "name": "Al Bhed Salvagers",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Alandra, Sky Dreamer",
@@ -3113,19 +2772,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Arch of Orazca",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [
-        "Ascend"
-      ],
-      "keyword_statuses": {
-        "Ascend": "validated (P3)"
-      }
-    },
-    {
       "name": "Archetype of Endurance",
       "appears_in_decks": 1,
       "types": [
@@ -3175,19 +2821,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Argentum Armor",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Equip"
-      ],
-      "keyword_statuses": {
-        "Equip": "validated (P1)"
-      }
     },
     {
       "name": "Armorcraft Judge",
@@ -3260,28 +2893,10 @@
       }
     },
     {
-      "name": "Aura Shards",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Auriok Steelshaper",
       "appears_in_decks": 1,
       "types": [
         "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Auroral Procession",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -3787,21 +3402,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Brash Taunter",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Fight",
-        "Indestructible"
-      ],
-      "keyword_statuses": {
-        "Fight": "ready",
-        "Indestructible": "validated (P1)"
-      }
-    },
-    {
       "name": "Breach the Multiverse",
       "appears_in_decks": 1,
       "types": [
@@ -4009,19 +3609,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Captain Howler, Sea Scourge",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ward"
-      ],
-      "keyword_statuses": {
-        "Ward": "validated (P1)"
-      }
     },
     {
       "name": "Captain Lannery Storm",
@@ -4397,19 +3984,6 @@
       }
     },
     {
-      "name": "Contagion Engine",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Proliferate"
-      ],
-      "keyword_statuses": {
-        "Proliferate": "ready"
-      }
-    },
-    {
       "name": "Contentious Plan",
       "appears_in_decks": 1,
       "types": [
@@ -4727,19 +4301,6 @@
       }
     },
     {
-      "name": "Dawnstrike Vanguard",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Lifelink"
-      ],
-      "keyword_statuses": {
-        "Lifelink": "validated (P1)"
-      }
-    },
-    {
       "name": "Deadly Rollick",
       "appears_in_decks": 1,
       "types": [
@@ -4767,31 +4328,7 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Deep Gnome Terramancer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flash",
-        "Mold Earth"
-      ],
-      "keyword_statuses": {
-        "Flash": "validated (P1)",
-        "Mold Earth": "ignored"
-      }
-    },
-    {
       "name": "Deepglow Skate",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Delina, Wild Mage",
       "appears_in_decks": 1,
       "types": [
         "Creature"
@@ -4924,19 +4461,6 @@
       ],
       "keyword_statuses": {
         "Surveil": "validated (P2)"
-      }
-    },
-    {
-      "name": "Dispatch",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Metalcraft"
-      ],
-      "keyword_statuses": {
-        "Metalcraft": "ready"
       }
     },
     {
@@ -5080,19 +4604,6 @@
       }
     },
     {
-      "name": "Druid Class",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Landfall"
-      ],
-      "keyword_statuses": {
-        "Landfall": "ready"
-      }
-    },
-    {
       "name": "Dryad Arbor",
       "appears_in_decks": 1,
       "types": [
@@ -5209,15 +4720,6 @@
       "keyword_statuses": {
         "Deathtouch": "validated (P1)"
       }
-    },
-    {
-      "name": "Elderfang Ritualist",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Elderfang Venom",
@@ -5346,15 +4848,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Emeria, the Sky Ruin",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Empyrial Plate",
       "appears_in_decks": 1,
       "types": [
@@ -5368,23 +4861,6 @@
       }
     },
     {
-      "name": "Emrakul, the Promised End",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Trample",
-        "Protection"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Trample": "validated (P1)",
-        "Protection": "validated (P1)"
-      }
-    },
-    {
       "name": "Encroaching Dragonstorm",
       "appears_in_decks": 1,
       "types": [
@@ -5392,23 +4868,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Endurance",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Reach",
-        "Flash",
-        "Evoke"
-      ],
-      "keyword_statuses": {
-        "Reach": "validated (P1)",
-        "Flash": "validated (P1)",
-        "Evoke": "validated (P2)"
-      }
     },
     {
       "name": "Enduring Curiosity",
@@ -5472,15 +4931,6 @@
       "keyword_statuses": {
         "Multikicker": "validated (P2)"
       }
-    },
-    {
-      "name": "Evolution Charm",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Evolution Sage",
@@ -5624,21 +5074,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Fell Stinger",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Deathtouch",
-        "Exploit"
-      ],
-      "keyword_statuses": {
-        "Deathtouch": "validated (P1)",
-        "Exploit": "validated (P3)"
-      }
-    },
-    {
       "name": "Fervent Charge",
       "appears_in_decks": 1,
       "types": [
@@ -5652,15 +5087,6 @@
       "appears_in_decks": 1,
       "types": [
         "Enchantment"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Field of the Dead",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -5800,28 +5226,10 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Forbidden Orchard",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Force of Negation",
       "appears_in_decks": 1,
       "types": [
         "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Forerunner of the Legion",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -5948,19 +5356,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Gempalm Incinerator",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Cycling"
-      ],
-      "keyword_statuses": {
-        "Cycling": "validated (P2)"
-      }
-    },
-    {
       "name": "Gemstone Caverns",
       "appears_in_decks": 1,
       "types": [
@@ -6004,19 +5399,6 @@
       "keyword_statuses": {
         "Ward": "validated (P1)",
         "Three Autostubs": "ignored"
-      }
-    },
-    {
-      "name": "Gilded Drake",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)"
       }
     },
     {
@@ -6207,15 +5589,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Golgari Findbroker",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Grateful Apparition",
       "appears_in_decks": 1,
       "types": [
@@ -6271,21 +5644,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Great Oak Guardian",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Reach",
-        "Flash"
-      ],
-      "keyword_statuses": {
-        "Reach": "validated (P1)",
-        "Flash": "validated (P1)"
-      }
-    },
-    {
       "name": "Greymond, Avacyn's Stalwart",
       "appears_in_decks": 1,
       "types": [
@@ -6293,21 +5651,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Grief",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Menace",
-        "Evoke"
-      ],
-      "keyword_statuses": {
-        "Menace": "validated (P1)",
-        "Evoke": "validated (P2)"
-      }
     },
     {
       "name": "Grim Hireling",
@@ -6368,19 +5711,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Hammer of Nazahn",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Equip"
-      ],
-      "keyword_statuses": {
-        "Equip": "validated (P1)"
-      }
-    },
-    {
       "name": "Hammerhead Tyrant",
       "appears_in_decks": 1,
       "types": [
@@ -6391,19 +5721,6 @@
       ],
       "keyword_statuses": {
         "Flying": "validated (P1)"
-      }
-    },
-    {
-      "name": "Hand of the Praetors",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Infect"
-      ],
-      "keyword_statuses": {
-        "Infect": "validated (P3)"
       }
     },
     {
@@ -6601,15 +5918,6 @@
       }
     },
     {
-      "name": "Hyrax Tower Scout",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Ichor Rats",
       "appears_in_decks": 1,
       "types": [
@@ -6778,15 +6086,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Inventors' Fair",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Invigorate",
       "appears_in_decks": 1,
       "types": [
@@ -6948,19 +6247,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Karazikar, the Eye Tyrant",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Goad"
-      ],
-      "keyword_statuses": {
-        "Goad": "ready"
-      }
     },
     {
       "name": "Karn's Bastion",
@@ -7127,19 +6413,6 @@
       ],
       "keyword_statuses": {
         "Equip": "validated (P1)"
-      }
-    },
-    {
-      "name": "Kogla, the Titan Ape",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Fight"
-      ],
-      "keyword_statuses": {
-        "Fight": "ready"
       }
     },
     {
@@ -7334,21 +6607,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Life from the Loam",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Mill",
-        "Dredge"
-      ],
-      "keyword_statuses": {
-        "Mill": "ready",
-        "Dredge": "validated (P2)"
-      }
     },
     {
       "name": "Life's Legacy",
@@ -7695,15 +6953,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Meren of Clan Nel Toth",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Mesmeric Orb",
       "appears_in_decks": 1,
       "types": [
@@ -8004,34 +7253,6 @@
       }
     },
     {
-      "name": "Mox Opal",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Metalcraft"
-      ],
-      "keyword_statuses": {
-        "Metalcraft": "ready"
-      }
-    },
-    {
-      "name": "Multani, Yavimaya's Avatar",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Reach",
-        "Trample"
-      ],
-      "keyword_statuses": {
-        "Reach": "validated (P1)",
-        "Trample": "validated (P1)"
-      }
-    },
-    {
       "name": "Murmuring Mystic",
       "appears_in_decks": 1,
       "types": [
@@ -8082,15 +7303,6 @@
     },
     {
       "name": "Nature's Claim",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Naya Charm",
       "appears_in_decks": 1,
       "types": [
         "Instant"
@@ -8490,19 +7702,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Parapet Thrasher",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)"
-      }
-    },
-    {
       "name": "Pashalik Mons",
       "appears_in_decks": 1,
       "types": [
@@ -8655,15 +7854,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Polluted Delta",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Polymorphist's Jest",
       "appears_in_decks": 1,
       "types": [
@@ -8739,21 +7929,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Puppeteer Clique",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Persist"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Persist": "validated (P2)"
-      }
     },
     {
       "name": "Puresteel Paladin",
@@ -9019,19 +8194,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Revel in Riches",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Treasure"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)"
-      }
-    },
-    {
       "name": "Revitalizing Repast // Old-Growth Grove",
       "appears_in_decks": 1,
       "types": [
@@ -9054,15 +8216,6 @@
       "appears_in_decks": 1,
       "types": [
         "Artifact"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Rionya, Fire Dancer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -9134,23 +8287,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Roalesk, Apex Hybrid",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Trample",
-        "Proliferate"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Trample": "validated (P1)",
-        "Proliferate": "ready"
-      }
     },
     {
       "name": "Rockfall Vale",
@@ -9524,15 +8660,6 @@
       }
     },
     {
-      "name": "Shadow Alley Denizen",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Shadowspear",
       "appears_in_decks": 1,
       "types": [
@@ -9557,15 +8684,6 @@
       "keyword_statuses": {
         "Flying": "validated (P1)"
       }
-    },
-    {
-      "name": "Shaman of the Pack",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Shamanic Revelation",
@@ -9706,28 +8824,6 @@
       "keyword_statuses": {
         "Deathtouch": "validated (P1)",
         "Exploit": "validated (P3)"
-      }
-    },
-    {
-      "name": "Sigarda's Aid",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Sigil of Sleep",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Enchant"
-      ],
-      "keyword_statuses": {
-        "Enchant": "validated (P1)"
       }
     },
     {
@@ -10063,15 +9159,6 @@
       }
     },
     {
-      "name": "Squee, Goblin Nabob",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Sram, Senior Edificer",
       "appears_in_decks": 1,
       "types": [
@@ -10221,19 +9308,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Sun Titan",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Vigilance"
-      ],
-      "keyword_statuses": {
-        "Vigilance": "validated (P1)"
-      }
-    },
-    {
       "name": "Sundering Eruption // Volcanic Fissure",
       "appears_in_decks": 1,
       "types": [
@@ -10288,34 +9362,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Surly Badgersaur",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Fight"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Fight": "ready"
-      }
-    },
-    {
-      "name": "Susurian Voidborn",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Warp"
-      ],
-      "keyword_statuses": {
-        "Warp": "ignored"
-      }
-    },
-    {
       "name": "Sword of Body and Mind",
       "appears_in_decks": 1,
       "types": [
@@ -10345,32 +9391,6 @@
     },
     {
       "name": "Sword of Fire and Ice",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Equip"
-      ],
-      "keyword_statuses": {
-        "Equip": "validated (P1)"
-      }
-    },
-    {
-      "name": "Sword of Light and Shadow",
-      "appears_in_decks": 1,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Equip"
-      ],
-      "keyword_statuses": {
-        "Equip": "validated (P1)"
-      }
-    },
-    {
-      "name": "Sword of Sinew and Steel",
       "appears_in_decks": 1,
       "types": [
         "Artifact"
@@ -10489,15 +9509,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Tatyova, Steward of Tides",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Tear Asunder",
       "appears_in_decks": 1,
       "types": [
@@ -10562,15 +9573,6 @@
       "keyword_statuses": {
         "Scry": "ready"
       }
-    },
-    {
-      "name": "Temple of the False God",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Temporal Mastery",
@@ -10783,21 +9785,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Thieving Skydiver",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Kicker"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Kicker": "validated (P2)"
-      }
-    },
-    {
       "name": "Thornbite Staff",
       "appears_in_decks": 1,
       "types": [
@@ -10915,15 +9902,6 @@
       }
     },
     {
-      "name": "Titania, Protector of Argoth",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Tolarian Winds",
       "appears_in_decks": 1,
       "types": [
@@ -10968,28 +9946,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Tortured Existence",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Touch the Spirit Realm",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Channel"
-      ],
-      "keyword_statuses": {
-        "Channel": "ready"
-      }
-    },
-    {
       "name": "Training Center",
       "appears_in_decks": 1,
       "types": [
@@ -10997,21 +9953,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Transcendent Dragon",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Flash"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Flash": "validated (P1)"
-      }
     },
     {
       "name": "Treasure Vault",
@@ -11099,21 +10040,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Twilight Prophet",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Ascend"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Ascend": "validated (P3)"
-      }
     },
     {
       "name": "Tyvar Kell",
@@ -11206,21 +10132,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Unshakable Tail",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Surveil",
-        "Investigate"
-      ],
-      "keyword_statuses": {
-        "Surveil": "validated (P2)",
-        "Investigate": "ready"
-      }
     },
     {
       "name": "Untimely Malfunction",
@@ -11358,15 +10269,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Vengeful Bloodwitch",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Vexing Shusher",
       "appears_in_decks": 1,
       "types": [
@@ -11425,23 +10327,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Volatile Stormdrake",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Hexproof",
-        "Hexproof from"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Hexproof": "validated (P1)",
-        "Hexproof from": "validated (P1)"
-      }
-    },
-    {
       "name": "Volcanic Island",
       "appears_in_decks": 1,
       "types": [
@@ -11449,19 +10334,6 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
-    },
-    {
-      "name": "Vona's Hunger",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Ascend"
-      ],
-      "keyword_statuses": {
-        "Ascend": "validated (P3)"
-      }
     },
     {
       "name": "Vraska, Betrayal's Sting",
@@ -11640,15 +10512,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Witch's Cottage",
-      "appears_in_decks": 1,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Woe Strider",
       "appears_in_decks": 1,
       "types": [
@@ -11686,15 +10549,6 @@
       }
     },
     {
-      "name": "Wood Elves",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Woodland Bellower",
       "appears_in_decks": 1,
       "types": [
@@ -11728,15 +10582,6 @@
       "keyword_statuses": {
         "Mill": "ready"
       }
-    },
-    {
-      "name": "Wrenn and Seven",
-      "appears_in_decks": 1,
-      "types": [
-        "Planeswalker"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
     },
     {
       "name": "Xenagos, the Reveler",
@@ -11809,19 +10654,6 @@
       }
     },
     {
-      "name": "Zealous Conscripts",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Haste"
-      ],
-      "keyword_statuses": {
-        "Haste": "validated (P1)"
-      }
-    },
-    {
       "name": "Zendikar's Roil",
       "appears_in_decks": 1,
       "types": [
@@ -11846,6 +10678,2538 @@
       "keyword_statuses": {
         "Scry": "ready"
       }
+    }
+  ],
+  "blocked": [
+    {
+      "name": "Wooded Foothills",
+      "appears_in_decks": 6,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Blood Artist",
+      "appears_in_decks": 5,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Bloodstained Mire",
+      "appears_in_decks": 5,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Godless Shrine",
+      "appears_in_decks": 5,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Misty Rainforest",
+      "appears_in_decks": 5,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Arid Mesa",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Blood Crypt",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Bojuka Bog",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Eternal Witness",
+      "appears_in_decks": 4,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        },
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Fabled Passage",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Farseek",
+      "appears_in_decks": 4,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Marsh Flats",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Mystic Remora",
+      "appears_in_decks": 4,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "keyword_statuses": {
+        "Cumulative upkeep": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Cumulative upkeep"
+      ]
+    },
+    {
+      "name": "Overgrown Tomb",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Windswept Heath",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Breeding Pool",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Cyclonic Rift",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Overload"
+      ],
+      "keyword_statuses": {
+        "Overload": "none (P3)"
+      },
+      "blocking_keywords": [
+        "Overload"
+      ]
+    },
+    {
+      "name": "Hallowed Fountain",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Nature's Lore",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Nether Traitor",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Haste",
+        "Shadow"
+      ],
+      "keyword_statuses": {
+        "Haste": "validated (P1)",
+        "Shadow": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Shadow"
+      ]
+    },
+    {
+      "name": "Reclamation Sage",
+      "appears_in_decks": 3,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Scalding Tarn",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Stomping Ground",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Takenuma, Abandoned Mire",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [
+        "Channel",
+        "Mill"
+      ],
+      "keyword_statuses": {
+        "Channel": "ready",
+        "Mill": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Temple Garden",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Three Visits",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Verdant Catacombs",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Watery Grave",
+      "appears_in_decks": 3,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Athreos, God of Passage",
+      "appears_in_decks": 2,
+      "types": [
+        "Creature",
+        "Enchantment"
+      ],
+      "keywords": [
+        "Indestructible"
+      ],
+      "keyword_statuses": {
+        "Indestructible": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Buried Ruin",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Carpet of Flowers",
+      "appears_in_decks": 2,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Commit // Memory",
+      "appears_in_decks": 2,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Aftermath"
+      ],
+      "keyword_statuses": {
+        "Aftermath": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Aftermath"
+      ]
+    },
+    {
+      "name": "Flooded Strand",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Marionette Apprentice",
+      "appears_in_decks": 2,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Fabricate"
+      ],
+      "keyword_statuses": {
+        "Fabricate": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Fabricate"
+      ]
+    },
+    {
+      "name": "Ravenous Chupacabra",
+      "appears_in_decks": 2,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Regrowth",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sacred Foundry",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Scute Swarm",
+      "appears_in_decks": 2,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Landfall"
+      ],
+      "keyword_statuses": {
+        "Landfall": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Steam Vents",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "shock_etb",
+          "reason": "shock ETB: 'may pay N life or enters tapped' requires MayPay replacement (not in DSL)"
+        }
+      ]
+    },
+    {
+      "name": "Vandalblast",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Overload"
+      ],
+      "keyword_statuses": {
+        "Overload": "none (P3)"
+      },
+      "blocking_keywords": [
+        "Overload"
+      ]
+    },
+    {
+      "name": "Abstergo Entertainment",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Al Bhed Salvagers",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Arcane Heist",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Cipher"
+      ]
+    },
+    {
+      "name": "Arch of Orazca",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [
+        "Ascend"
+      ],
+      "keyword_statuses": {
+        "Ascend": "validated (P3)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Argentum Armor",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {
+        "Equip": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Aura Shards",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Auroral Procession",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Brallin, Skyshark Rider",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {
+        "Partner with": "none (P3)",
+        "Partner": "validated (P1)"
+      },
+      "blocking_keywords": [
+        "Partner with"
+      ]
+    },
+    {
+      "name": "Brash Taunter",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Fight",
+        "Indestructible"
+      ],
+      "keyword_statuses": {
+        "Fight": "ready",
+        "Indestructible": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Captain Howler, Sea Scourge",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ward"
+      ],
+      "keyword_statuses": {
+        "Ward": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Collective Resistance",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Escalate"
+      ],
+      "keyword_statuses": {
+        "Escalate": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Escalate"
+      ]
+    },
+    {
+      "name": "Contagion Engine",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Proliferate"
+      ],
+      "keyword_statuses": {
+        "Proliferate": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Dawnstrike Vanguard",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Lifelink"
+      ],
+      "keyword_statuses": {
+        "Lifelink": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Deep Gnome Terramancer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flash",
+        "Mold Earth"
+      ],
+      "keyword_statuses": {
+        "Flash": "validated (P1)",
+        "Mold Earth": "ignored"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Delina, Wild Mage",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Dispatch",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Metalcraft"
+      ],
+      "keyword_statuses": {
+        "Metalcraft": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Druid Class",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Landfall"
+      ],
+      "keyword_statuses": {
+        "Landfall": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Elderfang Ritualist",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Elvish Dreadlord",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Deathtouch",
+        "Encore"
+      ],
+      "keyword_statuses": {
+        "Deathtouch": "validated (P1)",
+        "Encore": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Encore"
+      ]
+    },
+    {
+      "name": "Emeria, the Sky Ruin",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        },
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Emrakul, the Promised End",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Trample",
+        "Protection"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Trample": "validated (P1)",
+        "Protection": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Endurance",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Reach",
+        "Flash",
+        "Evoke"
+      ],
+      "keyword_statuses": {
+        "Reach": "validated (P1)",
+        "Flash": "validated (P1)",
+        "Evoke": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Evolution Charm",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Fell Stinger",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Deathtouch",
+        "Exploit"
+      ],
+      "keyword_statuses": {
+        "Deathtouch": "validated (P1)",
+        "Exploit": "validated (P3)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Field of the Dead",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Forbidden Orchard",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Forerunner of the Legion",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Gempalm Incinerator",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Cycling"
+      ],
+      "keyword_statuses": {
+        "Cycling": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Gilded Drake",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Golgari Findbroker",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        },
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Great Oak Guardian",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Reach",
+        "Flash"
+      ],
+      "keyword_statuses": {
+        "Reach": "validated (P1)",
+        "Flash": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Grief",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Menace",
+        "Evoke"
+      ],
+      "keyword_statuses": {
+        "Menace": "validated (P1)",
+        "Evoke": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Hammer of Nazahn",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {
+        "Equip": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Hand of the Praetors",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Infect"
+      ],
+      "keyword_statuses": {
+        "Infect": "validated (P3)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Hands of Binding",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Cipher"
+      ]
+    },
+    {
+      "name": "Hidden Strings",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Cipher"
+      ],
+      "keyword_statuses": {
+        "Cipher": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Cipher"
+      ]
+    },
+    {
+      "name": "Higure, the Still Wind",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Hyrax Tower Scout",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Impulsive Pilferer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Encore"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Encore": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Encore"
+      ]
+    },
+    {
+      "name": "Incubation Druid",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Adapt"
+      ],
+      "keyword_statuses": {
+        "Adapt": "none (P3)"
+      },
+      "blocking_keywords": [
+        "Adapt"
+      ]
+    },
+    {
+      "name": "Ingenious Infiltrator",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Insatiable Avarice",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Spree"
+      ],
+      "keyword_statuses": {
+        "Spree": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Spree"
+      ]
+    },
+    {
+      "name": "Inventors' Fair",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Kaito, Bane of Nightmares",
+      "appears_in_decks": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "keywords": [
+        "Ninjutsu",
+        "Surveil"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)",
+        "Surveil": "validated (P2)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Karazikar, the Eye Tyrant",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Goad"
+      ],
+      "keyword_statuses": {
+        "Goad": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Kogla, the Titan Ape",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Fight"
+      ],
+      "keyword_statuses": {
+        "Fight": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Lazotep Plating",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Amass"
+      ],
+      "keyword_statuses": {
+        "Amass": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Amass"
+      ]
+    },
+    {
+      "name": "Life from the Loam",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Mill",
+        "Dredge"
+      ],
+      "keyword_statuses": {
+        "Mill": "ready",
+        "Dredge": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Meren of Clan Nel Toth",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Mirage Phalanx",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Soulbond"
+      ],
+      "keyword_statuses": {
+        "Soulbond": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Soulbond"
+      ]
+    },
+    {
+      "name": "Mistblade Shinobi",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ],
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Mox Opal",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Metalcraft"
+      ],
+      "keyword_statuses": {
+        "Metalcraft": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Multani, Yavimaya's Avatar",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Reach",
+        "Trample"
+      ],
+      "keyword_statuses": {
+        "Reach": "validated (P1)",
+        "Trample": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Myr Convert",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [
+        "Toxic"
+      ],
+      "keyword_statuses": {
+        "Toxic": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Toxic"
+      ]
+    },
+    {
+      "name": "Naya Charm",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Orcish Bowmasters",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flash",
+        "Amass"
+      ],
+      "keyword_statuses": {
+        "Flash": "validated (P1)",
+        "Amass": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Amass"
+      ]
+    },
+    {
+      "name": "Outcaster Trailblazer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Plot"
+      ],
+      "keyword_statuses": {
+        "Plot": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Plot"
+      ]
+    },
+    {
+      "name": "Parapet Thrasher",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Pir, Imaginative Rascal",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {
+        "Partner with": "none (P3)",
+        "Partner": "validated (P1)"
+      },
+      "blocking_keywords": [
+        "Partner with"
+      ]
+    },
+    {
+      "name": "Polluted Delta",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Prosperous Thief",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Puppeteer Clique",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Persist"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Persist": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Ragavan, Nimble Pilferer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Dash"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Dash": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Dash"
+      ]
+    },
+    {
+      "name": "Reckless Bushwhacker",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Haste",
+        "Surge"
+      ],
+      "keyword_statuses": {
+        "Haste": "validated (P1)",
+        "Surge": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Surge"
+      ]
+    },
+    {
+      "name": "Revel in Riches",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Treasure"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Rionya, Fire Dancer",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Roalesk, Apex Hybrid",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Trample",
+        "Proliferate"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Trample": "validated (P1)",
+        "Proliferate": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sakashima's Student",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Shadow Alley Denizen",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Shaman of the Pack",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sifter of Skulls",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Devoid"
+      ],
+      "keyword_statuses": {
+        "Devoid": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Devoid"
+      ]
+    },
+    {
+      "name": "Sigarda's Aid",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sigil of Sleep",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Enchant"
+      ],
+      "keyword_statuses": {
+        "Enchant": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Skrelv, Defector Mite",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [
+        "Toxic"
+      ],
+      "keyword_statuses": {
+        "Toxic": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Toxic"
+      ]
+    },
+    {
+      "name": "Smothering Abomination",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Devoid"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Devoid": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Devoid"
+      ]
+    },
+    {
+      "name": "Squee, Goblin Nabob",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sun Titan",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Vigilance"
+      ],
+      "keyword_statuses": {
+        "Vigilance": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Surly Badgersaur",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Treasure",
+        "Fight"
+      ],
+      "keyword_statuses": {
+        "Treasure": "validated (P2)",
+        "Fight": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Susurian Voidborn",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Warp"
+      ],
+      "keyword_statuses": {
+        "Warp": "ignored"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sword of Light and Shadow",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {
+        "Equip": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        },
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Sword of Sinew and Steel",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {
+        "Equip": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Tatyova, Steward of Tides",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        },
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Temple of the False God",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Thieving Skydiver",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Kicker"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Kicker": "validated (P2)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Thousand-Faced Shadow",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Titania, Protector of Argoth",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Tombstone Stairwell",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "keyword_statuses": {
+        "Cumulative upkeep": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Cumulative upkeep"
+      ]
+    },
+    {
+      "name": "Tooth and Nail",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Entwine"
+      ],
+      "keyword_statuses": {
+        "Entwine": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Entwine"
+      ]
+    },
+    {
+      "name": "Toothy, Imaginary Friend",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "keyword_statuses": {
+        "Partner with": "none (P3)",
+        "Partner": "validated (P1)"
+      },
+      "blocking_keywords": [
+        "Partner with"
+      ]
+    },
+    {
+      "name": "Tortured Existence",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Touch the Spirit Realm",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Channel"
+      ],
+      "keyword_statuses": {
+        "Channel": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Transcendent Dragon",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Flash"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Flash": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Turn // Burn",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Fuse"
+      ],
+      "keyword_statuses": {
+        "Fuse": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Fuse"
+      ]
+    },
+    {
+      "name": "Twilight Prophet",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Ascend"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Ascend": "validated (P3)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Unshakable Tail",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Surveil",
+        "Investigate"
+      ],
+      "keyword_statuses": {
+        "Surveil": "validated (P2)",
+        "Investigate": "ready"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Vampire Cutthroat",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Lifelink",
+        "Skulk"
+      ],
+      "keyword_statuses": {
+        "Lifelink": "validated (P1)",
+        "Skulk": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Skulk"
+      ]
+    },
+    {
+      "name": "Venerated Rotpriest",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Toxic"
+      ],
+      "keyword_statuses": {
+        "Toxic": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Toxic"
+      ],
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Vengeful Bloodwitch",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Volatile Stormdrake",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying",
+        "Hexproof",
+        "Hexproof from"
+      ],
+      "keyword_statuses": {
+        "Flying": "validated (P1)",
+        "Hexproof": "validated (P1)",
+        "Hexproof from": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Vona's Hunger",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Ascend"
+      ],
+      "keyword_statuses": {
+        "Ascend": "validated (P3)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "count_threshold",
+          "reason": "count threshold: 'control N or more' Condition not in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Walker of Secret Ways",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Ninjutsu"
+      ]
+    },
+    {
+      "name": "Wear // Tear",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Fuse"
+      ],
+      "keyword_statuses": {
+        "Fuse": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Fuse"
+      ]
+    },
+    {
+      "name": "Witch's Cottage",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
+    },
+    {
+      "name": "Wood Elves",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "nonbasic_land_search",
+          "reason": "nonbasic land search: 'search for [subtype] card' (not 'basic') needs subtype-OR TargetFilter"
+        }
+      ]
+    },
+    {
+      "name": "Wrenn and Seven",
+      "appears_in_decks": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "keywords": [],
+      "keyword_statuses": {},
+      "blocking_dsl_gaps": [
+        {
+          "gap": "return_from_graveyard",
+          "reason": "return from graveyard to hand: no ReturnFromGraveyardToHand effect in DSL"
+        }
+      ]
+    },
+    {
+      "name": "Yuriko, the Tiger's Shadow",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Commander ninjutsu"
+      ],
+      "keyword_statuses": {
+        "Commander ninjutsu": "none (P4)"
+      },
+      "blocking_keywords": [
+        "Commander ninjutsu"
+      ]
+    },
+    {
+      "name": "Zealous Conscripts",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Haste"
+      ],
+      "keyword_statuses": {
+        "Haste": "validated (P1)"
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
     },
     {
       "name": "\u00c9omer, King of Rohan",
@@ -11858,711 +13222,13 @@
       ],
       "keyword_statuses": {
         "Double strike": "validated (P1)"
-      }
-    }
-  ],
-  "blocked": [
-    {
-      "name": "Mystic Remora",
-      "appears_in_decks": 4,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Cumulative upkeep"
-      ],
-      "blocking_keywords": [
-        "Cumulative upkeep"
-      ],
-      "keyword_statuses": {
-        "Cumulative upkeep": "none (P4)"
-      }
-    },
-    {
-      "name": "Cyclonic Rift",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Overload"
-      ],
-      "blocking_keywords": [
-        "Overload"
-      ],
-      "keyword_statuses": {
-        "Overload": "none (P3)"
-      }
-    },
-    {
-      "name": "Nether Traitor",
-      "appears_in_decks": 3,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Haste",
-        "Shadow"
-      ],
-      "blocking_keywords": [
-        "Shadow"
-      ],
-      "keyword_statuses": {
-        "Haste": "validated (P1)",
-        "Shadow": "none (P4)"
-      }
-    },
-    {
-      "name": "Commit // Memory",
-      "appears_in_decks": 2,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Aftermath"
-      ],
-      "blocking_keywords": [
-        "Aftermath"
-      ],
-      "keyword_statuses": {
-        "Aftermath": "none (P4)"
-      }
-    },
-    {
-      "name": "Marionette Apprentice",
-      "appears_in_decks": 2,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Fabricate"
-      ],
-      "blocking_keywords": [
-        "Fabricate"
-      ],
-      "keyword_statuses": {
-        "Fabricate": "none (P4)"
-      }
-    },
-    {
-      "name": "Vandalblast",
-      "appears_in_decks": 2,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Overload"
-      ],
-      "blocking_keywords": [
-        "Overload"
-      ],
-      "keyword_statuses": {
-        "Overload": "none (P3)"
-      }
-    },
-    {
-      "name": "Arcane Heist",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "blocking_keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      }
-    },
-    {
-      "name": "Brallin, Skyshark Rider",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "blocking_keywords": [
-        "Partner with"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      }
-    },
-    {
-      "name": "Collective Resistance",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Escalate"
-      ],
-      "blocking_keywords": [
-        "Escalate"
-      ],
-      "keyword_statuses": {
-        "Escalate": "none (P4)"
-      }
-    },
-    {
-      "name": "Elvish Dreadlord",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Deathtouch",
-        "Encore"
-      ],
-      "blocking_keywords": [
-        "Encore"
-      ],
-      "keyword_statuses": {
-        "Deathtouch": "validated (P1)",
-        "Encore": "none (P4)"
-      }
-    },
-    {
-      "name": "Hands of Binding",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "blocking_keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      }
-    },
-    {
-      "name": "Hidden Strings",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Cipher"
-      ],
-      "blocking_keywords": [
-        "Cipher"
-      ],
-      "keyword_statuses": {
-        "Cipher": "none (P4)"
-      }
-    },
-    {
-      "name": "Higure, the Still Wind",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Impulsive Pilferer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Encore"
-      ],
-      "blocking_keywords": [
-        "Encore"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Encore": "none (P4)"
-      }
-    },
-    {
-      "name": "Incubation Druid",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Adapt"
-      ],
-      "blocking_keywords": [
-        "Adapt"
-      ],
-      "keyword_statuses": {
-        "Adapt": "none (P3)"
-      }
-    },
-    {
-      "name": "Ingenious Infiltrator",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Insatiable Avarice",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Spree"
-      ],
-      "blocking_keywords": [
-        "Spree"
-      ],
-      "keyword_statuses": {
-        "Spree": "none (P4)"
-      }
-    },
-    {
-      "name": "Kaito, Bane of Nightmares",
-      "appears_in_decks": 1,
-      "types": [
-        "Planeswalker"
-      ],
-      "keywords": [
-        "Ninjutsu",
-        "Surveil"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)",
-        "Surveil": "validated (P2)"
-      }
-    },
-    {
-      "name": "Lazotep Plating",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Amass"
-      ],
-      "blocking_keywords": [
-        "Amass"
-      ],
-      "keyword_statuses": {
-        "Amass": "none (P4)"
-      }
-    },
-    {
-      "name": "Mirage Phalanx",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Soulbond"
-      ],
-      "blocking_keywords": [
-        "Soulbond"
-      ],
-      "keyword_statuses": {
-        "Soulbond": "none (P4)"
-      }
-    },
-    {
-      "name": "Mistblade Shinobi",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Myr Convert",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature",
-        "Artifact"
-      ],
-      "keywords": [
-        "Toxic"
-      ],
-      "blocking_keywords": [
-        "Toxic"
-      ],
-      "keyword_statuses": {
-        "Toxic": "none (P4)"
-      }
-    },
-    {
-      "name": "Orcish Bowmasters",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flash",
-        "Amass"
-      ],
-      "blocking_keywords": [
-        "Amass"
-      ],
-      "keyword_statuses": {
-        "Flash": "validated (P1)",
-        "Amass": "none (P4)"
-      }
-    },
-    {
-      "name": "Outcaster Trailblazer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Plot"
-      ],
-      "blocking_keywords": [
-        "Plot"
-      ],
-      "keyword_statuses": {
-        "Plot": "none (P4)"
-      }
-    },
-    {
-      "name": "Pir, Imaginative Rascal",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "blocking_keywords": [
-        "Partner with"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      }
-    },
-    {
-      "name": "Prosperous Thief",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Ragavan, Nimble Pilferer",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Treasure",
-        "Dash"
-      ],
-      "blocking_keywords": [
-        "Dash"
-      ],
-      "keyword_statuses": {
-        "Treasure": "validated (P2)",
-        "Dash": "none (P4)"
-      }
-    },
-    {
-      "name": "Reckless Bushwhacker",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Haste",
-        "Surge"
-      ],
-      "blocking_keywords": [
-        "Surge"
-      ],
-      "keyword_statuses": {
-        "Haste": "validated (P1)",
-        "Surge": "none (P4)"
-      }
-    },
-    {
-      "name": "Sakashima's Student",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Sifter of Skulls",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Devoid"
-      ],
-      "blocking_keywords": [
-        "Devoid"
-      ],
-      "keyword_statuses": {
-        "Devoid": "none (P4)"
-      }
-    },
-    {
-      "name": "Skrelv, Defector Mite",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature",
-        "Artifact"
-      ],
-      "keywords": [
-        "Toxic"
-      ],
-      "blocking_keywords": [
-        "Toxic"
-      ],
-      "keyword_statuses": {
-        "Toxic": "none (P4)"
-      }
-    },
-    {
-      "name": "Smothering Abomination",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Devoid"
-      ],
-      "blocking_keywords": [
-        "Devoid"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Devoid": "none (P4)"
-      }
-    },
-    {
-      "name": "Thousand-Faced Shadow",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Flying",
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Flying": "validated (P1)",
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Tombstone Stairwell",
-      "appears_in_decks": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "keywords": [
-        "Cumulative upkeep"
-      ],
-      "blocking_keywords": [
-        "Cumulative upkeep"
-      ],
-      "keyword_statuses": {
-        "Cumulative upkeep": "none (P4)"
-      }
-    },
-    {
-      "name": "Tooth and Nail",
-      "appears_in_decks": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [
-        "Entwine"
-      ],
-      "blocking_keywords": [
-        "Entwine"
-      ],
-      "keyword_statuses": {
-        "Entwine": "none (P4)"
-      }
-    },
-    {
-      "name": "Toothy, Imaginary Friend",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Partner with",
-        "Partner"
-      ],
-      "blocking_keywords": [
-        "Partner with"
-      ],
-      "keyword_statuses": {
-        "Partner with": "none (P3)",
-        "Partner": "validated (P1)"
-      }
-    },
-    {
-      "name": "Turn // Burn",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Fuse"
-      ],
-      "blocking_keywords": [
-        "Fuse"
-      ],
-      "keyword_statuses": {
-        "Fuse": "none (P4)"
-      }
-    },
-    {
-      "name": "Vampire Cutthroat",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Lifelink",
-        "Skulk"
-      ],
-      "blocking_keywords": [
-        "Skulk"
-      ],
-      "keyword_statuses": {
-        "Lifelink": "validated (P1)",
-        "Skulk": "none (P4)"
-      }
-    },
-    {
-      "name": "Venerated Rotpriest",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Toxic"
-      ],
-      "blocking_keywords": [
-        "Toxic"
-      ],
-      "keyword_statuses": {
-        "Toxic": "none (P4)"
-      }
-    },
-    {
-      "name": "Walker of Secret Ways",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Ninjutsu": "none (P4)"
-      }
-    },
-    {
-      "name": "Wear // Tear",
-      "appears_in_decks": 1,
-      "types": [
-        "Instant"
-      ],
-      "keywords": [
-        "Fuse"
-      ],
-      "blocking_keywords": [
-        "Fuse"
-      ],
-      "keyword_statuses": {
-        "Fuse": "none (P4)"
-      }
-    },
-    {
-      "name": "Yuriko, the Tiger's Shadow",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Commander ninjutsu"
-      ],
-      "blocking_keywords": [
-        "Commander ninjutsu"
-      ],
-      "keyword_statuses": {
-        "Commander ninjutsu": "none (P4)"
-      }
+      },
+      "blocking_dsl_gaps": [
+        {
+          "gap": "targeted_trigger",
+          "reason": "trigger with declared target: triggered abilities cannot declare targets in current DSL"
+        }
+      ]
     }
   ],
   "deferred": [
