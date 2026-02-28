@@ -1,7 +1,5 @@
 use std::{fs, path::Path};
 
-use serde_json;
-
 use super::data::*;
 
 // ─── public entry point ────────────────────────────────────────────────────
@@ -108,11 +106,13 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
     // Sections 1-12: | Ability | CR | Priority | Status | Engine File(s) | ...
     // Section 13:    | Pattern | Priority | Status | Engine File(s) | ...  (no CR column)
     let mut has_cr_col = true;
+    let mut current_gap_priority = String::new();
 
     enum ParseMode {
         None,
         Summary,
         Section,
+        Gaps,
     }
 
     for line in content.lines() {
@@ -133,6 +133,15 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
             continue;
         }
 
+        if line.starts_with("## Priority Gaps") {
+            if let Some(sec) = current_section.take() {
+                coverage.sections.push(sec);
+            }
+            mode = ParseMode::Gaps;
+            current_gap_priority = String::new();
+            continue;
+        }
+
         if line.starts_with("## ")
             && !line.starts_with("## Section ")
             && !line.starts_with("## Summary")
@@ -147,6 +156,28 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
 
         match mode {
             ParseMode::None => {}
+            ParseMode::Gaps => {
+                if line.starts_with("### ") {
+                    // "### P2 Gaps (Commander staples)" → extract "P2"
+                    current_gap_priority = line
+                        .trim_start_matches("### ")
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .to_string();
+                    continue;
+                }
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with("**Resolved**") {
+                    continue;
+                }
+                if !current_gap_priority.is_empty() {
+                    let clean = trimmed.replace("**", "").replace('`', "");
+                    coverage
+                        .gap_notes
+                        .push(format!("{}: {}", current_gap_priority, clean));
+                }
+            }
             ParseMode::Summary => {
                 if !line.starts_with('|') {
                     continue;
@@ -201,12 +232,12 @@ fn parse_ability_coverage(root: &Path) -> anyhow::Result<AbilityCoverage> {
                 // Apply correct column offsets based on layout.
                 // With CR:    [0]=name [1]=cr [2]=priority [3]=status [4]=engine [5]=card [6]=script [7]=notes
                 // Without CR: [0]=name [1]=priority [2]=status [3]=engine [4]=card [5]=script [6]=depends [7]=notes
-                let (cr_idx, prio_idx, status_idx, engine_idx, card_idx, script_idx) =
-                    if has_cr_col {
-                        (Some(1usize), 2usize, 3usize, 4usize, 5usize, 6usize)
-                    } else {
-                        (None, 1, 2, 3, 4, 5)
-                    };
+                let (cr_idx, prio_idx, status_idx, engine_idx, card_idx, script_idx) = if has_cr_col
+                {
+                    (Some(1usize), 2usize, 3usize, 4usize, 5usize, 6usize)
+                } else {
+                    (None, 1, 2, 3, 4, 5)
+                };
                 let row = AbilityRow {
                     name: cells.first().cloned().unwrap_or_default(),
                     cr: cr_idx

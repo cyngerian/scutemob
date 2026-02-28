@@ -54,7 +54,14 @@ fn main_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut Ap
             Some(AppEvent::Resize(_, _)) => {
                 // ratatui redraws on next loop iteration
             }
-            _ => {}
+            _ => {
+                if let Some(rx) = &app.test_count_rx {
+                    if let Ok(count) = rx.try_recv() {
+                        app.live_test_count = app::LiveTestCount::Done(count);
+                        app.test_count_rx = None;
+                    }
+                }
+            }
         }
 
         if app.should_quit {

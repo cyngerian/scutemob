@@ -28,6 +28,8 @@ pub struct CurrentState {
 pub struct AbilityCoverage {
     pub summary: Vec<PrioritySummary>,
     pub sections: Vec<AbilitySection>,
+    /// Open gap items from the `## Priority Gaps` section (non-resolved, non-empty).
+    pub gap_notes: Vec<String>,
 }
 
 #[derive(Debug, Default)]

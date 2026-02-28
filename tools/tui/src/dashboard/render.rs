@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use super::app::{App, TAB_NAMES};
+use super::app::{App, LiveTestCount, TAB_NAMES};
 use super::tabs;
 
 /// Minimum inner width (excluding borders) needed to fit all tabs on one line.
@@ -49,7 +49,10 @@ fn build_tab_lines(current_tab: usize, inner_width: u16) -> Vec<Line<'static>> {
         row_len += name.len();
 
         if !sep.is_empty() {
-            spans.push(Span::styled(sep.to_string(), Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(
+                sep.to_string(),
+                Style::default().fg(Color::DarkGray),
+            ));
             row_len += sep.len();
         }
     }
@@ -107,11 +110,15 @@ pub fn render(f: &mut Frame, app: &mut App) {
         5 => "q:quit  Tab:next  j/k:scroll  p:pending only  a:all  r:refresh",
         _ => "q:quit",
     };
+    let test_str = match &app.live_test_count {
+        LiveTestCount::Loading => "...".to_string(),
+        LiveTestCount::Done(n) => n.to_string(),
+    };
     let status_text = format!(
         " {:<60} Active: {}  Tests: {}  Scripts: {} ",
         help,
         app.data.current_state.active_milestone,
-        app.data.current_state.test_count,
+        test_str,
         app.data.scripts.total,
     );
     f.render_widget(

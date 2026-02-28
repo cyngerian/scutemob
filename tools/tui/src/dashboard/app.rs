@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::mpsc;
 
 use ratatui::widgets::{ListState, TableState};
 
@@ -14,6 +15,11 @@ pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "5:Reviews",
     "6:Scripts",
 ];
+
+pub enum LiveTestCount {
+    Loading,
+    Done(u32),
+}
 
 pub struct App {
     pub current_tab: usize,
@@ -35,6 +41,9 @@ pub struct App {
     pub scripts_show_pending_only: bool,
 
     pub root: PathBuf,
+
+    pub live_test_count: LiveTestCount,
+    pub test_count_rx: Option<mpsc::Receiver<u32>>,
 }
 
 impl App {
@@ -45,7 +54,7 @@ impl App {
         let mut corner_case_table_state = TableState::default();
         corner_case_table_state.select(Some(0));
 
-        Self {
+        let mut app = Self {
             current_tab: 0,
             data,
             should_quit: false,
@@ -55,8 +64,30 @@ impl App {
             show_gaps_only: false,
             scripts_table_state: TableState::default(),
             scripts_show_pending_only: false,
+            live_test_count: LiveTestCount::Loading,
+            test_count_rx: None,
             root,
-        }
+        };
+
+        let (tx, rx) = mpsc::channel::<u32>();
+        let root_clone = app.root.clone();
+        std::thread::spawn(move || {
+            let result = std::process::Command::new("cargo")
+                .args(["test", "--all"])
+                .current_dir(&root_clone)
+                .env("CARGO_TERM_COLOR", "never")
+                .output();
+            if let Ok(out) = result {
+                let text = String::from_utf8_lossy(&out.stdout);
+                let count = parse_live_test_count(&text);
+                if count > 0 {
+                    let _ = tx.send(count);
+                }
+            }
+        });
+        app.test_count_rx = Some(rx);
+
+        app
     }
 
     pub fn reload(&mut self) {
@@ -181,7 +212,8 @@ impl App {
             return;
         }
         let sel = self.scripts_table_state.selected().unwrap_or(0);
-        self.scripts_table_state.select(Some((sel + 1).min(len - 1)));
+        self.scripts_table_state
+            .select(Some((sel + 1).min(len - 1)));
     }
 
     pub fn scripts_scroll_up(&mut self) {
@@ -193,4 +225,16 @@ impl App {
         self.scripts_show_pending_only = !self.scripts_show_pending_only;
         self.scripts_table_state.select(Some(0));
     }
+}
+
+fn parse_live_test_count(text: &str) -> u32 {
+    text.lines()
+        .filter(|l| l.contains("passed;"))
+        .filter_map(|l| {
+            l.split("passed;")
+                .next()
+                .and_then(|s| s.split_whitespace().last())
+                .and_then(|s| s.parse::<u32>().ok())
+        })
+        .sum()
 }

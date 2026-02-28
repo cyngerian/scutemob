@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use super::super::app::App;
+use super::super::app::{App, LiveTestCount};
 use crate::{theme, widgets::progress_bar::progress_bar};
 
 pub fn render(f: &mut Frame, area: Rect, app: &App) {
@@ -35,6 +35,10 @@ fn render_headline(f: &mut Frame, area: Rect, app: &App) {
 
     // Left: project title + stats
     let cs = &app.data.current_state;
+    let test_str = match &app.live_test_count {
+        LiveTestCount::Loading => "...".to_string(),
+        LiveTestCount::Done(n) => n.to_string(),
+    };
     let headline = vec![
         Line::from(vec![Span::styled(
             "MTG Commander Rules Engine",
@@ -53,7 +57,7 @@ fn render_headline(f: &mut Frame, area: Rect, app: &App) {
             Span::raw("   "),
             Span::styled("Tests: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                cs.test_count.to_string(),
+                test_str,
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
@@ -61,7 +65,7 @@ fn render_headline(f: &mut Frame, area: Rect, app: &App) {
             Span::raw("   "),
             Span::styled("Scripts: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                cs.script_count.to_string(),
+                app.data.scripts.total.to_string(),
                 Style::default().fg(Color::Green),
             ),
         ]),

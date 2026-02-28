@@ -11,7 +11,19 @@ use crate::theme;
 
 pub fn render(f: &mut Frame, area: Rect, app: &mut App) {
     // Split: summary (top, fixed) + scrollable list (bottom)
-    let summary_height = (app.data.abilities.summary.len() as u16 * 2 + 2).min(12);
+    let bar_count = app
+        .data
+        .abilities
+        .summary
+        .iter()
+        .filter(|r| !r.priority.to_lowercase().contains("total") && !r.priority.is_empty())
+        .count() as u16;
+    let gap_lines: u16 = if app.data.abilities.gap_notes.is_empty() {
+        0
+    } else {
+        1 + app.data.abilities.gap_notes.len() as u16 // blank separator + N notes
+    };
+    let summary_height = bar_count + gap_lines + 2; // +2 for borders
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -59,6 +71,34 @@ fn render_summary(f: &mut Frame, area: Rect, app: &App) {
 
     if lines.is_empty() {
         lines.push(Line::from("No data"));
+    }
+
+    // Gap notes below the bars
+    if !app.data.abilities.gap_notes.is_empty() {
+        lines.push(Line::from(""));
+        let max_text = inner_width.saturating_sub(2) as usize;
+        for note in &app.data.abilities.gap_notes {
+            // Split "P2: ..." into colored prefix + gray body
+            let display = if note.len() > max_text {
+                &note[..max_text]
+            } else {
+                note.as_str()
+            };
+            let (prefix, body) = if let Some(idx) = display.find(": ") {
+                (&display[..idx + 1], &display[idx + 2..])
+            } else {
+                ("", display)
+            };
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("{} ", prefix),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(body.to_string(), Style::default().fg(Color::DarkGray)),
+            ]));
+        }
     }
 
     f.render_widget(
