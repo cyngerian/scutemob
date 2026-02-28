@@ -50,7 +50,7 @@ cr: <CR number>
 priority: P<N>
 started: <today's date>
 phase: plan
-plan_file: memory/ability-plan-<lowercase-name>.md
+plan_file: memory/abilities/ability-plan-<lowercase-name>.md
 
 ## Step Checklist
 - [ ] 1. Enum variant
@@ -71,12 +71,12 @@ Spawn the `ability-impl-planner` agent (Opus):
 ```
 Task tool:
   subagent_type: ability-impl-planner
-  prompt: "Plan the implementation of the <Name> ability (CR <number>). Read memory/ability-wip.md for context. Write the plan to memory/ability-plan-<name>.md."
+  prompt: "Plan the implementation of the <Name> ability (CR <number>). Read memory/ability-wip.md for context. Write the plan to memory/abilities/ability-plan-<name>.md."
   model: opus
 ```
 
 After the planner completes:
-- Verify `memory/ability-plan-<name>.md` was created
+- Verify `memory/abilities/ability-plan-<name>.md` was created
 - Update `memory/ability-wip.md`: set `phase: implement`
 - Report: "Plan written. Run `/implement-ability` to start implementation."
 
@@ -87,7 +87,7 @@ Spawn the `ability-impl-runner` agent (Sonnet):
 ```
 Task tool:
   subagent_type: ability-impl-runner
-  prompt: "Implement the <Name> ability. Read memory/ability-wip.md and memory/ability-plan-<name>.md. Execute unchecked steps 1-4, run tests after each, and check off steps in ability-wip.md."
+  prompt: "Implement the <Name> ability. Read memory/ability-wip.md and memory/abilities/ability-plan-<name>.md. Execute unchecked steps 1-4, run tests after each, and check off steps in ability-wip.md."
   model: sonnet
 ```
 
@@ -109,17 +109,17 @@ Spawn the `ability-impl-reviewer` agent (Opus):
 ```
 Task tool:
   subagent_type: ability-impl-reviewer
-  prompt: "Review the <Name> ability implementation. Read memory/ability-wip.md and memory/ability-plan-<name>.md. Verify against CR <number>. Write findings to memory/ability-review-<name>.md."
+  prompt: "Review the <Name> ability implementation. Read memory/ability-wip.md and memory/abilities/ability-plan-<name>.md. Verify against CR <number>. Write findings to memory/abilities/ability-review-<name>.md."
   model: opus
 ```
 
 After the reviewer completes:
-- Read `memory/ability-review-<name>.md`
+- Read `memory/abilities/ability-review-<name>.md`
 - Add review reference to `ability-wip.md`:
   ```
   ## Review
   findings: <count>
-  review_file: memory/ability-review-<name>.md
+  review_file: memory/abilities/ability-review-<name>.md
   ```
 - Check the verdict:
   - If `needs-fix`: update `phase: fix`, **continue immediately to Phase: fix** (do not stop).
@@ -132,7 +132,7 @@ Spawn the `ability-impl-runner` agent (Sonnet) in fix mode:
 ```
 Task tool:
   subagent_type: ability-impl-runner
-  prompt: "Fix the <Name> ability review findings. Read memory/ability-wip.md and memory/ability-review-<name>.md. Apply all HIGH and MEDIUM fixes, run tests."
+  prompt: "Fix the <Name> ability review findings. Read memory/ability-wip.md and memory/abilities/ability-review-<name>.md. Apply all HIGH and MEDIUM fixes, run tests."
   model: sonnet
 ```
 
@@ -147,7 +147,7 @@ After the runner completes:
 
 Spawn the `card-definition-author` agent (Sonnet):
 
-The plan file (`memory/ability-plan-<name>.md`) has a "Step 5: Card Definition" section
+The plan file (`memory/abilities/ability-plan-<name>.md`) has a "Step 5: Card Definition" section
 with a suggested card name. Use that card.
 
 ```

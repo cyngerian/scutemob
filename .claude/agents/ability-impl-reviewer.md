@@ -7,7 +7,7 @@ description: |
   <example>
   Context: ability-wip.md has phase: review, implementation is complete
   user: "review the Ward ability implementation"
-  assistant: "I'll read the plan, then read every modified engine file, verify against CR 702.21, and write findings to memory/ability-review-ward.md."
+  assistant: "I'll read the plan, then read every modified engine file, verify against CR 702.21, and write findings to memory/abilities/ability-review-ward.md."
   <commentary>Triggered by /implement-ability when phase is review.</commentary>
   </example>
 
@@ -33,7 +33,7 @@ and write findings to a review file.
 1. **Read `CLAUDE.md`** at `/home/airbaggie/scutemob/CLAUDE.md` for architecture invariants.
 2. **Read `memory/ability-wip.md`** to determine which ability you're reviewing and see
    the step checklist with file:line references.
-3. **Read the plan file**: `memory/ability-plan-<name>.md` — this tells you what was
+3. **Read the plan file**: `memory/abilities/ability-plan-<name>.md` — this tells you what was
    supposed to be implemented and which CR rules apply.
 4. **Read `memory/conventions.md`** for coding standards to check against.
 
@@ -107,7 +107,7 @@ completely (at least the relevant sections, using Read with offset/limit for lar
 
 ## Output
 
-Write the review to `memory/ability-review-<name>.md`:
+Write the review to `memory/abilities/ability-review-<name>.md`:
 
 ---
 

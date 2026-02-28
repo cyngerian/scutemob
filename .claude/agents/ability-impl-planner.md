@@ -7,7 +7,7 @@ description: |
   <example>
   Context: ability-wip.md exists with phase: plan for Ward
   user: "plan the Ward ability implementation"
-  assistant: "I'll look up CR 702.21 with all children, study how Hexproof is implemented as a similar ability, read the gotchas files, and write memory/ability-plan-ward.md."
+  assistant: "I'll look up CR 702.21 with all children, study how Hexproof is implemented as a similar ability, read the gotchas files, and write memory/abilities/ability-plan-ward.md."
   <commentary>Triggered by the /implement-ability skill when phase is plan.</commentary>
   </example>
 
@@ -95,7 +95,7 @@ Grep pattern="<ability name>" path="crates/engine/tests/" output_mode="content"
 
 ## Output
 
-Write the plan to `memory/ability-plan-<name>.md` (lowercase, hyphenated name) with this
+Write the plan to `memory/abilities/ability-plan-<name>.md` (lowercase, hyphenated name) with this
 structure:
 
 ---

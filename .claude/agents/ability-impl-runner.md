@@ -7,14 +7,14 @@ description: |
   <example>
   Context: ability-wip.md has phase: implement, plan file exists
   user: "implement the Ward ability"
-  assistant: "I'll read the plan at memory/ability-plan-ward.md, implement each unchecked step 1-4, run cargo test after each, and check off completed steps in ability-wip.md."
+  assistant: "I'll read the plan at memory/abilities/ability-plan-ward.md, implement each unchecked step 1-4, run cargo test after each, and check off completed steps in ability-wip.md."
   <commentary>Triggered by /implement-ability when phase is implement.</commentary>
   </example>
 
   <example>
   Context: ability-wip.md has phase: fix, review findings exist
   user: "fix Ward review findings"
-  assistant: "I'll read memory/ability-review-ward.md, apply each fix, run tests, and update ability-wip.md."
+  assistant: "I'll read memory/abilities/ability-review-ward.md, apply each fix, run tests, and update ability-wip.md."
   <commentary>Triggered by /implement-ability when phase is fix.</commentary>
   </example>
 model: sonnet
@@ -35,8 +35,8 @@ unit tests), or apply fixes from a review.
    - Which ability you're implementing
    - Current phase (`implement` or `fix`)
    - Which steps are already checked off
-3. **Read the plan file**: `memory/ability-plan-<name>.md`
-4. **If in fix phase**: also read `memory/ability-review-<name>.md` for findings.
+3. **Read the plan file**: `memory/abilities/ability-plan-<name>.md`
+4. **If in fix phase**: also read `memory/abilities/ability-review-<name>.md` for findings.
 5. **Load relevant gotchas**:
    - If touching `rules/`: read `memory/gotchas-rules.md`
    - If touching `state/`, `cards/`, `effects/`: read `memory/gotchas-infra.md`
@@ -109,7 +109,7 @@ For each unchecked step (1 through 4):
 
 When `memory/ability-wip.md` shows `phase: fix`:
 
-1. **Read `memory/ability-review-<name>.md`** for the findings.
+1. **Read `memory/abilities/ability-review-<name>.md`** for the findings.
 2. For each HIGH or MEDIUM finding:
    a. Read the cited file and line
    b. Apply the fix described in the finding's **Fix:** directive
