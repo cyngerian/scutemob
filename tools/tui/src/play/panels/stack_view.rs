@@ -6,6 +6,7 @@ use ratatui::widgets::*;
 use mtg_engine::StackObjectKind;
 
 use crate::play::app::PlayApp;
+use crate::play::panels::card_detail::card_color;
 
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
     if app.state.stack_objects.is_empty() {
@@ -75,13 +76,30 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 }
             };
 
-            let name = source_id
+            let (name, name_color) = source_id
                 .and_then(|id| app.state.object(id).ok())
-                .map(|obj| obj.characteristics.name.clone())
-                .unwrap_or_else(|| "???".to_string());
+                .map(|obj| {
+                    (
+                        obj.characteristics.name.clone(),
+                        card_color(&obj.characteristics),
+                    )
+                })
+                .unwrap_or_else(|| ("???".to_string(), Color::Gray));
 
-            let desc = format!("[{}] {}{} (P{})", i + 1, label, name, so.controller.0);
-            Line::from(desc)
+            Line::from(vec![
+                Span::styled(
+                    format!("[{}] {}", i + 1, label),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    name,
+                    Style::default().fg(name_color).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(" (P{})", so.controller.0),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ])
         })
         .collect();
 

@@ -55,14 +55,14 @@ fn test_turn_full_step_order() {
     assert_eq!(state.turn.step, Step::Upkeep);
     assert_eq!(state.turn.phase, Phase::Beginning);
 
+    // CR 508.8: With no attackers declared, DeclareBlockers and CombatDamage
+    // are skipped — DeclareAttackers advances directly to EndOfCombat.
     let expected_steps = vec![
         Step::Draw,
         Step::PreCombatMain,
         Step::BeginningOfCombat,
         Step::DeclareAttackers,
-        Step::DeclareBlockers,
-        Step::CombatDamage,
-        Step::EndOfCombat,
+        Step::EndOfCombat, // skips DeclareBlockers + CombatDamage (no attackers)
         Step::PostCombatMain,
         Step::End,
         // Cleanup auto-advances, then new turn starts at Upkeep

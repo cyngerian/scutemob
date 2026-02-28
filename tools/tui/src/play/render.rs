@@ -31,7 +31,7 @@ pub fn render(f: &mut Frame, app: &PlayApp) {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Min(30),    // Battlefield + hand
-            Constraint::Length(16), // Player sidebar
+            Constraint::Length(22), // Player sidebar
         ])
         .split(chunks[2]);
 
@@ -61,8 +61,20 @@ pub fn render(f: &mut Frame, app: &PlayApp) {
     // Event log
     panels::event_log::render(f, app, chunks[4]);
 
-    // Card detail overlay
-    if let InputMode::CardDetail(obj_id) = &app.mode {
-        panels::card_detail::render(f, app, *obj_id);
+    // Overlays
+    match &app.mode {
+        InputMode::CardDetail { object_id, .. } => {
+            panels::card_detail::render(f, app, *object_id);
+        }
+        InputMode::ZoneBrowser {
+            zone,
+            player,
+            cards,
+            selected,
+            scroll_offset,
+        } => {
+            panels::zone_browser::render(f, app, zone, *player, cards, *selected, *scroll_offset);
+        }
+        _ => {}
     }
 }

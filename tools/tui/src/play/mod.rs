@@ -97,6 +97,15 @@ fn main_loop(
                             {
                                 app.should_quit = true;
                             }
+                            event::KeyCode::Char('z') => {
+                                app.auto_pass = !app.auto_pass;
+                                if app.auto_pass {
+                                    app.status_message =
+                                        Some("Auto-pass ON — passing until your main phase".into());
+                                } else {
+                                    app.status_message = Some("Auto-pass OFF".into());
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -116,8 +125,9 @@ fn main_loop(
                 };
                 app.execute_command(cmd)?;
 
-                // Still allow q/z during auto-pass
-                if event::poll(Duration::from_millis(10))? {
+                // Check for q/z to cancel auto-pass. 50ms poll gives the user
+                // a reliable window to press z to toggle off.
+                if event::poll(Duration::from_millis(50))? {
                     if let Event::Key(key) = event::read()? {
                         if key.kind == KeyEventKind::Press {
                             match key.code {

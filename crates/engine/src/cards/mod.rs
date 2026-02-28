@@ -8,7 +8,8 @@
 //! See architecture doc Section 3.7 for the full design.
 
 pub mod card_definition;
-pub mod definitions;
+pub mod defs;
+pub mod helpers;
 pub mod registry;
 
 pub use card_definition::Effect;

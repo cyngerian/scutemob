@@ -34,10 +34,20 @@ pub const STEP_ORDER: &[Step] = &[
 /// or DoubleStrike (CR 510.4); if so, inserts `Step::FirstStrikeDamage` before
 /// the normal `Step::CombatDamage`.
 pub fn advance_step(state: &GameState) -> Option<(TurnState, Vec<GameEvent>)> {
-    // CR 510.4: Conditionally insert FirstStrikeDamage between DeclareBlockers and CombatDamage.
-    let next = if state.turn.step == Step::DeclareBlockers
+    // CR 508.8: If no creatures are declared as attackers, skip the declare
+    // blockers and combat damage steps and proceed to end of combat.
+    let no_attackers = state
+        .combat
+        .as_ref()
+        .map(|c| c.attackers.is_empty())
+        .unwrap_or(true);
+
+    let next = if state.turn.step == Step::DeclareAttackers && no_attackers {
+        Step::EndOfCombat
+    } else if state.turn.step == Step::DeclareBlockers
         && combat::should_have_first_strike_step(state)
     {
+        // CR 510.4: Conditionally insert FirstStrikeDamage between DeclareBlockers and CombatDamage.
         Step::FirstStrikeDamage
     } else {
         state.turn.step.next()?

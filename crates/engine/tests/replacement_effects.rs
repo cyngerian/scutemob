@@ -3233,8 +3233,7 @@ fn test_etb_self_and_global_replacement_both_apply() {
         .add_player(p1)
         .add_player(p2)
         .object(
-            ObjectSpec::creature(p1, "Enters Tapped Creature", 2, 2)
-                .with_card_id(card_id.clone()),
+            ObjectSpec::creature(p1, "Enters Tapped Creature", 2, 2).with_card_id(card_id.clone()),
         )
         .with_replacement_effect(global_etb)
         .with_registry(registry.clone())
@@ -3271,10 +3270,18 @@ fn test_etb_self_and_global_replacement_both_apply() {
 
     // Global replacement: creature must have a +1/+1 counter.
     assert_eq!(
-        creature.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0),
+        creature
+            .counters
+            .get(&CounterType::PlusOnePlusOne)
+            .copied()
+            .unwrap_or(0),
         1,
         "CR 614.12: global ETB replacement (EntersWithCounters) must also apply; \
          creature has {} +1/+1 counters (expected 1)",
-        creature.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0)
+        creature
+            .counters
+            .get(&CounterType::PlusOnePlusOne)
+            .copied()
+            .unwrap_or(0)
     );
 }

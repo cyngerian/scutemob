@@ -1,6 +1,9 @@
 //! Tests for the GameStateBuilder and ObjectSpec fluent API.
 
+use std::collections::HashMap;
+
 use mtg_engine::state::*;
+use mtg_engine::{all_cards, enrich_spec_from_def, CardDefinition};
 
 #[test]
 fn test_builder_creature_on_battlefield() {
@@ -405,4 +408,147 @@ fn test_step_priority() {
     assert!(Step::EndOfCombat.has_priority());
     assert!(Step::PostCombatMain.has_priority());
     assert!(Step::End.has_priority());
+}
+
+// ── CR 202.2: Color derivation from mana cost via enrich_spec_from_def ───────
+
+fn card_defs_map() -> HashMap<String, CardDefinition> {
+    all_cards()
+        .into_iter()
+        .map(|c| (c.name.clone(), c))
+        .collect()
+}
+
+/// CR 202.2 — A mono-green creature gets Green from its mana cost.
+#[test]
+fn test_enrich_derives_green_from_mana_cost() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    // Llanowar Elves costs {G} — should be Green
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Llanowar Elves"), &defs);
+    assert!(
+        spec.colors.contains(&Color::Green),
+        "Llanowar Elves should be Green, got: {:?}",
+        spec.colors
+    );
+    assert_eq!(spec.colors.len(), 1);
+}
+
+/// CR 202.2 — A mono-red spell gets Red from its mana cost.
+#[test]
+fn test_enrich_derives_red_from_mana_cost() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    // Lightning Bolt costs {R}
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Lightning Bolt"), &defs);
+    assert!(
+        spec.colors.contains(&Color::Red),
+        "Lightning Bolt should be Red, got: {:?}",
+        spec.colors
+    );
+    assert_eq!(spec.colors.len(), 1);
+}
+
+/// CR 202.2 — A mono-blue spell gets Blue.
+#[test]
+fn test_enrich_derives_blue_from_mana_cost() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    // Counterspell costs {U}{U}
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Counterspell"), &defs);
+    assert!(
+        spec.colors.contains(&Color::Blue),
+        "Counterspell should be Blue, got: {:?}",
+        spec.colors
+    );
+    assert_eq!(spec.colors.len(), 1);
+}
+
+/// CR 202.2 — A multicolor card has multiple colors.
+#[test]
+fn test_enrich_derives_multicolor_from_mana_cost() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    // Supreme Verdict costs {1}{W}{W}{U} — White and Blue
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Supreme Verdict"), &defs);
+    assert!(
+        spec.colors.contains(&Color::White),
+        "Supreme Verdict should contain White, got: {:?}",
+        spec.colors
+    );
+    assert!(
+        spec.colors.contains(&Color::Blue),
+        "Supreme Verdict should contain Blue, got: {:?}",
+        spec.colors
+    );
+    assert_eq!(spec.colors.len(), 2);
+}
+
+/// CR 202.2 — A colorless artifact (Sol Ring, {1}) has no colors.
+#[test]
+fn test_enrich_colorless_artifact_has_no_colors() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Sol Ring"), &defs);
+    assert!(
+        spec.colors.is_empty(),
+        "Sol Ring should be colorless, got: {:?}",
+        spec.colors
+    );
+}
+
+/// CR 202.2 — Lands have no mana cost and thus no colors.
+#[test]
+fn test_enrich_land_has_no_colors() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Forest"), &defs);
+    assert!(
+        spec.colors.is_empty(),
+        "Forest should be colorless, got: {:?}",
+        spec.colors
+    );
+}
+
+/// CR 202.2 — Explicit with_colors() takes priority, enrich doesn't overwrite.
+#[test]
+fn test_enrich_does_not_overwrite_explicit_colors() {
+    let defs = card_defs_map();
+    let p1 = PlayerId(1);
+    // Force a creature to be Red even though its mana cost says Green
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Llanowar Elves").with_colors(vec![Color::Red]),
+        &defs,
+    );
+    assert!(
+        spec.colors.contains(&Color::Red),
+        "explicit Red should be preserved"
+    );
+    assert!(
+        !spec.colors.contains(&Color::Green),
+        "should not add Green when explicit colors are set"
+    );
+}
+
+/// Full pipeline: enriched cards on the battlefield have colors in Characteristics.
+#[test]
+fn test_enriched_card_on_battlefield_has_colors() {
+    let cards = all_cards();
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
+    let p1 = PlayerId(1);
+
+    let spec = enrich_spec_from_def(ObjectSpec::card(p1, "Lightning Bolt"), &defs);
+    let state = GameStateBuilder::four_player()
+        .object(spec.in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+
+    let objs = state.objects_in_zone(&ZoneId::Battlefield);
+    assert_eq!(objs.len(), 1);
+    assert!(
+        objs[0].characteristics.colors.contains(&Color::Red),
+        "Lightning Bolt on battlefield should be Red, got: {:?}",
+        objs[0].characteristics.colors
+    );
 }

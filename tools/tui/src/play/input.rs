@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use mtg_engine::Command;
 use mtg_simulator::LegalAction;
 
-use super::app::{FocusZone, InputMode, PlayApp};
+use super::app::{BrowsableZone, FocusZone, InputMode, PlayApp};
 
 pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     // Global keys
@@ -18,7 +18,8 @@ pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
 
     match &app.mode {
         InputMode::Normal => handle_normal_mode(app, key),
-        InputMode::CardDetail(_) => handle_card_detail_mode(app, key),
+        InputMode::CardDetail { .. } => handle_card_detail_mode(app, key),
+        InputMode::ZoneBrowser { .. } => handle_zone_browser_mode(app, key),
         InputMode::AttackTargetSelection { .. } => handle_attack_target_mode(app, key),
         InputMode::AttackerDeclaration => handle_attacker_mode(app, key),
         InputMode::BlockerDeclaration => handle_blocker_mode(app, key),
@@ -158,8 +159,6 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         Some("Declare attackers: [Enter] attack with all, [Esc] cancel".into());
                 } else {
                     // Multiple targets — let user choose
-                    // Don't set status_message here: the AttackTargetSelection mode
-                    // renders its own UI in the action menu with highlighted targets.
                     app.mode = InputMode::AttackTargetSelection {
                         eligible: eligible.clone(),
                         targets: targets.clone(),
@@ -195,6 +194,32 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             }
         }
 
+        // Open graveyard browser for focused player
+        KeyCode::Char('g') => {
+            let player = app.focused_player;
+            let cards = app.graveyard_objects(player);
+            app.mode = InputMode::ZoneBrowser {
+                zone: BrowsableZone::Graveyard,
+                player,
+                cards,
+                selected: 0,
+                scroll_offset: 0,
+            };
+        }
+
+        // Open exile browser for focused player
+        KeyCode::Char('x') => {
+            let player = app.focused_player;
+            let cards = app.exile_objects(player);
+            app.mode = InputMode::ZoneBrowser {
+                zone: BrowsableZone::Exile,
+                player,
+                cards,
+                selected: 0,
+                scroll_offset: 0,
+            };
+        }
+
         // Navigate hand (also sets focus to Hand)
         KeyCode::Left => {
             app.focus_zone = FocusZone::Hand;
@@ -211,6 +236,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
         }
 
         // Navigate battlefield (also sets focus to Battlefield)
+        // Uses focused_player so Up/Down work on opponent's board after Tab
         KeyCode::Up => {
             app.focus_zone = FocusZone::Battlefield;
             if app.selected_bf_idx > 0 {
@@ -219,18 +245,22 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
         }
         KeyCode::Down => {
             app.focus_zone = FocusZone::Battlefield;
-            let bf_size = app.battlefield_nonlands(app.human_player).len();
+            let player = app.focused_player;
+            let bf_size =
+                app.battlefield_nonlands(player).len() + app.battlefield_lands(player).len();
             if bf_size > 0 && app.selected_bf_idx < bf_size - 1 {
                 app.selected_bf_idx += 1;
             }
         }
 
-        // Tab to cycle focused player
+        // Tab to cycle focused player — reset bf selection for the new player
         KeyCode::Tab => {
             let players = app.state.active_players();
             if let Some(pos) = players.iter().position(|p| *p == app.focused_player) {
                 let next = (pos + 1) % players.len();
                 app.focused_player = players[next];
+                app.selected_bf_idx = 0;
+                app.focus_zone = FocusZone::Battlefield;
             }
         }
         KeyCode::BackTab => {
@@ -238,24 +268,54 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             if let Some(pos) = players.iter().position(|p| *p == app.focused_player) {
                 let next = if pos == 0 { players.len() - 1 } else { pos - 1 };
                 app.focused_player = players[next];
+                app.selected_bf_idx = 0;
+                app.focus_zone = FocusZone::Battlefield;
             }
         }
 
         // Card detail popup — opens for whichever zone is focused
-        KeyCode::Char(' ') => match app.focus_zone {
-            FocusZone::Hand => {
-                let hand = app.hand_objects();
-                if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
-                    app.mode = InputMode::CardDetail(*obj_id);
+        KeyCode::Char(' ') => {
+            let viewing_opponent = app.focused_player != app.human_player;
+            // When viewing an opponent, always inspect their battlefield
+            let zone = if viewing_opponent {
+                FocusZone::Battlefield
+            } else {
+                app.focus_zone
+            };
+            match zone {
+                FocusZone::Hand => {
+                    let hand = app.hand_objects();
+                    if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
+                        app.mode = InputMode::CardDetail {
+                            object_id: *obj_id,
+                            return_to: None,
+                        };
+                    }
+                }
+                FocusZone::Battlefield => {
+                    let player = app.focused_player;
+                    let nonlands = app.battlefield_nonlands(player);
+                    let lands = app.battlefield_lands(player);
+                    // Combined index: nonlands first, then lands
+                    let idx = app.selected_bf_idx;
+                    if idx < nonlands.len() {
+                        let (obj_id, ..) = &nonlands[idx];
+                        app.mode = InputMode::CardDetail {
+                            object_id: *obj_id,
+                            return_to: None,
+                        };
+                    } else {
+                        let land_idx = idx - nonlands.len();
+                        if let Some((obj_id, ..)) = lands.get(land_idx) {
+                            app.mode = InputMode::CardDetail {
+                                object_id: *obj_id,
+                                return_to: None,
+                            };
+                        }
+                    }
                 }
             }
-            FocusZone::Battlefield => {
-                let bf = app.battlefield_nonlands(app.human_player);
-                if let Some((obj_id, ..)) = bf.get(app.selected_bf_idx) {
-                    app.mode = InputMode::CardDetail(*obj_id);
-                }
-            }
-        },
+        }
 
         // Toggle auto-pass
         KeyCode::Char('z') => {
@@ -296,8 +356,102 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
 
 fn handle_card_detail_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     match key.code {
-        KeyCode::Esc | KeyCode::Char(' ') => {
+        // Esc always exits to Normal — no nesting surprises
+        KeyCode::Esc => {
             app.mode = InputMode::Normal;
+        }
+        // Space returns to the browser if we came from one, else Normal
+        KeyCode::Char(' ') => {
+            let return_to = if let InputMode::CardDetail { return_to, .. } = &app.mode {
+                return_to.clone()
+            } else {
+                None
+            };
+            app.mode = return_to.map(|b| *b).unwrap_or(InputMode::Normal);
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn handle_zone_browser_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
+    // Extract current state
+    let (zone, player, cards, selected, scroll_offset) = match &app.mode {
+        InputMode::ZoneBrowser {
+            zone,
+            player,
+            cards,
+            selected,
+            scroll_offset,
+        } => (
+            zone.clone(),
+            *player,
+            cards.clone(),
+            *selected,
+            *scroll_offset,
+        ),
+        _ => return Ok(()),
+    };
+
+    match key.code {
+        KeyCode::Esc => {
+            app.mode = InputMode::Normal;
+        }
+        KeyCode::Up => {
+            let new_sel = if selected > 0 { selected - 1 } else { selected };
+            let new_offset = if new_sel < scroll_offset {
+                new_sel
+            } else {
+                scroll_offset
+            };
+            app.mode = InputMode::ZoneBrowser {
+                zone,
+                player,
+                cards,
+                selected: new_sel,
+                scroll_offset: new_offset,
+            };
+        }
+        KeyCode::Down => {
+            let max = cards.len().saturating_sub(1);
+            let new_sel = if selected < max {
+                selected + 1
+            } else {
+                selected
+            };
+            // We don't know visible_height here, so use a reasonable estimate;
+            // the render function will adjust if needed. Use 10 as a safe default.
+            let visible = 10usize;
+            let new_offset = if new_sel >= scroll_offset + visible {
+                new_sel - visible + 1
+            } else {
+                scroll_offset
+            };
+            app.mode = InputMode::ZoneBrowser {
+                zone,
+                player,
+                cards,
+                selected: new_sel,
+                scroll_offset: new_offset,
+            };
+        }
+        KeyCode::Char(' ') => {
+            // Open card detail for selected card, with return-to
+            // Copy obj_id before moving cards into browser_state
+            if selected < cards.len() {
+                let obj_id = cards[selected].0;
+                let browser_state = InputMode::ZoneBrowser {
+                    zone,
+                    player,
+                    cards,
+                    selected,
+                    scroll_offset,
+                };
+                app.mode = InputMode::CardDetail {
+                    object_id: obj_id,
+                    return_to: Some(Box::new(browser_state)),
+                };
+            }
         }
         _ => {}
     }
@@ -321,7 +475,11 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
             app.status_message = None;
         }
         KeyCode::Up | KeyCode::Left => {
-            let new_sel = if selected > 0 { selected - 1 } else { targets.len() - 1 };
+            let new_sel = if selected > 0 {
+                selected - 1
+            } else {
+                targets.len() - 1
+            };
             app.mode = InputMode::AttackTargetSelection {
                 eligible,
                 targets,
@@ -341,8 +499,7 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
             let idx = (c as usize) - ('1' as usize);
             if idx < targets.len() {
                 let target = &targets[idx];
-                let attackers: Vec<_> =
-                    eligible.iter().map(|&id| (id, target.clone())).collect();
+                let attackers: Vec<_> = eligible.iter().map(|&id| (id, target.clone())).collect();
                 let cmd = Command::DeclareAttackers {
                     player: app.human_player,
                     attackers,
@@ -354,8 +511,7 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
         }
         KeyCode::Enter => {
             if let Some(target) = targets.get(selected) {
-                let attackers: Vec<_> =
-                    eligible.iter().map(|&id| (id, target.clone())).collect();
+                let attackers: Vec<_> = eligible.iter().map(|&id| (id, target.clone())).collect();
                 let cmd = Command::DeclareAttackers {
                     player: app.human_player,
                     attackers,

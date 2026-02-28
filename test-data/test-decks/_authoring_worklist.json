@@ -1,12 +1,506 @@
 {
-  "generated": "2026-02-28T20:36:34.580135+00:00",
+  "generated": "2026-02-28T20:59:35.757831+00:00",
   "summary": {
-    "total_cards": 1123,
+    "total_cards": 1174,
+    "authored": 51,
     "ready": 1061,
     "blocked": 42,
     "deferred": 20,
     "unknown": 0
   },
+  "authored": [
+    {
+      "name": "Arcane Signet",
+      "appears_in_decks": 14,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Command Tower",
+      "appears_in_decks": 14,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Sol Ring",
+      "appears_in_decks": 14,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Forest",
+      "appears_in_decks": 10,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Swamp",
+      "appears_in_decks": 10,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Lightning Greaves",
+      "appears_in_decks": 9,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Mountain",
+      "appears_in_decks": 9,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Plains",
+      "appears_in_decks": 9,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Swords to Plowshares",
+      "appears_in_decks": 8,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Island",
+      "appears_in_decks": 7,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Swiftfoot Boots",
+      "appears_in_decks": 7,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Birds of Paradise",
+      "appears_in_decks": 6,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Flying"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Reliquary Tower",
+      "appears_in_decks": 6,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Beast Within",
+      "appears_in_decks": 5,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Counterspell",
+      "appears_in_decks": 5,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Path to Exile",
+      "appears_in_decks": 5,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Elvish Mystic",
+      "appears_in_decks": 4,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Generous Gift",
+      "appears_in_decks": 4,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Llanowar Elves",
+      "appears_in_decks": 4,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Brainstorm",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Cultivate",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Night's Whisper",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Rhystic Study",
+      "appears_in_decks": 3,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Swan Song",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Thought Vessel",
+      "appears_in_decks": 3,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Arcane Denial",
+      "appears_in_decks": 2,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Commander's Sphere",
+      "appears_in_decks": 2,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Evolving Wilds",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Mind Stone",
+      "appears_in_decks": 2,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Read the Bones",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Scry"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Rogue's Passage",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Sign in Blood",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Supreme Verdict",
+      "appears_in_decks": 2,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "appears_in_decks": 2,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Batterskull",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip",
+        "Living weapon"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Consider",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Surveil"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Darksteel Ingot",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Indestructible"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Harmonize",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Inexorable Tide",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Proliferate"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Kodama's Reach",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Krosan Grip",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [
+        "Split second"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Negate",
+      "appears_in_decks": 1,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Rampant Growth",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Rancor",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [
+        "Enchant"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Rest in Peace",
+      "appears_in_decks": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Signal Pest",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [
+        "Battle Cry"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Smuggler's Copter",
+      "appears_in_decks": 1,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Flying",
+        "Crew"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Solemn Simulacrum",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Treasure Cruise",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [
+        "Delve"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Windbrisk Heights",
+      "appears_in_decks": 1,
+      "types": [
+        "Land"
+      ],
+      "keywords": [
+        "Hideaway"
+      ],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Wrath of God",
+      "appears_in_decks": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    }
+  ],
   "ready": [
     {
       "name": "Skullclamp",

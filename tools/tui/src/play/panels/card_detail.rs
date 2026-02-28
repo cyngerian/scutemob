@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::*;
 
 use crate::play::app::PlayApp;
-use mtg_engine::{ManaCost, ObjectId};
+use mtg_engine::{CardType, Characteristics, Color as MtgColor, ManaCost, ObjectId};
 
 pub fn render(f: &mut Frame, app: &PlayApp, obj_id: ObjectId) {
     let area = centered_rect(60, 50, f.area());
@@ -14,19 +14,34 @@ pub fn render(f: &mut Frame, app: &PlayApp, obj_id: ObjectId) {
 
     let (title, lines) = if let Ok(obj) = app.state.object(obj_id) {
         let c = &obj.characteristics;
+        let color = card_color(c);
         let mut lines = Vec::new();
 
         lines.push(Line::from(Span::styled(
             &c.name,
-            Style::default().add_modifier(Modifier::BOLD),
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
         )));
 
         if let Some(ref cost) = c.mana_cost {
-            lines.push(Line::from(format!("Cost: {}", format_mana_cost(cost))));
+            let mut cost_line = vec![Span::styled("Cost: ", Style::default().fg(Color::DarkGray))];
+            cost_line.extend(colored_mana_spans(cost));
+            lines.push(Line::from(cost_line));
         }
 
-        let types: Vec<String> = c.card_types.iter().map(|t| format!("{:?}", t)).collect();
-        lines.push(Line::from(format!("Types: {}", types.join(" "))));
+        // Build full type line: "Legendary Creature — Human Soldier"
+        let mut type_parts = Vec::new();
+        for st in c.supertypes.iter() {
+            type_parts.push(format!("{:?}", st));
+        }
+        for ct in c.card_types.iter() {
+            type_parts.push(format!("{:?}", ct));
+        }
+        let mut type_line = type_parts.join(" ");
+        if !c.subtypes.is_empty() {
+            let subs: Vec<String> = c.subtypes.iter().map(|s| format!("{:?}", s)).collect();
+            type_line.push_str(&format!(" — {}", subs.join(" ")));
+        }
+        lines.push(Line::from(type_line));
 
         if let (Some(p), Some(t)) = (c.power, c.toughness) {
             lines.push(Line::from(format!("P/T: {}/{}", p, t)));
@@ -60,9 +75,93 @@ pub fn render(f: &mut Frame, app: &PlayApp, obj_id: ObjectId) {
     f.render_widget(paragraph, area);
 }
 
+/// Map a card's MTG color identity to a terminal color.
+/// Multicolor = Gold, mono = the MTG color, land = color by name, colorless = Gray.
+/// Falls back to mana cost colors if `colors` is empty (CR 202.2).
+pub fn card_color(c: &Characteristics) -> Color {
+    // Use explicit colors if populated
+    let colors = &c.colors;
+    if colors.len() > 1 {
+        return Color::Yellow; // gold for multicolor
+    }
+    if colors.contains(&MtgColor::White) {
+        return Color::White;
+    }
+    if colors.contains(&MtgColor::Blue) {
+        return Color::Rgb(100, 150, 255);
+    }
+    if colors.contains(&MtgColor::Black) {
+        return Color::Rgb(180, 140, 200); // light purple for visibility on dark bg
+    }
+    if colors.contains(&MtgColor::Red) {
+        return Color::Rgb(255, 100, 80);
+    }
+    if colors.contains(&MtgColor::Green) {
+        return Color::Rgb(80, 220, 80);
+    }
+
+    // Fallback: derive color from mana cost (CR 202.2)
+    if let Some(ref cost) = c.mana_cost {
+        let mut count = 0u8;
+        let mut last = Color::Gray;
+        if cost.white > 0 {
+            count += 1;
+            last = Color::White;
+        }
+        if cost.blue > 0 {
+            count += 1;
+            last = Color::Rgb(100, 150, 255);
+        }
+        if cost.black > 0 {
+            count += 1;
+            last = Color::Rgb(180, 140, 200);
+        }
+        if cost.red > 0 {
+            count += 1;
+            last = Color::Rgb(255, 100, 80);
+        }
+        if cost.green > 0 {
+            count += 1;
+            last = Color::Rgb(80, 220, 80);
+        }
+        if count > 1 {
+            return Color::Yellow; // multicolor
+        }
+        if count == 1 {
+            return last;
+        }
+    }
+
+    // Lands: color by name
+    if c.card_types.contains(&CardType::Land) {
+        return land_color_by_name(&c.name);
+    }
+
+    Color::Gray // colorless artifacts etc.
+}
+
+/// Assign basic lands their MTG color; non-basic lands get earthy brown.
+fn land_color_by_name(name: &str) -> Color {
+    let lower = name.to_lowercase();
+    if lower.contains("forest") {
+        Color::Rgb(80, 220, 80) // green
+    } else if lower.contains("island") {
+        Color::Rgb(100, 150, 255) // blue
+    } else if lower.contains("mountain") {
+        Color::Rgb(255, 100, 80) // red
+    } else if lower.contains("swamp") {
+        Color::Rgb(180, 140, 200) // purple/black
+    } else if lower.contains("plains") {
+        Color::White
+    } else {
+        Color::Rgb(180, 160, 120) // non-basic: lighter earthy tone
+    }
+}
+
 /// Format a ManaCost in compact MTG notation: {W}{W}{2}, {U}, etc.
 /// Colored mana first (WUBRG order), then colorless {C}, then generic {N}.
 /// Returns "(none)" for a zero-cost spell.
+#[allow(dead_code)]
 pub fn format_mana_cost(cost: &ManaCost) -> String {
     let mut parts = Vec::new();
     for _ in 0..cost.white {
@@ -140,7 +239,7 @@ pub fn colored_mana_spans(cost: &ManaCost) -> Vec<Span<'static>> {
 }
 
 /// Helper: center a rect with given percentage width/height.
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

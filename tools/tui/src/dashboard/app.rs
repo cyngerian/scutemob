@@ -243,7 +243,12 @@ impl App {
         if self.cards_filter == "all" {
             self.data.cards.entries.len()
         } else {
-            self.data.cards.entries.iter().filter(|e| e.status == self.cards_filter).count()
+            self.data
+                .cards
+                .entries
+                .iter()
+                .filter(|e| e.status == self.cards_filter)
+                .count()
         }
     }
 

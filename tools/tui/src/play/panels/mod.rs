@@ -7,3 +7,4 @@ pub mod phase_bar;
 pub mod sidebar;
 pub mod stack_view;
 pub mod status_bar;
+pub mod zone_browser;

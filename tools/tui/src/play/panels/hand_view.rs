@@ -3,10 +3,10 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use mtg_engine::{CardType, Characteristics, Color as MtgColor, ZoneId};
+use mtg_engine::{CardType, Characteristics, ZoneId};
 
 use crate::play::app::{FocusZone, PlayApp};
-use crate::play::panels::card_detail::colored_mana_spans;
+use crate::play::panels::card_detail::{card_color, colored_mana_spans};
 
 /// Single-letter type indicator for a card.
 fn type_indicator(c: &Characteristics) -> &'static str {
@@ -29,38 +29,48 @@ fn type_indicator(c: &Characteristics) -> &'static str {
     }
 }
 
-/// Map a card's MTG color identity to a terminal color.
-/// Multicolor = Gold, colorless = Gray, mono = the MTG color.
-fn card_color(c: &Characteristics) -> Color {
-    let colors = &c.colors;
-    if colors.len() > 1 {
-        Color::Yellow // gold for multicolor
-    } else if colors.contains(&MtgColor::White) {
-        Color::White
-    } else if colors.contains(&MtgColor::Blue) {
-        Color::Rgb(100, 150, 255)
-    } else if colors.contains(&MtgColor::Black) {
-        Color::Rgb(180, 140, 200) // light purple so it's visible on dark bg
-    } else if colors.contains(&MtgColor::Red) {
-        Color::Rgb(255, 100, 80)
-    } else if colors.contains(&MtgColor::Green) {
-        Color::Rgb(80, 220, 80)
-    } else if c.card_types.contains(&CardType::Land) {
-        Color::Rgb(180, 140, 90) // earthy brown for lands
-    } else {
-        Color::Gray // colorless artifacts etc.
-    }
-}
-
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
     let hand_zone = ZoneId::Hand(app.focused_player);
     let hand_objs = app.state.objects_in_zone(&hand_zone);
     let is_human = app.focused_player == app.human_player;
+    let visible_height = area.height.saturating_sub(2) as usize; // borders
+
+    // Auto-adjust scroll offset to keep selected card visible
+    let mut offset = app.hand_scroll_offset;
+    if is_human && !hand_objs.is_empty() {
+        let sel = app.selected_hand_idx;
+        if sel < offset {
+            offset = sel;
+        } else if sel >= offset + visible_height {
+            offset = sel - visible_height + 1;
+        }
+        // Clamp offset to valid range
+        let max_offset = hand_objs.len().saturating_sub(visible_height);
+        if offset > max_offset {
+            offset = max_offset;
+        }
+        // Write back (Cell-free: render is called each frame, so we just store it)
+        // We can't mutate app here since we have &PlayApp, but the offset is
+        // derived from selected_hand_idx which IS kept in sync by input.rs.
+        // So we just compute it locally each frame.
+    }
 
     let title = if is_human {
-        " Your Hand ".to_string()
+        if hand_objs.len() > visible_height {
+            format!(
+                " Your Hand ({}/{}) ",
+                app.selected_hand_idx + 1,
+                hand_objs.len()
+            )
+        } else {
+            " Your Hand ".to_string()
+        }
     } else {
-        format!(" P{}'s Hand ({} cards) ", app.focused_player.0, hand_objs.len())
+        format!(
+            " P{}'s Hand ({} cards) ",
+            app.focused_player.0,
+            hand_objs.len()
+        )
     };
 
     let items: Vec<Line> = if !is_human {
@@ -77,6 +87,8 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
         hand_objs
             .iter()
             .enumerate()
+            .skip(offset)
+            .take(visible_height)
             .map(|(i, obj)| {
                 let selected = i == app.selected_hand_idx;
                 let prefix = if selected { ">" } else { " " };
@@ -92,7 +104,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 if selected {
                     spans.push(Span::styled(
                         format!("{} [{}] ", prefix, i + 1),
-                        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
                     ));
                     spans.push(Span::styled(
                         c.name.clone(),

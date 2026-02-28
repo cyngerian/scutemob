@@ -4,39 +4,17 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use mtg_engine::{CardType, Characteristics, Color as MtgColor, ObjectId};
+use mtg_engine::ObjectId;
 
 use crate::play::app::{FocusZone, PlayApp};
-
-/// Map a permanent's MTG color to a terminal color.
-fn permanent_color(c: &Characteristics) -> Color {
-    let colors = &c.colors;
-    let is_land = c.card_types.contains(&CardType::Land);
-    if colors.len() > 1 {
-        Color::Yellow // gold for multicolor
-    } else if colors.contains(&MtgColor::White) {
-        Color::White
-    } else if colors.contains(&MtgColor::Blue) {
-        Color::Rgb(100, 150, 255)
-    } else if colors.contains(&MtgColor::Black) {
-        Color::Rgb(180, 140, 200)
-    } else if colors.contains(&MtgColor::Red) {
-        Color::Rgb(255, 100, 80)
-    } else if colors.contains(&MtgColor::Green) {
-        Color::Rgb(80, 220, 80)
-    } else if is_land {
-        Color::Rgb(180, 140, 90)
-    } else {
-        Color::Gray // colorless artifacts
-    }
-}
+use crate::play::panels::card_detail::card_color;
 
 /// Look up an object's color from the game state.
 fn color_for(app: &PlayApp, id: ObjectId) -> Color {
     app.state
         .object(id)
         .ok()
-        .map(|obj| permanent_color(&obj.characteristics))
+        .map(|obj| card_color(&obj.characteristics))
         .unwrap_or(Color::Gray)
 }
 
@@ -58,7 +36,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
 
     // Compact land row with colors
     if !lands.is_empty() {
-        let mut spans: Vec<Span> = vec![Span::styled(" Lands: ", Style::default().fg(Color::DarkGray))];
+        let mut spans: Vec<Span> = vec![Span::styled(
+            " Lands: ",
+            Style::default().fg(Color::DarkGray),
+        )];
         for (i, (id, name, tapped)) in lands.iter().enumerate() {
             let color = color_for(app, *id);
             let label = if *tapped {

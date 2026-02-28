@@ -17,6 +17,13 @@ use mtg_simulator::{
 };
 use rand::prelude::*;
 
+/// Which public zone to browse in the overlay.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BrowsableZone {
+    Graveyard,
+    Exile,
+}
+
 /// Input mode — determines what keys do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -33,7 +40,19 @@ pub enum InputMode {
     },
     AttackerDeclaration,
     BlockerDeclaration,
-    CardDetail(ObjectId),
+    CardDetail {
+        object_id: ObjectId,
+        /// If Some, Esc returns here instead of Normal.
+        return_to: Option<Box<InputMode>>,
+    },
+    /// Scrollable zone browser overlay (graveyard or exile).
+    ZoneBrowser {
+        zone: BrowsableZone,
+        player: PlayerId,
+        cards: Vec<(ObjectId, String)>,
+        selected: usize,
+        scroll_offset: usize,
+    },
 }
 
 /// Which zone has keyboard focus (determines Space key target and visual cue).
@@ -61,6 +80,7 @@ pub struct PlayApp {
     pub event_log: Vec<LogEntry>,
     pub log_scroll: usize,
     pub selected_hand_idx: usize,
+    pub hand_scroll_offset: usize,
     pub selected_bf_idx: usize,
     pub focus_zone: FocusZone,
     pub focused_player: PlayerId,
@@ -180,6 +200,7 @@ impl PlayApp {
             event_log: Vec::new(),
             log_scroll: 0,
             selected_hand_idx: 0,
+            hand_scroll_offset: 0,
             selected_bf_idx: 0,
             focus_zone: FocusZone::Hand,
             focused_player: human_player,
@@ -364,6 +385,43 @@ impl PlayApp {
             .collect()
     }
 
+    pub fn hand_count(&self, player: PlayerId) -> usize {
+        self.state.objects_in_zone(&ZoneId::Hand(player)).len()
+    }
+
+    pub fn library_count(&self, player: PlayerId) -> usize {
+        self.state.objects_in_zone(&ZoneId::Library(player)).len()
+    }
+
+    pub fn graveyard_count(&self, player: PlayerId) -> usize {
+        self.state.objects_in_zone(&ZoneId::Graveyard(player)).len()
+    }
+
+    pub fn exile_count(&self, player: PlayerId) -> usize {
+        self.state
+            .objects_in_zone(&ZoneId::Exile)
+            .iter()
+            .filter(|obj| obj.owner == player)
+            .count()
+    }
+
+    pub fn graveyard_objects(&self, player: PlayerId) -> Vec<(ObjectId, String)> {
+        self.state
+            .objects_in_zone(&ZoneId::Graveyard(player))
+            .iter()
+            .map(|obj| (obj.id, obj.characteristics.name.clone()))
+            .collect()
+    }
+
+    pub fn exile_objects(&self, player: PlayerId) -> Vec<(ObjectId, String)> {
+        self.state
+            .objects_in_zone(&ZoneId::Exile)
+            .iter()
+            .filter(|obj| obj.owner == player)
+            .map(|obj| (obj.id, obj.characteristics.name.clone()))
+            .collect()
+    }
+
     fn log_events(&mut self, events: &[GameEvent]) {
         let turn = self.state.turn.turn_number;
         for event in events {
@@ -459,9 +517,7 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                     let name = resolve_name(state, *id);
                     let tgt = match target {
                         mtg_engine::AttackTarget::Player(pid) => format!("P{}", pid.0),
-                        mtg_engine::AttackTarget::Planeswalker(pw) => {
-                            resolve_name(state, *pw)
-                        }
+                        mtg_engine::AttackTarget::Planeswalker(pw) => resolve_name(state, *pw),
                     };
                     format!("{} -> {}", name, tgt)
                 })
@@ -475,9 +531,7 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                     let src = resolve_name(state, a.source);
                     let tgt = match &a.target {
                         mtg_engine::CombatDamageTarget::Player(pid) => format!("P{}", pid.0),
-                        mtg_engine::CombatDamageTarget::Creature(cid) => {
-                            resolve_name(state, *cid)
-                        }
+                        mtg_engine::CombatDamageTarget::Creature(cid) => resolve_name(state, *cid),
                         mtg_engine::CombatDamageTarget::Planeswalker(pw) => {
                             resolve_name(state, *pw)
                         }
@@ -508,8 +562,31 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
             let name = resolve_name(state, *object_id);
             format!("{} tapped", name)
         }
-        GameEvent::ManaAdded { player, color, amount } => {
+        GameEvent::ManaAdded {
+            player,
+            color,
+            amount,
+        } => {
             format!("P{} adds {} {:?} mana", player.0, amount, color)
+        }
+        GameEvent::DiscardedToHandSize {
+            player, object_id, ..
+        } => {
+            let name = resolve_name(state, *object_id);
+            format!("P{} discards {} (cleanup)", player.0, name)
+        }
+        GameEvent::CardDiscarded {
+            player,
+            new_id,
+            object_id,
+        } => {
+            // Try new_id first (graveyard copy), fallback to old object_id
+            let name = state
+                .object(*new_id)
+                .or_else(|_| state.object(*object_id))
+                .map(|obj| obj.characteristics.name.clone())
+                .unwrap_or_else(|_| "???".to_string());
+            format!("P{} discards {}", player.0, name)
         }
         _ => String::new(), // Skip verbose events
     }

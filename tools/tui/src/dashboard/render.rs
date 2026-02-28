@@ -109,7 +109,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         3 => "q:quit  Tab:next  j/k:scroll  g:gaps only  r:refresh",
         4 => "q:quit  Tab:next  r:refresh",
         5 => "q:quit  Tab:next  j/k:scroll  p:pending only  a:all  r:refresh",
-        6 => "q:quit  Tab:next  j/k:scroll  r:ready  b:blocked  d:deferred  a:all",
+        6 => "q:quit  Tab:next  j/k:scroll  c:authored  r:ready  b:blocked  d:deferred  a:all",
         _ => "q:quit",
     };
     let test_str = match &app.live_test_count {

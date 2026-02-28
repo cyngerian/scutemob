@@ -23,8 +23,8 @@ use crate::testing::script_schema::{
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
-    CardRegistry, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility, ManaColor,
-    ObjectSpec, PlayerId, Step, TimingRestriction, TriggerCondition, TriggerEvent,
+    CardRegistry, Color, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility,
+    ManaColor, ObjectSpec, PlayerId, Step, TimingRestriction, TriggerCondition, TriggerEvent,
     TriggeredAbilityDef, ZoneId,
 };
 
@@ -728,6 +728,11 @@ pub fn enrich_spec_from_def(
     // Apply card types (Land, Instant, Sorcery, Artifact, etc.)
     spec.card_types = def.types.card_types.iter().cloned().collect();
 
+    // Apply supertypes (Legendary, Basic, etc.)
+    if !def.types.supertypes.is_empty() {
+        spec.supertypes = def.types.supertypes.iter().cloned().collect();
+    }
+
     // Apply subtypes (Aura, Equipment, Human, etc.) so that SBA checks and
     // the Enchant restriction enforcement can identify the object type.
     if !def.types.subtypes.is_empty() {
@@ -736,6 +741,34 @@ pub fn enrich_spec_from_def(
 
     // Apply mana cost (for cost-payment validation at cast time).
     spec.mana_cost = def.mana_cost.clone();
+
+    // Apply oracle text for display.
+    if !def.oracle_text.is_empty() {
+        spec.rules_text = def.oracle_text.clone();
+    }
+
+    // Derive colors from mana cost (CR 202.2) — only if not already set.
+    if spec.colors.is_empty() {
+        if let Some(ref cost) = def.mana_cost {
+            let mut colors = Vec::new();
+            if cost.white > 0 {
+                colors.push(Color::White);
+            }
+            if cost.blue > 0 {
+                colors.push(Color::Blue);
+            }
+            if cost.black > 0 {
+                colors.push(Color::Black);
+            }
+            if cost.red > 0 {
+                colors.push(Color::Red);
+            }
+            if cost.green > 0 {
+                colors.push(Color::Green);
+            }
+            spec.colors = colors;
+        }
+    }
 
     // Apply printed power/toughness for creatures.
     // This allows EffectAmount::PowerOf / ToughnessOf to read correct values.

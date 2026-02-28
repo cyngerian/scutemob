@@ -86,8 +86,16 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 " Declare blockers: [Enter] confirm, [Esc] cancel",
                 Style::default().fg(Color::Yellow),
             )),
-            InputMode::CardDetail(_) => Line::from(Span::styled(
-                " [Esc] or [Space] to close",
+            InputMode::CardDetail { return_to, .. } => {
+                let hint = if return_to.is_some() {
+                    " [Esc] close  [Space] back to browser"
+                } else {
+                    " [Esc] or [Space] to close"
+                };
+                Line::from(Span::styled(hint, Style::default().fg(Color::Yellow)))
+            }
+            InputMode::ZoneBrowser { .. } => Line::from(Span::styled(
+                " [↑↓] navigate  [Space] inspect  [Esc] close",
                 Style::default().fg(Color::Yellow),
             )),
         }
@@ -157,6 +165,10 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         Style::default().fg(Color::DarkGray),
     ));
     spans.push(Span::raw("inspect "));
+    spans.push(Span::styled("[g]", Style::default().fg(Color::DarkGray)));
+    spans.push(Span::raw("rave "));
+    spans.push(Span::styled("[x]", Style::default().fg(Color::DarkGray)));
+    spans.push(Span::raw("ile "));
     // Show which zone is focused so the user knows what arrows/space target
     let zone_hint = match app.focus_zone {
         crate::play::app::FocusZone::Hand => "(\u{2190}\u{2192}hand",

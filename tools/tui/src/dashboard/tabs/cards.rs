@@ -34,25 +34,16 @@ fn render_summary(f: &mut Frame, area: Rect, app: &App) {
 
     let line = Line::from(vec![
         Span::styled("Authored: ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            c.authored.to_string(),
-            Style::default().fg(Color::Cyan),
-        ),
+        Span::styled(c.authored.to_string(), Style::default().fg(Color::Cyan)),
         Span::raw("   "),
         Span::styled("Ready: ", Style::default().fg(Color::Gray)),
         Span::styled(c.ready.to_string(), Style::default().fg(theme::GREEN)),
         Span::raw("   "),
         Span::styled("Blocked: ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            c.blocked.to_string(),
-            Style::default().fg(theme::RED),
-        ),
+        Span::styled(c.blocked.to_string(), Style::default().fg(theme::RED)),
         Span::raw("   "),
         Span::styled("Deferred: ", Style::default().fg(Color::Gray)),
-        Span::styled(
-            c.deferred.to_string(),
-            Style::default().fg(theme::ARTIFACT),
-        ),
+        Span::styled(c.deferred.to_string(), Style::default().fg(theme::ARTIFACT)),
         Span::styled(filter_hint, Style::default().fg(Color::DarkGray)),
     ]);
 
@@ -90,9 +81,9 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
         .iter()
         .map(|e| {
             let (symbol, sym_style) = match e.status.as_str() {
-                "authored" => ("\u{2713}", Style::default().fg(Color::Cyan)),     // ✓ cyan
-                "ready" => ("\u{25CB}", Style::default().fg(theme::GREEN)),       // ○ green
-                "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),       // ✗ red
+                "authored" => ("\u{2713}", Style::default().fg(Color::Cyan)), // ✓ cyan
+                "ready" => ("\u{25CB}", Style::default().fg(theme::GREEN)),   // ○ green
+                "blocked" => ("\u{2717}", Style::default().fg(theme::RED)),   // ✗ red
                 "deferred" => ("\u{25CC}", Style::default().fg(theme::ARTIFACT)), // ◌ gray
                 _ => ("?", Style::default().fg(theme::GOLD)),
             };
@@ -115,7 +106,10 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
                     format!("{:>2}", e.appears_in_decks),
                     Style::default().fg(Color::Gray),
                 )),
-                Cell::from(Span::styled(types_str, Style::default().fg(Color::DarkGray))),
+                Cell::from(Span::styled(
+                    types_str,
+                    Style::default().fg(Color::DarkGray),
+                )),
                 Cell::from(Span::styled(kw_str, Style::default().fg(Color::Gray))),
                 Cell::from(Span::styled(blockers_str, Style::default().fg(theme::RED))),
             ])
@@ -228,8 +222,10 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
                     Style::default().fg(Color::DarkGray),
                 )]
             } else {
-                let mut spans =
-                    vec![Span::styled("  Keywords: ", Style::default().fg(Color::Gray))];
+                let mut spans = vec![Span::styled(
+                    "  Keywords: ",
+                    Style::default().fg(Color::Gray),
+                )];
                 for (i, (kw, st)) in entry.keyword_statuses.iter().enumerate() {
                     if i > 0 {
                         spans.push(Span::raw(", "));
@@ -282,11 +278,8 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
         " Detail "
     };
 
-    let mut paragraph = Paragraph::new(text).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(title),
-    );
+    let mut paragraph =
+        Paragraph::new(text).block(Block::default().borders(Borders::ALL).title(title));
 
     if has_dsl {
         paragraph = paragraph.scroll((app.cards_detail_scroll, 0));

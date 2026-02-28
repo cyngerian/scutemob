@@ -681,18 +681,32 @@ fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
 
     let summary = json.get("summary").unwrap_or(&serde_json::Value::Null);
     let mut wl = CardWorklist {
-        total: summary.get("total_cards").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-        authored: summary.get("authored").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        total: summary
+            .get("total_cards")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32,
+        authored: summary
+            .get("authored")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32,
         ready: summary.get("ready").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         blocked: summary.get("blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-        deferred: summary.get("deferred").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        deferred: summary
+            .get("deferred")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32,
         unknown: summary.get("unknown").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
         entries: vec![],
         card_dsl: parse_card_dsl(root),
     };
 
     // Parse each category
-    for (status_key, status_label) in &[("authored", "authored"), ("ready", "ready"), ("blocked", "blocked"), ("deferred", "deferred")] {
+    for (status_key, status_label) in &[
+        ("authored", "authored"),
+        ("ready", "ready"),
+        ("blocked", "blocked"),
+        ("deferred", "deferred"),
+    ] {
         if let Some(arr) = json.get(*status_key).and_then(|v| v.as_array()) {
             for item in arr {
                 wl.entries.push(parse_card_entry(item, status_label));
@@ -702,29 +716,49 @@ fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
 
     // Sort by appears_in_decks descending, then name ascending
     wl.entries.sort_by(|a, b| {
-        b.appears_in_decks.cmp(&a.appears_in_decks)
+        b.appears_in_decks
+            .cmp(&a.appears_in_decks)
             .then(a.name.cmp(&b.name))
     });
 
     Ok(wl)
 }
 
-/// Extract `CardDefinition { ... }` blocks from `definitions.rs`, keyed by card name.
+/// Extract `CardDefinition { ... }` blocks from per-card files in `defs/`, keyed by card name.
 fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
-    let path = root.join("crates/engine/src/cards/definitions.rs");
-    let content = match fs::read_to_string(path) {
-        Ok(c) => c,
+    let defs_dir = root.join("crates/engine/src/cards/defs");
+
+    let entries = match fs::read_dir(&defs_dir) {
+        Ok(e) => e,
         Err(_) => return map,
     };
 
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        if path.file_stem().and_then(|s| s.to_str()) == Some("mod") {
+            continue;
+        }
+        let content = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        extract_card_dsl_from_file(&content, &mut map);
+    }
+
+    map
+}
+
+/// Extract `CardDefinition { ... }` block from a single card file.
+fn extract_card_dsl_from_file(content: &str, map: &mut std::collections::HashMap<String, String>) {
     let lines: Vec<&str> = content.lines().collect();
     let mut i = 0;
     while i < lines.len() {
         let trimmed = lines[i].trim();
-        // Look for lines starting a CardDefinition block
         if trimmed.contains("CardDefinition {") || trimmed.contains("CardDefinition{") {
-            // Capture the block from this line onward, tracking brace depth
             let start = i;
             let mut depth: i32 = 0;
             let mut end = i;
@@ -741,10 +775,8 @@ fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
                     break;
                 }
             }
-            // Extract the block text, dedented
             let block: String = lines[start..=end].join("\n");
             let dedented = dedent_block(&block);
-            // Find card name: `name: "Some Card"` within the block
             if let Some(name) = extract_card_name(&block) {
                 map.insert(name, dedented);
             }
@@ -753,7 +785,6 @@ fn parse_card_dsl(root: &Path) -> std::collections::HashMap<String, String> {
             i += 1;
         }
     }
-    map
 }
 
 /// Strip common leading whitespace from all lines in a block.
@@ -794,27 +825,54 @@ fn extract_card_name(block: &str) -> Option<String> {
 }
 
 fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry {
-    let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let appears_in_decks = item.get("appears_in_decks").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+    let name = item
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let appears_in_decks = item
+        .get("appears_in_decks")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
 
-    let types: Vec<String> = item.get("types")
+    let types: Vec<String> = item
+        .get("types")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let keywords: Vec<String> = item.get("keywords")
+    let keywords: Vec<String> = item
+        .get("keywords")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let blocking_keywords: Vec<String> = item.get("blocking_keywords")
+    let blocking_keywords: Vec<String> = item
+        .get("blocking_keywords")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let keyword_statuses: Vec<(String, String)> = item.get("keyword_statuses")
+    let keyword_statuses: Vec<(String, String)> = item
+        .get("keyword_statuses")
         .and_then(|v| v.as_object())
-        .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
     CardWorklistEntry {

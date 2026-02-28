@@ -247,7 +247,9 @@ fn test_concede_active_player_all_others_passed_turn_advances_cleanly() {
     );
 
     // The game should still be going (3 players remain).
-    assert!(!events.iter().any(|e| matches!(e, GameEvent::GameOver { .. })));
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, GameEvent::GameOver { .. })));
     assert_eq!(
         state
             .players
@@ -287,7 +289,9 @@ fn test_concede_non_active_player_during_combat() {
     );
 
     // Game still ongoing — P1/P3/P4 remain.
-    assert!(!events.iter().any(|e| matches!(e, GameEvent::GameOver { .. })));
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, GameEvent::GameOver { .. })));
 
     // P1 still has priority (still in combat).
     assert_eq!(

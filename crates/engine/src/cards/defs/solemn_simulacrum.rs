@@ -1,0 +1,39 @@
+// 51. Solemn Simulacrum — {4}, Artifact Creature — Golem 2/2;
+// When ~ enters the battlefield, search for a basic land, put it onto the
+// battlefield tapped. When ~ dies, you may draw a card.
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("solemn-simulacrum"),
+        name: "Solemn Simulacrum".to_string(),
+        mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+        types: types_sub(&[CardType::Artifact, CardType::Creature], &["Golem"]),
+        power: Some(2),
+        toughness: Some(2),
+        oracle_text: "When Solemn Simulacrum enters the battlefield, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen Solemn Simulacrum dies, you may draw a card.".to_string(),
+        abilities: vec![
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::Sequence(vec![
+                    Effect::SearchLibrary {
+                        player: PlayerTarget::Controller,
+                        filter: basic_land_filter(),
+                        reveal: false,
+                        destination: ZoneTarget::Battlefield { tapped: true },
+                    },
+                    Effect::Shuffle { player: PlayerTarget::Controller },
+                ]),
+                intervening_if: None,
+            },
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDies,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+            },
+        ],
+    }
+}

@@ -5,6 +5,29 @@ use ratatui::widgets::*;
 
 use crate::play::app::PlayApp;
 
+/// Pick a color for a log entry based on its text content.
+fn event_color(text: &str) -> Color {
+    if text.starts_with("Turn ") {
+        Color::Cyan
+    } else if text.contains("casts ") || text.contains("resolves") {
+        Color::Rgb(180, 200, 255) // light blue for spell activity
+    } else if text.contains("attacks") || text.contains("Combat damage") {
+        Color::Rgb(255, 140, 100) // warm red for combat
+    } else if text.contains("dies") || text.contains("loses") {
+        Color::Rgb(255, 80, 80) // red for deaths
+    } else if text.contains("discards") {
+        Color::Rgb(200, 180, 140) // muted tan for discards
+    } else if text.contains("enters the battlefield") || text.contains("plays ") {
+        Color::Rgb(140, 230, 140) // green for permanents entering
+    } else if text.contains("gains") {
+        Color::Rgb(200, 255, 200) // light green for life gain
+    } else if text.contains("Game Over") || text.contains("wins") {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    }
+}
+
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
     let visible_height = area.height.saturating_sub(2) as usize; // border
 
@@ -24,9 +47,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
         .skip(start)
         .take(visible_height)
         .map(|entry| {
+            let color = event_color(&entry.text);
             Line::from(Span::styled(
                 format!(" > {}", entry.text),
-                Style::default().fg(Color::Gray),
+                Style::default().fg(color),
             ))
         })
         .collect();

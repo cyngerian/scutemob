@@ -4,7 +4,7 @@ pub mod rules;
 pub mod state;
 pub mod testing;
 
-pub use cards::definitions::all_cards;
+pub use cards::defs::all_cards;
 pub use cards::{
     clue_token_spec, food_token_spec, treasure_token_spec, AbilityDefinition, CardDefinition,
     CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost, Effect,

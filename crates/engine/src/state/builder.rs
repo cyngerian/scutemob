@@ -693,7 +693,7 @@ impl GameStateBuilder {
                 supertypes: spec.supertypes.into_iter().collect(),
                 card_types: spec.card_types.into_iter().collect(),
                 subtypes: spec.subtypes.into_iter().collect(),
-                rules_text: String::new(),
+                rules_text: spec.rules_text,
                 abilities: Vector::new(),
                 keywords: spec_keywords,
                 mana_abilities: spec.mana_abilities.into_iter().collect(),
@@ -890,6 +890,8 @@ pub struct ObjectSpec {
     pub keywords: Vec<KeywordAbility>,
     pub activated_abilities: Vec<ActivatedAbility>,
     pub triggered_abilities: Vec<TriggeredAbilityDef>,
+    /// Oracle / rules text for display.
+    pub rules_text: String,
     /// Pre-marked damage (for constructing test states, M4+).
     pub damage_marked: u32,
     /// Pre-set deathtouch damage flag (for constructing test states, M4+).
@@ -920,6 +922,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }
@@ -948,6 +951,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }
@@ -976,6 +980,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }
@@ -1004,6 +1009,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }
@@ -1032,6 +1038,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }
@@ -1060,6 +1067,7 @@ impl ObjectSpec {
             keywords: Vec::new(),
             activated_abilities: Vec::new(),
             triggered_abilities: Vec::new(),
+            rules_text: String::new(),
             damage_marked: 0,
             deathtouch_damage: false,
         }

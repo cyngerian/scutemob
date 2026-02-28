@@ -251,32 +251,103 @@ def classify_card(card, coverage):
     })
 
 
+def parse_authored_cards(project_root):
+    """Extract card names from definitions.rs that already have CardDefinitions.
+
+    Looks for lines matching: name: "Card Name".to_string(),
+    Returns a set of card names.
+    """
+    definitions_path = os.path.join(
+        project_root, "crates", "engine", "src", "cards", "definitions.rs"
+    )
+    authored = set()
+    pattern = re.compile(r'name:\s*"([^"]+)"\.to_string\(\)')
+
+    try:
+        with open(definitions_path, "r") as f:
+            for line in f:
+                m = pattern.search(line)
+                if m:
+                    authored.add(m.group(1))
+    except FileNotFoundError:
+        print(f"WARNING: {definitions_path} not found", file=sys.stderr)
+
+    return authored
+
+
+def scan_all_deck_cards(deck_dir):
+    """Scan all deck JSON files and build a unified card list with deck counts.
+
+    Returns dict of card_name -> {appears_in_decks, types, keywords, ...}
+    """
+    cards = {}
+    for filename in sorted(os.listdir(deck_dir)):
+        if not filename.endswith(".json"):
+            continue
+        if filename.startswith("_"):
+            continue
+        filepath = os.path.join(deck_dir, filename)
+        try:
+            with open(filepath, "r") as f:
+                deck = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            continue
+
+        for card in deck.get("cards", []):
+            name = card.get("name", "")
+            if not name:
+                continue
+            if name not in cards:
+                cards[name] = {
+                    "name": name,
+                    "appears_in_decks": 0,
+                    "types": card.get("types", []),
+                    "keywords": card.get("keywords", []),
+                }
+            cards[name]["appears_in_decks"] += 1
+
+    return list(cards.values())
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(script_dir))
 
     coverage_path = os.path.join(project_root, "docs", "mtg-engine-ability-coverage.md")
-    cards_path = os.path.join(script_dir, "_cards_needing_definitions.json")
     output_path = os.path.join(script_dir, "_authoring_worklist.json")
 
     # Parse ability coverage
     coverage, display_names = parse_ability_coverage(coverage_path)
     print(f"Parsed {len(coverage)} abilities from coverage doc", file=sys.stderr)
 
-    # Read cards
-    with open(cards_path, "r") as f:
-        cards_data = json.load(f)
+    # Parse authored card names from definitions.rs
+    authored_names = parse_authored_cards(project_root)
+    print(f"Found {len(authored_names)} authored CardDefinitions", file=sys.stderr)
 
-    cards = cards_data["cards"]
-    print(f"Read {len(cards)} cards needing definitions", file=sys.stderr)
+    # Scan all deck files for the complete card universe
+    all_cards = scan_all_deck_cards(script_dir)
+    print(f"Found {len(all_cards)} unique cards across all decks", file=sys.stderr)
 
     # Classify each card
+    authored = []
     ready = []
     blocked = []
     deferred = []
     unknown = []
 
-    for card in cards:
+    for card in all_cards:
+        # Check if already authored first
+        if card["name"] in authored_names:
+            entry = {
+                "name": card["name"],
+                "appears_in_decks": card["appears_in_decks"],
+                "types": card.get("types", []),
+                "keywords": card.get("keywords", []),
+                "keyword_statuses": {},
+            }
+            authored.append(entry)
+            continue
+
         classification, details = classify_card(card, coverage)
 
         entry = {
@@ -297,21 +368,26 @@ def main():
             unknown.append(entry)
 
     # Sort each section by appears_in_decks descending
+    authored.sort(key=lambda x: (-x["appears_in_decks"], x["name"]))
     ready.sort(key=lambda x: (-x["appears_in_decks"], x["name"]))
     blocked.sort(key=lambda x: (-x["appears_in_decks"], x["name"]))
     deferred.sort(key=lambda x: (-x["appears_in_decks"], x["name"]))
     unknown.sort(key=lambda x: (-x["appears_in_decks"], x["name"]))
 
+    total = len(authored) + len(ready) + len(blocked) + len(deferred) + len(unknown)
+
     # Build output
     output = {
         "generated": datetime.now(timezone.utc).isoformat(),
         "summary": {
-            "total_cards": len(cards),
+            "total_cards": total,
+            "authored": len(authored),
             "ready": len(ready),
             "blocked": len(blocked),
             "deferred": len(deferred),
             "unknown": len(unknown),
         },
+        "authored": authored,
         "ready": ready,
         "blocked": blocked,
         "deferred": deferred,
@@ -326,17 +402,13 @@ def main():
     print(f"\n{'='*60}", file=sys.stderr)
     print(f"Card Authoring Worklist Summary", file=sys.stderr)
     print(f"{'='*60}", file=sys.stderr)
-    print(f"  Total cards:  {len(cards)}", file=sys.stderr)
+    print(f"  Total cards:  {total}", file=sys.stderr)
+    print(f"  Authored:     {len(authored)}", file=sys.stderr)
     print(f"  Ready:        {len(ready)}", file=sys.stderr)
     print(f"  Blocked:      {len(blocked)}", file=sys.stderr)
     print(f"  Deferred:     {len(deferred)}", file=sys.stderr)
     print(f"  Unknown:      {len(unknown)}", file=sys.stderr)
     print(f"{'='*60}", file=sys.stderr)
-
-    # Sanity check
-    total = len(ready) + len(blocked) + len(deferred) + len(unknown)
-    if total != len(cards):
-        print(f"\n  WARNING: Sum ({total}) != total cards ({len(cards)})", file=sys.stderr)
 
     # Print unknown keywords for manual triage
     if unknown:
