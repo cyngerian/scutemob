@@ -14,7 +14,7 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | — | available | — | Phase 9 ready; 1,061 cards in worklist; start with Tier 2 ready cards |
+| W5: Card Authoring | Batch A: Tier 2 ready cards (Skullclamp, Ancient Tomb, Blood Artist, etc.) | ACTIVE | 2026-02-28 | Phase 9 ready; top Tier 2 by deck count |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
