@@ -14,7 +14,7 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | — | available | — | Phase 9 ready; top Tier 2 by deck count |
+| W5: Card Authoring | Author Tier 2 ready cards from worklist | ACTIVE | 2026-02-28 | Resume from previous session; 8 cards authored; run generate_worklist.py for current list |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
