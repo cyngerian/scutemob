@@ -84,9 +84,10 @@ impl LegalActionProvider for StubProvider {
             return actions;
         }
 
-        // Always available: pass priority and concede
+        // Always available: pass priority
+        // (Concede is intentionally omitted — bots should never auto-concede.
+        // The human player can still quit via 'q'.)
         actions.push(LegalAction::PassPriority);
-        actions.push(LegalAction::Concede);
 
         let is_main_phase = matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
         let stack_empty = state.stack_objects.is_empty();

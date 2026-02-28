@@ -201,16 +201,14 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
 }
 
 /// CR 504.1: "First, the active player draws a card."
-/// CR 103.8: "In multiplayer games using the shared team turns option,
-/// the player who plays first skips the draw step of that player's first turn."
-///
-/// In M2: draws by moving top of library to hand. If library empty,
-/// the player loses (CR 104.3b). M4's SBA system will replace this.
+/// CR 103.8a: In a two-player game, the player who plays first skips their first draw.
+/// CR 103.8c: In all other multiplayer games, no player skips the draw step of their first turn.
 fn draw_for_turn(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let active = state.turn.active_player;
 
-    // CR 103.8: first player of the game skips their first draw
-    if state.turn.is_first_turn_of_game {
+    // CR 103.8a: only in two-player games does the first player skip their first draw.
+    // CR 103.8c: in multiplayer (3+), nobody skips.
+    if state.turn.is_first_turn_of_game && state.players.len() <= 2 {
         return Ok(Vec::new());
     }
 

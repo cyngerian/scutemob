@@ -459,3 +459,53 @@ fn test_commander_damage_survives_zone_change() {
         "p2 should have 14 cumulative commander damage across zone change (7+7)"
     );
 }
+
+#[test]
+/// CR 510.2 — Combat damage is dealt even without an explicit DeclareBlockers
+/// command. When all players pass through the DeclareBlockers step, the engine
+/// advances to CombatDamage and deals damage normally.
+fn test_combat_damage_no_declare_blockers_command() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let players = [p(1), p(2), p(3), p(4)];
+
+    let state = GameStateBuilder::four_player()
+        .at_step(Step::BeginningOfCombat)
+        .active_player(p1)
+        .object(ObjectSpec::creature(p1, "Elf", 1, 1))
+        .build()
+        .unwrap();
+
+    // Pass all through BeginningOfCombat → DeclareAttackers
+    let (state, _) = pass_all(state, &players);
+    assert_eq!(state.turn.step, Step::DeclareAttackers);
+
+    // Declare the elf attacking p2
+    let elf_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(elf_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    // Pass all → DeclareBlockers
+    let (state, _) = pass_all(state, &players);
+    assert_eq!(state.turn.step, Step::DeclareBlockers);
+
+    // All pass WITHOUT sending DeclareBlockers command → CombatDamage
+    let (state, _) = pass_all(state, &players);
+
+    // P2 should have taken 1 combat damage
+    assert_eq!(
+        state.players.get(&p2).unwrap().life_total,
+        39,
+        "P2 should have taken 1 combat damage (40 - 1 = 39)"
+    );
+}
