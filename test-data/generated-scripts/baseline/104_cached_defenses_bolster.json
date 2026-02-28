@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_104",
+    "name": "Cached Defenses bolsters the creature with the least toughness",
+    "description": "P1 controls three creatures with distinct toughnesses: Llanowar Elves (1/1, toughness 1), Bog Raiders (2/2, toughness 2), and Wall of Omens (0/4, toughness 4). P1 casts Cached Defenses ({2}{G}, Bolster 3). Per CR 701.39a, Bolster 3 places 3 +1/+1 counters on the creature with the least toughness among creatures P1 controls — Llanowar Elves (toughness 1). After resolution, Llanowar Elves has 3 +1/+1 counters and is effectively a 4/4. Bog Raiders and Wall of Omens are unchanged.",
+    "cr_sections_tested": ["601.2", "608.2", "701.39a", "121.1", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["bolster", "counter", "sorcery", "least-toughness", "green"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Cached Defenses oracle text: 'Bolster 3. (Choose a creature with the least toughness among creatures you control and put three +1/+1 counters on it.)' CardDefinition verified at crates/engine/src/cards/defs/cached_defenses.rs using Effect::Bolster { player: Controller, count: Fixed(3) }. CR 701.39a: 'Bolster N means Choose a creature you control with the least toughness or tied for least toughness among creatures you control. Put N +1/+1 counters on that creature.' Three creatures have distinct toughnesses: 1 (Llanowar Elves), 2 (Bog Raiders), 4 (Wall of Omens) — no tie, so the target is unambiguous. Llanowar Elves (1/1 base) receives 3 +1/+1 counters and becomes 4/4. Mana: Cached Defenses costs {2}{G}; p1 has colorless:2 + green:1 pre-loaded. Bolster does not target — the creature is chosen on resolution (Scryfall ruling 2014-11-24: 'You determine which creature to put counters on as the spell or ability that instructs you to bolster resolves.'). Monastery Swiftspear was intentionally avoided — its Prowess ability triggers off non-creature spells and would add a second item to the stack on cast. Bog Raiders (2/2, Swampwalk) has no triggered abilities that fire off non-creature spells. All three creatures are in the Available Cards list. No SBA check needed — no creature dies or has 0 toughness.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Wall of Omens", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Cached Defenses", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Cached Defenses (Bolster 3). On resolution, the creature with the least toughness among P1's creatures — Llanowar Elves (toughness 1) — receives 3 +1/+1 counters and becomes a 4/4.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: P1 controls 3 creatures (Llanowar Elves 1/1, Bog Raiders 2/2, Wall of Omens 0/4); Cached Defenses in hand; stack empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 3,
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Three creatures with distinct toughnesses: 1, 2, 4. Llanowar Elves (toughness 1) has the lowest and will receive all 3 Bolster counters."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Cached Defenses",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Cached Defenses from hand. Pays {2}{G} from the mana pool. No targets required — Bolster chooses on resolution, not at cast time (CR 701.39a). Card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Cached Defenses on stack, P1 hand empty, stack count 1",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Cached Defenses is on the stack awaiting resolution. None of P1's creatures (Llanowar Elves, Bog Raiders, Wall of Omens) have triggered abilities that fire off non-creature spells, so no extra triggers are added."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cached Defenses",
+          "resolution": [
+            {
+              "effect": "bolster",
+              "target": { "type": "permanent", "player": "p1", "card": "Llanowar Elves", "controller": "p1" },
+              "amount": 3,
+              "card": "Cached Defenses",
+              "owner": "p1",
+              "cr_ref": "701.39a",
+              "note": "CR 701.39a: Bolster 3 — choose a creature P1 controls with the least toughness. Llanowar Elves has toughness 1 (least among 1, 2, 4). Place 3 +1/+1 counters on it. Per CR 121.1, each counter adds +1/+1. Llanowar Elves becomes a 4/4 (1/1 base + 3 counters)."
+            }
+          ],
+          "note": "CR 608.2: Sorcery resolves. Effect::Bolster places 3 +1/+1 counters on Llanowar Elves (toughness 1, the least among P1's creatures). Cached Defenses moves to P1's graveyard after resolving."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Cached Defenses in graveyard; all 3 creatures still on battlefield; stack empty; life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": { "includes": [{ "card": "Cached Defenses" }] },
+            "zones.battlefield.p1.count": 3,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Bog Raiders" },
+                { "card": "Wall of Omens" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 701.39a: Llanowar Elves received the 3 +1/+1 counters (effective P/T 4/4 — 1/1 base plus 3 counters). Bog Raiders (toughness 2) and Wall of Omens (toughness 4) received no counters. No SBA checks needed — no creature has 0 or less toughness or lethal damage. Cached Defenses goes to graveyard per CR 608.2."
+        }
+      ]
+    }
+  ]
+}

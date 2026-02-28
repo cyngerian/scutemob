@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Hideaway validated; 702.75 confirmed; types.rs, stack.rs, stubs.rs, game_object.rs, abilities.rs, resolution.rs, events.rs, effects/mod.rs, lands.rs, engine.rs, hash.rs; Windbrisk Heights card def #112; 7 unit tests in hideaway.rs; game script baseline/103 approved; P3 validated 31->32, total validated 87->88)
+> Last audited: 2026-02-28 (Bolster validated; CR 701.39 confirmed; card_definition.rs:388, effects/mod.rs:971; Cached Defenses card def; 8 unit tests in bolster.rs; game script baseline/104 approved; P3 validated 32->33, total validated 88->89)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 32        | 0        | 0       | 8    | 0   |
+| P3       | 40    | 33        | 0        | 0       | 7    | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **88**   | **2**    | **0**   | **97**| **12** |
+| **Total**| **199**| **89**   | **2**    | **0**   | **96**| **12** |
 
 ---
 
@@ -221,7 +221,7 @@ Keywords involving counter manipulation and creature growth.
 | Outlast | 702.107 | P4 | `none` | — | — | — | — | Tap + mana → +1/+1 counter (sorcery speed) |
 | Amplify | 702.38 | P4 | `none` | — | — | — | — | Reveal creature cards from hand for +1/+1 counters |
 | Adapt | — | P3 | `none` | — | — | — | — | If no +1/+1 counters → put N +1/+1 counters (ability word, not keyword) |
-| Bolster | — | P3 | `none` | — | — | — | — | Put +1/+1 counters on creature with least toughness (keyword action, not keyword) |
+| Bolster | 701.39 | P3 | `validated` | `cards/card_definition.rs:388`, `effects/mod.rs:971` | Cached Defenses | `baseline/104` | — | CR 701.39a fully enforced; keyword action (not keyword ability); chooses creature with least layer-aware toughness (ruling 2014-11-24); does NOT target (protection irrelevant); deterministic tie-break by smallest ObjectId; no-op if controller has no creatures; 8 unit tests in `bolster.rs`; game script approved |
 
 ---
 
@@ -511,3 +511,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Suspend (CR 702.62) — validated 2026-02-28 (script stack/102, Rift Bolt, 9 unit tests in suspend.rs).
 
 **Resolved**: Hideaway (CR 702.75) — validated 2026-02-28 (script baseline/103, Windbrisk Heights, 7 unit tests in hideaway.rs).
+
+**Resolved**: Bolster (CR 701.39) — validated 2026-02-28 (script baseline/104, Cached Defenses, 8 unit tests in bolster.rs).
