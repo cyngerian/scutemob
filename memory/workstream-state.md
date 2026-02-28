@@ -22,21 +22,22 @@
 ## Last Handoff
 
 **Date**: 2026-02-28 (night)
-**Workstream**: W2: TUI & Simulator
-**Task**: 6 UX fixes for play mode (scrolling, zones, discard)
+**Workstream**: W5: Card Authoring
+**Task**: Author first card batches + fix worklist to block DSL-gap cards
 **Completed**:
-- Fix 1: Hand list scrolling — auto-scroll with skip/take in hand_view.rs
-- Fix 2: Discard events — DiscardedToHandSize + CardDiscarded in event log with tan color
-- Fix 3: Zone counters — sidebar widened to 22, 2-line per player with H/L/G/E counts
-- Fix 4: Zone browser overlay — new zone_browser.rs, g/x keys, scrollable card list
-- Fix 5: CardDetail return-to — struct variant with return_to field; Esc=Normal, Space=return
-- Fix 6: Action menu hints — [g]rave [x]ile added
-- Bug fix: Esc from CardDetail now always exits to Normal (was returning to ZoneBrowser causing apparent freeze)
-**Next**: Test the Esc fix in live play; consider adding `p` passthrough from overlays; visual test hand scrolling with 8+ cards
-**Hazards**: Pre-existing clippy warnings in engine crate (blood_artist.rs, goblin_recruiter.rs needless_update) — not from this session
-**Commit prefix used**: `W2:` (all changes included in f9f7c45)
+- Batches A/B/C: authored 30 cards, then audited and removed 22 that used simplifications
+- 8 accurate cards remain: Ancient Tomb, Ashnod's Altar, Anguished Unmaking, Viscera Seer, Zulaport Cutthroat, Heroic Intervention, Prismatic Vista, Sakura-Tribe Elder
+- Fixed `generate_worklist.py`: added DSL_GAP_PATTERNS (5 patterns), `check_oracle_dsl_gaps()`, blocked classification, reporting; fixed `parse_authored_cards` for one-file-per-card layout; regenerated `_authoring_worklist.json`
+- All 22 removed cards now classified as `blocked` with specific DSL gap reason
+- Top DSL gaps discovered: targeted_trigger (57 cards), return_from_graveyard (17), nonbasic_land_search (15), count_threshold (14), shock_etb (10)
+**Next**: Author more Tier 2 ready cards — run `python3 test-data/test-decks/generate_worklist.py` to get current list; top ready cards by deck count are visible in the JSON; avoid any card with `blocking_dsl_gaps`
+**Hazards**: None — all commits clean; worklist JSON regenerated and committed
+**Commit prefix used**: `W5-cards:` (cards), `W5:` (worklist fix)
 
 ## Handoff History
+
+### 2026-02-28 (night) — W2: TUI & Simulator (UX fixes)
+- Fix 1-6: Hand scrolling, discard events, zone counters, zone browser overlay, CardDetail return-to, action hints; Esc bug fix; commit `f9f7c45`
 
 ### 2026-02-28 (evening) — W5: Card Authoring (setup)
 - Added W5 as workstream; worklist confirmed (1,061 ready); commit prefix `W5-cards:`
@@ -47,8 +48,5 @@
 ### 2026-02-28 — W2: Overview layout + Card DSL detail pane
 - Overview bottom row: 3-column layout; Card DSL parser + detail pane; commit `8d78f7b`
 
-### 2026-02-28 — W3: T2 dead code removal + Phase 0 complete
-- MR-M1-14, MR-M9.5-08, MR-M9.4-11 closed; commit `7d535ec`; Phase 0 complete
-
-### 2026-02-28 — W3: T1 tests (14 total)
-- MR-M1-19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-13/14/15; commit `320b77f`
+### 2026-02-28 — W3: T2 dead code + T1 tests (Phase 0 complete)
+- MR-M1-14/19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-11/13/14/15 closed; commits `320b77f` `7d535ec`
