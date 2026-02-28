@@ -424,14 +424,14 @@ This pre-populates files. The agent or human then only needs to fill in `abiliti
 | Step | Phase | Status | Prereqs |
 |------|-------|--------|---------|
 | 1 | Phase 1-4: Deck fetch & analysis | DONE | — |
-| 2 | Phase 6: Refactor definitions structure | TODO | — |
-| 3 | Phase 5: Build ability-gated worklist | TODO | Phase 4 data |
+| 2 | Phase 5: Build ability-gated worklist | TODO | Phase 4 data |
+| 3 | Phase 6: Refactor definitions structure | TODO | — |
 | 4 | Phase 7: Fix card-definition-author agent | TODO | Phase 6 (new file structure) |
 | 5 | Phase 8: Scryfall skeleton generator | TODO | Phase 6 (target directory) |
 | 6 | Phase 9: Batch authoring begins | TODO | Phases 5-8 |
 
-Phase 6 (refactor) is the critical path — it unblocks agent improvements, skeleton
-generation, and parallel authoring.
+Phase 5 (worklist) can start immediately — it only needs Phase 4 data. Phase 6
+(refactor) is the critical path for everything else.
 
 ---
 

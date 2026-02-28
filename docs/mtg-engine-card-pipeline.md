@@ -253,11 +253,11 @@ See `test-data/test-decks/PLAN.md` Phase 6 for the step-by-step refactoring plan
 
 ### Execution order
 
-1. **Refactor** — Create `card-defs` crate, migrate 112 existing definitions
-2. **Worklist** — Build ability-gated classification script
+1. **Worklist** — Build ability-gated classification script (no prereqs)
+2. **Refactor** — Create `card-defs` crate, migrate 112 existing definitions
 3. **Agent fix** — Update `card-definition-author` for new file structure
 4. **Skeleton generator** — Scryfall → `.rs` scaffold script
 5. **Batch authoring** — Start with Tier 2 ready cards, track performance
 
-The refactor is the critical path. Everything else depends on the new file
-structure being in place.
+The worklist can start immediately. The refactor is the critical path for
+steps 3-5.
