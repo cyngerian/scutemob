@@ -7,6 +7,7 @@ pub struct DashboardData {
     pub corner_cases: CornerCaseAudit,
     pub reviews: ReviewStatistics,
     pub scripts: ScriptCounts,
+    pub cards: CardWorklist,
 }
 
 /// Parsed from CLAUDE.md `## Current State` section.
@@ -141,6 +142,31 @@ pub struct ScriptEntry {
     pub status: String,
     /// Number of `assert_state` action blocks in the script.
     pub assertion_count: u32,
+}
+
+/// Parsed from `test-data/test-decks/_authoring_worklist.json`.
+#[derive(Debug, Default)]
+pub struct CardWorklist {
+    pub total: u32,
+    pub ready: u32,
+    pub blocked: u32,
+    pub deferred: u32,
+    pub unknown: u32,
+    pub entries: Vec<CardWorklistEntry>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct CardWorklistEntry {
+    pub name: String,
+    pub appears_in_decks: u32,
+    pub types: Vec<String>,
+    pub keywords: Vec<String>,
+    /// "ready", "blocked", or "deferred"
+    pub status: String,
+    /// For blocked cards: which keywords block them
+    pub blocking_keywords: Vec<String>,
+    /// keyword name → status string (e.g. "validated (P1)")
+    pub keyword_statuses: Vec<(String, String)>,
 }
 
 /// Script counts by subdirectory, plus full entry list.

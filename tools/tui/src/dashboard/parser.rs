@@ -12,6 +12,7 @@ pub fn parse_all(root: &Path) -> DashboardData {
         corner_cases: parse_corner_case_audit(root).unwrap_or_default(),
         reviews: parse_milestone_reviews(root).unwrap_or_default(),
         scripts: count_scripts(root).unwrap_or_default(),
+        cards: parse_card_worklist(root).unwrap_or_default(),
     }
 }
 
@@ -669,4 +670,74 @@ fn count_assert_states(json: &serde_json::Value) -> u32 {
         }
     }
     count
+}
+
+// ─── card authoring worklist ────────────────────────────────────────────────
+
+fn parse_card_worklist(root: &Path) -> anyhow::Result<CardWorklist> {
+    let path = root.join("test-data/test-decks/_authoring_worklist.json");
+    let content = fs::read_to_string(path)?;
+    let json: serde_json::Value = serde_json::from_str(&content)?;
+
+    let summary = json.get("summary").unwrap_or(&serde_json::Value::Null);
+    let mut wl = CardWorklist {
+        total: summary.get("total_cards").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        ready: summary.get("ready").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        blocked: summary.get("blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        deferred: summary.get("deferred").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        unknown: summary.get("unknown").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+        entries: vec![],
+    };
+
+    // Parse each category
+    for (status_key, status_label) in &[("ready", "ready"), ("blocked", "blocked"), ("deferred", "deferred")] {
+        if let Some(arr) = json.get(*status_key).and_then(|v| v.as_array()) {
+            for item in arr {
+                wl.entries.push(parse_card_entry(item, status_label));
+            }
+        }
+    }
+
+    // Sort by appears_in_decks descending, then name ascending
+    wl.entries.sort_by(|a, b| {
+        b.appears_in_decks.cmp(&a.appears_in_decks)
+            .then(a.name.cmp(&b.name))
+    });
+
+    Ok(wl)
+}
+
+fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry {
+    let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let appears_in_decks = item.get("appears_in_decks").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+
+    let types: Vec<String> = item.get("types")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    let keywords: Vec<String> = item.get("keywords")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    let blocking_keywords: Vec<String> = item.get("blocking_keywords")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    let keyword_statuses: Vec<(String, String)> = item.get("keyword_statuses")
+        .and_then(|v| v.as_object())
+        .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
+        .unwrap_or_default();
+
+    CardWorklistEntry {
+        name,
+        appears_in_decks,
+        types,
+        keywords,
+        status: status.to_string(),
+        blocking_keywords,
+        keyword_statuses,
+    }
 }

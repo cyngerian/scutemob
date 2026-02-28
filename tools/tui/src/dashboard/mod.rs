@@ -83,12 +83,20 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
         KeyCode::Char('4') => app.jump_to_tab(3),
         KeyCode::Char('5') => app.jump_to_tab(4),
         KeyCode::Char('6') => app.jump_to_tab(5),
-        KeyCode::Char('r') => app.reload(),
+        KeyCode::Char('7') => app.jump_to_tab(6),
+        KeyCode::Char('r') => {
+            if app.current_tab == 6 {
+                app.set_cards_filter("ready");
+            } else {
+                app.reload();
+            }
+        }
         KeyCode::Down | KeyCode::Char('j') => match app.current_tab {
             1 => app.milestone_scroll_down(),
             2 => app.ability_scroll_down(),
             3 => app.corner_case_scroll_down(),
             5 => app.scripts_scroll_down(),
+            6 => app.cards_scroll_down(),
             _ => {}
         },
         KeyCode::Up | KeyCode::Char('k') => match app.current_tab {
@@ -96,6 +104,7 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
             2 => app.ability_scroll_up(),
             3 => app.corner_case_scroll_up(),
             5 => app.scripts_scroll_up(),
+            6 => app.cards_scroll_up(),
             _ => {}
         },
         KeyCode::Char('g') => {
@@ -108,9 +117,19 @@ fn handle_key(app: &mut App, key: crossterm::event::KeyEvent) {
                 app.toggle_scripts_pending_only();
             }
         }
-        KeyCode::Char('a') => {
-            if app.current_tab == 5 && app.scripts_show_pending_only {
-                app.toggle_scripts_pending_only();
+        KeyCode::Char('a') => match app.current_tab {
+            5 if app.scripts_show_pending_only => app.toggle_scripts_pending_only(),
+            6 => app.set_cards_filter("all"),
+            _ => {}
+        },
+        KeyCode::Char('b') => {
+            if app.current_tab == 6 {
+                app.set_cards_filter("blocked");
+            }
+        }
+        KeyCode::Char('d') => {
+            if app.current_tab == 6 {
+                app.set_cards_filter("deferred");
             }
         }
         _ => {}

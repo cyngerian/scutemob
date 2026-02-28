@@ -6,7 +6,7 @@ use ratatui::widgets::{ListState, TableState};
 use super::data::DashboardData;
 use super::parser;
 
-pub const TAB_COUNT: usize = 6;
+pub const TAB_COUNT: usize = 7;
 pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "1:Overview",
     "2:Milestones",
@@ -14,6 +14,7 @@ pub const TAB_NAMES: [&str; TAB_COUNT] = [
     "4:Corner Cases",
     "5:Reviews",
     "6:Scripts",
+    "7:Cards",
 ];
 
 pub enum LiveTestCount {
@@ -40,6 +41,11 @@ pub struct App {
     pub scripts_table_state: TableState,
     pub scripts_show_pending_only: bool,
 
+    // Tab 7: Cards
+    pub cards_table_state: TableState,
+    /// "all", "ready", "blocked", "deferred"
+    pub cards_filter: String,
+
     pub root: PathBuf,
 
     pub live_test_count: LiveTestCount,
@@ -64,6 +70,8 @@ impl App {
             show_gaps_only: false,
             scripts_table_state: TableState::default(),
             scripts_show_pending_only: false,
+            cards_table_state: TableState::default(),
+            cards_filter: "all".to_string(),
             live_test_count: LiveTestCount::Loading,
             test_count_rx: None,
             root,
@@ -224,6 +232,37 @@ impl App {
     pub fn toggle_scripts_pending_only(&mut self) {
         self.scripts_show_pending_only = !self.scripts_show_pending_only;
         self.scripts_table_state.select(Some(0));
+    }
+
+    // ─── cards tab scroll ───────────────────────────────────────────────
+
+    pub fn cards_items_len(&self) -> usize {
+        if self.cards_filter == "all" {
+            self.data.cards.entries.len()
+        } else {
+            self.data.cards.entries.iter().filter(|e| e.status == self.cards_filter).count()
+        }
+    }
+
+    pub fn cards_scroll_down(&mut self) {
+        let len = self.cards_items_len();
+        if len == 0 {
+            return;
+        }
+        let sel = self.cards_table_state.selected().unwrap_or(0);
+        self.cards_table_state.select(Some((sel + 1).min(len - 1)));
+    }
+
+    pub fn cards_scroll_up(&mut self) {
+        let sel = self.cards_table_state.selected().unwrap_or(0);
+        self.cards_table_state.select(Some(sel.saturating_sub(1)));
+    }
+
+    pub fn set_cards_filter(&mut self, filter: &str) {
+        if self.cards_filter != filter {
+            self.cards_filter = filter.to_string();
+            self.cards_table_state.select(Some(0));
+        }
     }
 }
 

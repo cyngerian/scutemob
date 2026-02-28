@@ -255,12 +255,14 @@ fn render_bottom_row(f: &mut Frame, area: Rect, app: &App) {
             Constraint::Length(30), // Code Reviews (compact)
             Constraint::Min(20),    // Scripts (fill remaining)
             Constraint::Length(24), // Engine Size (compact)
+            Constraint::Length(28), // Card Authoring
         ])
         .split(area);
 
     render_reviews_summary(f, cols[0], app);
     render_scripts(f, cols[1], app);
     render_engine_size(f, cols[2], app);
+    render_card_authoring(f, cols[3], app);
 }
 
 fn render_reviews_summary(f: &mut Frame, area: Rect, app: &App) {
@@ -417,6 +419,54 @@ fn render_engine_size(f: &mut Frame, area: Rect, app: &App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(" Engine Size "),
+        ),
+        area,
+    );
+}
+
+fn render_card_authoring(f: &mut Frame, area: Rect, app: &App) {
+    let c = &app.data.cards;
+    let total = c.total;
+    let ratio = if total > 0 {
+        c.ready as f64 / total as f64
+    } else {
+        0.0
+    };
+
+    let inner_width = area.width.saturating_sub(4);
+    let bar = progress_bar(
+        ratio,
+        inner_width,
+        &format!("{}/{} ({:.0}%)", c.ready, total, ratio * 100.0),
+        Color::Green,
+    );
+
+    let lines = vec![
+        bar,
+        Line::from(vec![
+            Span::styled(
+                format!("Ready: {:>4}", c.ready),
+                Style::default().fg(theme::GREEN),
+            ),
+            Span::raw("  "),
+            Span::styled(
+                format!("Blocked: {:>2}", c.blocked),
+                Style::default().fg(theme::RED),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                format!("Deferred: {:>2}", c.deferred),
+                Style::default().fg(theme::ARTIFACT),
+            ),
+        ]),
+    ];
+
+    f.render_widget(
+        Paragraph::new(Text::from(lines)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Card Authoring "),
         ),
         area,
     );
