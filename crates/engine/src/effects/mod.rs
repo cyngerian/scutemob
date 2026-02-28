@@ -986,9 +986,7 @@ fn execute_effect_inner(
                 let creatures: Vec<(ObjectId, i32)> = state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| {
-                        obj.zone == ZoneId::Battlefield && obj.controller == p
-                    })
+                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.controller == p)
                     .filter_map(|(&id, _)| {
                         let chars = crate::rules::layers::calculate_characteristics(state, id)?;
                         // Use layer-aware card_types to support animated non-creatures.
@@ -1002,22 +1000,21 @@ fn execute_effect_inner(
                     })
                     .collect();
 
-                if creatures.is_empty() {
-                    // No creatures -- bolster does nothing for this player.
+                // Find the minimum toughness value; if no creatures exist, bolster does nothing.
+                let Some(min_toughness) = creatures.iter().map(|(_, t)| *t).min() else {
                     continue;
-                }
-
-                // Find the minimum toughness value.
-                let min_toughness = creatures.iter().map(|(_, t)| *t).min().unwrap();
+                };
 
                 // Among tied creatures, choose the one with the smallest ObjectId
                 // (deterministic fallback -- interactive choice deferred to M10+).
-                let chosen_id = creatures
+                let Some(chosen_id) = creatures
                     .iter()
                     .filter(|(_, t)| *t == min_toughness)
                     .map(|(id, _)| *id)
                     .min_by_key(|id| id.0)
-                    .unwrap();
+                else {
+                    continue;
+                };
 
                 // Place N +1/+1 counters on the chosen creature.
                 if let Some(obj) = state.objects.get_mut(&chosen_id) {
@@ -1026,10 +1023,8 @@ fn execute_effect_inner(
                         .get(&crate::state::types::CounterType::PlusOnePlusOne)
                         .copied()
                         .unwrap_or(0);
-                    obj.counters.insert(
-                        crate::state::types::CounterType::PlusOnePlusOne,
-                        cur + n,
-                    );
+                    obj.counters
+                        .insert(crate::state::types::CounterType::PlusOnePlusOne, cur + n);
                     events.push(GameEvent::CounterAdded {
                         object_id: chosen_id,
                         counter: crate::state::types::CounterType::PlusOnePlusOne,

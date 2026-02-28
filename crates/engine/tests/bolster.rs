@@ -91,7 +91,11 @@ fn test_bolster_basic_single_creature() {
     let (state, events) = run_bolster(state, p1, 2);
 
     // Should emit exactly one CounterAdded event.
-    assert_eq!(events.len(), 1, "CR 701.39a: bolster should emit one CounterAdded event");
+    assert_eq!(
+        events.len(),
+        1,
+        "CR 701.39a: bolster should emit one CounterAdded event"
+    );
     assert!(
         matches!(
             &events[0],
@@ -115,7 +119,11 @@ fn test_bolster_basic_single_creature() {
     let chars = calculate_characteristics(&state, gomazoa_id)
         .expect("Guard Gomazoa should be on battlefield");
     assert_eq!(chars.power, Some(4), "CR 701.39a: power should be 4 (2+2)");
-    assert_eq!(chars.toughness, Some(5), "CR 701.39a: toughness should be 5 (3+2)");
+    assert_eq!(
+        chars.toughness,
+        Some(5),
+        "CR 701.39a: toughness should be 5 (3+2)"
+    );
 }
 
 // ── Test 2: Bolster targets the creature with the least toughness ─────────────
@@ -311,9 +319,9 @@ fn test_bolster_not_targeting_ignores_protection() {
 
     // The only creature P1 controls has protection from white.
     let protected = ObjectSpec::creature(p1, "White Knight", 2, 2)
-        .with_keyword(KeywordAbility::ProtectionFrom(ProtectionQuality::FromColor(
-            Color::White,
-        )))
+        .with_keyword(KeywordAbility::ProtectionFrom(
+            ProtectionQuality::FromColor(Color::White),
+        ))
         .in_zone(ZoneId::Battlefield);
 
     let state = GameStateBuilder::new()
@@ -355,8 +363,8 @@ fn test_bolster_can_target_source() {
     let p2 = p(2);
 
     // The ETB creature is a 1/1 (least toughness), which would be the bolster source.
-    let etb_creature = ObjectSpec::creature(p1, "Abzan Skycaptain", 1, 1)
-        .in_zone(ZoneId::Battlefield);
+    let etb_creature =
+        ObjectSpec::creature(p1, "Abzan Skycaptain", 1, 1).in_zone(ZoneId::Battlefield);
     // A larger creature also under P1's control.
     let big_creature = ObjectSpec::creature(p1, "Siege Rhino", 4, 5).in_zone(ZoneId::Battlefield);
 
@@ -425,7 +433,11 @@ fn test_bolster_multiplayer_only_controllers_creatures() {
     let (state, events) = run_bolster(state, p1, 2);
 
     // P1's 5/5 should receive counters (it is the only creature P1 controls).
-    assert_eq!(events.len(), 1, "CR 701.39a: bolster should emit one CounterAdded event");
+    assert_eq!(
+        events.len(),
+        1,
+        "CR 701.39a: bolster should emit one CounterAdded event"
+    );
     assert_eq!(
         get_plus_counters(&state, wurm_id),
         2,
