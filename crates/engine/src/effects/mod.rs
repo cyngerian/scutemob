@@ -968,6 +968,77 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.39a: Bolster N -- choose a creature controlled by the given player
+        // with the least toughness (layer-aware), put N +1/+1 counters on it.
+        // Bolster does NOT target; the creature is chosen at resolution time.
+        // Ruling 2014-11-24: toughness is determined as the ability resolves.
+        Effect::Bolster { player, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as u32;
+            if n == 0 {
+                // Bolster 0 does nothing.
+                return;
+            }
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                // CR 701.39a: Find all creatures controlled by this player on the
+                // battlefield, then select the one with the least toughness.
+                // Use calculate_characteristics for layer-aware toughness (ruling 2014-11-24).
+                let creatures: Vec<(ObjectId, i32)> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield && obj.controller == p
+                    })
+                    .filter_map(|(&id, _)| {
+                        let chars = crate::rules::layers::calculate_characteristics(state, id)?;
+                        // Use layer-aware card_types to support animated non-creatures.
+                        if !chars
+                            .card_types
+                            .contains(&crate::state::types::CardType::Creature)
+                        {
+                            return None;
+                        }
+                        chars.toughness.map(|t| (id, t))
+                    })
+                    .collect();
+
+                if creatures.is_empty() {
+                    // No creatures -- bolster does nothing for this player.
+                    continue;
+                }
+
+                // Find the minimum toughness value.
+                let min_toughness = creatures.iter().map(|(_, t)| *t).min().unwrap();
+
+                // Among tied creatures, choose the one with the smallest ObjectId
+                // (deterministic fallback -- interactive choice deferred to M10+).
+                let chosen_id = creatures
+                    .iter()
+                    .filter(|(_, t)| *t == min_toughness)
+                    .map(|(id, _)| *id)
+                    .min_by_key(|id| id.0)
+                    .unwrap();
+
+                // Place N +1/+1 counters on the chosen creature.
+                if let Some(obj) = state.objects.get_mut(&chosen_id) {
+                    let cur = obj
+                        .counters
+                        .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters.insert(
+                        crate::state::types::CounterType::PlusOnePlusOne,
+                        cur + n,
+                    );
+                    events.push(GameEvent::CounterAdded {
+                        object_id: chosen_id,
+                        counter: crate::state::types::CounterType::PlusOnePlusOne,
+                        count: n,
+                    });
+                }
+            }
+        }
+
         // ── Zone ──────────────────────────────────────────────────────────
         Effect::MoveZone { target, to } => {
             // MR-M7-04: resolve zone using owner PlayerTarget (not always controller).

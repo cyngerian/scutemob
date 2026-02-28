@@ -2693,6 +2693,12 @@ impl HashInto for Effect {
             Effect::PlayExiledCard => {
                 39u8.hash_into(hasher);
             }
+            // CR 701.39: Bolster (discriminant 40)
+            Effect::Bolster { player, count } => {
+                40u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }

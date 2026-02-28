@@ -377,6 +377,22 @@ pub enum Effect {
         count: u32,
     },
 
+    /// CR 701.39: Bolster N -- "Choose a creature you control with the least
+    /// toughness or tied for least toughness among creatures you control. Put
+    /// N +1/+1 counters on that creature."
+    ///
+    /// Bolster does NOT target (ruling 2014-11-24). The creature is chosen at
+    /// resolution time using layer-aware toughness. If the controller has no
+    /// creatures, nothing happens.
+    /// Deterministic fallback for tied toughness: choose smallest ObjectId.
+    Bolster {
+        /// The player who controls the bolster effect (determines which
+        /// creatures are eligible).
+        player: PlayerTarget,
+        /// Number of +1/+1 counters to place.
+        count: EffectAmount,
+    },
+
     // ── Zone ─────────────────────────────────────────────────────────────────
     /// Move an object to a zone (CR 400).
     MoveZone {
