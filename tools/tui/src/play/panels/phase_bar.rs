@@ -27,9 +27,11 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
         format!("P{}'s Turn", active.0)
     };
 
+    let step_name = step_display_name(step);
+
     let text = format!(
-        " Turn {} | {} | {:?} | Priority: {} ",
-        turn, active_text, step, priority_text
+        " Turn {} | {} | {} | Priority: {} ",
+        turn, active_text, step_name, priority_text
     );
 
     let bar = Paragraph::new(text).style(
@@ -39,4 +41,23 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(bar, area);
+}
+
+fn step_display_name(step: &mtg_engine::Step) -> &'static str {
+    use mtg_engine::Step;
+    match step {
+        Step::Untap => "Untap",
+        Step::Upkeep => "Upkeep",
+        Step::Draw => "Draw",
+        Step::PreCombatMain => "Main 1",
+        Step::BeginningOfCombat => "Begin Combat",
+        Step::DeclareAttackers => "Declare Attackers",
+        Step::DeclareBlockers => "Declare Blockers",
+        Step::FirstStrikeDamage => "First Strike Damage",
+        Step::CombatDamage => "Combat Damage",
+        Step::EndOfCombat => "End Combat",
+        Step::PostCombatMain => "Main 2",
+        Step::End => "End Step",
+        Step::Cleanup => "Cleanup",
+    }
 }

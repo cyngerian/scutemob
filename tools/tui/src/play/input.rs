@@ -25,6 +25,8 @@ pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
 }
 
 fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
+    let legal = app.legal_actions();
+
     match key.code {
         // Pass priority
         KeyCode::Char('p') => {
@@ -34,60 +36,153 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             app.execute_command(cmd)?;
         }
 
-        // Play selected land
+        // Play selected land — only if legal
         KeyCode::Char('l') => {
             let hand = app.hand_objects();
-            if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
-                let cmd = Command::PlayLand {
-                    player: app.human_player,
-                    card: *obj_id,
-                };
-                app.execute_command(cmd)?;
+            if let Some((obj_id, name)) = hand.get(app.selected_hand_idx) {
+                let is_legal = legal
+                    .iter()
+                    .any(|a| matches!(a, LegalAction::PlayLand { card } if *card == *obj_id));
+                if is_legal {
+                    let cmd = Command::PlayLand {
+                        player: app.human_player,
+                        card: *obj_id,
+                    };
+                    app.execute_command(cmd)?;
+                } else {
+                    let has_any_land = legal
+                        .iter()
+                        .any(|a| matches!(a, LegalAction::PlayLand { .. }));
+                    if has_any_land {
+                        app.status_message =
+                            Some(format!("'{}' is not a land — select a land first", name));
+                    } else {
+                        app.status_message = Some(
+                            "Can't play lands now (need Main phase, your turn, stack empty)"
+                                .into(),
+                        );
+                    }
+                }
             }
         }
 
-        // Cast selected spell
+        // Cast selected spell — only if legal, auto-tap mana
         KeyCode::Char('c') => {
             let hand = app.hand_objects();
-            if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
-                let cmd = Command::CastSpell {
-                    player: app.human_player,
-                    card: *obj_id,
-                    targets: Vec::new(),
-                    convoke_creatures: Vec::new(),
-                    improvise_artifacts: Vec::new(),
-                    delve_cards: Vec::new(),
-                    kicker_times: 0,
-                    cast_with_evoke: false,
-                    cast_with_bestow: false,
-                    cast_with_miracle: false,
-                    cast_with_escape: false,
-                    escape_exile_cards: Vec::new(),
-                    cast_with_foretell: false,
-                    cast_with_buyback: false,
-                };
-                app.execute_command(cmd)?;
+            if let Some((obj_id, name)) = hand.get(app.selected_hand_idx) {
+                let is_legal = legal.iter().any(
+                    |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == *obj_id),
+                );
+                if is_legal {
+                    // Auto-tap mana before casting
+                    if let Ok(obj) = app.state.object(*obj_id) {
+                        if let Some(ref cost) = obj.characteristics.mana_cost {
+                            if let Some(tap_cmds) =
+                                mtg_simulator::mana_solver::solve_mana_payment(
+                                    &app.state,
+                                    app.human_player,
+                                    cost,
+                                )
+                            {
+                                for tap_cmd in tap_cmds {
+                                    app.execute_command(tap_cmd)?;
+                                }
+                            }
+                        }
+                    }
+
+                    let cmd = Command::CastSpell {
+                        player: app.human_player,
+                        card: *obj_id,
+                        targets: Vec::new(),
+                        convoke_creatures: Vec::new(),
+                        improvise_artifacts: Vec::new(),
+                        delve_cards: Vec::new(),
+                        kicker_times: 0,
+                        cast_with_evoke: false,
+                        cast_with_bestow: false,
+                        cast_with_miracle: false,
+                        cast_with_escape: false,
+                        escape_exile_cards: Vec::new(),
+                        cast_with_foretell: false,
+                        cast_with_buyback: false,
+                    };
+                    app.execute_command(cmd)?;
+                } else {
+                    let has_any_cast = legal
+                        .iter()
+                        .any(|a| matches!(a, LegalAction::CastSpell { .. }));
+                    if !has_any_cast {
+                        app.status_message = Some("No spells you can cast right now".into());
+                    } else {
+                        app.status_message = Some(format!(
+                            "Can't cast '{}' — not enough mana or wrong timing",
+                            name
+                        ));
+                    }
+                }
             }
         }
 
         // Tap for mana
         KeyCode::Char('t') => {
             let bf = app.battlefield_objects(app.human_player);
-            if let Some((obj_id, _, _)) = bf.get(app.selected_bf_idx) {
-                let cmd = Command::TapForMana {
-                    player: app.human_player,
-                    source: *obj_id,
-                    ability_index: 0,
-                };
-                app.execute_command(cmd)?;
+            if let Some((obj_id, name, _)) = bf.get(app.selected_bf_idx) {
+                let tap_action = legal.iter().find(
+                    |a| matches!(a, LegalAction::TapForMana { source, .. } if *source == *obj_id),
+                );
+                if let Some(LegalAction::TapForMana { ability_index, .. }) = tap_action {
+                    let cmd = Command::TapForMana {
+                        player: app.human_player,
+                        source: *obj_id,
+                        ability_index: *ability_index,
+                    };
+                    app.execute_command(cmd)?;
+                } else {
+                    app.status_message = Some(format!(
+                        "'{}' can't tap for mana (tapped or no mana ability)",
+                        name
+                    ));
+                }
             }
         }
 
-        // Attack mode
+        // Attack mode — only if attacks are available
         KeyCode::Char('a') => {
-            app.mode = InputMode::AttackerDeclaration;
-            app.status_message =
-                Some("Select attackers: [1-9] toggle, [Enter] confirm, [Esc] cancel".into());
+            let has_attack = legal
+                .iter()
+                .any(|a| matches!(a, LegalAction::DeclareAttackers { .. }));
+            if has_attack {
+                app.mode = InputMode::AttackerDeclaration;
+                app.status_message =
+                    Some("Declare attackers: [Enter] attack with all, [Esc] cancel".into());
+            } else {
+                app.status_message = Some(
+                    "Can't attack now (need Declare Attackers step, your turn)".into(),
+                );
+            }
+        }
+
+        // Activate ability
+        KeyCode::Char('e') => {
+            let bf = app.battlefield_objects(app.human_player);
+            if let Some((obj_id, name, _)) = bf.get(app.selected_bf_idx) {
+                let ability_action = legal.iter().find(
+                    |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == *obj_id),
+                );
+                if let Some(LegalAction::ActivateAbility { ability_index, .. }) = ability_action {
+                    let cmd = Command::ActivateAbility {
+                        player: app.human_player,
+                        source: *obj_id,
+                        ability_index: *ability_index,
+                        targets: Vec::new(),
+                    };
+                    app.execute_command(cmd)?;
+                } else {
+                    app.status_message =
+                        Some(format!("'{}' has no activatable ability right now", name));
+                }
+            }
         }
 
         // Navigate hand
