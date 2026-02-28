@@ -1,0 +1,1550 @@
+{
+  "commander": "Winota, Joiner of Forces",
+  "colors": [
+    "W",
+    "R"
+  ],
+  "archetype": "Aggro/Cheat",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/15585118",
+  "archidekt_id": 15585118,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Soulless Jailer",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Permanent cards in graveyards can't enter the battlefield.\nPlayers can't cast noncreature spells from graveyards or exile.",
+      "keywords": [],
+      "subtypes": [
+        "Golem",
+        "Phyrexian"
+      ],
+      "power": "0",
+      "toughness": "4"
+    },
+    {
+      "name": "Greymond, Avacyn's Stalwart",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "As Greymond, Avacyn's Stalwart enters, choose two abilities from among first strike, vigilance, and lifelink.\nHumans you control have each of the chosen abilities.\nAs long as you control four or more Humans, Humans you control get +2/+2.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Kiki-Jiki, Mirror Breaker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\n{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Battlefield Forge",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This land deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "City of Brass",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever this land becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Clifftop Retreat",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Evolving Wilds",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blade Historian",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R/W}{R/W}{R/W}{R/W}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Attacking creatures you control have double strike.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Cleric"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Plains",
+      "quantity": 13,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}.)",
+      "keywords": [],
+      "subtypes": [
+        "Plains"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Path to Exile",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swords to Plowshares",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Goblin Rabblemaster",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Mountain",
+      "quantity": 14,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R}.)",
+      "keywords": [],
+      "subtypes": [
+        "Mountain"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Skrelv, Defector Mite",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn. ({W/P} can be paid with either {W} or 2 life.)",
+      "keywords": [
+        "Toxic"
+      ],
+      "subtypes": [
+        "Phyrexian",
+        "Mite"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Spectator Seating",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {R} or {W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sundown Pass",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {R} or {W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dawnstrike Vanguard",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{W}",
+      "cmc": 6,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Lifelink\nAt the beginning of your end step, if you control two or more tapped creatures, put a +1/+1 counter on each creature you control other than this creature.",
+      "keywords": [
+        "Lifelink"
+      ],
+      "subtypes": [
+        "Human",
+        "Knight"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Loyal Apprentice",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn.",
+      "keywords": [
+        "Haste",
+        "Lieutenant"
+      ],
+      "subtypes": [
+        "Human",
+        "Artificer"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Alseid of Life's Bounty",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Enchantment"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Lifelink\n{1}, Sacrifice this creature: Target creature or enchantment you control gains protection from the color of your choice until end of turn.",
+      "keywords": [
+        "Lifelink"
+      ],
+      "subtypes": [
+        "Nymph"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Grand Abolisher",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{W}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Cleric"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Boromir, Warden of the Tower",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Vigilance\nWhenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.\nSacrifice Boromir: Creatures you control gain indestructible until end of turn. The Ring tempts you.",
+      "keywords": [
+        "Vigilance"
+      ],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Fellwar Stone",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Phoenix Chick",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, haste\nThis creature can't block.\nWhenever you attack with three or more creatures, you may pay {R}{R}. If you do, return this card from your graveyard to the battlefield tapped and attacking with a +1/+1 counter on it.",
+      "keywords": [
+        "Flying",
+        "Haste"
+      ],
+      "subtypes": [
+        "Phoenix"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Talisman of Conviction",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This artifact deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sokenzan, Crucible of Defiance",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control.",
+      "keywords": [
+        "Channel"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Éomer, King of Rohan",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{W}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Double strike\nÉomer enters with a +1/+1 counter on it for each other Human you control.\nWhen Éomer enters, target player becomes the monarch. Éomer deals damage equal to its power to any target.",
+      "keywords": [
+        "Double strike"
+      ],
+      "subtypes": [
+        "Human",
+        "Noble"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Boros Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{1}, {T}: Add {R}{W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Alexios, Deimos of Kosmos",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Trample\nAlexios attacks each combat if able, can't be sacrificed, and can't attack its owner.\nAt the beginning of each player's upkeep, that player gains control of Alexios, untaps it, and puts a +1/+1 counter on it. It gains haste until end of turn.",
+      "keywords": [
+        "Trample"
+      ],
+      "subtypes": [
+        "Human",
+        "Berserker"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Mind Stone",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Myrel, Shield of Argive",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.\nWhenever Myrel attacks, create X 1/1 colorless Soldier artifact creature tokens, where X is the number of Soldiers you control.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Goldhound",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "First strike\nMenace (This creature can't be blocked except by two or more creatures.)\n{T}, Sacrifice this creature: Add one mana of any color.",
+      "keywords": [
+        "Menace",
+        "First strike"
+      ],
+      "subtypes": [
+        "Treasure",
+        "Dog"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Gingerbrute",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{1}: This creature can't be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Golem",
+        "Food"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Professional Face-Breaker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Menace\nWhenever one or more creatures you control deal combat damage to a player, create a Treasure token.\nSacrifice a Treasure: Exile the top card of your library. You may play that card this turn.",
+      "keywords": [
+        "Treasure",
+        "Menace"
+      ],
+      "subtypes": [
+        "Human",
+        "Warrior"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Voice of Victory",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning of the next end step.)\nYour opponents can't cast spells during your turn.",
+      "keywords": [
+        "Mobilize"
+      ],
+      "subtypes": [
+        "Human",
+        "Bard"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Flawless Maneuver",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCreatures you control gain indestructible until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Zealous Conscripts",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nWhen this creature enters, gain control of target permanent until end of turn. Untap that permanent. It gains haste until end of turn.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Human",
+        "Warrior"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Myr Convert",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\n{T}, Pay 2 life: Add one mana of any color.",
+      "keywords": [
+        "Toxic"
+      ],
+      "subtypes": [
+        "Myr",
+        "Phyrexian"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Serra Ascendant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Lifelink (Damage dealt by this creature also causes you to gain that much life.)\nAs long as you have 30 or more life, this creature gets +5/+5 and has flying.",
+      "keywords": [
+        "Lifelink"
+      ],
+      "subtypes": [
+        "Human",
+        "Monk"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Phyrexian Walker",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Construct",
+        "Phyrexian"
+      ],
+      "power": "0",
+      "toughness": "3"
+    },
+    {
+      "name": "Winota, Joiner of Forces",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": true,
+      "oracle_text": "Whenever a non-Human creature you control attacks, look at the top six cards of your library. You may put a Human creature card from among them onto the battlefield tapped and attacking. It gains indestructible until end of turn. Put the rest of the cards on the bottom of your library in a random order.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Warrior"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Lightning, Army of One",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "First strike, trample, lifelink\nStagger — Whenever Lightning deals combat damage to a player, until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage instead.",
+      "keywords": [
+        "Trample",
+        "First strike",
+        "Lifelink",
+        "Stagger"
+      ],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Boros Charm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ornithopter",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Flying",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Thopter"
+      ],
+      "power": "0",
+      "toughness": "2"
+    },
+    {
+      "name": "Windcrag Siege",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "As this enchantment enters, choose Mardu or Jeskai.\n• Mardu — If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\n• Jeskai — At the beginning of your upkeep, create a 1/1 red Goblin creature token. It gains lifelink and haste until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Witch Enchanter // Witch-Blessed Meadow",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Warlock"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Untimely Malfunction",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Destroy target artifact.\n• Change the target of target spell or ability with a single target.\n• One or two target creatures can't block this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ephemerate",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+      "keywords": [
+        "Rebound"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lena, Selfless Champion",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{W}{W}",
+      "cmc": 6,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "When Lena enters, create a 1/1 white Soldier creature token for each nontoken creature you control.\nSacrifice Lena: Creatures you control with power less than Lena's power gain indestructible until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Knight"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Bolt Bend",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This spell costs {3} less to cast if you control a creature with power 4 or greater.\nChange the target of target spell or ability with a single target.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Unbreakable Formation",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures you control gain indestructible until end of turn.\nAddendum — If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn.",
+      "keywords": [
+        "Addendum"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cathar Commando",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\n{1}, Sacrifice this creature: Destroy target artifact or enchantment.",
+      "keywords": [
+        "Flash"
+      ],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "power": "3",
+      "toughness": "1"
+    },
+    {
+      "name": "Touch the Spirit Realm",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "When this enchantment enters, exile up to one target artifact or creature until this enchantment leaves the battlefield.\nChannel — {1}{W}, Discard this card: Exile target artifact or creature. Return it to the battlefield under its owner's control at the beginning of the next end step.",
+      "keywords": [
+        "Channel"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Legion Warboss",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token gains haste until end of turn and attacks this combat if able.",
+      "keywords": [
+        "Mentor"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Soldier"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Mirage Phalanx",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Soulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nAs long as Mirage Phalanx is paired with another creature, each of those creatures has \"At the beginning of combat on your turn, create a token that's a copy of this creature, except it has haste and loses soulbond. Exile it at end of combat.\"",
+      "keywords": [
+        "Soulbond"
+      ],
+      "subtypes": [
+        "Human",
+        "Soldier"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reprieve",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Return target spell to its owner's hand.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Legion's Landing // Adanto, the First Fort",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Transform"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Oketra's Monument",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "White creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, create a 1/1 white Warrior creature token with vigilance.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Akroma's Will",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tibalt's Trickery",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell. Choose 1, 2, or 3 at random. Its controller mills that many cards, then exiles cards from the top of their library until they exile a nonland card with a different name than that spell. They may cast that card without paying its mana cost. Then they put the exiled cards on the bottom of their library in a random order.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Chaos Warp",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Combat Celebrant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)",
+      "keywords": [
+        "Exert"
+      ],
+      "subtypes": [
+        "Human",
+        "Warrior"
+      ],
+      "power": "4",
+      "toughness": "1"
+    },
+    {
+      "name": "Abrade",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wear // Tear",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R} // {W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Fuse"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swiftfoot Boots",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rest in Peace",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "When this enchantment enters, exile all graveyards.\nIf a card or token would be put into a graveyard from anywhere, exile it instead.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Martial Coup",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{W}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Create X 1/1 white Soldier creature tokens. If X is 5 or more, destroy all other creatures.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Breath of Fury",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant creature you control\nWhen enchanted creature deals combat damage to a player, sacrifice it and attach this Aura to a creature you control. If you do, untap all creatures you control and after this phase, there is an additional combat phase.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Signal Pest",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nThis creature can't be blocked except by creatures with flying or reach.",
+      "keywords": [
+        "Battle Cry"
+      ],
+      "subtypes": [
+        "Pest"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Rionya, Fire Dancer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of combat on your turn, create X tokens that are copies of another target creature you control, where X is one plus the number of instant and sorcery spells you've cast this turn. They gain haste. Exile them at the beginning of the next end step.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Ornithopter of Paradise",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Flying\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Thopter"
+      ],
+      "power": "0",
+      "toughness": "2"
+    }
+  ]
+}

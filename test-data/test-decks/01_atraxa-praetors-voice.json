@@ -1,0 +1,2046 @@
+{
+  "commander": "Atraxa, Praetors' Voice",
+  "colors": [
+    "W",
+    "U",
+    "B",
+    "G"
+  ],
+  "archetype": "Superfriends/+1",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/4752046",
+  "archidekt_id": 4752046,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Putrefy",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target artifact or creature. It can't be regenerated.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Woodland Cemetery",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Noble Hierarch",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\n{T}: Add {G}, {W}, or {U}.",
+      "keywords": [
+        "Exalted"
+      ],
+      "subtypes": [
+        "Human",
+        "Druid"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Undergrowth Stadium",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Seaside Citadel",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}, {W}, or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swords to Plowshares",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Zagoth Triome",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}, {G}, or {U}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Island",
+        "Swamp",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vulpikeet",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {2}{W} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nFlying\nWhenever this creature mutates, put a +1/+1 counter on it.",
+      "keywords": [
+        "Flying",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Bird",
+        "Fox"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Conclave Mentor",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on that creature instead.\nWhen this creature dies, you gain life equal to its power.",
+      "keywords": [],
+      "subtypes": [
+        "Cleric",
+        "Centaur"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Champion of Lambholt",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures with power less than this creature's power can't block creatures you control.\nWhenever another creature you control enters, put a +1/+1 counter on this creature.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Warrior"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Triumph of the Hordes",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Until end of turn, creatures you control get +1/+1 and gain trample and infect. (Creatures with infect deal damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rejuvenating Springs",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {G} or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Prologue to Phyresis",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Each opponent gets a poison counter.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Necropanther",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {2}{W/B}{W/B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nWhenever this creature mutates, return target creature card with mana value 3 or less from your graveyard to the battlefield.",
+      "keywords": [
+        "Mutate"
+      ],
+      "subtypes": [
+        "Cat",
+        "Nightmare"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Vault of Champions",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ichor Rats",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nWhen this creature enters, each player gets a poison counter.",
+      "keywords": [
+        "Infect"
+      ],
+      "subtypes": [
+        "Rat",
+        "Phyrexian"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Hardened Scales",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cultivate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Doubling Season",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{4}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Grateful Apparition",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature deals combat damage to a player or planeswalker, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Flying",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mindleecher",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {4}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nFlying\nWhenever this creature mutates, exile the top card of each opponent's library face down. You may look at and play those cards for as long as they remain exiled.",
+      "keywords": [
+        "Flying",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Nightmare"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Hallowed Fountain",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Island"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mortify",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target creature or enchantment.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plague Myr",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{T}: Add {C}.",
+      "keywords": [
+        "Infect"
+      ],
+      "subtypes": [
+        "Myr",
+        "Phyrexian"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Temple Garden",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vraska, Betrayal's Sting",
+      "quantity": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "mana_cost": "{4}{B}{B/P}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n−2: Target creature becomes a Treasure artifact with \"{T}, Sacrifice this artifact: Add one mana of any color\" and loses all other card types and abilities.\n−9: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.",
+      "keywords": [
+        "Compleated",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Vraska"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": "",
+      "loyalty": "6"
+    },
+    {
+      "name": "Forest",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swamp",
+      "quantity": 2,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sunpetal Grove",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Forest or a Plains.\n{T}: Add {G} or {W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plains",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}.)",
+      "keywords": [],
+      "subtypes": [
+        "Plains"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bojuka Bog",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Island",
+      "quantity": 2,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Toothy, Imaginary Friend",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Partner with Pir, Imaginative Rascal (When this creature enters, target player may put Pir into their hand from their library, then shuffle.)\nWhenever you draw a card, put a +1/+1 counter on Toothy.\nWhen Toothy leaves the battlefield, draw a card for each +1/+1 counter on it.",
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "subtypes": [
+        "Illusion"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Sea-Dasher Octopus",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {1}{U} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nFlash\nWhenever this creature deals combat damage to a player, draw a card.",
+      "keywords": [
+        "Flash",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Octopus"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Venerated Rotpriest",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nWhenever a creature you control becomes the target of a spell, target opponent gets a poison counter.",
+      "keywords": [
+        "Toxic"
+      ],
+      "subtypes": [
+        "Druid",
+        "Phyrexian"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Brokkos, Apex of Forever",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{G}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {2}{U/B}{G}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nTrample\nYou may cast this card from your graveyard using its mutate ability.",
+      "keywords": [
+        "Trample",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Beast",
+        "Elemental",
+        "Nightmare"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Indatha Triome",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}, {B}, or {G}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Plains",
+        "Swamp",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Drannith Magistrate",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Your opponents can't cast spells from anywhere other than their hands.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Roalesk, Apex Hybrid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, trample\nWhen Roalesk enters, put two +1/+1 counters on another target creature you control.\nWhen Roalesk dies, proliferate, then proliferate again. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+      "keywords": [
+        "Flying",
+        "Trample",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Human",
+        "Mutant"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Drowned Catacomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add {U} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mana Confluence",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Inkmoth Nexus",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Phyrexian Blinkmoth artifact creature with flying and infect until end of turn. It's still a land. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reliquary Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Evolution Sage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Landfall — Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Landfall",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Sea of Clouds",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Karn's Bastion",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Proliferate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plague Stinger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+      "keywords": [
+        "Flying",
+        "Infect"
+      ],
+      "subtypes": [
+        "Horror",
+        "Insect",
+        "Phyrexian"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Incubation Druid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any type that a land you control could produce. If this creature has a +1/+1 counter on it, add three mana of that type instead.\n{3}{G}{G}: Adapt 3. (If this creature has no +1/+1 counters on it, put three +1/+1 counters on it.)",
+      "keywords": [
+        "Adapt"
+      ],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "0",
+      "toughness": "2"
+    },
+    {
+      "name": "Sandsteppe Citadel",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {W}, {B}, or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gemrazer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {1}{G}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nReach, trample\nWhenever this creature mutates, destroy target artifact or enchantment an opponent controls.",
+      "keywords": [
+        "Reach",
+        "Trample",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Beast"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Nethroi, Apex of Death",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}{B}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {4}{G/W}{B}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nDeathtouch, lifelink\nWhenever this creature mutates, return any number of target creature cards with total power 10 or less from your graveyard to the battlefield.",
+      "keywords": [
+        "Lifelink",
+        "Deathtouch",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Beast",
+        "Cat",
+        "Nightmare"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Aven Mindcensor",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nFlying\nIf an opponent would search a library, that player searches the top four cards of that library instead.",
+      "keywords": [
+        "Flying",
+        "Flash"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Bird"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Hinterland Harbor",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Forest or an Island.\n{T}: Add {G} or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dovin's Veto",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nCounter target noncreature spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blighted Agent",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nThis creature can't be blocked.",
+      "keywords": [
+        "Infect"
+      ],
+      "subtypes": [
+        "Human",
+        "Rogue",
+        "Phyrexian"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Phyrexian Crusader",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "First strike, protection from red and from white\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+      "keywords": [
+        "Infect",
+        "First strike",
+        "Protection"
+      ],
+      "subtypes": [
+        "Knight",
+        "Zombie",
+        "Phyrexian"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Opulent Palace",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}, {G}, or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Supreme Verdict",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{W}{W}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nDestroy all creatures.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Glowstone Recluse",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Mutate {3}{G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nReach\nWhenever this creature mutates, put two +1/+1 counters on it.",
+      "keywords": [
+        "Reach",
+        "Mutate"
+      ],
+      "subtypes": [
+        "Spider"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Breeding Pool",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Skithiryx, the Blight Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nInfect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{B}: Skithiryx gains haste until end of turn.\n{B}{B}: Regenerate Skithiryx.",
+      "keywords": [
+        "Flying",
+        "Infect"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Skeleton",
+        "Phyrexian"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Morphic Pool",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {U} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Shalai, Voice of Plenty",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nYou, planeswalkers you control, and other creatures you control have hexproof.\n{4}{G}{G}: Put a +1/+1 counter on each creature you control.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Angel"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Phyrexian Swarmlord",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nAt the beginning of your upkeep, create a 1/1 green Phyrexian Insect creature token with infect for each poison counter your opponents have.",
+      "keywords": [
+        "Infect"
+      ],
+      "subtypes": [
+        "Horror",
+        "Insect",
+        "Phyrexian"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Utter End",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target nonland permanent.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Sanctum",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {W}, {U}, or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Contentious Plan",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nDraw a card.",
+      "keywords": [
+        "Proliferate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Pir, Imaginative Rascal",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Partner with Toothy, Imaginary Friend (When this creature enters, target player may put Toothy into their hand from their library, then shuffle.)\nIf one or more counters would be put on a permanent your team controls, that many plus one of each of those kinds of counters are put on that permanent instead.",
+      "keywords": [
+        "Partner with",
+        "Partner"
+      ],
+      "subtypes": [
+        "Human"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Scavenging Ooze",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{G}: Exile target card from a graveyard. If it was a creature card, put a +1/+1 counter on this creature and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Ooze"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Sword of Truth and Justice",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature gets +2/+2 and has protection from white and from blue.\nWhenever equipped creature deals combat damage to a player, put a +1/+1 counter on a creature you control, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nEquip {2}",
+      "keywords": [
+        "Equip",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Astral Cornucopia",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{X}{X}{X}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This artifact enters with X charge counters on it.\n{T}: Choose a color. Add one mana of that color for each charge counter on this artifact.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ghave, Guru of Spores",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}{B}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Ghave enters with five +1/+1 counters on it.\n{1}, Remove a +1/+1 counter from a creature you control: Create a 1/1 green Saproling creature token.\n{1}, Sacrifice a creature: Put a +1/+1 counter on target creature.",
+      "keywords": [],
+      "subtypes": [
+        "Fungus",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Deepglow Skate",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, double the number of each kind of counter on any number of target permanents.",
+      "keywords": [],
+      "subtypes": [
+        "Fish"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Birds of Paradise",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Bird"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Spike Weaver",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This creature enters with three +1/+1 counters on it.\n{2}, Remove a +1/+1 counter from this creature: Put a +1/+1 counter on target creature.\n{1}, Remove a +1/+1 counter from this creature: Prevent all combat damage that would be dealt this turn.",
+      "keywords": [],
+      "subtypes": [
+        "Spike"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Fathom Mage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)\nWhenever a +1/+1 counter is put on this creature, you may draw a card.",
+      "keywords": [
+        "Evolve"
+      ],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Corpsejack Menace",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on it instead.",
+      "keywords": [],
+      "subtypes": [
+        "Fungus"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Inexorable Tide",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast a spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Proliferate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Watery Grave",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Anguished Unmaking",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target nonland permanent. You lose 3 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Counterspell",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Simic Ascendancy",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{1}{G}{U}: Put a +1/+1 counter on target creature you control.\nWhenever one or more +1/+1 counters are put on a creature you control, put that many growth counters on this enchantment.\nAt the beginning of your upkeep, if this enchantment has twenty or more growth counters on it, you win the game.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forgotten Ancient",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a player casts a spell, you may put a +1/+1 counter on this creature.\nAt the beginning of your upkeep, you may move any number of +1/+1 counters from this creature onto other creatures.",
+      "keywords": [],
+      "subtypes": [
+        "Elemental"
+      ],
+      "power": "0",
+      "toughness": "3"
+    },
+    {
+      "name": "Flux Channeler",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast a noncreature spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Master Biomancer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types.",
+      "keywords": [],
+      "subtypes": [
+        "Wizard",
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Mother of Runes",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Target creature you control gains protection from the color of your choice until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Cleric"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Contagion Engine",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{6}",
+      "cmc": 6,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "When this artifact enters, put a -1/-1 counter on each creature target player controls.\n{4}, {T}: Proliferate twice. (Choose any number of permanents and/or players, then give each another counter of each kind already there. Then do it again.)",
+      "keywords": [
+        "Proliferate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Atraxa, Praetors' Voice",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}{W}{U}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Black",
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Flying",
+        "Vigilance",
+        "Lifelink",
+        "Deathtouch",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Angel",
+        "Horror",
+        "Phyrexian"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Hand of the Praetors",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nOther creatures you control with infect get +1/+1.\nWhenever you cast a creature spell with infect, target player gets a poison counter.",
+      "keywords": [
+        "Infect"
+      ],
+      "subtypes": [
+        "Zombie",
+        "Phyrexian"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Glacial Fortress",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Godless Shrine",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Overgrown Tomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Swamp",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Faeburrow Elder",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Vigilance\nThis creature gets +1/+1 for each color among permanents you control.\n{T}: For each color among permanents you control, add one mana of that color.",
+      "keywords": [
+        "Vigilance"
+      ],
+      "subtypes": [
+        "Druid",
+        "Treefolk"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Bountiful Promenade",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {G} or {W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    }
+  ]
+}

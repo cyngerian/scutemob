@@ -1,0 +1,1680 @@
+{
+  "commander": "Selvala, Heart of the Wilds",
+  "colors": [
+    "G"
+  ],
+  "archetype": "Mono-Green Ramp",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/5150813",
+  "archidekt_id": 5150813,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Ashaya, Soul of the Wild",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Ashaya's power and toughness are each equal to the number of lands you control.\nNontoken creatures you control are Forest lands in addition to their other types. (They're still affected by summoning sickness.)",
+      "keywords": [],
+      "subtypes": [
+        "Elemental"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "*",
+      "toughness": "*"
+    },
+    {
+      "name": "Fierce Empath",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for a creature card with mana value 6 or greater, reveal it, put it into your hand, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mox Amber",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color among legendary creatures and planeswalkers you control.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Concordant Crossroads",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "All creatures have haste.",
+      "keywords": [],
+      "supertypes": [
+        "World"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Life's Legacy",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw cards equal to the sacrificed creature's power.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Autumn's Veil",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Spells you control can't be countered by blue or black spells this turn, and creatures you control can't be the targets of blue or black spells this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nykthos, Shrine to Nyx",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. (Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wild Growth",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Soul's Majesty",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Draw cards equal to the power of target creature you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rishkar's Expertise",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Draw cards equal to the greatest power among creatures you control.\nYou may cast a spell with mana value 5 or less from your hand without paying its mana cost.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Endurance",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nReach\nWhen this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order.\nEvoke—Exile a green card from your hand.",
+      "keywords": [
+        "Reach",
+        "Flash",
+        "Evoke"
+      ],
+      "subtypes": [
+        "Elemental",
+        "Incarnation"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mobilize",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Untap all creatures you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Return of the Wildspeaker",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{4}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Draw cards equal to the greatest power among non-Human creatures you control.\n• Non-Human creatures you control get +3/+3 until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Green Sun's Zenith",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a green creature card with mana value X or less, put it onto the battlefield, then shuffle. Shuffle Green Sun's Zenith into its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Chrome Mox",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors.",
+      "keywords": [
+        "Imprint"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elvish Spirit Guide",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Exile this creature from your hand: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Spirit"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Woodland Bellower",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for a nonlegendary green creature card with mana value 3 or less, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Beast"
+      ],
+      "power": "6",
+      "toughness": "5"
+    },
+    {
+      "name": "Worldly Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a creature card, reveal it, then shuffle and put the card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Last March of the Ents",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{6}{G}{G}",
+      "cmc": 8,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nDraw cards equal to the greatest toughness among creatures you control, then put any number of creature cards from your hand onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Berserk",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Cast this spell only before the combat damage step.\nTarget creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Summoner's Pact",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a green creature card, reveal it, put it into your hand, then shuffle.\nAt the beginning of your next upkeep, pay {2}{G}{G}. If you don't, you lose the game.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Momentous Fall",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nYou draw cards equal to the sacrificed creature's power, then you gain life equal to its toughness.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hyrax Tower Scout",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, untap target creature.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Scout"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Yavimaya Hollow",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{G}, {T}: Regenerate target creature.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Outcaster Trailblazer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, add one mana of any color.\nWhenever another creature you control with power 4 or greater enters, draw a card.\nPlot {2}{G} (You may pay {2}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+      "keywords": [
+        "Plot"
+      ],
+      "subtypes": [
+        "Human",
+        "Druid"
+      ],
+      "power": "4",
+      "toughness": "2"
+    },
+    {
+      "name": "Chord of Calling",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{X}{G}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nSearch your library for a creature card with mana value X or less, put it onto the battlefield, then shuffle.",
+      "keywords": [
+        "Convoke"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Phyrexian Dreadnought",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Trample\nWhen this creature enters, sacrifice it unless you sacrifice any number of creatures with total power 12 or greater.",
+      "keywords": [
+        "Trample"
+      ],
+      "subtypes": [
+        "Dreadnought",
+        "Phyrexian"
+      ],
+      "power": "12",
+      "toughness": "12"
+    },
+    {
+      "name": "Lotus Petal",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Birds of Paradise",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Bird"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Carpet of Flowers",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of each of your main phases, if you haven't added mana with this ability this turn, you may add X mana of any one color, where X is the number of Islands target opponent controls.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reclamation Sage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may destroy target artifact or enchantment.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Fyndhorn Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Keen-Eyed Curator",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As long as there are four or more card types among cards exiled with this creature, it gets +4/+4 and has trample.\n{1}: Exile target card from a graveyard.",
+      "keywords": [],
+      "subtypes": [
+        "Scout",
+        "Raccoon"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Llanowar Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Aspect of Hydra",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Target creature gets +X/+X until end of turn, where X is your devotion to green. (Each {G} in the mana costs of permanents you control counts toward your devotion to green.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Utopia Sprawl",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant Forest\nAs this Aura enters, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elvish Mystic",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Invasion of Ikoria // Zilortha, Apex of Ikoria",
+      "quantity": 1,
+      "types": [
+        "Battle"
+      ],
+      "mana_cost": "",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Reach",
+        "Transform"
+      ],
+      "subtypes": [
+        "Siege"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Umbral Mantle",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has \"{3}, {Q}: This creature gets +2/+2 until end of turn.\" ({Q} is the untap symbol.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ghalta, Primal Hunger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{10}{G}{G}",
+      "cmc": 12,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This spell costs {X} less to cast, where X is the total power of creatures you control.\nTrample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)",
+      "keywords": [
+        "Trample"
+      ],
+      "subtypes": [
+        "Elder",
+        "Dinosaur"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "12",
+      "toughness": "12"
+    },
+    {
+      "name": "Temur Sabertooth",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{1}{G}: You may return another creature you control to its owner's hand. If you do, this creature gains indestructible until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Cat"
+      ],
+      "power": "4",
+      "toughness": "3"
+    },
+    {
+      "name": "Badgermole Cub",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, earthbend 1. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)\nWhenever you tap a creature for mana, add an additional {G}.",
+      "keywords": [
+        "Earthbend"
+      ],
+      "subtypes": [
+        "Mole",
+        "Badger"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Sylvan Library",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nature's Rhythm",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{G}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a creature card with mana value X or less, put it onto the battlefield, then shuffle.\nHarmonize {X}{G}{G}{G}{G} (You may cast this card from your graveyard for its harmonize cost. You may tap a creature you control to reduce that cost by an amount of generic mana equal to its power. Then exile this spell.)",
+      "keywords": [
+        "Harmonize"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Selvala, Heart of the Wilds",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "Whenever another creature enters, its controller may draw a card if its power is greater than each other creature's power.\n{G}, {T}: Add X mana in any combination of colors, where X is the greatest power among creatures you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Scout"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Formidable Speaker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may discard a card. If you do, search your library for a creature card, reveal it, put it into your hand, then shuffle.\n{1}, {T}: Untap another target permanent.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Bygone Colossus",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{9}",
+      "cmc": 9,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Warp {3} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)",
+      "keywords": [
+        "Warp"
+      ],
+      "subtypes": [
+        "Giant",
+        "Robot"
+      ],
+      "power": "9",
+      "toughness": "9"
+    },
+    {
+      "name": "Invigorate",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If you control a Forest, rather than pay this spell's mana cost, you may have an opponent gain 3 life.\nTarget creature gets +4/+4 until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forest",
+      "quantity": 15,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Garruk, Primal Hunter",
+      "quantity": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "mana_cost": "{2}{G}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "+1: Create a 3/3 green Beast creature token.\n−3: Draw cards equal to the greatest power among creatures you control.\n−6: Create a 6/6 green Wurm creature token for each land you control.",
+      "keywords": [],
+      "subtypes": [
+        "Garruk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": "",
+      "loyalty": "3"
+    },
+    {
+      "name": "Disciple of Freyalise // Garden of Freyalise",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Boseiju, Who Endures",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.",
+      "keywords": [
+        "Channel"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Legolas's Quick Reflexes",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains hexproof, reach, and \"Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature.\"",
+      "keywords": [
+        "Split second"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vines of Vastwood",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nTarget creature can't be the target of spells or abilities your opponents control this turn. If this spell was kicked, that creature gets +4/+4 until end of turn.",
+      "keywords": [
+        "Kicker"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kogla, the Titan Ape",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When Kogla enters, it fights up to one target creature you don't control.\nWhenever Kogla attacks, destroy target artifact or enchantment defending player controls.\n{1}{G}: Return target Human you control to its owner's hand. Kogla gains indestructible until end of turn.",
+      "keywords": [
+        "Fight"
+      ],
+      "subtypes": [
+        "Ape"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "7",
+      "toughness": "6"
+    },
+    {
+      "name": "Great Oak Guardian",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nReach\nWhen this creature enters, creatures target player controls get +2/+2 until end of turn. Untap them.",
+      "keywords": [
+        "Reach",
+        "Flash"
+      ],
+      "subtypes": [
+        "Treefolk"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Bridgeworks Battle // Tanglespan Bridgeworks",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Fight"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kenrith's Transformation",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant creature\nWhen this Aura enters, draw a card.\nEnchanted creature loses all abilities and is a green Elk creature with base power and toughness 3/3. (It loses all other card types and creature types.)",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Benefactor's Draught",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Untap all creatures. Until end of turn, whenever a creature an opponent controls blocks, draw a card.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Veil of Summer",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Noxious Revival",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G/P}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({G/P} can be paid with either {G} or 2 life.)\nPut target card from a graveyard on top of its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Staff of Domination",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{1}: Untap this artifact.\n{2}, {T}: You gain 1 life.\n{3}, {T}: Untap target creature.\n{4}, {T}: Tap target creature.\n{5}, {T}: Draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gemstone Caverns",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "If this card is in your opening hand and you're not the starting player, you may begin the game with Gemstone Caverns on the battlefield with a luck counter on it. If you do, exile a card from your hand.\n{T}: Add {C}. If Gemstone Caverns has a luck counter on it, instead add one mana of any color.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Crop Rotation",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cavern of Souls",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wirewood Lodge",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{G}, {T}: Untap target Elf.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Allosaurus Shepherd",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nGreen spells you control can't be countered.\n{4}{G}{G}: Until end of turn, each Elf creature you control has base power and toughness 5/5 and becomes a Dinosaur in addition to its other creature types.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Ancient Tomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}. This land deals 2 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Finale of Devastation",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{G}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library and/or graveyard for a creature card with mana value X or less and put it onto the battlefield. If you search your library this way, shuffle. If X is 10 or more, creatures you control get +X/+X and gain haste until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Deserted Temple",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}: Untap target land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Season of Gathering",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose up to five {P} worth of modes. You may choose the same mode more than once.\n{P} — Put a +1/+1 counter on a creature you control. It gains vigilance and trample until end of turn.\n{P}{P} — Choose artifact or enchantment. Destroy all permanents of the chosen type.\n{P}{P}{P} — Draw cards equal to the greatest power among creatures you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Yavimaya, Cradle of Growth",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Each land is a Forest in addition to its other land types.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gaea's Cradle",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G} for each creature you control.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Delighted Halfling",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell, and that spell can't be countered.",
+      "keywords": [],
+      "subtypes": [
+        "Citizen",
+        "Halfling"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Arbor Elf",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Untap target Forest.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Wirewood Symbiote",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return an Elf you control to its owner's hand: Untap target creature. Activate only once each turn.",
+      "keywords": [],
+      "subtypes": [
+        "Insect"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Quirion Ranger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return a Forest you control to its owner's hand: Untap target creature. Activate only once each turn.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Ranger"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Scryb Ranger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nFlying, protection from blue\nReturn a Forest you control to its owner's hand: Untap target creature. Activate only once each turn.",
+      "keywords": [
+        "Flying",
+        "Flash",
+        "Protection"
+      ],
+      "subtypes": [
+        "Faerie",
+        "Ranger"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Vitalize",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Untap all creatures you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Eternal Witness",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may return target card from your graveyard to your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Thousand-Year Elixir",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You may activate abilities of creatures you control as though those creatures had haste.\n{1}, {T}: Untap target creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Force of Vigor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If it's not your turn, you may exile a green card from your hand rather than pay this spell's mana cost.\nDestroy up to two target artifacts and/or enchantments.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Regal Force",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, draw a card for each green creature you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elemental"
+      ],
+      "power": "5",
+      "toughness": "5"
+    }
+  ]
+}

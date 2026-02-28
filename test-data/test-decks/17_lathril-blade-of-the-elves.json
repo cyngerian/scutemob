@@ -1,0 +1,1638 @@
+{
+  "commander": "Lathril, Blade of the Elves",
+  "colors": [
+    "B",
+    "G"
+  ],
+  "archetype": "Tribal Elf",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/2781081",
+  "archidekt_id": 2781081,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Joraga Treespeaker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Level up {1}{G} ({1}{G}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n1/2\n{T}: Add {G}{G}.\nLEVEL 5+\n1/4\nElves you control have \"{T}: Add {G}{G}.\"",
+      "keywords": [
+        "Level Up"
+      ],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Temple of Malady",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {B} or {G}.",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Secluded Courtyard",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type or activate an ability of a creature source of the chosen type.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elderfang Ritualist",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature dies, return another target Elf card from your graveyard to your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Cleric",
+        "Elf"
+      ],
+      "power": "3",
+      "toughness": "1"
+    },
+    {
+      "name": "Canopy Tactician",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Other Elves you control get +1/+1.\n{T}: Add {G}{G}{G}.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Skemfar Shadowsage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, choose one —\n• Each opponent loses X life, where X is the greatest number of creatures you control that have a creature type in common.\n• You gain X life, where X is the greatest number of creatures you control that have a creature type in common.",
+      "keywords": [],
+      "subtypes": [
+        "Cleric",
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "5"
+    },
+    {
+      "name": "Wolverine Riders",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of each upkeep, create a 1/1 green Elf Warrior creature token.\nWhenever another Elf you control enters, you gain life equal to its toughness.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Pact of the Serpent",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Choose a creature type. Target player draws X cards and loses X life, where X is the number of creatures they control of the chosen type.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ruthless Winnower",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of each player's upkeep, that player sacrifices a non-Elf creature of their choice.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Rogue"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Wirewood Channeler",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add X mana of any one color, where X is the number of Elves on the battlefield.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Timberwatch Elf",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.",
+      "keywords": [],
+      "subtypes": [
+        "Elf"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Sylvan Messenger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nWhen this creature enters, reveal the top four cards of your library. Put all Elf cards revealed this way into your hand and the rest on the bottom of your library in any order.",
+      "keywords": [
+        "Trample"
+      ],
+      "subtypes": [
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Reclamation Sage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may destroy target artifact or enchantment.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Nullmage Shepherd",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Tap four untapped creatures you control: Destroy target artifact or enchantment.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Marwyn, the Nurturer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.\n{T}: Add an amount of {G} equal to Marwyn's power.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Imperious Perfect",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Other Elves you control get +1/+1.\n{G}, {T}: Create a 1/1 green Elf Warrior creature token.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Llanowar Tribe",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}{G}{G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Lys Alana Huntmaster",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Harvest Season",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for up to X basic land cards, where X is the number of tapped creatures you control, put those cards onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elvish Archdruid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Elvish Mystic",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Elvish Promenade",
+      "quantity": 1,
+      "types": [
+        "Sorcery",
+        "Kindred"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Create a 1/1 green Elf Warrior creature token for each Elf you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Shaman of the Pack",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, target opponent loses life equal to the number of Elves you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Putrefy",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target artifact or creature. It can't be regenerated.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Casualties of War",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}{B}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one or more —\n• Destroy target artifact.\n• Destroy target creature.\n• Destroy target enchantment.\n• Destroy target land.\n• Destroy target planeswalker.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Copperhorn Scout",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature attacks, untap each other creature you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Scout"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Elves of Deep Shadow",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {B}. This creature deals 1 damage to you.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Vitalize",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Untap all creatures you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elvish Warmaster",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever one or more other Elves you control enter, create a 1/1 green Elf Warrior creature token. This ability triggers only once each turn.\n{5}{G}{G}: Elves you control get +2/+2 and gain deathtouch until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Skemfar Avenger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever another nontoken Elf or Berserker you control dies, you draw a card and you lose 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Berserker"
+      ],
+      "power": "3",
+      "toughness": "1"
+    },
+    {
+      "name": "Ezuri, Renegade Leader",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{G}: Regenerate another target Elf.\n{2}{G}{G}{G}: Elf creatures you control get +3/+3 and gain trample until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Wirewood Herald",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature dies, you may search your library for an Elf card, reveal that card, put it into your hand, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Immaculate Magistrate",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Put a +1/+1 counter on target creature for each Elf you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Skyshroud Poacher",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{3}, {T}: Search your library for an Elf permanent card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Rebel"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Shamanic Revelation",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Draw a card for each creature you control.\nFerocious — You gain 4 life for each creature you control with power 4 or greater.",
+      "keywords": [
+        "Ferocious"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Seedborn Muse",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Untap all permanents you control during each other player's untap step.",
+      "keywords": [],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Dwynen, Gilt-Leaf Daen",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reach (This creature can block creatures with flying.)\nOther Elf creatures you control get +1/+1.\nWhenever Dwynen attacks, you gain 1 life for each attacking Elf you control.",
+      "keywords": [
+        "Reach"
+      ],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Gnarlroot Trapper",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life: Add {G}. Spend this mana only to cast an Elf creature spell.\n{T}: Target attacking Elf you control gains deathtouch until end of turn. (Any amount of damage it deals to a creature is enough to destroy it.)",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Heritage Druid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Tap three untapped Elves you control: Add {G}{G}{G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Wirewood Symbiote",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return an Elf you control to its owner's hand: Untap target creature. Activate only once each turn.",
+      "keywords": [],
+      "subtypes": [
+        "Insect"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Yeva, Nature's Herald",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nYou may cast green creature spells as though they had flash.",
+      "keywords": [
+        "Flash"
+      ],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Elvish Dreadlord",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Deathtouch\nWhen this creature dies, non-Elf creatures get -3/-3 until end of turn.\nEncore {5}{B}{B} ({5}{B}{B}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+      "keywords": [
+        "Deathtouch",
+        "Encore"
+      ],
+      "subtypes": [
+        "Elf",
+        "Zombie"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Patriarch's Bidding",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each player chooses a creature type. Each player returns all creature cards of a type chosen this way from their graveyard to the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Leyline of Abundance",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "If this card is in your opening hand, you may begin the game with it on the battlefield.\nWhenever you tap a creature for mana, add an additional {G}.\n{6}{G}{G}: Put a +1/+1 counter on each creature you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gilt-Leaf Palace",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As this land enters, you may reveal an Elf card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tainted Wood",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. Activate only if you control a Swamp.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dwynen's Elite",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, if you control another Elf, create a 1/1 green Elf Warrior creature token.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Tyvar Kell",
+      "quantity": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Elves you control have \"{T}: Add {B}.\"\n+1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.\n0: Create a 1/1 green Elf Warrior creature token.\n−6: You get an emblem with \"Whenever you cast an Elf spell, it gains haste until end of turn and you draw two cards.\"",
+      "keywords": [],
+      "subtypes": [
+        "Tyvar"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": "",
+      "loyalty": "3"
+    },
+    {
+      "name": "Bojuka Bog",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Golgari Findbroker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, return target permanent card from your graveyard to your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Kindred Summons",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{5}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose a creature type. Reveal cards from the top of your library until you reveal X creature cards of the chosen type, where X is the number of creatures you control of that type. Put those cards onto the battlefield, then shuffle the rest of the revealed cards into your library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elven Ambush",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Create a 1/1 green Elf Warrior creature token for each Elf you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Miara, Thorn of the Glade",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever Miara or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two commanders if both have partner.)",
+      "keywords": [
+        "Partner"
+      ],
+      "subtypes": [
+        "Elf",
+        "Scout"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Lys Alana Scarblade",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}, Discard an Elf card: Target creature gets -X/-X until end of turn, where X is the number of Elves you control.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Assassin"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Priest of Titania",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Elderfang Venom",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Attacking Elves you control have deathtouch.\nWhenever an Elf you control dies, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Elvish Harbinger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for an Elf card, reveal it, then shuffle and put that card on top.\n{T}: Add one mana of any color.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Quest for Renewal",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control becomes tapped, you may put a quest counter on this enchantment.\nAs long as there are four or more quest counters on this enchantment, untap all creatures you control during each other player's untap step.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wirewood Lodge",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{G}, {T}: Untap target Elf.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Serpent's Soul-Jar",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever an Elf you control dies, exile it.\n{T}, Pay 2 life: Until end of turn, you may cast a creature spell from among cards exiled with this artifact.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Woodland Cemetery",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Oran-Rief, the Vastwood",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {G}.\n{T}: Put a +1/+1 counter on each green creature that entered this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forest",
+      "quantity": 11,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Llanowar Wastes",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. This land deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Unclaimed Territory",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Necroblossom Snarl",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As this land enters, you may reveal a Swamp or Forest card from your hand. If you don't, this land enters tapped.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Voice of Many",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, draw a card for each opponent who controls fewer creatures than you.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Beast Whisperer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast a creature spell, draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Swamp",
+      "quantity": 10,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Llanowar Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Beast Within",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bounty of Skemfar",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reveal the top six cards of your library. You may put up to one land card from among them onto the battlefield tapped and up to one Elf card from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Golgari Charm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• All creatures get -1/-1 until end of turn.\n• Destroy target enchantment.\n• Regenerate each creature you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fyndhorn Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {G}.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Fauna Shaman",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{G}, {T}, Discard a creature card: Search your library for a creature card, reveal it, put it into your hand, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Eyeblight Massacre",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Non-Elf creatures get -2/-2 until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Harmonize",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Draw three cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Viridescent Bog",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{1}, {T}: Add {B}{G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lathril, Blade of the Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten untapped Elves you control: Each opponent loses 10 life and you gain 10 life.",
+      "keywords": [
+        "Menace"
+      ],
+      "subtypes": [
+        "Elf",
+        "Noble"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    }
+  ]
+}

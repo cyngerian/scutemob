@@ -1,0 +1,1432 @@
+{
+  "commander": "Syr Konrad, the Grim",
+  "colors": [
+    "B"
+  ],
+  "archetype": "Graveyard/Drain",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/1580608",
+  "archidekt_id": 1580608,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Infernal Grasp",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target creature. You lose 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Doom Whisperer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, trample\nPay 2 life: Surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
+      "keywords": [
+        "Flying",
+        "Trample",
+        "Surveil"
+      ],
+      "subtypes": [
+        "Demon",
+        "Nightmare"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Plaguecrafter",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each player sacrifices a creature or planeswalker of their choice. Each player who can't discards a card.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Mindcrank",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever an opponent loses life, that player mills that many cards. (Damage causes loss of life.)",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bloodghast",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Spirit"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Ornithopter of Paradise",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Flying\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Thopter"
+      ],
+      "power": "0",
+      "toughness": "2"
+    },
+    {
+      "name": "Ayara, First of Locthwain",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever Ayara or another black creature you control enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice another black creature: Draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Noble"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Demon's Disciple",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each player sacrifices a creature or planeswalker of their choice.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Cleric"
+      ],
+      "power": "3",
+      "toughness": "1"
+    },
+    {
+      "name": "Yawgmoth, Thran Physician",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Protection from Humans\nPay 1 life, Sacrifice another creature: Put a -1/-1 counter on up to one target creature and draw a card.\n{B}{B}, Discard a card: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+      "keywords": [
+        "Protection",
+        "Proliferate"
+      ],
+      "subtypes": [
+        "Human",
+        "Cleric"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Incarnation Technique",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Demonstrate (When you cast this spell, you may copy it. If you do, choose an opponent to also copy it.)\nMill five cards, then return a creature card from your graveyard to the battlefield.",
+      "keywords": [
+        "Mill",
+        "Demonstrate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gravepurge",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Footbottom Feast",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wake the Dead",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{X}{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Cast this spell only during combat on an opponent's turn.\nReturn X target creature cards from your graveyard to the battlefield. Sacrifice those creatures at the beginning of the next end step.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Morality Shift",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{5}{B}{B}",
+      "cmc": 7,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Exchange your graveyard and library. Then shuffle your library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reassembling Skeleton",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{1}{B}: Return this card from your graveyard to the battlefield tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Skeleton"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Viscera Seer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "keywords": [
+        "Scry"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Vampire"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Zulaport Cutthroat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Rogue",
+        "Ally"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Blood Artist",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Ashnod's Altar",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Phyrexian Altar",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mesmeric Orb",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever a permanent becomes untapped, that permanent's controller mills a card.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gray Merchant of Asphodel",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)",
+      "keywords": [],
+      "subtypes": [
+        "Zombie"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Sign in Blood",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Target player draws two cards and loses 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Deadly Tempest",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy all creatures. Each player loses life equal to the number of creatures they controlled that were destroyed this way.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Night's Whisper",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You draw two cards and lose 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Necropotence",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{B}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Skip your draw step.\nWhenever you discard a card, exile that card from your graveyard.\nPay 1 life: Exile the top card of your library face down. Put that card into your hand at the beginning of your next end step.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bolas's Citadel",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}{B}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You may look at the top card of your library any time.\nYou may play lands and cast spells from the top of your library. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.\n{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Toxic Deluge",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dreadhound",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, mill three cards. (Put the top three cards of your library into your graveyard.)\nWhenever a creature dies or a creature card is put into a graveyard from a library, each opponent loses 1 life.",
+      "keywords": [
+        "Mill"
+      ],
+      "subtypes": [
+        "Demon",
+        "Dog"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Massacre Wurm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, creatures your opponents control get -2/-2 until end of turn.\nWhenever a creature an opponent controls dies, that player loses 2 life.",
+      "keywords": [],
+      "subtypes": [
+        "Wurm",
+        "Phyrexian"
+      ],
+      "power": "6",
+      "toughness": "5"
+    },
+    {
+      "name": "Ravenous Chupacabra",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, destroy target creature an opponent controls.",
+      "keywords": [],
+      "subtypes": [
+        "Beast",
+        "Horror"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Necron Deathmark",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nSynaptic Disintegrator — When this creature enters, destroy up to one target creature and target player mills three cards.",
+      "keywords": [
+        "Flash",
+        "Mill",
+        "Synaptic Disintegrator"
+      ],
+      "subtypes": [
+        "Necron"
+      ],
+      "power": "5",
+      "toughness": "3"
+    },
+    {
+      "name": "Pawn of Ulamog",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another nontoken creature you control dies, you may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\"",
+      "keywords": [],
+      "subtypes": [
+        "Vampire",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Midnight Reaper",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a nontoken creature you control dies, this creature deals 1 damage to you and you draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Knight",
+        "Zombie"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Bojuka Bog",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cabal Stronghold",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{3}, {T}: Add {B} for each basic Swamp you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cabal Coffers",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{2}, {T}: Add {B} for each Swamp you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nykthos, Shrine to Nyx",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. (Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Urborg, Tomb of Yawgmoth",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Each land is a Swamp in addition to its other land types.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Grim Haruspex",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Morph {B} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)\nWhenever another nontoken creature you control dies, draw a card.",
+      "keywords": [
+        "Morph"
+      ],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Crypt of Agadeem",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}.\n{2}, {T}: Add {B} for each black creature card in your graveyard.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fell Stinger",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Deathtouch\nExploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, target player draws two cards and loses 2 life.",
+      "keywords": [
+        "Deathtouch",
+        "Exploit"
+      ],
+      "subtypes": [
+        "Zombie",
+        "Scorpion"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Forever Young",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Living Death",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tombstone Stairwell",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Cumulative upkeep {1}{B} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nAt the beginning of each upkeep, if this enchantment is on the battlefield, each player creates a 2/2 black Zombie creature token with haste named Tombspawn for each creature card in their graveyard.\nAt the beginning of each end step and when this enchantment leaves the battlefield, destroy all tokens created with this enchantment. They can't be regenerated.",
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "supertypes": [
+        "World"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Altar of Dementia",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Target player mills cards equal to the sacrificed creature's power.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tortured Existence",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{B}, Discard a creature card: Return target creature card from your graveyard to your hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Balthor the Defiled",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Minion creatures get +1/+1.\n{B}{B}{B}, Exile Balthor: Each player returns all black and all red creature cards from their graveyard to the battlefield.",
+      "keywords": [],
+      "subtypes": [
+        "Zombie",
+        "Dwarf"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Ophiomancer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of each upkeep, if you control no Snakes, create a 1/1 black Snake creature token with deathtouch.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Millikin",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Mill a card: Add {C}. (To mill a card, put the top card of your library into your graveyard.)",
+      "keywords": [
+        "Mill"
+      ],
+      "subtypes": [
+        "Construct"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Leaden Myr",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {B}.",
+      "keywords": [],
+      "subtypes": [
+        "Myr"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Crypt Ghast",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nWhenever you tap a Swamp for mana, add an additional {B}.",
+      "keywords": [
+        "Extort"
+      ],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Extraplanar Lens",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Imprint — When this artifact enters, you may exile target land you control.\nWhenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced.",
+      "keywords": [
+        "Imprint"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Breach the Multiverse",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{5}{B}{B}",
+      "cmc": 7,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each player mills ten cards. For each player, choose a creature or planeswalker card in that player's graveyard. Put those cards onto the battlefield under your control. Then each creature you control becomes a Phyrexian in addition to its other types.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Braids, Arisen Nightmare",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Nightmare"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Unshakable Tail",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters and at the beginning of your upkeep, surveil 1.\nWhenever one or more creature cards are put into your graveyard from your library, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\n{2}, Sacrifice a Clue: Return this card from your graveyard to your hand.",
+      "keywords": [
+        "Surveil",
+        "Investigate"
+      ],
+      "subtypes": [
+        "Zombie",
+        "Detective"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Out of the Tombs",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your upkeep, put two eon counters on this enchantment, then mill cards equal to the number of eon counters on it.\nIf you would draw a card while your library has no cards in it, instead return a creature card from your graveyard to the battlefield. If you can't, you lose the game.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Syr Konrad, the Grim",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": true,
+      "oracle_text": "Whenever another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard, Syr Konrad deals 1 damage to each opponent.\n{1}{B}: Each player mills a card. (They each put the top card of their library into their graveyard.)",
+      "keywords": [
+        "Mill"
+      ],
+      "subtypes": [
+        "Human",
+        "Knight"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "4"
+    },
+    {
+      "name": "Reanimate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Deadly Rollick",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nExile target creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Witch's Cottage",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)\nThis land enters tapped unless you control three or more other Swamps.\nWhen this land enters untapped, you may put target creature card from your graveyard on top of your library.",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Animate Dead",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant creature card in a graveyard\nWhen this Aura enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with this Aura.\" Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ancient Tomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}. This land deals 2 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Boggart Trawler // Boggart Bog",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kaya's Ghostform",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant creature or planeswalker you control\nWhen enchanted permanent dies or is put into exile, return that card to the battlefield under your control.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Marionette Apprentice",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)\nWhenever another creature or artifact you control is put into a graveyard from the battlefield, each opponent loses 1 life.",
+      "keywords": [
+        "Fabricate"
+      ],
+      "subtypes": [
+        "Human",
+        "Artificer"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Dread Return",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+      "keywords": [
+        "Flashback"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Snow-Covered Swamp",
+      "quantity": 29,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic",
+        "Snow"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Malakir Rebirth // Malakir Mire",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    }
+  ]
+}

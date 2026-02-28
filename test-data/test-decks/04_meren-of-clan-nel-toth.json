@@ -1,0 +1,1583 @@
+{
+  "commander": "Meren of Clan Nel Toth",
+  "colors": [
+    "B",
+    "G"
+  ],
+  "archetype": "Aristocrats/Reanimator",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/8063127",
+  "archidekt_id": 8063127,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Forest",
+      "quantity": 14,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Disciple of Freyalise // Garden of Freyalise",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Llanowar Wastes",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. This land deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Malakir Rebirth // Malakir Mire",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Woodland Cemetery",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Woe Strider",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, create a 0/1 white Goat creature token.\nSacrifice another creature: Scry 1.\nEscape—{3}{B}{B}, Exile four other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)\nThis creature escapes with two +1/+1 counters on it.",
+      "keywords": [
+        "Scry",
+        "Escape"
+      ],
+      "subtypes": [
+        "Horror"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Mirkwood Bats",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Bat"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Moldervine Reclamation",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{B}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control dies, you gain 1 life and draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Guardian Project",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reanimate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dread Return",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+      "keywords": [
+        "Flashback"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Persist",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Return target nonlegendary creature card from your graveyard to the battlefield with a -1/-1 counter on it.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Victimize",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nethergoyf",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Nethergoyf's power is equal to the number of card types among cards in your graveyard and its toughness is equal to that number plus 1.\nEscape—{2}{B}, Exile any number of other cards from your graveyard with four or more card types among them. (You may cast this card from your graveyard for its escape cost.)",
+      "keywords": [
+        "Escape"
+      ],
+      "subtypes": [
+        "Lhurgoyf"
+      ],
+      "power": "*",
+      "toughness": "1+*"
+    },
+    {
+      "name": "Grist, Voracious Larva // Grist, the Plague Swarm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Deathtouch",
+        "Transform",
+        "Mill"
+      ],
+      "subtypes": [
+        "Insect"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Buried Alive",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for up to three creature cards, put them into your graveyard, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Culling Ritual",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy each nonland permanent with mana value 2 or less. Add {B} or {G} for each permanent destroyed this way.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Toxic Deluge",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reclamation Sage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may destroy target artifact or enchantment.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Plaguecrafter",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each player sacrifices a creature or planeswalker of their choice. Each player who can't discards a card.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Ravenous Chupacabra",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, destroy target creature an opponent controls.",
+      "keywords": [],
+      "subtypes": [
+        "Beast",
+        "Horror"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Grief",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Menace\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke—Exile a black card from your hand.",
+      "keywords": [
+        "Menace",
+        "Evoke"
+      ],
+      "subtypes": [
+        "Elemental",
+        "Incarnation"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Flare of Malice",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You may sacrifice a nontoken black creature rather than pay this spell's mana cost.\nEach opponent sacrifices a creature or planeswalker with the greatest mana value among creatures and planeswalkers they control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Springbloom Druid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may sacrifice a land. If you do, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Wood Elves",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Scout"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Pitiless Plunderer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure"
+      ],
+      "subtypes": [
+        "Human",
+        "Pirate"
+      ],
+      "power": "1",
+      "toughness": "4"
+    },
+    {
+      "name": "Ripples of Undeath",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your first main phase, mill three cards. Then you may pay {1} and 3 life. If you do, put a card from among those cards into your hand.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swamp",
+      "quantity": 10,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Revitalizing Repast // Old-Growth Grove",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tainted Wood",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. Activate only if you control a Swamp.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Warren Soultrader",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Pay 1 life, Sacrifice another creature: Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Goblin",
+        "Zombie"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Grave Titan",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Deathtouch\nWhenever this creature enters or attacks, create two 2/2 black Zombie creature tokens.",
+      "keywords": [
+        "Deathtouch"
+      ],
+      "subtypes": [
+        "Giant"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Assassin's Trophy",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nadier's Nightblade",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a token you control leaves the battlefield, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Plumb the Forbidden",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.\nYou draw a card and you lose 1 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Deadly Dispute",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Accursed Marauder",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each player sacrifices a nontoken creature of their choice.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Zombie"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Satyr Wayfinder",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, reveal the top four cards of your library. You may put a land card from among them into your hand. Put the rest into your graveyard.",
+      "keywords": [],
+      "subtypes": [
+        "Satyr"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Wight of the Reliquary",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Vigilance\nThis creature gets +1/+1 for each creature card in your graveyard.\n{T}, Sacrifice another creature: Search your library for a land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [
+        "Vigilance"
+      ],
+      "subtypes": [
+        "Knight",
+        "Zombie"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Flare of Cultivation",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may sacrifice a nontoken green creature rather than pay this spell's mana cost.\nSearch your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Life from the Loam",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
+      "keywords": [
+        "Mill",
+        "Dredge"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sakura-Tribe Elder",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Shaman",
+        "Snake"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Six",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reach\nWhenever Six attacks, mill three cards. You may put a land card from among them into your hand.\nDuring your turn, nonland permanent cards in your graveyard have retrace. (You may cast permanent cards from your graveyard by discarding a land card in addition to paying their other costs.)",
+      "keywords": [
+        "Reach",
+        "Mill"
+      ],
+      "subtypes": [
+        "Treefolk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Eternal Witness",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{G}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may return target card from your graveyard to your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Shriekmaw",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)\nWhen this creature enters, destroy target nonartifact, nonblack creature.\nEvoke {1}{B} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+      "keywords": [
+        "Fear",
+        "Evoke"
+      ],
+      "subtypes": [
+        "Elemental"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Braids, Arisen Nightmare",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Nightmare"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Gray Merchant of Asphodel",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)",
+      "keywords": [],
+      "subtypes": [
+        "Zombie"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Zulaport Cutthroat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Rogue",
+        "Ally"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Swiftfoot Boots",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Massacre Wurm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, creatures your opponents control get -2/-2 until end of turn.\nWhenever a creature an opponent controls dies, that player loses 2 life.",
+      "keywords": [],
+      "subtypes": [
+        "Wurm",
+        "Phyrexian"
+      ],
+      "power": "6",
+      "toughness": "5"
+    },
+    {
+      "name": "Meren of Clan Nel Toth",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "Whenever another creature you control dies, you get an experience counter.\nAt the beginning of your end step, choose target creature card in your graveyard. If that card's mana value is less than or equal to the number of experience counters you have, return it to the battlefield. Otherwise, put it into your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Bolas's Citadel",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}{B}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You may look at the top card of your library any time.\nYou may play lands and cast spells from the top of your library. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.\n{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Avenger of Zendikar",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Elemental"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Blood Artist",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Farhaven Elf",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Elf",
+        "Druid"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Poison-Tip Archer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reach (This creature can block creatures with flying.)\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another creature dies, each opponent loses 1 life.",
+      "keywords": [
+        "Reach",
+        "Deathtouch"
+      ],
+      "subtypes": [
+        "Elf",
+        "Archer"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Panharmonicon",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Grim Haruspex",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Morph {B} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)\nWhenever another nontoken creature you control dies, draw a card.",
+      "keywords": [
+        "Morph"
+      ],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Living Death",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Izoni, Thousand-Eyed",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Undergrowth — When Izoni enters, create a 1/1 black and green Insect creature token for each creature card in your graveyard.\n{B}{G}, Sacrifice another creature: You gain 1 life and draw a card.",
+      "keywords": [
+        "Undergrowth"
+      ],
+      "subtypes": [
+        "Elf",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Altar of Dementia",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Target player mills cards equal to the sacrificed creature's power.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bastion of Remembrance",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this enchantment enters, create a 1/1 white Human Soldier creature token.\nWhenever a creature you control dies, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Birthing Ritual",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your end step, if you control a creature, look at the top seven cards of your library. Then you may sacrifice a creature. If you do, you may put a creature card with mana value X or less from among those cards onto the battlefield, where X is 1 plus the sacrificed creature's mana value. Put the rest on the bottom of your library in a random order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Exotic Orchard",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Grisly Salvage",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reveal the top five cards of your library. You may put a creature or land card from among them into your hand. Put the rest into your graveyard.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "World Shaper",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature attacks, you may mill three cards.\nWhen this creature dies, return all land cards from your graveyard to the battlefield tapped.",
+      "keywords": [
+        "Mill"
+      ],
+      "subtypes": [
+        "Merfolk",
+        "Shaman"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Sengir Autocrat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, create three 0/1 black Serf creature tokens.\nWhen this creature leaves the battlefield, exile all Serf tokens.",
+      "keywords": [],
+      "subtypes": [
+        "Human"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Beast Within",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Heroic Intervention",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Permanents you control gain hexproof and indestructible until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Craterhoof Behemoth",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{G}{G}{G}",
+      "cmc": 8,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Beast"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Shifting Woodland",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard.",
+      "keywords": [
+        "Delirium"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Puppeteer Clique",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, put target creature card from an opponent's graveyard onto the battlefield under your control. It gains haste. At the beginning of your next end step, exile it.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
+      "keywords": [
+        "Flying",
+        "Persist"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Faerie"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Three Visits",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Forest card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nature's Lore",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Stitcher's Supplier",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)",
+      "keywords": [
+        "Mill"
+      ],
+      "subtypes": [
+        "Zombie"
+      ],
+      "power": "1",
+      "toughness": "1"
+    }
+  ]
+}

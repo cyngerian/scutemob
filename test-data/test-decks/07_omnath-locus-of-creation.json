@@ -1,0 +1,1551 @@
+{
+  "commander": "Omnath, Locus of Creation",
+  "colors": [
+    "W",
+    "U",
+    "R",
+    "G"
+  ],
+  "archetype": "Landfall",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/4973670",
+  "archidekt_id": 4973670,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Niv-Mizzet, Visionary",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{U}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nYou have no maximum hand size.\nWhenever a source you control deals noncombat damage to an opponent, you draw that many cards.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Dragon"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Exploration",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play an additional land on each of your turns.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Propaganda",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ramunap Excavator",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play lands from your graveyard.",
+      "keywords": [],
+      "subtypes": [
+        "Cleric",
+        "Snake"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Regrowth",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return target card from your graveyard to your hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rhystic Study",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scapeshift",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice any number of lands. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Burgeoning",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever an opponent plays a land, you may put a land card from your hand onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ram Through",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Target creature you control deals damage equal to its power to target creature you don't control. If the creature you control has trample, excess damage is dealt to that creature's controller instead.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Naya Charm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}{G}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Naya Charm deals 3 damage to target creature.\n• Return target card from a graveyard to its owner's hand.\n• Tap all creatures target player controls.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Izzet Boilerworks",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {U}{R}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ketria Triome",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}, {U}, or {R}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Island",
+        "Mountain",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fabled Passage",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Misty Rainforest",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Island card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plains",
+      "quantity": 6,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}.)",
+      "keywords": [],
+      "subtypes": [
+        "Plains"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Simic Growth Chamber",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {G}{U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Selesnya Sanctuary",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {G}{W}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gruul Turf",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {R}{G}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Azorius Chancery",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Raugrin Triome",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}, {R}, or {W}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Plains",
+        "Island",
+        "Mountain"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Beast Within",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ashaya, Soul of the Wild",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Ashaya's power and toughness are each equal to the number of lands you control.\nNontoken creatures you control are Forest lands in addition to their other types. (They're still affected by summoning sickness.)",
+      "keywords": [],
+      "subtypes": [
+        "Elemental"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "*",
+      "toughness": "*"
+    },
+    {
+      "name": "Aura Shards",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control enters, you may destroy target artifact or enchantment.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Druid Class",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "(Gain the next level as a sorcery to add its ability.)\nLandfall — Whenever a land you control enters, you gain 1 life.\n{2}{G}: Level 2\nYou may play an additional land on each of your turns.\n{4}{G}: Level 3\nWhen this Class becomes level 3, target land you control becomes a creature with haste and \"This creature's power and toughness are each equal to the number of lands you control.\" It's still a land.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Class"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Azusa, Lost but Seeking",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play two additional lands on each of your turns.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Monk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Dryad of the Ilysian Grove",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play an additional land on each of your turns.\nLands you control are every basic land type in addition to their other types.",
+      "keywords": [],
+      "subtypes": [
+        "Dryad",
+        "Nymph"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Supreme Verdict",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{W}{W}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nDestroy all creatures.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Crucible of Worlds",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You may play lands from your graveyard.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Eladamri's Call",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a creature card, reveal that card, put it into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Heroic Intervention",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Permanents you control gain hexproof and indestructible until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Well of Lost Dreams",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever you gain life, you may pay {X}, where X is less than or equal to the amount of life you gained. If you do, draw X cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Crop Rotation",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Enlightened Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tatyova, Benthic Druid",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Landfall — Whenever a land you control enters, you gain 1 life and draw a card.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Druid",
+        "Merfolk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Spara's Headquarters",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}, {W}, or {U}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Plains",
+        "Island",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Field of the Dead",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {C}.\nWhenever this land or another land you control enters, if you control seven or more lands with different names, create a 2/2 black Zombie creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Island",
+      "quantity": 6,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dryad Arbor",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "(This land isn't a spell, it's affected by summoning sickness, and it has \"{T}: Add {G}.\")",
+      "keywords": [],
+      "subtypes": [
+        "Dryad",
+        "Forest"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mountain",
+      "quantity": 5,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R}.)",
+      "keywords": [],
+      "subtypes": [
+        "Mountain"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sylvan Library",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Teferi's Protection",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before you untap during your untap step.)\nExile Teferi's Protection.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Stubborn Denial",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target noncreature spell unless its controller pays {1}.\nFerocious — If you control a creature with power 4 or greater, counter that spell instead.",
+      "keywords": [
+        "Ferocious"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Path to Exile",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Three Visits",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Forest card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Urza's Cave",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{3}, {T}, Sacrifice this land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Urza's",
+        "Cave"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Collective Resistance",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Escalate {G} (Pay this cost for each mode chosen beyond the first.)\nChoose one or more —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Target creature gains hexproof and indestructible until end of turn.",
+      "keywords": [
+        "Escalate"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fierce Guardianship",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Omnath, Locus of Rage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{R}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Landfall — Whenever a land you control enters, create a 5/5 red and green Elemental creature token.\nWhenever Omnath or another Elemental you control dies, Omnath deals 3 damage to any target.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Elemental"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Wooded Foothills",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bountiful Landscape",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Island, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Demolition Field",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. That land's controller may search their library for a basic land card, put it onto the battlefield, then shuffle. You may search your library for a basic land card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sundering Eruption // Volcanic Fissure",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Horn of Greed",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever a player plays a land, that player draws a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thespian's Stage",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}: This land becomes a copy of target land, except it has this ability.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Awaken the Woods",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{G}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Create X 1/1 green Forest Dryad land creature tokens. (They're affected by summoning sickness.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Aesi, Tyrant of Gyre Strait",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play an additional land on each of your turns.\nLandfall — Whenever a land you control enters, you may draw a card.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Serpent"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Walk-In Closet // Forgotten Cellar",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{G} // {3}{G}{G}",
+      "cmc": 8,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Room"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Farseek",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scute Swarm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of this creature instead.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Insect"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Loot, Exuberant Explorer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play an additional land on each of your turns.\n{4}{G}{G}, {T}: Look at the top six cards of your library. You may reveal a creature card with mana value less than or equal to the number of lands you control from among them and put it onto the battlefield. Put the rest on the bottom in a random order.",
+      "keywords": [],
+      "subtypes": [
+        "Beast",
+        "Noble"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "4"
+    },
+    {
+      "name": "Mossborn Hydra",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature enters with a +1/+1 counter on it.\nLandfall — Whenever a land you control enters, double the number of +1/+1 counters on this creature.",
+      "keywords": [
+        "Landfall",
+        "Trample"
+      ],
+      "subtypes": [
+        "Elemental",
+        "Hydra"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Constant Mists",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Buyback—Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)\nPrevent all combat damage that would be dealt this turn.",
+      "keywords": [
+        "Buyback"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ancient Greenwarden",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reach (This creature can block creatures with flying.)\nYou may play lands from your graveyard.\nIf a land entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+      "keywords": [
+        "Reach"
+      ],
+      "subtypes": [
+        "Elemental"
+      ],
+      "power": "5",
+      "toughness": "7"
+    },
+    {
+      "name": "Ulvenwald Hydra",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reach\nUlvenwald Hydra's power and toughness are each equal to the number of lands you control.\nWhen this creature enters, you may search your library for a land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [
+        "Reach"
+      ],
+      "subtypes": [
+        "Hydra"
+      ],
+      "power": "*",
+      "toughness": "*"
+    },
+    {
+      "name": "Elvish Reclaimer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This creature gets +2/+2 as long as there are three or more land cards in your graveyard.\n{2}, {T}, Sacrifice a land: Search your library for a land card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Elf"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Windswept Heath",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Plains card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Glacierwood Siege",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{G}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "As this enchantment enters, choose Temur or Sultai.\n• Temur — Whenever you cast an instant or sorcery spell, target player mills four cards.\n• Sultai — You may play lands from your graveyard.",
+      "keywords": [
+        "Mill"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kishla Skimmer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever a card leaves your graveyard during your turn, draw a card. This ability triggers only once each turn.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Bird",
+        "Scout"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Akroma's Will",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Counterspell",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Greensleeves, Maro-Sorcerer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Protection from planeswalkers and from Wizards\nGreensleeves's power and toughness are each equal to the number of lands you control.\nLandfall — Whenever a land you control enters, create a 3/3 green Badger creature token.",
+      "keywords": [
+        "Landfall",
+        "Protection"
+      ],
+      "subtypes": [
+        "Elemental",
+        "Sorcerer"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "*",
+      "toughness": "*"
+    },
+    {
+      "name": "Case of the Locked Hothouse",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play an additional land on each of your turns.\nTo solve — You control seven or more lands. (If unsolved, solve at the beginning of your end step.)\nSolved — You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library.",
+      "keywords": [
+        "Solved"
+      ],
+      "subtypes": [
+        "Case"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forest",
+      "quantity": 9,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Generous Gift",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Perennial Behemoth",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "You may play lands from your graveyard.\nUnearth {G}{G} ({G}{G}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)",
+      "keywords": [
+        "Unearth"
+      ],
+      "subtypes": [
+        "Beast"
+      ],
+      "power": "2",
+      "toughness": "7"
+    },
+    {
+      "name": "Auroral Procession",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Return target card from your graveyard to your hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sabotender",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Reach\nLandfall — Whenever a land you control enters, this creature deals 1 damage to each opponent.",
+      "keywords": [
+        "Landfall",
+        "Reach"
+      ],
+      "subtypes": [
+        "Plant"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Omnath, Locus of Creation",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}{G}{W}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "When Omnath enters, draw a card.\nLandfall — Whenever a land you control enters, you gain 4 life if this is the first time this ability has resolved this turn. If it's the second time, add {R}{G}{W}{U}. If it's the third time, Omnath deals 4 damage to each opponent and each planeswalker you don't control.",
+      "keywords": [
+        "Landfall"
+      ],
+      "subtypes": [
+        "Elemental"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    }
+  ]
+}

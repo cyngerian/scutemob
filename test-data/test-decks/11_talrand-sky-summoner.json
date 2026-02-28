@@ -1,0 +1,1398 @@
+{
+  "commander": "Talrand, Sky Summoner",
+  "colors": [
+    "U"
+  ],
+  "archetype": "Spellslinger",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/3995",
+  "archidekt_id": 3995,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Chart a Course",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw two cards. Then discard a card unless you attacked this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kindred Discovery",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "As this enchantment enters, choose a creature type.\nWhenever a creature you control of the chosen type enters or attacks, draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scavenger Grounds",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}, Sacrifice a Desert: Exile all graveyards.",
+      "keywords": [],
+      "subtypes": [
+        "Desert"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Docent of Perfection // Final Iteration",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flying",
+        "Transform"
+      ],
+      "subtypes": [
+        "Horror",
+        "Insect"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thought Vessel",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reality Shift",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller manifests the top card of their library. (That player puts the top card of their library onto the battlefield face down as a 2/2 creature. If it's a creature card, it can be turned face up any time for its mana cost.)",
+      "keywords": [
+        "Manifest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sapphire Medallion",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Blue spells you cast cost {1} less to cast.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bident of Thassa",
+      "quantity": 1,
+      "types": [
+        "Artifact",
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control deals combat damage to a player, you may draw a card.\n{1}{U}, {T}: Creatures your opponents control attack this turn if able.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swan Song",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hidden Strings",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may tap or untap target permanent, then you may tap or untap another target permanent.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)",
+      "keywords": [
+        "Cipher"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hands of Binding",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)",
+      "keywords": [
+        "Cipher"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rapid Hybridization",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mitotic Manipulation",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{U}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Look at the top seven cards of your library. You may put one of those cards onto the battlefield if it has the same name as a permanent. Put the rest on the bottom of your library in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wasteland",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target nonbasic land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Opt",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Caged Sun",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{6}",
+      "cmc": 6,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a color.\nCreatures you control of the chosen color get +1/+1.\nWhenever a land's ability causes you to add one or more mana of the chosen color, add an additional one mana of that color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Brainstorm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Keep Watch",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw a card for each attacking creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Veilstone Amulet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever you cast a spell, creatures you control can't be the targets of spells or abilities your opponents control this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Pongify",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target creature. It can't be regenerated. Its controller creates a 3/3 green Ape creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gauntlet of Power",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a color.\nCreatures of the chosen color get +1/+1.\nWhenever a basic land is tapped for mana of the chosen color, its controller adds an additional one mana of that color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Extraplanar Lens",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Imprint — When this artifact enters, you may exile target land you control.\nWhenever a land with the same name as the exiled card is tapped for mana, its controller adds one mana of any type that land produced.",
+      "keywords": [
+        "Imprint"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Retraced Image",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Reveal a card in your hand, then put that card onto the battlefield if it has the same name as a permanent.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mind Games",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Buyback {2}{U} (You may pay an additional {2}{U} as you cast this spell. If you do, put this card into your hand as it resolves.)\nTap target artifact, creature, or land.",
+      "keywords": [
+        "Buyback"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Abjure",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a blue permanent.\nCounter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Strip Mine",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "High Tide",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Murmuring Mystic",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird Illusion creature token with flying.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "1",
+      "toughness": "5"
+    },
+    {
+      "name": "Narset's Reversal",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Copy target instant or sorcery spell, then return it to its owner's hand. You may choose new targets for the copy.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Winged Words",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This spell costs {1} less to cast if you control a creature with flying.\nDraw two cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Heraldic Banner",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a color.\nCreatures you control of the chosen color get +1/+0.\n{T}: Add one mana of the chosen color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mystic Sanctuary",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reconnaissance Mission",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control deals combat damage to a player, you may draw a card.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sea Gate Restoration // Sea Gate, Reborn",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 7,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Telling Time",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Look at the top three cards of your library. Put one of those cards into your hand, one on top of your library, and one on the bottom of your library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "War Room",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{3}, {T}, Pay life equal to the number of colors in your commanders' color identity: Draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Archmage Emeritus",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Magecraft — Whenever you cast or copy an instant or sorcery spell, draw a card.",
+      "keywords": [
+        "Magecraft"
+      ],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Resculpt",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target artifact or creature. Its controller creates a 4/4 blue and red Elemental creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Curiosity Crafter",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nYou have no maximum hand size.\nWhenever a creature token you control deals combat damage to a player, draw a card.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Bird"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Consider",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\nDraw a card.",
+      "keywords": [
+        "Surveil"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Access Denied",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell. Create X 1/1 colorless Thopter artifact creature tokens with flying, where X is that spell's mana value.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Rod of Absorption",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a player casts an instant or sorcery spell, exile it instead of putting it into a graveyard as it resolves.\n{X}, {T}, Sacrifice this artifact: You may cast any number of spells from among cards exiled with this artifact with total mana value X or less without paying their mana costs.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Three Tree City",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Patchwork Banner",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\n{T}: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "An Offer You Can't Refuse",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Whispering Wizard",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 white Spirit creature token with flying. This ability triggers only once each turn.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Wizard"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Cyber Conversion",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Turn target creature face down. It's a 2/2 Cyberman artifact creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "As Foretold",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your upkeep, put a time counter on this enchantment.\nOnce each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of time counters on this enchantment.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Candlekeep Inspiration",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{4}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Until end of turn, creatures you control have base power and toughness X/X, where X is the number of cards you own in exile and in your graveyard that are instant cards, are sorcery cards, and/or have an Adventure.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Alandra, Sky Dreamer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you draw your second card each turn, create a 2/2 blue Drake creature token with flying.\nWhenever you draw your fifth card each turn, Alandra and Drakes you control each get +X/+X until end of turn, where X is the number of cards in your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Wizard",
+        "Merfolk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Archmage's Charm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Counter target spell.\n• Target player draws two cards.\n• Gain control of target nonland permanent with mana value 1 or less.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Meeting of Minds",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDraw two cards.",
+      "keywords": [
+        "Convoke"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sink into Stupor // Soporific Springs",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Press the Enemy",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Return target spell or nonland permanent an opponent controls to its owner's hand. You may cast an instant or sorcery spell with equal or lesser mana value from your hand without paying its mana cost.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Throne of Eldraine",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As Throne of Eldraine enters, choose a color.\n{T}: Add four mana of the chosen color. Spend this mana only to cast monocolored spells of that color.\n{3}, {T}: Draw two cards. Spend only mana of the chosen color to activate this ability.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Quick Study",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw two cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "The Indomitable",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Trample\nWhenever a creature you control deals combat damage to a player, draw a card.\nCrew 3\nYou may cast this card from your graveyard as long as you control three or more tapped Pirates and/or Vehicles.",
+      "keywords": [
+        "Trample",
+        "Crew"
+      ],
+      "subtypes": [
+        "Vehicle"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Bottomless Pool // Locker Room",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{U} // {4}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Room"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forger's Foundry",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {U}. When you spend this mana to cast an instant or sorcery spell with mana value 3 or less, you may exile that spell instead of putting it into its owner's graveyard as it resolves.\n{3}{U}{U}, {T}: You may cast any number of spells from among cards exiled with this artifact without paying their mana costs. Activate only as a sorcery.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Heist",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may cast target instant or sorcery card from an opponent's graveyard without paying its mana cost. If that spell would be put into their graveyard, exile it instead.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)",
+      "keywords": [
+        "Cipher"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Abstergo Entertainment",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card from your graveyard to your hand, then exile all graveyards. (Artifacts, legendaries, and Sagas are historic.)",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lunar Insight",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw a card for each different mana value among nonland permanents you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Stock Up",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hermes, Overseer of Elpis",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 blue Bird creature token with flying and vigilance.\nWhenever you attack with one or more Birds, scry 2.",
+      "keywords": [
+        "Scry"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Elder"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Snow-Covered Island",
+      "quantity": 25,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "supertypes": [
+        "Basic",
+        "Snow"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Talrand, Sky Summoner",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": true,
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.",
+      "keywords": [],
+      "subtypes": [
+        "Wizard",
+        "Merfolk"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Talrand's Invocation",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Create two 2/2 blue Drake creature tokens with flying.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Archmage of Runes",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever you cast an instant or sorcery spell, draw a card.",
+      "keywords": [],
+      "subtypes": [
+        "Wizard",
+        "Giant"
+      ],
+      "power": "3",
+      "toughness": "6"
+    },
+    {
+      "name": "Polymorphist's Jest",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Until end of turn, each creature target player controls loses all abilities and becomes a blue Frog with base power and toughness 1/1.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Complete the Circuit",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{5}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nYou may cast sorcery spells this turn as though they had flash.\nWhen you next cast an instant or sorcery spell this turn, copy that spell twice. You may choose new targets for the copies.",
+      "keywords": [
+        "Convoke"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Enduring Curiosity",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nWhenever a creature you control deals combat damage to a player, draw a card.\nWhen Enduring Curiosity dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)",
+      "keywords": [
+        "Flash"
+      ],
+      "subtypes": [
+        "Cat",
+        "Glimmer"
+      ],
+      "power": "4",
+      "toughness": "3"
+    },
+    {
+      "name": "Sunken Palace",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {U}.\n{1}{U}, {T}, Exile seven cards from your graveyard: Add {U}. When you spend this mana to cast a spell or activate an ability, copy that spell or ability. You may choose new targets for the copy. (Mana abilities can't be copied.)",
+      "keywords": [],
+      "subtypes": [
+        "Cave"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Coastal Piracy",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control deals combat damage to an opponent, you may draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Counterspell",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    }
+  ]
+}

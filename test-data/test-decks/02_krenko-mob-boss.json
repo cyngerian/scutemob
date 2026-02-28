@@ -1,0 +1,1569 @@
+{
+  "commander": "Krenko, Mob Boss",
+  "colors": [
+    "R"
+  ],
+  "archetype": "Tribal Goblin",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/3880705",
+  "archidekt_id": 3880705,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Goblin Recruiter",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Desert of the Fervent",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {1}{R} ({1}{R}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Desert"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fervor",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures you control have haste. (They can attack and {T} as soon as they come under your control.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Goblin Bombardment",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: This enchantment deals 1 damage to any target.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forgotten Cave",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {R} ({R}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Geier Reach Sanitarium",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}: Each player draws a card, then discards a card.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hobgoblin Bandit Lord",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Other Goblins you control get +1/+1.\n{R}, {T}: This creature deals damage equal to the number of Goblins that entered the battlefield under your control this turn to any target.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Rogue"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Reliquary Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scavenger Grounds",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}, Sacrifice a Desert: Exile all graveyards.",
+      "keywords": [],
+      "subtypes": [
+        "Desert"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Strip Mine",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Temple of the False God",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}. Activate only if you control five or more lands.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Warstorm Surge",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{5}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control enters, it deals damage equal to its power to any target.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Zhalfirin Void",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "When this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {C}.",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Chaos Warp",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Skirk Prospector",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice a Goblin: Add {R}.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Exuberant Fuseling",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Trample\nThis creature gets +1/+0 for each oil counter on it.\nWhen this creature enters and whenever another creature or artifact you control is put into a graveyard from the battlefield, put an oil counter on this creature.",
+      "keywords": [
+        "Trample"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Warrior",
+        "Phyrexian"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Witty Roastmaster",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Alliance — Whenever another creature you control enters, this creature deals 1 damage to each opponent.",
+      "keywords": [
+        "Alliance"
+      ],
+      "subtypes": [
+        "Devil",
+        "Citizen"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Legion Loyalist",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nBattalion — Whenever this creature and at least two other creatures attack, creatures you control gain first strike and trample until end of turn and can't be blocked by creature tokens this turn.",
+      "keywords": [
+        "Haste",
+        "Battalion"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Soldier"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Rings of Brighthearth",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever you activate an ability, if it isn't a mana ability, you may pay {2}. If you do, copy that ability. You may choose new targets for the copy.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Goblin King",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Other Goblins get +1/+1 and have mountainwalk.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Brash Taunter",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Indestructible\nWhenever this creature is dealt damage, it deals that much damage to target opponent.\n{2}{R}, {T}: This creature fights another target creature.",
+      "keywords": [
+        "Fight",
+        "Indestructible"
+      ],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Ghost Quarter",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Goblin Chirurgeon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice a Goblin: Regenerate target creature.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Shaman"
+      ],
+      "power": "0",
+      "toughness": "2"
+    },
+    {
+      "name": "Mountain",
+      "quantity": 19,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R}.)",
+      "keywords": [],
+      "subtypes": [
+        "Mountain"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Banner of Kinship",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a creature type. This artifact enters with a fellowship counter on it for each creature you control of the chosen type.\nCreatures you control of the chosen type get +1/+1 for each fellowship counter on this artifact.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Howlsquad Heavy",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Start your engines!\nOther Goblins you control have haste.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token attacks this combat if able.\nMax speed — {T}: Add {R} for each Goblin you control.",
+      "keywords": [
+        "Start your engines!",
+        "Max speed"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Mercenary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Hazoret's Monument",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Red creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, you may discard a card. If you do, draw a card.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Krenko, Mob Boss",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": true,
+      "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Mana Echoes",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature enters, you may add an amount of {C} equal to the number of creatures you control that share a creature type with it.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ashnod's Altar",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Coat of Arms",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it. (For example, if two Goblin Warriors and a Goblin Shaman are on the battlefield, each gets +2/+2.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Darksteel Ingot",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Indestructible (Effects that say \"destroy\" don't destroy this artifact.)\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Indestructible"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thornbite Staff",
+      "quantity": 1,
+      "types": [
+        "Artifact",
+        "Kindred"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has \"{2}, {T}: This creature deals 1 damage to any target\" and \"Whenever a creature dies, untap this creature.\"\nWhenever a Shaman creature enters, you may attach this Equipment to it.\nEquip {4}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment",
+        "Shaman"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thousand-Year Elixir",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You may activate abilities of creatures you control as though those creatures had haste.\n{1}, {T}: Untap target creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swiftfoot Boots",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Strixhaven Stadium",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}. Put a point counter on this artifact.\nWhenever a creature deals combat damage to you, remove a point counter from this artifact.\nWhenever a creature you control deals combat damage to an opponent, put a point counter on this artifact. Then if it has ten or more point counters on it, remove them all and that player loses the game.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Conspicuous Snoop",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Play with the top card of your library revealed.\nYou may cast Goblin spells from the top of your library.\nAs long as the top card of your library is a Goblin card, this creature has all activated abilities of that card.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Rogue"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Bloodmark Mentor",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Red creatures you control have first strike.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Devilish Valet",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Trample, haste\nAlliance — Whenever another creature you control enters, double this creature's power until end of turn.",
+      "keywords": [
+        "Trample",
+        "Haste",
+        "Alliance"
+      ],
+      "subtypes": [
+        "Warrior",
+        "Devil"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Foundry Street Denizen",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever another red creature you control enters, this creature gets +1/+0 until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Goblin Matron",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Goblin Warchief",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Goblin spells you cast cost {1} less to cast.\nGoblins you control have haste.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Goblin Chieftain",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nOther Goblin creatures you control get +1/+1 and have haste.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Krenko, Tin Street Kingpin",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number of 1/1 red Goblin creature tokens equal to Krenko's power.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Impulsive Pilferer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nEncore {3}{R} ({3}{R}, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery.)",
+      "keywords": [
+        "Treasure",
+        "Encore"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Pirate"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Kiki-Jiki, Mirror Breaker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\n{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Goblin",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Muxus, Goblin Grandee",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "When Muxus enters, reveal the top six cards of your library. Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield and the rest on the bottom of your library in a random order.\nWhenever Muxus attacks, it gets +1/+1 until end of turn for each other Goblin you control.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Noble"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Twinflame Tyrant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nIf a source you control would deal damage to an opponent or a permanent an opponent controls, it deals double that damage instead.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "3",
+      "toughness": "5"
+    },
+    {
+      "name": "Squee, Goblin Nabob",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your upkeep, you may return this card from your graveyard to your hand.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Roaming Throne",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Ward {2}\nAs this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nIf a triggered ability of another creature you control of the chosen type triggers, it triggers an additional time.",
+      "keywords": [
+        "Ward"
+      ],
+      "subtypes": [
+        "Golem"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Rundvelt Hordemaster",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Other Goblins you control get +1/+1.\nWhenever this creature or another Goblin you control dies, exile the top card of your library. If it's a Goblin creature card, you may cast that card until the end of your next turn.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Pashalik Mons",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever Pashalik Mons or another Goblin you control dies, Pashalik Mons deals 1 damage to any target.\n{3}{R}, Sacrifice a Goblin: Create two 1/1 red Goblin creature tokens.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Warrior"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Gempalm Incinerator",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Cycling {1}{R} ({1}{R}, Discard this card: Draw a card.)\nWhen you cycle this card, you may have it deal X damage to target creature, where X is the number of Goblins on the battlefield.",
+      "keywords": [
+        "Cycling"
+      ],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Fiery Emancipation",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{R}{R}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "If a source you control would deal damage to a permanent or player, it deals triple that damage to that permanent or player instead.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kyren Negotiations",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Tap an untapped creature you control: This enchantment deals 1 damage to target player or planeswalker.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Treasure",
+        "Transform"
+      ],
+      "subtypes": [
+        "Saga"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Abrade",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Battle Hymn",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Add {R} for each creature you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Quest for the Goblin Lord",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a Goblin you control enters, you may put a quest counter on this enchantment.\nAs long as this enchantment has five or more quest counters on it, creatures you control get +2/+0.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Castle Embereth",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Mountain.\n{T}: Add {R}.\n{1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Brotherhood's End",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{R}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Brotherhood's End deals 3 damage to each creature and each planeswalker.\n• Destroy all artifacts with mana value 3 or less.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Last-Ditch Effort",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice any number of creatures. Last-Ditch Effort deals that much damage to any target.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Jeska's Will",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vandalblast",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target artifact you don't control.\nOverload {4}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+      "keywords": [
+        "Overload"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blasphemous Act",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{8}{R}",
+      "cmc": 9,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arch of Orazca",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\n{T}: Add {C}.\n{5}, {T}: Draw a card. Activate only if you have the city's blessing.",
+      "keywords": [
+        "Ascend"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Buried Ruin",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Return target artifact card from your graveyard to your hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Smoldering Crater",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Cycling"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dark-Dweller Oracle",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{1}, Sacrifice a creature: Exile the top card of your library. You may play that card this turn. (You still pay its costs. You can play a land this way only if you have an available land play remaining.)",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Commander's Sphere",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.\nSacrifice this artifact: Draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blood Moon",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Nonbasic lands are Mountains.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Brightstone Ritual",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Add {R} for each Goblin on the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Impact Tremors",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Goblin War Strike",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Goblin War Strike deals damage to target player or planeswalker equal to the number of Goblins you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ancient Tomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}. This land deals 2 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Underworld Breach",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Each nonland card in your graveyard has escape. The escape cost is equal to the card's mana cost plus exile three other cards from your graveyard. (You may cast cards from your graveyard for their escape cost.)\nAt the beginning of the end step, sacrifice this enchantment.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sensei's Divining Top",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "The Fire Crystal",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Red spells you cast cost {1} less to cast.\nCreatures you control have haste.\n{4}{R}{R}, {T}: Create a token that's a copy of target creature you control. Sacrifice it at the beginning of the next end step.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    }
+  ]
+}

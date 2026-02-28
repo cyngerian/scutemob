@@ -1,0 +1,273 @@
+{
+  "total_decks": 20,
+  "total_cards": 2000,
+  "decks": [
+    {
+      "commander": "Atraxa, Praetors' Voice",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "G"
+      ],
+      "archetype": "Superfriends/+1",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/4752046",
+      "creature_count": 42,
+      "land_count": 37,
+      "instant_sorcery_count": 12
+    },
+    {
+      "commander": "Krenko, Mob Boss",
+      "colors": [
+        "R"
+      ],
+      "archetype": "Tribal Goblin",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/3880705",
+      "creature_count": 29,
+      "land_count": 34,
+      "instant_sorcery_count": 10
+    },
+    {
+      "commander": "Yuriko, the Tiger's Shadow",
+      "colors": [
+        "U",
+        "B"
+      ],
+      "archetype": "Ninja Tribal",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/4386",
+      "creature_count": 31,
+      "land_count": 28,
+      "instant_sorcery_count": 32
+    },
+    {
+      "commander": "Meren of Clan Nel Toth",
+      "colors": [
+        "B",
+        "G"
+      ],
+      "archetype": "Aristocrats/Reanimator",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/8063127",
+      "creature_count": 38,
+      "land_count": 30,
+      "instant_sorcery_count": 21
+    },
+    {
+      "commander": "Prossh, Skyraider of Kher",
+      "colors": [
+        "B",
+        "R",
+        "G"
+      ],
+      "archetype": "Sacrifice/Combo",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/630",
+      "creature_count": 30,
+      "land_count": 29,
+      "instant_sorcery_count": 20
+    },
+    {
+      "commander": "Edgar Markov",
+      "colors": [
+        "W",
+        "B",
+        "R"
+      ],
+      "archetype": "Tribal Vampire",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/59349",
+      "creature_count": 27,
+      "land_count": 32,
+      "instant_sorcery_count": 21
+    },
+    {
+      "commander": "Omnath, Locus of Creation",
+      "colors": [
+        "W",
+        "U",
+        "R",
+        "G"
+      ],
+      "archetype": "Landfall",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/4973670",
+      "creature_count": 20,
+      "land_count": 44,
+      "instant_sorcery_count": 24
+    },
+    {
+      "commander": "Korvold, Fae-Cursed King",
+      "colors": [
+        "B",
+        "R",
+        "G"
+      ],
+      "archetype": "Sacrifice Value",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/4720142",
+      "creature_count": 28,
+      "land_count": 35,
+      "instant_sorcery_count": 25
+    },
+    {
+      "commander": "Teysa Karlov",
+      "colors": [
+        "W",
+        "B"
+      ],
+      "archetype": "Death Triggers",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/1536180",
+      "creature_count": 36,
+      "land_count": 32,
+      "instant_sorcery_count": 19
+    },
+    {
+      "commander": "Winota, Joiner of Forces",
+      "colors": [
+        "W",
+        "R"
+      ],
+      "archetype": "Aggro/Cheat",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/15585118",
+      "creature_count": 35,
+      "land_count": 36,
+      "instant_sorcery_count": 15
+    },
+    {
+      "commander": "Talrand, Sky Summoner",
+      "colors": [
+        "U"
+      ],
+      "archetype": "Spellslinger",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/3995",
+      "creature_count": 10,
+      "land_count": 33,
+      "instant_sorcery_count": 37
+    },
+    {
+      "commander": "Selvala, Heart of the Wilds",
+      "colors": [
+        "G"
+      ],
+      "archetype": "Mono-Green Ramp",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/5150813",
+      "creature_count": 31,
+      "land_count": 25,
+      "instant_sorcery_count": 28
+    },
+    {
+      "commander": "Syr Konrad, the Grim",
+      "colors": [
+        "B"
+      ],
+      "archetype": "Graveyard/Drain",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/1580608",
+      "creature_count": 30,
+      "land_count": 37,
+      "instant_sorcery_count": 17
+    },
+    {
+      "commander": "Sram, Senior Edificer",
+      "colors": [
+        "W"
+      ],
+      "archetype": "Voltron/Equipment",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/773070",
+      "creature_count": 16,
+      "land_count": 31,
+      "instant_sorcery_count": 13
+    },
+    {
+      "commander": "The Ur-Dragon",
+      "colors": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ],
+      "archetype": "Tribal Dragon",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/4153743",
+      "creature_count": 33,
+      "land_count": 40,
+      "instant_sorcery_count": 16
+    },
+    {
+      "commander": "Niv-Mizzet, Parun",
+      "colors": [
+        "U",
+        "R"
+      ],
+      "archetype": "Spellslinger/Combo",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/57934",
+      "creature_count": 15,
+      "land_count": 33,
+      "instant_sorcery_count": 31
+    },
+    {
+      "commander": "Lathril, Blade of the Elves",
+      "colors": [
+        "B",
+        "G"
+      ],
+      "archetype": "Tribal Elf",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/2781081",
+      "creature_count": 45,
+      "land_count": 35,
+      "instant_sorcery_count": 15
+    },
+    {
+      "commander": "Chulane, Teller of Tales",
+      "colors": [
+        "W",
+        "U",
+        "G"
+      ],
+      "archetype": "Value/Bounce",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/921936",
+      "creature_count": 36,
+      "land_count": 30,
+      "instant_sorcery_count": 22
+    },
+    {
+      "commander": "Isshin, Two Heavens as One",
+      "colors": [
+        "W",
+        "B",
+        "R"
+      ],
+      "archetype": "Attack Triggers",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/2400793",
+      "creature_count": 33,
+      "land_count": 36,
+      "instant_sorcery_count": 8
+    },
+    {
+      "commander": "Aesi, Tyrant of Gyre Strait",
+      "colors": [
+        "U",
+        "G"
+      ],
+      "archetype": "Landfall/Draw",
+      "card_count": 100,
+      "source_url": "https://archidekt.com/decks/6349098",
+      "creature_count": 30,
+      "land_count": 40,
+      "instant_sorcery_count": 11
+    }
+  ]
+}

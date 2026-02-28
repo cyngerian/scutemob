@@ -1,0 +1,1748 @@
+{
+  "commander": "Edgar Markov",
+  "colors": [
+    "W",
+    "B",
+    "R"
+  ],
+  "archetype": "Tribal Vampire",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/59349",
+  "archidekt_id": 59349,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Dark Ritual",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Add {B}{B}{B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vampire Socialite",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature enters, if an opponent lost life this turn, put a +1/+1 counter on each other Vampire you control.\nAs long as an opponent lost life this turn, each other Vampire you control enters with an additional +1/+1 counter on it.",
+      "keywords": [
+        "Menace"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Noble"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Haunted Ridge",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {B} or {R}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plains",
+      "quantity": 4,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}.)",
+      "keywords": [],
+      "subtypes": [
+        "Plains"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swamp",
+      "quantity": 8,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Isolated Chapel",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swords to Plowshares",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dusk Legion Zealot",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you draw a card and you lose 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire",
+        "Soldier"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Fetid Heath",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forerunner of the Legion",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "When this creature enters, you may search your library for a Vampire card, reveal it, then shuffle and put that card on top.\nWhenever another Vampire you control enters, target creature gets +1/+1 until end of turn.",
+      "keywords": [],
+      "subtypes": [
+        "Knight",
+        "Vampire"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Twilight Prophet",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nAscend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nAt the beginning of your upkeep, if you have the city's blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card's mana value.",
+      "keywords": [
+        "Flying",
+        "Ascend"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Cleric"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Legion Lieutenant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{W}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Other Vampires you control get +1/+1.",
+      "keywords": [],
+      "subtypes": [
+        "Knight",
+        "Vampire"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Shared Animosity",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Graven Cairns",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{B/R}, {T}: Add {B}{B}, {B}{R}, or {R}{R}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sanctum Seeker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a Vampire you control attacks, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Knight",
+        "Vampire"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Vanquisher's Banner",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{5}",
+      "cmc": 5,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\nWhenever you cast a creature spell of the chosen type, draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blood Artist",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Captivating Vampire",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Other Vampire creatures you control get +1/+1.\nTap five untapped Vampires you control: Gain control of target creature. It becomes a Vampire in addition to its other types.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Malakir Bloodwitch",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, protection from white\nWhen this creature enters, each opponent loses life equal to the number of Vampires you control. You gain life equal to the life lost this way.",
+      "keywords": [
+        "Flying",
+        "Protection"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Shaman"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Read the Bones",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Scry 2, then draw two cards. You lose 2 life. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Stromkirk Captain",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "First strike\nOther Vampire creatures you control get +1/+1 and have first strike.",
+      "keywords": [
+        "First strike"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Soldier"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sword of the Animist",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature gets +1/+1.\nWhenever equipped creature attacks, you may search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nEquip {2}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nomad Outpost",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {R}, {W}, or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Talisman of Indulgence",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This artifact deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mirror Entity",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.",
+      "keywords": [
+        "Changeling"
+      ],
+      "subtypes": [
+        "Shapeshifter"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Yahenni, Undying Partisan",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nWhenever a creature an opponent controls dies, put a +1/+1 counter on Yahenni.\nSacrifice another creature: Yahenni gains indestructible until end of turn.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Aetherborn"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Metallic Mimic",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nEach other creature you control of the chosen type enters with an additional +1/+1 counter on it.",
+      "keywords": [],
+      "subtypes": [
+        "Shapeshifter"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Caves of Koilos",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Windbrisk Heights",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn.",
+      "keywords": [
+        "Hideaway"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Aetherflux Reservoir",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.\nPay 50 life: This artifact deals 50 damage to any target.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vampire Cutthroat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Skulk (This creature can't be blocked by creatures with greater power.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)",
+      "keywords": [
+        "Lifelink",
+        "Skulk"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Rogue"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Night's Whisper",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You draw two cards and lose 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Indulgent Aristocrat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Lifelink\n{2}, Sacrifice a creature: Put a +1/+1 counter on each Vampire you control.",
+      "keywords": [
+        "Lifelink"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Noble"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Anguished Unmaking",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target nonland permanent. You lose 3 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Drana, Liberator of Malakir",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, first strike\nWhenever Drana deals combat damage to a player, put a +1/+1 counter on each attacking creature you control.",
+      "keywords": [
+        "Flying",
+        "First strike"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Ally"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Smoldering Marsh",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B} or {R}.)\nThis land enters tapped unless you control two or more basic lands.",
+      "keywords": [],
+      "subtypes": [
+        "Swamp",
+        "Mountain"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dark Petition",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.\nSpell mastery — If there are two or more instant and/or sorcery cards in your graveyard, add {B}{B}{B}.",
+      "keywords": [
+        "Spell mastery"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Impact Tremors",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vampire Hexmage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "First strike\nSacrifice this creature: Remove all counters from target permanent.",
+      "keywords": [
+        "First strike"
+      ],
+      "subtypes": [
+        "Vampire",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Jet Medallion",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Black spells you cast cost {1} less to cast.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Obelisk of Urd",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{6}",
+      "cmc": 6,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nAs this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +2/+2.",
+      "keywords": [
+        "Convoke"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Athreos, God of Passage",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Indestructible\nAs long as your devotion to white and black is less than seven, Athreos isn't a creature.\nWhenever another creature you own dies, return it to your hand unless target opponent pays 3 life.",
+      "keywords": [
+        "Indestructible"
+      ],
+      "subtypes": [
+        "God"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "4"
+    },
+    {
+      "name": "Shadow Alley Denizen",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever another black creature you control enters, target creature gains intimidate until end of turn. (It can't be blocked except by artifact creatures and/or creatures that share a color with it.)",
+      "keywords": [],
+      "subtypes": [
+        "Vampire",
+        "Rogue"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Vampire Nocturnus",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Play with the top card of your library revealed.\nAs long as the top card of your library is black, this creature and other Vampire creatures you control get +2/+1 and have flying.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Dragonskull Summit",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bloodline Keeper // Lord of Lineage",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flying",
+        "Transform"
+      ],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blood Seeker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature an opponent controls enters, you may have that player lose 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire",
+        "Shaman"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Exsanguinate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{X}{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each opponent loses X life. You gain life equal to the life lost this way.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Viscera Seer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "keywords": [
+        "Scry"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Vampire"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mountain",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R}.)",
+      "keywords": [],
+      "subtypes": [
+        "Mountain"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kalastria Highborn",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another Vampire you control dies, you may pay {B}. If you do, target player loses 2 life and you gain 2 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire",
+        "Shaman"
+      ],
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "name": "Sulfurous Springs",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This land deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sensei's Divining Top",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cover of Darkness",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As this enchantment enters, choose a creature type.\nCreatures of the chosen type have fear. (They can't be blocked except by artifact creatures and/or black creatures.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Necropotence",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{B}{B}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Skip your draw step.\nWhenever you discard a card, exile that card from your graveyard.\nPay 1 life: Exile the top card of your library face down. Put that card into your hand at the beginning of your next end step.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Terminate",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy target creature. It can't be regenerated.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Enlightened Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fire Covenant",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{B}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, pay X life.\nFire Covenant deals X damage divided as you choose among any number of target creatures.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Demonic Tutor",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Diabolic Intent",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nSearch your library for a card, put that card into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Land Tax",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "At the beginning of your upkeep, if an opponent controls more lands than you, you may search your library for up to three basic land cards, reveal them, put them into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bojuka Bog",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blasphemous Act",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{8}{R}",
+      "cmc": 9,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Return to Dust",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target artifact or enchantment. If you cast this spell during your main phase, you may exile up to one other target artifact or enchantment.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cavern of Souls",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Godless Shrine",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bolas's Citadel",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}{B}{B}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "You may look at the top card of your library any time.\nYou may play lands and cast spells from the top of your library. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.\n{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cruel Celebrant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{W}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature or planeswalker you control dies, each opponent loses 1 life and you gain 1 life.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Despark",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target permanent with mana value 4 or greater.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Prismatic Vista",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Talisman of Hierarchy",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This artifact deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Talisman of Conviction",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This artifact deals 1 damage to you.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hall of Heliod's Generosity",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}{W}, {T}: Put target enchantment card from your graveyard on top of your library.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cordial Vampire",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever this creature or another creature dies, put a +1/+1 counter on each Vampire you control.",
+      "keywords": [],
+      "subtypes": [
+        "Vampire"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Vona's Hunger",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nEach opponent sacrifices a creature of their choice. If you have the city's blessing, instead each opponent sacrifices half the creatures they control of their choice, rounded up.",
+      "keywords": [
+        "Ascend"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Idol of Oblivion",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice this artifact: Create a 10/10 colorless Eldrazi creature token.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ruinous Ultimatum",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{R}{R}{W}{W}{W}{B}{B}",
+      "cmc": 7,
+      "color_identity": [
+        "White",
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Destroy all nonland permanents your opponents control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Village Rites",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tainted Field",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. Activate only if you control a Swamp.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Exotic Orchard",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Teferi's Protection",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{W}",
+      "cmc": 3,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before you untap during your untap step.)\nExile Teferi's Protection.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reconnaissance",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "{0}: Remove target attacking creature you control from combat and untap it. (If you activate during end of combat, the creature will untap after it deals combat damage.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Patriarch's Bidding",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Each player chooses a creature type. Each player returns all creature cards of a type chosen this way from their graveyard to the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Boros Charm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}{W}",
+      "cmc": 2,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Edgar Markov",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{W}{B}",
+      "cmc": 6,
+      "color_identity": [
+        "White",
+        "Black",
+        "Red"
+      ],
+      "commander": true,
+      "oracle_text": "Eminence — Whenever you cast another Vampire spell, if Edgar is in the command zone or on the battlefield, create a 1/1 black Vampire creature token.\nFirst strike, haste\nWhenever Edgar attacks, put a +1/+1 counter on each Vampire you control.",
+      "keywords": [
+        "First strike",
+        "Haste",
+        "Eminence"
+      ],
+      "subtypes": [
+        "Knight",
+        "Vampire"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "4"
+    }
+  ]
+}

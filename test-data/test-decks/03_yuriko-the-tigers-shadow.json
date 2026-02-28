@@ -1,0 +1,1807 @@
+{
+  "commander": "Yuriko, the Tiger's Shadow",
+  "colors": [
+    "U",
+    "B"
+  ],
+  "archetype": "Ninja Tribal",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/4386",
+  "archidekt_id": 4386,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sensei's Divining Top",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ornithopter",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{0}",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Flying",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Thopter"
+      ],
+      "power": "0",
+      "toughness": "2"
+    },
+    {
+      "name": "Gilded Drake",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, exchange control of this creature and up to one target creature an opponent controls. If you don't or can't make an exchange, sacrifice this creature. This ability still resolves if its target becomes illegal.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Drake"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Takenuma, Abandoned Mire",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control.",
+      "keywords": [
+        "Channel",
+        "Mill"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Imprisoned in the Moon",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Enchant creature, land, or planeswalker\nEnchanted permanent is a colorless land with \"{T}: Add {C}\" and loses all other card types and abilities.",
+      "keywords": [
+        "Enchant"
+      ],
+      "subtypes": [
+        "Aura"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Adaptation",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "As this enchantment enters, choose a creature type.\nCreatures you control are the chosen type in addition to their other types. The same is true for creature spells you control and creature cards you own that aren't on the battlefield.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mystic Sanctuary",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Insidious Dreams",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "As an additional cost to cast this spell, discard X cards.\nSearch your library for X cards, then shuffle and put those cards on top in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Connive // Concoct",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{U/B}{U/B} // {3}{U}{B}",
+      "cmc": 9,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Surveil"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Force of Will",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Denial",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell. Its controller may draw up to two cards at the beginning of the next turn's upkeep.\nYou draw a card at the beginning of the next turn's upkeep.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reliquary Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Malakir Rebirth // Malakir Mire",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Boggart Trawler // Boggart Bog",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "subtypes": [
+        "Goblin"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sink into Stupor // Soporific Springs",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Island",
+      "quantity": 6,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Baleful Strix",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{U}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, deathtouch\nWhen this creature enters, draw a card.",
+      "keywords": [
+        "Flying",
+        "Deathtouch"
+      ],
+      "subtypes": [
+        "Bird"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Gingerbrute",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{1}: This creature can't be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.",
+      "keywords": [
+        "Haste"
+      ],
+      "subtypes": [
+        "Golem",
+        "Food"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Cloud of Faeries",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, untap up to two lands.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+      "keywords": [
+        "Flying",
+        "Cycling"
+      ],
+      "subtypes": [
+        "Faerie"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mist-Cloaked Herald",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't be blocked.",
+      "keywords": [],
+      "subtypes": [
+        "Warrior",
+        "Merfolk"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Slither Blade",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't be blocked.",
+      "keywords": [],
+      "subtypes": [
+        "Rogue",
+        "Snake"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Commit // Memory",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{3}{U} // {4}{U}{U}",
+      "cmc": 10,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Aftermath"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hope of Ghirapur",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Flying\nSacrifice Hope of Ghirapur: Until your next turn, target player who was dealt combat damage by Hope of Ghirapur this turn can't cast noncreature spells.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Thopter"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Emrakul, the Promised End",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{13}",
+      "cmc": 13,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "This spell costs {1} less to cast for each card type among cards in your graveyard.\nWhen you cast this spell, you gain control of target opponent during that player's next turn. After that turn, that player takes an extra turn.\nFlying, trample, protection from instants",
+      "keywords": [
+        "Flying",
+        "Trample",
+        "Protection"
+      ],
+      "subtypes": [
+        "Eldrazi"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "13",
+      "toughness": "13"
+    },
+    {
+      "name": "Mystical Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sunken Hollow",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U} or {B}.)\nThis land enters tapped unless you control two or more basic lands.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blinkmoth Nexus",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Blinkmoth artifact creature with flying until end of turn. It's still a land.\n{1}, {T}: Target Blinkmoth creature gets +1/+1 until end of turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gudul Lurker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't be blocked.\nMegamorph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its megamorph cost and put a +1/+1 counter on it.)",
+      "keywords": [
+        "Megamorph"
+      ],
+      "subtypes": [
+        "Salamander"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Temporal Trespass",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{8}{U}{U}{U}",
+      "cmc": 11,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTake an extra turn after this one. Exile Temporal Trespass.",
+      "keywords": [
+        "Delve"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Triton Shorestalker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't be blocked.",
+      "keywords": [],
+      "subtypes": [
+        "Merfolk",
+        "Rogue"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Cyclonic Rift",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+      "keywords": [
+        "Overload"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tormented Soul",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't block and can't be blocked.",
+      "keywords": [],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Sakashima's Student",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nYou may have this creature enter as a copy of any creature on the battlefield, except it's a Ninja in addition to its other creature types.",
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Temporal Mastery",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{5}{U}{U}",
+      "cmc": 7,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Take an extra turn after this one. Exile Temporal Mastery.\nMiracle {1}{U} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+      "keywords": [
+        "Miracle"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Invisible Stalker",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)\nThis creature can't be blocked.",
+      "keywords": [
+        "Hexproof"
+      ],
+      "subtypes": [
+        "Human",
+        "Rogue"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Ghost Quarter",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Creeping Tar Pit",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped.\n{T}: Add {U} or {B}.\n{1}{U}{B}: Until end of turn, this land becomes a 3/2 blue and black Elemental creature. It's still a land. It can't be blocked this turn.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sunken Ruins",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}.\n{U/B}, {T}: Add {U}{U}, {U}{B}, or {B}{B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ponder",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nether Traitor",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Haste\nShadow (This creature can block or be blocked by only creatures with shadow.)\nWhenever another creature is put into your graveyard from the battlefield, you may pay {B}. If you do, return this card from your graveyard to the battlefield.",
+      "keywords": [
+        "Haste",
+        "Shadow"
+      ],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Dimir Infiltrator",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This creature can't be blocked.\nTransmute {1}{U}{B} ({1}{U}{B}, Discard this card: Search your library for a card with the same mana value as this card, reveal it, put it into your hand, then shuffle. Transmute only as a sorcery.)",
+      "keywords": [
+        "Transmute"
+      ],
+      "subtypes": [
+        "Spirit"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Dimir Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{1}, {T}: Add {U}{B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Oboro, Palace in the Clouds",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {U}.\n{1}: Return Oboro to its owner's hand.",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Higure, the Still Wind",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{U}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever Higure deals combat damage to a player, you may search your library for a Ninja card, reveal it, put it into your hand, then shuffle.\n{2}: Target Ninja creature can't be blocked this turn.",
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "4"
+    },
+    {
+      "name": "Mistblade Shinobi",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may return target creature that player controls to its owner's hand.",
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Walker of Secret Ways",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, look at that player's hand.\n{1}{U}: Return target Ninja you control to its owner's hand. Activate only during your turn.",
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "power": "1",
+      "toughness": "2"
+    },
+    {
+      "name": "Shizo, Death's Storehouse",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "{T}: Add {B}.\n{B}, {T}: Target legendary creature gains fear until end of turn. (It can't be blocked except by artifact creatures and/or black creatures.)",
+      "keywords": [],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Brainstorm",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Counterspell",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swamp",
+      "quantity": 5,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scroll Rack",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{1}, {T}: Exile any number of cards from your hand face down. Put that many cards from the top of your library into your hand. Then look at the exiled cards and put them on top of your library in any order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Watery Grave",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dig Through Time",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{6}{U}{U}",
+      "cmc": 8,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nLook at the top seven cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.",
+      "keywords": [
+        "Delve"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Ingenious Infiltrator",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, draw a card.",
+      "keywords": [
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Vedalken",
+        "Ninja"
+      ],
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "name": "Castle Vantress",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control an Island.\n{T}: Add {U}.\n{2}{U}{U}, {T}: Scry 2.",
+      "keywords": [
+        "Scry"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Clearwater Pathway // Murkwater Pathway",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thieving Skydiver",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Kicker {X}. X can't be 0. (You may pay an additional {X} as you cast this spell.)\nFlying\nWhen this creature enters, if it was kicked, gain control of target artifact with mana value X or less. If that artifact is an Equipment, attach it to this creature.",
+      "keywords": [
+        "Flying",
+        "Kicker"
+      ],
+      "subtypes": [
+        "Merfolk",
+        "Rogue"
+      ],
+      "power": "2",
+      "toughness": "1"
+    },
+    {
+      "name": "Sea Gate Restoration // Sea Gate, Reborn",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 7,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Negate",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target noncreature spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Memory Lapse",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell. If that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thousand-Faced Shadow",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {2}{U}{U} ({2}{U}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nFlying\nWhen this creature enters from your hand, if it's attacking, create a token that's a copy of another target attacking creature. The token enters tapped and attacking.",
+      "keywords": [
+        "Flying",
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Prosperous Thief",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever one or more Ninja or Rogue creatures you control deal combat damage to a player, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure",
+        "Ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "name": "Faerie Seer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "keywords": [
+        "Flying",
+        "Scry"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Faerie"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Mothdust Changeling",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Changeling (This card is every creature type.)\nTap an untapped creature you control: This creature gains flying until end of turn.",
+      "keywords": [
+        "Changeling"
+      ],
+      "subtypes": [
+        "Shapeshifter"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Siren Stormtamer",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\n{U}, Sacrifice this creature: Counter target spell or ability that targets you or a creature you control.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Wizard",
+        "Pirate",
+        "Siren"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Keep Safe",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target spell that targets a permanent you control.\nDraw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Lazotep Plating",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nYou and permanents you control gain hexproof until end of turn. (You and they can't be the targets of spells or abilities your opponents control.)",
+      "keywords": [
+        "Amass"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Filter Out",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Return all noncreature, nonland permanents to their owners' hands.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Morphic Pool",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {U} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kaito, Bane of Nightmares",
+      "quantity": 1,
+      "types": [
+        "Planeswalker"
+      ],
+      "mana_cost": "{2}{U}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Ninjutsu {1}{U}{B} ({1}{U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nDuring your turn, as long as Kaito has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.\n+1: You get an emblem with \"Ninjas you control get +1/+1.\"\n0: Surveil 2. Then draw a card for each opponent who lost life this turn.\n−2: Tap target creature. Put two stun counters on it.",
+      "keywords": [
+        "Ninjutsu",
+        "Surveil"
+      ],
+      "subtypes": [
+        "Kaito"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "",
+      "toughness": "",
+      "loyalty": "4"
+    },
+    {
+      "name": "Fierce Guardianship",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{2}{U}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mystic Remora",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nWhenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.",
+      "keywords": [
+        "Cumulative upkeep"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Commandeer",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{5}{U}{U}",
+      "cmc": 7,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may exile two blue cards from your hand rather than pay this spell's mana cost.\nGain control of target noncreature spell. You may choose new targets for it. (If that spell is an artifact, enchantment, or planeswalker, the permanent enters under your control.)",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hydroelectric Specimen // Hydroelectric Laboratory",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "",
+      "cmc": 3,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flash"
+      ],
+      "subtypes": [
+        "Weird"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Phantasmal Image",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may have this creature enter as a copy of any creature on the battlefield, except it's an Illusion in addition to its other types and it has \"When this creature becomes the target of a spell or ability, sacrifice it.\"",
+      "keywords": [],
+      "subtypes": [
+        "Illusion"
+      ],
+      "power": "0",
+      "toughness": "0"
+    },
+    {
+      "name": "Submerge",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{4}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "If an opponent controls a Forest and you control an Island, you may cast this spell without paying its mana cost.\nPut target creature on top of its owner's library.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dispel",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target instant spell.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fabled Passage",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Changeling Outcast",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Changeling (This card is every creature type.)\nThis creature can't block and can't be blocked.",
+      "keywords": [
+        "Changeling"
+      ],
+      "subtypes": [
+        "Shapeshifter"
+      ],
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "name": "Drowned Catacomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add {U} or {B}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reality Shift",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller manifests the top card of their library. (That player puts the top card of their library onto the battlefield face down as a 2/2 creature. If it's a creature card, it can be turned face up any time for its mana cost.)",
+      "keywords": [
+        "Manifest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swan Song",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Treasure Cruise",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{7}{U}",
+      "cmc": 8,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.",
+      "keywords": [
+        "Delve"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vampiric Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, then shuffle and put that card on top. You lose 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Gush",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{4}{U}",
+      "cmc": 5,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "You may return two Islands you control to their owner's hand rather than pay this spell's mana cost.\nDraw two cards.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Fell the Profane // Fell Mire",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Yuriko, the Tiger's Shadow",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": true,
+      "oracle_text": "Commander ninjutsu {U}{B} ({U}{B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand or the command zone tapped and attacking.)\nWhenever a Ninja you control deals combat damage to a player, reveal the top card of your library and put that card into your hand. Each opponent loses life equal to that card's mana value.",
+      "keywords": [
+        "Commander ninjutsu"
+      ],
+      "subtypes": [
+        "Human",
+        "Ninja"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "1",
+      "toughness": "3"
+    }
+  ]
+}

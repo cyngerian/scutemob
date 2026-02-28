@@ -1,0 +1,1858 @@
+{
+  "commander": "The Ur-Dragon",
+  "colors": [
+    "W",
+    "U",
+    "B",
+    "R",
+    "G"
+  ],
+  "archetype": "Tribal Dragon",
+  "source": "archidekt",
+  "source_url": "https://archidekt.com/decks/4153743",
+  "archidekt_id": 4153743,
+  "fetched_date": "2026-02-28",
+  "card_count": 100,
+  "cards": [
+    {
+      "name": "Misty Rainforest",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Island card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Scalding Tarn",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Mountain card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Wooded Foothills",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Mountain or Forest card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Vampiric Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{B}",
+      "cmc": 1,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, then shuffle and put that card on top. You lose 2 life.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Stomping Ground",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Mountain",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Verdant Catacombs",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Forest card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arid Mesa",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Mountain or Plains card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Marsh Flats",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Swamp card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Temple Garden",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Godless Shrine",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Steam Vents",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Mountain"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Windswept Heath",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Plains card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Polluted Delta",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Flooded Strand",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Breeding Pool",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cavern of Souls",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Bloodstained Mire",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Mountain card, put it onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sacred Foundry",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Mountain"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Overgrown Tomb",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Swamp",
+        "Forest"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Blood Crypt",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Swamp",
+        "Mountain"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "City of Brass",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Whenever this land becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hallowed Fountain",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White",
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Plains",
+        "Island"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Watery Grave",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue",
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+      "keywords": [],
+      "subtypes": [
+        "Island",
+        "Swamp"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{1}",
+      "cmc": 1,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add {C}{C}.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Nature's Lore",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Reflecting Pool",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any type that a land you control could produce.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Worldly Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a creature card, reveal it, then shuffle and put the card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swords to Plowshares",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Swamp",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {B}.)",
+      "keywords": [],
+      "subtypes": [
+        "Swamp"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Balefire Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{R}{R}",
+      "cmc": 7,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, it deals that much damage to each creature that player controls.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Demonic Tutor",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{B}",
+      "cmc": 2,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Cyclonic Rift",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+      "keywords": [
+        "Overload"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Farseek",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{1}{G}",
+      "cmc": 2,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Exotic Orchard",
+      "quantity": 1,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Dragon Tempest",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Twinflame Tyrant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nIf a source you control would deal damage to an opponent or a permanent an opponent controls, it deals double that damage instead.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "3",
+      "toughness": "5"
+    },
+    {
+      "name": "Crux of Fate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{3}{B}{B}",
+      "cmc": 5,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Smothering Tithe",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{W}",
+      "cmc": 4,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "keywords": [
+        "Treasure"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Enlightened Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{W}",
+      "cmc": 1,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Birds of Paradise",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{G}",
+      "cmc": 1,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\n{T}: Add one mana of any color.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Bird"
+      ],
+      "power": "0",
+      "toughness": "1"
+    },
+    {
+      "name": "Cultivate",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "The Ur-Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{W}{U}{B}{R}{G}",
+      "cmc": 9,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "commander": true,
+      "oracle_text": "Eminence — As long as The Ur-Dragon is in the command zone or on the battlefield, other Dragon spells you cast cost {1} less to cast.\nFlying\nWhenever one or more Dragons you control attack, draw that many cards, then you may put a permanent card from your hand onto the battlefield.",
+      "keywords": [
+        "Flying",
+        "Eminence"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Avatar"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "10",
+      "toughness": "10"
+    },
+    {
+      "name": "Gamble",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{R}",
+      "cmc": 1,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for a card, put that card into your hand, discard a card at random, then shuffle.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mystical Tutor",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Thundermane Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nYou may look at the top card of your library any time.\nYou may cast creature spells with power 4 or greater from the top of your library. If you cast a creature spell this way, it gains haste until end of turn.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Hellkite Courser",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, you may put a commander you own from the command zone onto the battlefield. It gains haste. Return it to the command zone at the beginning of the next end step.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "6",
+      "toughness": "5"
+    },
+    {
+      "name": "Dragonlord Dromoka",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{W}",
+      "cmc": 6,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "This spell can't be countered.\nFlying, lifelink\nYour opponents can't cast spells during your turn.",
+      "keywords": [
+        "Flying",
+        "Lifelink"
+      ],
+      "subtypes": [
+        "Elder",
+        "Dragon"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "7"
+    },
+    {
+      "name": "Sarkhan, Soul Aflame",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{U}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Dragon spells you cast cost {1} less to cast.\nWhenever a Dragon you control enters, you may have Sarkhan become a copy of it until end of turn, except its name is Sarkhan, Soul Aflame and it's legendary in addition to its other types.",
+      "keywords": [],
+      "subtypes": [
+        "Human",
+        "Shaman"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "name": "Broodcaller Scourge",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever one or more Dragons you control deal combat damage to a player, you may put a permanent card with mana value less than or equal to that damage from your hand onto the battlefield.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "5",
+      "toughness": "7"
+    },
+    {
+      "name": "Island",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {U}.)",
+      "keywords": [],
+      "subtypes": [
+        "Island"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Forest",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {G}.)",
+      "keywords": [],
+      "subtypes": [
+        "Forest"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mountain",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {R}.)",
+      "keywords": [],
+      "subtypes": [
+        "Mountain"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Plains",
+      "quantity": 3,
+      "types": [
+        "Land"
+      ],
+      "mana_cost": "",
+      "cmc": 0,
+      "color_identity": [
+        "White"
+      ],
+      "commander": false,
+      "oracle_text": "({T}: Add {W}.)",
+      "keywords": [],
+      "subtypes": [
+        "Plains"
+      ],
+      "supertypes": [
+        "Basic"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Majestic Genesis",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{6}{G}{G}",
+      "cmc": 8,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Reveal the top X cards of your library, where X is the greatest mana value of a commander you own on the battlefield or in the command zone. You may put any number of permanent cards from among them onto the battlefield. Put the rest on the bottom of your library in a random order.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Temur Ascendancy",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{G}{U}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures you control have haste.\nWhenever a creature you control with power 4 or greater enters, you may draw a card.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Marang River Regent // Coil and Catch",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{U}{U} // {3}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "6",
+      "toughness": "7"
+    },
+    {
+      "name": "Herald's Horn",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "As this artifact enters, choose a creature type.\nCreature spells you cast of the chosen type cost {1} less to cast.\nAt the beginning of your upkeep, look at the top card of your library. If it's a creature card of the chosen type, you may reveal it and put it into your hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Magmatic Hellkite",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen this creature enters, destroy target nonbasic land an opponent controls. Its controller searches their library for a basic land card, puts it onto the battlefield tapped with a stun counter on it, then shuffles. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Scavenger Regent // Exude Toxin",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{B} // {X}{B}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flying",
+        "Ward"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Bloomvine Regent // Claim Territory",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{G} // {2}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Neriv, Heart of the Storm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}{W}{B}",
+      "cmc": 4,
+      "color_identity": [
+        "White",
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nIf a creature you control that entered this turn would deal damage, it deals twice that much damage instead.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Spirit"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Parapet Thrasher",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}",
+      "cmc": 4,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever one or more Dragons you control deal combat damage to an opponent, choose one that hasn't been chosen this turn —\n• Destroy target artifact that opponent controls.\n• This creature deals 4 damage to each other opponent.\n• Exile the top card of your library. You may play it this turn.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "3"
+    },
+    {
+      "name": "Rith, Liberated Primeval",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{G}{W}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, ward {2}\nOther Dragons you control have ward {2}.\nAt the beginning of your end step, if a creature or planeswalker an opponent controlled was dealt excess damage this turn, create a 4/4 red Dragon creature token with flying.",
+      "keywords": [
+        "Flying",
+        "Ward"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "5"
+    },
+    {
+      "name": "Rivaz of the Claw",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{B}{R}",
+      "cmc": 3,
+      "color_identity": [
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Menace\n{T}: Add two mana in any combination of colors. Spend this mana only to cast Dragon creature spells.\nOnce during each of your turns, you may cast a Dragon creature spell from your graveyard.\nWhenever you cast a Dragon creature spell from your graveyard, it gains \"When this creature dies, exile it.\"",
+      "keywords": [
+        "Menace"
+      ],
+      "subtypes": [
+        "Lizard",
+        "Warlock"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      "keywords": [
+        "Equip"
+      ],
+      "subtypes": [
+        "Equipment"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Arcane Signet",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{2}",
+      "cmc": 2,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Hammerhead Tyrant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{U}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever you cast a spell, return up to one target nonland permanent an opponent controls with mana value less than or equal to that spell's mana value to its owner's hand.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Shiko, Paragon of the Way",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{U}{R}{W}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, vigilance\nWhen Shiko enters, exile target nonland card with mana value 3 or less from your graveyard. Copy it, then you may cast the copy without paying its mana cost. (A copy of a permanent spell becomes a token.)",
+      "keywords": [
+        "Flying",
+        "Vigilance"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Spirit"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "4",
+      "toughness": "5"
+    },
+    {
+      "name": "Scourge of Valkas",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{R}{R}{R}",
+      "cmc": 5,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature or another Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.\n{R}: This creature gets +1/+0 until end of turn.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Savage Ventmaw",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}{G}",
+      "cmc": 6,
+      "color_identity": [
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature attacks, add {R}{R}{R}{G}{G}{G}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Dragonlord's Servant",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{1}{R}",
+      "cmc": 2,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Dragon spells you cast cost {1} less to cast.",
+      "keywords": [],
+      "subtypes": [
+        "Goblin",
+        "Shaman"
+      ],
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "name": "Chromatic Lantern",
+      "quantity": 1,
+      "types": [
+        "Artifact"
+      ],
+      "mana_cost": "{3}",
+      "cmc": 3,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Lands you control have \"{T}: Add one mana of any color.\"\n{T}: Add one mana of any color.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Roaming Throne",
+      "quantity": 1,
+      "types": [
+        "Creature",
+        "Artifact"
+      ],
+      "mana_cost": "{4}",
+      "cmc": 4,
+      "color_identity": [],
+      "commander": false,
+      "oracle_text": "Ward {2}\nAs this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nIf a triggered ability of another creature you control of the chosen type triggers, it triggers an additional time.",
+      "keywords": [
+        "Ward"
+      ],
+      "subtypes": [
+        "Golem"
+      ],
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "name": "Encroaching Dragonstorm",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{G}",
+      "cmc": 4,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "When this enchantment enters, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.\nWhen a Dragon you control enters, return this enchantment to its owner's hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Miirym, Sentinel Wyrm",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{3}{G}{U}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, ward {2}\nWhenever another nontoken Dragon you control enters, create a token that's a copy of it, except the token isn't legendary.",
+      "keywords": [
+        "Flying",
+        "Ward"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Spirit"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Betor, Kin to All",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}{B}{G}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Black",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nAt the beginning of your end step, if creatures you control have total toughness 10 or greater, draw a card. Then if creatures you control have total toughness 20 or greater, untap each creature you control. Then if creatures you control have total toughness 40 or greater, each opponent loses half their life, rounded up.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Spirit"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "5",
+      "toughness": "7"
+    },
+    {
+      "name": "Transcendent Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{U}{U}",
+      "cmc": 6,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flash\nFlying\nWhen this creature enters, if you cast it, counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard, then you may cast it without paying its mana cost.",
+      "keywords": [
+        "Flying",
+        "Flash"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "power": "4",
+      "toughness": "3"
+    },
+    {
+      "name": "Ancient Brass Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{B}{B}",
+      "cmc": 7,
+      "color_identity": [
+        "Black"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. When you do, put any number of target creature cards with total mana value X or less from graveyards onto the battlefield under your control, where X is the result.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Elder",
+        "Dragon"
+      ],
+      "power": "7",
+      "toughness": "6"
+    },
+    {
+      "name": "Roiling Dragonstorm",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{1}{U}",
+      "cmc": 2,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "When this enchantment enters, draw two cards, then discard a card.\nWhen a Dragon you control enters, return this enchantment to its owner's hand.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Tiamat",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{2}{W}{U}{B}{R}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhen Tiamat enters, if you cast it, search your library for up to five Dragon cards not named Tiamat that each have different names, reveal them, put them into your hand, then shuffle.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Dragon",
+        "God"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "7",
+      "toughness": "7"
+    },
+    {
+      "name": "Old Gnawbone",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{5}{G}{G}",
+      "cmc": 7,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever a creature you control deals combat damage to a player, create that many Treasure tokens.",
+      "keywords": [
+        "Flying",
+        "Treasure"
+      ],
+      "subtypes": [
+        "Dragon"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "7",
+      "toughness": "7"
+    },
+    {
+      "name": "Ureni of the Unwritten",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{G}{U}{R}",
+      "cmc": 7,
+      "color_identity": [
+        "Blue",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Flying, trample\nWhenever Ureni enters or attacks, look at the top eight cards of your library. You may put a Dragon creature card from among them onto the battlefield. Put the rest on the bottom of your library in a random order.",
+      "keywords": [
+        "Flying",
+        "Trample"
+      ],
+      "subtypes": [
+        "Dragon",
+        "Spirit"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "7",
+      "toughness": "7"
+    },
+    {
+      "name": "Morophon, the Boundless",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{7}",
+      "cmc": 7,
+      "color_identity": [
+        "White",
+        "Blue",
+        "Black",
+        "Red",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Changeling (This card is every creature type.)\nAs Morophon enters, choose a creature type.\nSpells of the chosen type you cast cost {W}{U}{B}{R}{G} less to cast. This effect reduces only the amount of colored mana you pay.\nOther creatures you control of the chosen type get +1/+1.",
+      "keywords": [
+        "Changeling"
+      ],
+      "subtypes": [
+        "Shapeshifter"
+      ],
+      "supertypes": [
+        "Legendary"
+      ],
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "name": "Ancient Copper Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{4}{R}{R}",
+      "cmc": 6,
+      "color_identity": [
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. You create a number of Treasure tokens equal to the result.",
+      "keywords": [
+        "Flying",
+        "Treasure"
+      ],
+      "subtypes": [
+        "Elder",
+        "Dragon"
+      ],
+      "power": "6",
+      "toughness": "5"
+    },
+    {
+      "name": "Ancient Silver Dragon",
+      "quantity": 1,
+      "types": [
+        "Creature"
+      ],
+      "mana_cost": "{6}{U}{U}",
+      "cmc": 8,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. Draw cards equal to the result. You have no maximum hand size for the rest of the game.",
+      "keywords": [
+        "Flying"
+      ],
+      "subtypes": [
+        "Elder",
+        "Dragon"
+      ],
+      "power": "8",
+      "toughness": "8"
+    },
+    {
+      "name": "Stubborn Denial",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{U}",
+      "cmc": 1,
+      "color_identity": [
+        "Blue"
+      ],
+      "commander": false,
+      "oracle_text": "Counter target noncreature spell unless its controller pays {1}.\nFerocious — If you control a creature with power 4 or greater, counter that spell instead.",
+      "keywords": [
+        "Ferocious"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Kodama's Reach",
+      "quantity": 1,
+      "types": [
+        "Sorcery"
+      ],
+      "mana_cost": "{2}{G}",
+      "cmc": 3,
+      "color_identity": [
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "keywords": [],
+      "subtypes": [
+        "Arcane"
+      ],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Crackling Doom",
+      "quantity": 1,
+      "types": [
+        "Instant"
+      ],
+      "mana_cost": "{R}{W}{B}",
+      "cmc": 3,
+      "color_identity": [
+        "White",
+        "Black",
+        "Red"
+      ],
+      "commander": false,
+      "oracle_text": "Crackling Doom deals 2 damage to each opponent. Each opponent sacrifices a creature with the greatest power among creatures that player controls.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    },
+    {
+      "name": "Mirari's Wake",
+      "quantity": 1,
+      "types": [
+        "Enchantment"
+      ],
+      "mana_cost": "{3}{G}{W}",
+      "cmc": 5,
+      "color_identity": [
+        "White",
+        "Green"
+      ],
+      "commander": false,
+      "oracle_text": "Creatures you control get +1/+1.\nWhenever you tap a land for mana, add one mana of any type that land produced.",
+      "keywords": [],
+      "power": "",
+      "toughness": ""
+    }
+  ]
+}
