@@ -552,3 +552,175 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
         trigger_stack_count_after
     );
 }
+
+// ── MR-M9.4-14: Full ETB-to-doubler registration pipeline ────────────────────
+
+/// MR-M9.4-14 / CR 603.2d — Casting and resolving a Panharmonicon auto-registers
+/// its TriggerDoubler via `register_static_continuous_effects` (no manual injection).
+///
+/// Verifies the complete path:
+///   CardDefinition::TriggerDoubling → cast → resolve → ETB → static ability
+///   registration → trigger_doublers populated → doubling works for next ETB.
+///
+/// Previous tests inject TriggerDoubler directly into state.trigger_doublers.
+/// This test exercises the real registration pathway.
+#[test]
+fn test_panharmonicon_registration_via_resolution() {
+    let p1 = p1();
+    let p2 = p2();
+    let p3 = p3();
+    let p4 = p4();
+
+    let pharm_def = panharmonicon_def("panharmonicon-reg-test", "Reg-Test Panharmonicon");
+    let pharm_card_id = pharm_def.card_id.clone();
+
+    let entering_def = CardDefinition {
+        card_id: CardId("entering-creature-reg-test".into()),
+        name: "Reg-Test Entering".into(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".into(),
+        abilities: vec![],
+        power: Some(1),
+        toughness: Some(1),
+    };
+    let entering_card_id = entering_def.card_id.clone();
+
+    let registry = CardRegistry::new(vec![pharm_def, entering_def]);
+
+    // Panharmonicon starts in hand; Watcher is on battlefield; entering creature in hand.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .object(
+            ObjectSpec::artifact(p1, "Reg-Test Panharmonicon")
+                .with_card_id(pharm_card_id.clone())
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .object(
+            ObjectSpec::creature(p1, "Reg-Test Watcher", 1, 1)
+                .with_triggered_ability(any_etb_trigger("ETB watcher for reg test"))
+                .in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::creature(p1, "Reg-Test Entering", 1, 1)
+                .with_card_id(entering_card_id)
+                .in_zone(ZoneId::Hand(p1)),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .build()
+        .unwrap();
+
+    // Give p1 enough mana: 4 for Panharmonicon + 1 for entering creature.
+    let mut state = state;
+    state.players.get_mut(&p1).unwrap().mana_pool.colorless = 5;
+
+    let pharm_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Reg-Test Panharmonicon")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // Step 1: Cast Panharmonicon.
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: pharm_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
+        },
+    )
+    .unwrap();
+
+    // Step 2: All four pass → Panharmonicon resolves and enters the battlefield.
+    // After resolution, register_static_continuous_effects fires and registers the
+    // TriggerDoubler from Panharmonicon's AbilityDefinition::TriggerDoubling entry.
+    // The Watcher's ETB trigger (from Panharmonicon entering) also goes onto the stack.
+    let (state, _pharm_resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    // The TriggerDoubler must now be registered (no manual injection).
+    assert_eq!(
+        state.trigger_doublers.len(),
+        1,
+        "After Panharmonicon resolves via casting, trigger_doublers should have 1 entry \
+         (registered by register_static_continuous_effects); got {}",
+        state.trigger_doublers.len()
+    );
+
+    // Step 2b: Drain all Watcher triggers from Panharmonicon's own ETB off the stack.
+    // Panharmonicon is an artifact, so its own entry may trigger (and double) the Watcher.
+    // One call to pass_all_four resolves exactly one stack item; loop until empty.
+    let mut state = state;
+    while !state.stack_objects.is_empty() {
+        let (s, _) = pass_all_four(state, [p1, p2, p3, p4]);
+        state = s;
+    }
+
+    // Step 3: Cast the entering creature (with 1 remaining mana).
+    // Stack must be empty before casting a sorcery-speed spell (CR 307.1).
+    let entering_hand_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Reg-Test Entering")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell {
+            player: p1,
+            card: entering_hand_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
+        },
+    )
+    .unwrap();
+
+    // Step 4: All four pass → entering creature resolves.
+    // Watcher's ETB trigger fires TWICE (doubled by the registered Panharmonicon).
+    let (_state, resolution_events) = pass_all_four(state, [p1, p2, p3, p4]);
+
+    let triggered_count = resolution_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::AbilityTriggered { .. }))
+        .count();
+
+    assert_eq!(
+        triggered_count, 2,
+        "CR 603.2d: Panharmonicon registered via resolution should double ETB trigger: \
+         expected 2 AbilityTriggered events, got {}; events: {:?}",
+        triggered_count, resolution_events
+    );
+}

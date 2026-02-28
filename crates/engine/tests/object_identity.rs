@@ -255,6 +255,72 @@ fn test_move_nonexistent_object_errors() {
 }
 
 #[test]
+/// MR-M1-19 / CR 400.7 — same-zone move (battlefield → battlefield) still
+/// produces a new ObjectId, because the zone-change event creates a new object
+/// regardless of the source and destination zones being the same.
+fn test_400_7_same_zone_move_produces_new_id() {
+    let p1 = PlayerId(1);
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(p1, "Blinking Bear", 2, 2))
+        .build()
+        .unwrap();
+
+    let old_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
+
+    // Move back to battlefield (simulating "leave and re-enter" at the primitive level).
+    let (new_id, _old_snapshot) = state
+        .move_object_to_zone(old_id, ZoneId::Battlefield)
+        .unwrap();
+
+    // New ObjectId is different from old (CR 400.7: every zone change = new object).
+    assert_ne!(old_id, new_id, "same-zone move must produce a new ObjectId");
+
+    // Old ID is gone.
+    assert!(
+        state.object(old_id).is_err(),
+        "old ObjectId should no longer exist after same-zone move"
+    );
+
+    // Only one object on the battlefield still.
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Battlefield).len(),
+        1,
+        "battlefield should still have exactly 1 object after same-zone move"
+    );
+}
+
+#[test]
+/// MR-M1-20 / CR 400.7 — moving a valid object to a non-existent player zone
+/// returns an error. The object must not be modified or destroyed.
+fn test_move_to_invalid_zone_returns_error() {
+    let p1 = PlayerId(1);
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(p1, "Stubborn Bear", 2, 2))
+        .build()
+        .unwrap();
+
+    let bear_id = state.objects_in_zone(&ZoneId::Battlefield)[0].id;
+
+    // PlayerId(999) does not exist in the state.
+    let result = state.move_object_to_zone(bear_id, ZoneId::Graveyard(PlayerId(999)));
+    assert!(
+        result.is_err(),
+        "moving to a non-existent player's graveyard should return an error"
+    );
+
+    // The object must still exist on the battlefield, unmodified.
+    assert!(
+        state.object(bear_id).is_ok(),
+        "object should still exist after failed zone move"
+    );
+    assert_eq!(
+        state.object(bear_id).unwrap().zone,
+        ZoneId::Battlefield,
+        "object should still be on the battlefield after failed zone move"
+    );
+}
+
+#[test]
 /// Multiple zone transitions produce unique ObjectIds each time
 fn test_multiple_zone_transitions() {
     let p1 = PlayerId(1);

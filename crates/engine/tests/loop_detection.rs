@@ -65,15 +65,18 @@ fn test_mandatory_loop_detected_draws_game() {
     // Call the detection function directly.
     let result = mtg_engine::rules::loop_detection::check_for_mandatory_loop(&mut state);
 
-    // The function computes a hash of the current state. Since we can't easily predict
-    // what the actual state hash will be (it depends on the full object graph), we
-    // test the detection by calling with a state where we know the hash will be different.
-    // Instead, we test by calling the function multiple times and verifying threshold behavior.
+    // The function hashes the current game state to detect repeated positions.
+    // The pre-loaded `test_hash` (0xDEAD_BEEF_CAFE_1234) is NOT the actual state hash —
+    // it's just a placeholder in the map. The actual state hash is a different value
+    // computed over the full game state. So the first call records count=1 for the
+    // actual state hash and returns None (threshold is 3, not reached yet).
     //
-    // First call with fresh state: not detected (first occurrence of the actual state hash).
+    // MR-M9.4-13: The previous assertion `result.is_none() || LoopDetected` was
+    // tautological (covers all possible return values). This assertion is meaningful.
     assert!(
-        result.is_none() || matches!(result, Some(GameEvent::LoopDetected { .. })),
-        "check_for_mandatory_loop returns None or LoopDetected"
+        result.is_none(),
+        "first call should return None (actual state hash count = 1, threshold = 3); got {:?}",
+        result
     );
 }
 

@@ -118,10 +118,12 @@ fn test_draw_step_draws_card() {
 }
 
 #[test]
-/// CR 103.8 — first player of the game skips first draw
+/// CR 103.8a — in a two-player game, the first player skips first draw
 fn test_first_player_skips_first_draw() {
     let p1 = PlayerId(1);
-    let state = GameStateBuilder::four_player()
+    let state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
         .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
         .build()
         .unwrap();
@@ -131,19 +133,49 @@ fn test_first_player_skips_first_draw() {
     // Advance through Upkeep to Draw
     let (state, events) = advance_to_step(state, Step::PreCombatMain);
 
-    // P1 should NOT have drawn (first turn of game)
+    // P1 should NOT have drawn (two-player, first turn of game — CR 103.8a)
     let draw_events: Vec<_> = events
         .iter()
         .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
         .collect();
     assert!(
         draw_events.is_empty(),
-        "first player should skip first draw"
+        "first player should skip first draw in two-player"
     );
 
     // Library should still have 1 card
     let library = state.zone(&ZoneId::Library(p1)).unwrap();
     assert_eq!(library.len(), 1);
+}
+
+#[test]
+/// CR 103.8c — in multiplayer, no player skips the draw step of their first turn
+fn test_multiplayer_first_player_draws() {
+    let p1 = PlayerId(1);
+    let state = GameStateBuilder::four_player()
+        .object(ObjectSpec::card(p1, "Mountain").in_zone(ZoneId::Library(p1)))
+        .build()
+        .unwrap();
+
+    let (state, _) = start_game(state).unwrap();
+
+    // Advance through Upkeep to Draw and beyond
+    let (state, events) = advance_to_step(state, Step::PreCombatMain);
+
+    // P1 SHOULD have drawn (multiplayer — CR 103.8c)
+    let draw_events: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .collect();
+    assert_eq!(
+        draw_events.len(),
+        1,
+        "first player should draw in multiplayer (CR 103.8c)"
+    );
+
+    // Library should be empty (1 card drawn)
+    let library = state.zone(&ZoneId::Library(p1)).unwrap();
+    assert_eq!(library.len(), 0);
 }
 
 #[test]

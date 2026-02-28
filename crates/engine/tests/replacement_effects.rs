@@ -9,10 +9,10 @@ use std::collections::HashSet;
 
 use mtg_engine::rules::replacement::{self, ReplacementResult};
 use mtg_engine::{
-    CombatDamageTarget, Command, CounterType, DamageTargetFilter, EffectDuration, GameEvent,
-    GameStateBuilder, ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId,
-    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, ZoneId,
-    ZoneType,
+    AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, CombatDamageTarget, Command,
+    CounterType, DamageTargetFilter, EffectDuration, GameEvent, GameStateBuilder, ManaCost,
+    ObjectFilter, ObjectId, ObjectSpec, PlayerFilter, PlayerId, ReplacementEffect, ReplacementId,
+    ReplacementModification, ReplacementTrigger, TypeLine, ZoneId, ZoneType,
 };
 
 /// Helper: create a simple zone-change replacement effect for testing.
@@ -1030,7 +1030,6 @@ fn test_find_applicable_until_end_of_turn_always_active() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 use mtg_engine::state::builder::register_commander_zone_replacements;
-use mtg_engine::CardId;
 
 // ── Simple creature dies with no replacement → graveyard normally ──
 
@@ -1795,7 +1794,7 @@ fn test_pending_zone_change_skipped_in_sba() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 use mtg_engine::rules::turn_actions::draw_card;
-use mtg_engine::{all_cards, CardRegistry, Step};
+use mtg_engine::{all_cards, Step};
 
 // ── Draw replacement: baseline ───────────────────────────────────────────
 
@@ -3166,5 +3165,116 @@ fn test_cc33_sylvan_library_draw_tracking() {
         state.players.get(&p1).unwrap().cards_drawn_this_turn,
         0,
         "after reset_turn_state, cards_drawn_this_turn should reset to 0"
+    );
+}
+
+// ── MR-M8-15: Self-replacement + global ETB replacement both apply ─────────
+
+#[test]
+/// MR-M8-15 / CR 614.12 / CR 614.15 — When a permanent enters the battlefield,
+/// both its own self-ETB replacement (is_self: true, e.g. enters tapped) and a
+/// global ETB replacement registered in state (e.g. enters with counters) apply
+/// in order: self-replacement first (CR 614.15), then global.
+///
+/// Setup:
+/// - Card definition with AbilityDefinition::Replacement { is_self: true, EntersTapped }.
+/// - Global ETB replacement in state.replacement_effects (EntersWithCounters).
+/// Both modifications must be present on the creature after both functions fire.
+fn test_etb_self_and_global_replacement_both_apply() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let card_id = CardId("enters-tapped-test-card".to_string());
+
+    // Card definition: creature with a self-replacement that makes it enter tapped.
+    let def = CardDefinition {
+        card_id: card_id.clone(),
+        name: "Enters Tapped Creature".into(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: "This creature enters the battlefield tapped.".into(),
+        abilities: vec![AbilityDefinition::Replacement {
+            trigger: ReplacementTrigger::WouldEnterBattlefield {
+                filter: ObjectFilter::Any,
+            },
+            modification: ReplacementModification::EntersTapped,
+            is_self: true,
+        }],
+        power: Some(2),
+        toughness: Some(2),
+    };
+
+    let registry = CardRegistry::new(vec![def]);
+
+    // Global ETB replacement: any creature that enters gets a +1/+1 counter.
+    let global_etb = ReplacementEffect {
+        id: ReplacementId(50),
+        source: None,
+        controller: p2, // controlled by p2 (e.g. Vorinclex)
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldEnterBattlefield {
+            filter: ObjectFilter::AnyCreature,
+        },
+        modification: ReplacementModification::EntersWithCounters {
+            counter: CounterType::PlusOnePlusOne,
+            count: 1,
+        },
+    };
+
+    // Build state: creature on the battlefield with the card_id set.
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Enters Tapped Creature", 2, 2)
+                .with_card_id(card_id.clone()),
+        )
+        .with_replacement_effect(global_etb)
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Enters Tapped Creature")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    // CR 614.15: apply self-replacement first.
+    let _self_evts = mtg_engine::rules::replacement::apply_self_etb_from_definition(
+        &mut state,
+        creature_id,
+        p1,
+        Some(&card_id),
+        &registry,
+    );
+
+    // Then apply global ETB replacements.
+    let _global_evts =
+        mtg_engine::rules::replacement::apply_etb_replacements(&mut state, creature_id, p1);
+
+    let creature = state.objects.get(&creature_id).unwrap();
+
+    // Self-replacement: creature must be tapped.
+    assert!(
+        creature.status.tapped,
+        "CR 614.15: self-ETB replacement (EntersTapped) must apply; creature not tapped"
+    );
+
+    // Global replacement: creature must have a +1/+1 counter.
+    assert_eq!(
+        creature.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0),
+        1,
+        "CR 614.12: global ETB replacement (EntersWithCounters) must also apply; \
+         creature has {} +1/+1 counters (expected 1)",
+        creature.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0)
     );
 }

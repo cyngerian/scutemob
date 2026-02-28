@@ -502,6 +502,70 @@ fn test_sba_704_5m_unattached_aura_goes_to_graveyard() {
     );
 }
 
+#[test]
+/// MR-M4-13 / CR 704.5m — aura whose attached_to target has moved to the
+/// graveyard (i.e., the old ObjectId no longer exists on the battlefield)
+/// falls off to the graveyard as a state-based action.
+///
+/// Distinct from the unattached aura test (no attached_to) and the
+/// type-change test (attached to wrong type). Here the creature was legally
+/// attached, then died. The aura's attached_to still holds the stale ObjectId.
+fn test_sba_704_5m_aura_target_left_battlefield() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(ObjectSpec::creature(p(1), "Host Creature", 2, 2))
+        .object(
+            ObjectSpec::enchantment(p(1), "Rancor Aura")
+                .with_subtypes(vec![SubType("Aura".to_string())]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    // Wire up the attachment (legal state: aura enchants creature on battlefield).
+    let creature_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Host Creature")
+        .map(|(id, _)| *id)
+        .unwrap();
+    let aura_id = state
+        .objects
+        .iter()
+        .find(|(_, obj)| obj.characteristics.name == "Rancor Aura")
+        .map(|(id, _)| *id)
+        .unwrap();
+
+    state.objects.get_mut(&aura_id).unwrap().attached_to = Some(creature_id);
+    state
+        .objects
+        .get_mut(&creature_id)
+        .unwrap()
+        .attachments
+        .push_back(aura_id);
+
+    // The creature "dies": zone change produces a new ObjectId for the graveyard copy.
+    // The aura's attached_to still holds the stale (old) creature_id.
+    let (_new_id, _) = state
+        .move_object_to_zone(creature_id, ZoneId::Graveyard(p(1)))
+        .unwrap();
+
+    // SBA check: aura attached to non-existent (or off-battlefield) object → falls off.
+    let events = sba_events_from_start(state);
+
+    let aura_fell_off = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::AuraFellOff { object_id, .. } if *object_id == aura_id));
+    assert!(
+        aura_fell_off,
+        "Aura whose attached_to target moved to the graveyard should fall off \
+         via SBA 704.5m; events: {:?}",
+        events
+    );
+}
+
 // ── CR 704.5n: Equipment attached illegally ────────────────────────────────
 
 #[test]

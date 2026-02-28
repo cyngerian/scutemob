@@ -23,7 +23,7 @@ use mtg_engine::state::{
     ReplacementModification, ReplacementTrigger, SuperType,
 };
 use mtg_engine::DeckViolation;
-use mtg_engine::{AttackTarget, ObjectId};
+use mtg_engine::{AttackTarget, ObjectId, StackObject, StackObjectKind};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -1613,6 +1613,127 @@ fn test_mulligan_sequence_four_players() {
     assert_eq!(state.zone(&ZoneId::Hand(p4)).unwrap().len(), 0);
 }
 
+#[test]
+/// MR-M9-14 / CR 103.5 — 3+ London mulligans: each successive non-free mulligan
+/// requires one additional card placed on the bottom. After 3 mulligans:
+///   1st (free): draw 7, keep with 0 on bottom → 7 in hand.
+///   2nd: draw 7, keep with 1 on bottom → 6 in hand.
+///   3rd: draw 7, keep with 2 on bottom → 5 in hand.
+fn test_mulligan_three_times_escalating_bottom_count() {
+    let p1 = p(1);
+
+    // Need enough library cards: 3 rounds × 7 draws = 21 minimum.
+    let state = build_state_with_library(p1, 25);
+
+    // --- 1st mulligan (free) ---
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        7,
+        "after 1st mulligan draw: 7 in hand"
+    );
+
+    // Keep with 0 on bottom (free mulligan).
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![],
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        7,
+        "after 1st keep (free, 0 to bottom): 7 in hand"
+    );
+
+    // --- 2nd mulligan (puts 1 on bottom) ---
+    let (state, ev2) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let ev2_mulligan = ev2.iter().find(|e| {
+        matches!(e, GameEvent::MulliganTaken { player, mulligan_number: 2, .. } if *player == p1)
+    });
+    assert!(
+        ev2_mulligan.is_some(),
+        "expected MulliganTaken with mulligan_number=2; events: {:?}",
+        ev2
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        7,
+        "after 2nd mulligan draw: 7 in hand"
+    );
+
+    let card_to_bottom_2 = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![card_to_bottom_2],
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        6,
+        "after 2nd keep (1 to bottom): 6 in hand"
+    );
+
+    // --- 3rd mulligan (puts 2 on bottom) ---
+    let (state, ev3) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let ev3_mulligan = ev3.iter().find(|e| {
+        matches!(e, GameEvent::MulliganTaken { player, mulligan_number: 3, .. } if *player == p1)
+    });
+    assert!(
+        ev3_mulligan.is_some(),
+        "expected MulliganTaken with mulligan_number=3; events: {:?}",
+        ev3
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        7,
+        "after 3rd mulligan draw: 7 in hand"
+    );
+
+    let hand_ids = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids();
+    let cards_to_bottom_3 = vec![hand_ids[0], hand_ids[1]]; // 2 cards to bottom
+
+    // Must reject 1 card (wrong count for 3rd mulligan which requires 2).
+    let err = process_command(
+        state.clone(),
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![hand_ids[0]],
+        },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
+        "3rd mulligan must require 2 cards to bottom, not 1; err: {:?}",
+        err
+    );
+
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: cards_to_bottom_3,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        state.zone(&ZoneId::Hand(p1)).unwrap().len(),
+        5,
+        "after 3rd keep (2 to bottom): 5 in hand"
+    );
+    assert_eq!(
+        state.players.get(&p1).unwrap().mulligan_count,
+        3,
+        "mulligan_count should be 3"
+    );
+}
+
 // ── Session 5: Companion (CR 702.139a) ───────────────────────────────────────
 
 #[test]
@@ -1752,6 +1873,73 @@ fn test_companion_only_once_per_game() {
     assert!(
         matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
         "expected InvalidCommand on second companion use: {:?}",
+        err
+    );
+}
+
+#[test]
+/// MR-M9-15 / CR 702.139a — BringCompanion is rejected when the stack is non-empty.
+/// The companion special action can only be used when the stack is empty
+/// (CR 702.139a: sorcery speed, main phase, stack empty).
+fn test_companion_rejected_with_non_empty_stack() {
+    let p1 = p(1);
+    let comp_id = cid("test-companion-stack-test");
+
+    let companion_card = ObjectSpec::card(p1, "Stack-Test Companion")
+        .with_card_id(comp_id.clone())
+        .in_zone(ZoneId::Command(p1));
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                ..Default::default()
+            },
+        )
+        .object(companion_card)
+        .build()
+        .unwrap();
+
+    state.players.get_mut(&p1).unwrap().companion = Some(comp_id.clone());
+
+    // Push a spell onto the stack to simulate a non-empty stack.
+    // Use a sentinel ObjectId that doesn't correspond to a real object —
+    // we only need the stack to be non-empty for the check.
+    state.stack_objects.push_back(StackObject {
+        id: ObjectId(9001),
+        controller: p1,
+        kind: StackObjectKind::Spell {
+            source_object: ObjectId(9001),
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+    });
+
+    assert_eq!(
+        state.stack_objects.len(),
+        1,
+        "pre-condition: stack should have 1 object"
+    );
+
+    // BringCompanion must be rejected because the stack is non-empty.
+    let err = process_command(state, Command::BringCompanion { player: p1 }).unwrap_err();
+    assert!(
+        matches!(err, mtg_engine::GameStateError::InvalidCommand(_)),
+        "BringCompanion should be rejected when stack is non-empty; err: {:?}",
         err
     );
 }

@@ -207,3 +207,92 @@ fn test_concede_active_player_during_combat_clears_combat_state() {
         "combat state should be cleared when active player concedes"
     );
 }
+
+#[test]
+/// MR-M2-08 / CR 104.3a — active player concedes while all non-active players
+/// have already passed priority. Tests that the engine correctly handles the
+/// priority-resolution path (engine.rs) when the priority holder concedes and
+/// all remaining players had already passed (making the turn advance clean).
+///
+/// Uses a non-first active player (P3) to exercise the general-case turn order.
+fn test_concede_active_player_all_others_passed_turn_advances_cleanly() {
+    // Build a state where P3 is the active player.
+    let state = four_player_at(Step::PreCombatMain);
+
+    // Manually override active player to P3 and set players_passed to reflect
+    // that P1, P2, P4 have all passed (P3 now holds priority about to cycle back).
+    // Also set last_regular_active so advance_turn() knows to advance from P3 → P4.
+    let mut state = state;
+    state.turn.active_player = PlayerId(3);
+    state.turn.last_regular_active = PlayerId(3);
+    state.turn.priority_holder = Some(PlayerId(3));
+    state.turn.players_passed.insert(PlayerId(1));
+    state.turn.players_passed.insert(PlayerId(2));
+    state.turn.players_passed.insert(PlayerId(4));
+
+    // P3 (active, all others passed) concedes.
+    let (state, events) = concede(state, PlayerId(3));
+
+    // P3 should be eliminated.
+    assert!(
+        state.players[&PlayerId(3)].has_conceded,
+        "P3 should be eliminated after conceding"
+    );
+
+    // P4 should be the next active player (next in turn order after P3).
+    assert_eq!(
+        state.turn.active_player,
+        PlayerId(4),
+        "P4 should be the next active player after P3 concedes"
+    );
+
+    // The game should still be going (3 players remain).
+    assert!(!events.iter().any(|e| matches!(e, GameEvent::GameOver { .. })));
+    assert_eq!(
+        state
+            .players
+            .values()
+            .filter(|p| !p.has_conceded && !p.has_lost)
+            .count(),
+        3,
+        "3 players should remain after P3 concedes"
+    );
+}
+
+#[test]
+/// MR-M2-17 / CR 104.3a — a non-active player concedes during an active combat
+/// phase. Tests that the combat state is correctly cleaned up (their pending
+/// blocks are removed, game continues cleanly for surviving players).
+fn test_concede_non_active_player_during_combat() {
+    // P1 is active and has initiated combat (BeginningOfCombat step).
+    // P2 is a non-active player who decides to concede.
+    let mut state = four_player_at(Step::BeginningOfCombat);
+
+    // Set up a minimal combat state for P1.
+    state.combat = Some(mtg_engine::state::CombatState::new(PlayerId(1)));
+
+    // P2 concedes during combat.
+    let (state, events) = concede(state, PlayerId(2));
+
+    // P2 should be eliminated.
+    assert!(
+        state.players[&PlayerId(2)].has_conceded,
+        "P2 should be eliminated after conceding"
+    );
+
+    // Combat state remains (P1 is still the active player in combat).
+    assert!(
+        state.combat.is_some(),
+        "combat state should NOT be cleared when a non-active player concedes"
+    );
+
+    // Game still ongoing — P1/P3/P4 remain.
+    assert!(!events.iter().any(|e| matches!(e, GameEvent::GameOver { .. })));
+
+    // P1 still has priority (still in combat).
+    assert_eq!(
+        state.turn.active_player,
+        PlayerId(1),
+        "P1 should still be the active player after non-active P2 concedes"
+    );
+}

@@ -1,12 +1,25 @@
 //! Property-based tests for turn structure invariants.
 
 use mtg_engine::rules::engine::{process_command, start_game};
-use mtg_engine::{Command, GameState, GameStateBuilder, PlayerId};
+use mtg_engine::{Command, GameState, GameStateBuilder, ObjectSpec, PlayerId, ZoneId};
 use proptest::prelude::*;
 
 /// Run N random PassPriority commands and verify invariants hold.
+///
+/// MR-M2-07: Include 10 library cards per player so game doesn't end from
+/// drawing from an empty library (CR 704.5b) before we finish the sequence.
 fn run_pass_sequence(num_passes: usize) -> GameState {
-    let state = GameStateBuilder::four_player().build().unwrap();
+    let mut builder = GameStateBuilder::four_player();
+    for pid in 1u64..=4 {
+        let player = PlayerId(pid);
+        for i in 0..10 {
+            builder = builder.object(
+                ObjectSpec::card(player, &format!("Lib Card {} P{}", i, pid))
+                    .in_zone(ZoneId::Library(player)),
+            );
+        }
+    }
+    let state = builder.build().unwrap();
     let (mut state, _) = start_game(state).unwrap();
 
     for _ in 0..num_passes {

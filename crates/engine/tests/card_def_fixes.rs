@@ -371,6 +371,72 @@ fn test_thought_vessel_no_max_hand_size() {
     );
 }
 
+#[test]
+/// MR-M9.4-15 / CR 402.2 / CR 514.1 — Counter-assertion: the active player
+/// WITHOUT Thought Vessel DOES discard to hand size during cleanup.
+///
+/// CR 514.1a: "First, if the active player's hand contains more cards than
+/// their maximum hand size, they discard enough cards to reduce to that number."
+/// This test is the discard-happens counterpart to
+/// `test_thought_vessel_no_max_hand_size` (which checks the NO-discard path).
+fn test_no_thought_vessel_discards_to_hand_size() {
+    let p1 = PlayerId(1); // P1 is the active player in a `four_player()` builder.
+
+    // P1 (active player) has 9 cards in hand and NO Thought Vessel.
+    // With max_hand_size = 7 (default), P1 must discard 2 cards during cleanup.
+    let mut builder = GameStateBuilder::four_player().at_step(Step::End);
+
+    for i in 0..9 {
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("P1 Hand {}", i)).in_zone(ZoneId::Hand(p1)));
+    }
+
+    let state = builder.build().unwrap();
+
+    // Pass all 4 players through End step → cleanup triggers for active player P1.
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, _) = process_command(
+        state,
+        Command::PassPriority {
+            player: PlayerId(2),
+        },
+    )
+    .unwrap();
+    let (state, _) = process_command(
+        state,
+        Command::PassPriority {
+            player: PlayerId(3),
+        },
+    )
+    .unwrap();
+    let (state, events) = process_command(
+        state,
+        Command::PassPriority {
+            player: PlayerId(4),
+        },
+    )
+    .unwrap();
+
+    // P1 MUST discard (active player, 9 cards, no Vessel).
+    let p1_discards: Vec<_> = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::DiscardedToHandSize { player, .. } if *player == p1))
+        .collect();
+    assert!(
+        !p1_discards.is_empty(),
+        "p1 without Thought Vessel should discard to hand size during cleanup; events: {:?}",
+        events
+    );
+
+    // Verify p1 ends up with exactly 7 cards (maximum hand size).
+    let p1_hand_count = state.objects_in_zone(&ZoneId::Hand(p1)).len();
+    assert_eq!(
+        p1_hand_count, 7,
+        "p1 should have exactly 7 cards after cleanup discard; got {}",
+        p1_hand_count
+    );
+}
+
 // ── CR 603.1: Alela trigger scoping — during_opponent_turn flag ───────────────
 
 #[test]

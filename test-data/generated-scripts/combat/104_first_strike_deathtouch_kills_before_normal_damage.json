@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_104",
+    "name": "First strike + deathtouch kills blocker before normal damage step",
+    "description": "A 1/1 creature with both first strike and deathtouch attacks into p2's Wall of Omens (0/4). In the first-strike damage step, the 1/1 deals 1 damage to the Wall of Omens. Because the source has deathtouch (CR 702.2b), any amount of damage is considered lethal. SBAs are checked after the first-strike damage step: Wall of Omens has 1 damage from a deathtouch source and is destroyed (CR 704.5g). In the normal combat damage step, the Wall of Omens no longer exists, so it deals 0 damage to the 1/1 attacker. The 1/1 survives unscathed. This script is informational, documenting the interaction of CR 702.7 (first strike), CR 702.2 (deathtouch), and CR 510.1 (two combat damage steps). No engine card in the available card definitions has both first strike and deathtouch; the attacker is represented conceptually using Monastery Swiftspear as a stand-in.",
+    "cr_sections_tested": [
+      "702.2",
+      "702.2b",
+      "702.7",
+      "510.1",
+      "510.2",
+      "704.5g",
+      "704.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "first-strike",
+      "deathtouch",
+      "combat",
+      "combat-damage",
+      "two-step-damage",
+      "sba",
+      "lethal-damage"
+    ],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-02-28",
+    "generation_notes": "CR 702.7a: A creature with first strike deals combat damage in the first combat damage step. Creatures without first strike deal damage in the second combat damage step (CR 510.2). CR 702.2b: Any amount of damage dealt by a source with deathtouch to a creature is enough to destroy that creature. CR 704.5g: SBAs are checked after each damage step. Wall of Omens (0/4) receives 1 damage from the deathtouch attacker in the first-strike step. Even though 1 damage < 4 toughness, deathtouch makes it lethal (CR 702.2b). SBA 704.5g destroys Wall of Omens after the first-strike step. In the second (normal) damage step, Wall of Omens is gone and cannot deal damage to the attacker. The 1/1 attacker survives. No card in the Available Cards list has both first strike and deathtouch, so Monastery Swiftspear (1/2, Haste, Prowess) is used as a conceptual stand-in for the attacker — the script is informational and uses turn_based_action entries (not real declare_attackers/declare_blockers harness commands) matching the style of scripts 004 and 007. Wall of Omens (0/4, Defender, ETB draw) is used as the blocker because its 4 toughness would survive a normal 1-damage hit, making the deathtouch lethality especially clear. Four players are included per the scenario requirements; p3 and p4 are not involved in the combat. Post-damage assert_state entries are omitted because the harness does not execute combat damage from turn_based_action or sba_check steps (those are documentary), so zone state is unchanged from initial_state throughout. Only the initial assert_state is used to verify setup.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Monastery Swiftspear",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [
+          {
+            "card": "Wall of Omens",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Conceptual: p1 attacks with a 1/1 first strike + deathtouch creature (Monastery Swiftspear stand-in) into p2's Wall of Omens (0/4). First-strike damage step resolves before the normal damage step.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Monastery Swiftspear (stand-in for 1/1 first strike + deathtouch) on p1 battlefield; Wall of Omens (0/4) on p2 battlefield; all four players at 40 life; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Monastery Swiftspear" }]
+            },
+            "zones.battlefield.p2": {
+              "includes": [{ "card": "Wall of Omens" }]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "players.p3.life": 40,
+            "players.p4.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Both creatures are on their respective battlefields before combat damage is assigned. The conceptual attacker has first strike (deals damage in the first combat damage step, CR 702.7) and deathtouch (any amount of damage it deals is lethal, CR 702.2b). Wall of Omens (0/4, Defender) is the defending blocker — Defender restricts attacking but not blocking."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "First-strike damage step (CR 510.1): the 1/1 first strike + deathtouch creature deals 1 damage to Wall of Omens. Wall of Omens has no first strike and does NOT deal damage in this step.",
+          "cr_ref": "510.1",
+          "note": "CR 702.7a: First strike creatures deal combat damage in a separate first combat damage step. CR 510.1: Only creatures with first strike (or double strike) assign and deal damage in this step. The 1/1 attacker deals 1 damage to Wall of Omens. Wall of Omens has no first strike — it does not assign or deal damage in the first-strike step."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Wall of Omens has 1 damage from a deathtouch source. CR 702.2b: any amount of deathtouch damage is lethal. Wall of Omens is destroyed and moves to p2's graveyard.",
+              "object": "Wall of Omens",
+              "controller": "p2",
+              "result": "moved to p2 graveyard",
+              "cr_ref": "704.5g"
+            }
+          ],
+          "note": "CR 704.3: SBAs are checked as a batch after the first-strike damage step resolves, before players receive priority for the first time. CR 702.2b: Any amount of damage dealt by a source with deathtouch to a creature is enough to destroy it — the normal 'damage >= toughness' threshold of CR 704.5g is modified. Wall of Omens had 4 toughness but received only 1 damage; deathtouch bypasses the toughness threshold and makes that 1 damage lethal. CR 704.5g: Wall of Omens has lethal damage (via deathtouch modifier) and is destroyed, moving to p2's graveyard."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Normal combat damage step (CR 510.2): Wall of Omens is already in p2's graveyard — it cannot deal combat damage. The 1/1 attacker (which has first strike) already dealt its damage in the first step and does not deal additional damage here. No damage is dealt in this step.",
+          "cr_ref": "510.2",
+          "note": "CR 510.2: In the normal combat damage step, creatures without first strike (or double strike) deal damage simultaneously. Wall of Omens was destroyed by SBA 704.5g after the first-strike step and is now in p2's graveyard — it is no longer a creature on the battlefield and cannot assign or deal combat damage (CR 510.1). The 1/1 attacker has first strike only (not double strike), so it already dealt its damage in the first step and does not deal damage again here. Result: no combat damage is dealt in the normal step. The attacker survives with 0 damage marked on it — the blocker never got to deal back."
+        }
+      ]
+    }
+  ]
+}

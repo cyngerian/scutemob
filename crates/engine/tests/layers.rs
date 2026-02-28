@@ -1795,3 +1795,86 @@ fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
         anger_chars_2.keywords
     );
 }
+
+// ---------------------------------------------------------------------------
+// MR-M5-08: CDA vs non-CDA ordering in the same sublayer (CR 613.3)
+// ---------------------------------------------------------------------------
+
+/// MR-M5-08 / CR 613.3 — In layer 7b (PtSet), CDAs apply before non-CDAs
+/// regardless of timestamp.
+///
+/// Setup:
+/// - CDA effect (is_cda: true) at timestamp=10 sets P/T to 2/2.
+/// - Non-CDA effect (is_cda: false) at timestamp=5 (earlier!) sets P/T to 3/3.
+///
+/// Without special CDA ordering, the earlier-timestamp non-CDA would apply first
+/// (setting 3/3), then the later-timestamp CDA would apply (setting 2/2) → final 2/2.
+///
+/// With CDA-first ordering (CR 613.3): CDAs partition separately and apply before
+/// all non-CDAs in the same sublayer. So the CDA (ts=10) applies first → 2/2,
+/// then the non-CDA (ts=5) applies last → 3/3. Final P/T: 3/3.
+#[test]
+fn test_613_layer7b_cda_applies_before_noncda_same_sublayer() {
+    let state = GameStateBuilder::new()
+        .add_player(p1())
+        // A creature whose base P/T (5/6) will be overridden by effects.
+        .object(ObjectSpec::creature(p1(), "Tarmogoyf-like", 5, 6))
+        // CDA effect: timestamp=10 (later), sets P/T to 2/2.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(100),
+            source: None,
+            timestamp: 10,
+            layer: EffectLayer::PtSet,
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            filter: EffectFilter::AllCreatures,
+            modification: LayerModification::SetPowerToughness {
+                power: 2,
+                toughness: 2,
+            },
+            is_cda: true,
+        })
+        // Non-CDA effect: timestamp=5 (earlier), sets P/T to 3/3.
+        .add_continuous_effect(ContinuousEffect {
+            id: EffectId(101),
+            source: None,
+            timestamp: 5,
+            layer: EffectLayer::PtSet,
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            filter: EffectFilter::AllCreatures,
+            modification: LayerModification::SetPowerToughness {
+                power: 3,
+                toughness: 3,
+            },
+            is_cda: false,
+        })
+        .build()
+        .unwrap();
+
+    let id = *state
+        .zones
+        .get(&mtg_engine::ZoneId::Battlefield)
+        .unwrap()
+        .object_ids()
+        .first()
+        .unwrap();
+
+    let chars = calculate_characteristics(&state, id).unwrap();
+
+    // CDA (ts=10, 2/2) applies first; non-CDA (ts=5, 3/3) applies last → 3/3 wins.
+    // If timestamp-only ordering were used: non-CDA (ts=5) first → 3/3, CDA (ts=10) last
+    // → 2/2 (wrong). The CDA-first partition ensures 3/3 is the final result.
+    assert_eq!(
+        chars.power,
+        Some(3),
+        "CR 613.3: CDA (ts=10, 2/2) applies before non-CDA (ts=5, 3/3) → non-CDA wins; \
+         got power {:?}",
+        chars.power
+    );
+    assert_eq!(
+        chars.toughness,
+        Some(3),
+        "CR 613.3: CDA (ts=10, 2/2) applies before non-CDA (ts=5, 3/3) → non-CDA wins; \
+         got toughness {:?}",
+        chars.toughness
+    );
+}
