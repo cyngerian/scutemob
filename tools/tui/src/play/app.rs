@@ -4,10 +4,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use mtg_engine::{
-    all_cards, process_command, start_game, CardRegistry, Command, GameEvent, GameState,
-    GameStateBuilder, ObjectId, PlayerId, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, start_game, CardDefinition, CardRegistry,
+    Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId,
 };
-use mtg_simulator::{Bot, HeuristicBot, LegalAction, LegalActionProvider, RandomBot, StubProvider};
+use mtg_simulator::{
+    random_deck, Bot, HeuristicBot, LegalAction, LegalActionProvider, RandomBot, StubProvider,
+};
 use rand::prelude::*;
 
 /// Input mode — determines what keys do.
@@ -53,20 +55,53 @@ const MAX_CONSECUTIVE_PASSES: u32 = 500;
 impl PlayApp {
     pub fn new(player_count: u32, bot_type: &str) -> anyhow::Result<Self> {
         let cards = all_cards();
-        let registry = CardRegistry::new(cards);
+        let registry = CardRegistry::new(cards.clone());
         let human_player = PlayerId(1);
+        let mut rng = StdRng::from_entropy();
 
-        // Build initial state
+        // Build initial state with populated libraries
         let mut builder = GameStateBuilder::new().with_registry(registry.clone());
-        for i in 1..=player_count {
-            builder = builder.add_player(PlayerId(i as u64));
+        let player_ids: Vec<PlayerId> =
+            (1..=player_count).map(|i| PlayerId(i as u64)).collect();
+
+        for &pid in &player_ids {
+            builder = builder.add_player(pid);
         }
+
+        // Build name→def lookup for enriching card specs
+        let card_defs: HashMap<String, CardDefinition> =
+            cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
+
+        // Give each player a random deck
+        for &pid in &player_ids {
+            if let Some(deck) = random_deck(&mut rng, &cards) {
+                // Commander in command zone
+                if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
+                    let spec = ObjectSpec::card(pid, &def.name)
+                        .in_zone(ZoneId::Command(pid))
+                        .with_card_id(deck.commander.clone());
+                    let spec = enrich_spec_from_def(spec, &card_defs);
+                    builder = builder.object(spec);
+                }
+
+                // Main deck cards in library
+                for card_id in &deck.main_deck {
+                    if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
+                        let spec = ObjectSpec::card(pid, &def.name)
+                            .in_zone(ZoneId::Library(pid))
+                            .with_card_id(card_id.clone());
+                        let spec = enrich_spec_from_def(spec, &card_defs);
+                        builder = builder.object(spec);
+                    }
+                }
+            }
+        }
+
         builder = builder.first_turn_of_game();
         let state = builder.build()?;
 
         // Create bots for non-human players
         let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
-        let mut rng = StdRng::from_entropy();
         for i in 2..=player_count {
             let pid = PlayerId(i as u64);
             let seed = rng.gen();
