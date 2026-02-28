@@ -272,7 +272,7 @@ Track progress across sessions by checking these off:
 - [x] W3 T1: 4 existing tests improved
 - [x] W3 T1: Dead code removed (MR-M1-14, MR-M9.5-08)
 - [x] W1: Hideaway steps 5-7 complete (card def, script, coverage)
-- [ ] Committed
+- [x] Committed
 
 #### Phase 1: Full Ability Coverage (see `docs/ability-batch-plan.md` for per-ability tracking)
 - [ ] Batch 0: P3 stragglers (Hideaway close, Overload, Bolster, Adapt, Partner With)

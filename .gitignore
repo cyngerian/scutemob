@@ -31,5 +31,7 @@ Thumbs.db
 *.sqlite3-wal
 .scryfall-cache/
 test-data/golden-games/*.result.json
+logs/
 zz_scratch.md
 /claude_refactor
+codebase_analysis_*.md

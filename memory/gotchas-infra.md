@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 59 abilities (2026-02-28)
+# Infra & Testing Gotchas — Last verified: M9.5 + 59 abilities + W3 T1 tests (2026-02-28)
 
 ## Rust / im-rs Gotchas
 
@@ -200,6 +200,15 @@
   If you add a new initial_state field that affects pre-game setup, add it to `build_initial_state`
   in `tests/script_replay.rs`.
 
+## Turn Structure Gotchas
+
+- **`advance_turn()` uses `turn.last_regular_active`, NOT `turn.active_player`.** When manually
+  constructing a test state with a non-P1 active player, you must set BOTH `active_player` AND
+  `last_regular_active`. If you only set `active_player = P3` but leave `last_regular_active = P1`,
+  `advance_turn` will compute next-after-P1 → P2 instead of next-after-P3 → P4.
+- **Cleanup discard (CR 514.1a) applies only to the active player**, not all players.
+  If you need to test that a non-active player would discard, advance turns to make them active.
+
 ## Testing Gotchas
 
 - **`GameStateBuilder::six_player()`** added in M9 alongside `four_player()`. 6-player tests
@@ -226,6 +235,13 @@
 - **CR 510.1c: last blocker gets ALL remaining power (no trample cap).** "Assign minimum
   lethal before moving to next blocker" only applies when subsequent blockers exist. The
   final blocker without trample absorbs all remaining attacker power.
+- **`pass_all_four` resolves exactly ONE item from the stack per call.** If a test casts a
+  permanent that itself triggers a doubled ETB (e.g., Panharmonicon entering puts 2 Watcher
+  triggers on the stack), a single `pass_all_four` only drains 1 trigger. Use a drain loop:
+  `while !state.stack_objects.is_empty() { let (s,_) = pass_all_four(state, [...]); state = s; }`
+- **Sorcery-speed casts require empty stack (CR 307.1).** After a permanent resolves,
+  any ETB triggers it generated must be fully resolved before casting the next sorcery-speed
+  spell. If the permanent's own ETB doubles triggers, you need multiple drain calls.
 
 ## Replay Viewer / Axum Gotchas (M9.5+)
 
