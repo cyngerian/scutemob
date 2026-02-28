@@ -17,13 +17,7 @@
 | **W2** | TUI & simulator | Playable interactive Commander games for testing | Phase 1 done; playable but limited |
 | **W3** | LOW issues remediation | Clear ~68 open LOW issues from code reviews | Plan written; 0 fixes applied |
 | **W4** | M10 networking | Centralized WebSocket game server | Stub crate only |
-
-### Cross-cutting concern: Card authoring pipeline
-
-The `card-definition-author` agent has a ~57% failure rate. Every ability validated
-through the pipeline needs at least one card definition. Currently 111 cards defined
-and growing. Card authoring is the bottleneck for W1 ability validation and W2
-gameplay richness.
+| **W5** | Card authoring | Scale card definitions from 112 → 1,000+ using pipeline | Phase 9 ready; 1,061 cards in worklist |
 
 ---
 
@@ -71,6 +65,7 @@ W3 (LOW fixes)                W1 (Abilities)
 | W2 (TUI) + W4 (M10) | TUI is a local client; M10 is a server — different crates, complementary |
 | W1 (abilities) + W4 (M10) | M10 depends on engine stability, not specific abilities |
 | W3 T1 (tests) + anything | Additive-only; zero regression risk by definition |
+| W5 (card authoring) + anything | Only writes new files to `cards/defs/`; no file overlap with any other workstream |
 
 ---
 
@@ -317,6 +312,15 @@ Track progress across sessions by checking these off:
 - [ ] State history + rewind/pause
 - [ ] Reconnection
 - [ ] Integration tests (hidden info, 6-player)
+
+#### Phase 5: Card Authoring (W5 — runs in parallel with all other phases)
+- [ ] Batch A: Tier 2 ready (Skullclamp, Ancient Tomb, Blood Artist, Viscera Seer, Exotic Orchard, + 8 more)
+- [ ] Batch B: Fetchlands + shocklands (Wooded Foothills, Bloodstained Mire, Misty Rainforest, Arid Mesa, Godless Shrine, Blood Crypt, + others)
+- [ ] Batch C: Tier 2 stragglers + top Tier 3 (Heroic Intervention, Enlightened Tutor, Worldly Tutor, Cavern of Souls, + top Tier 3)
+- [ ] 100 total cards defined (checkpoint)
+- [ ] 250 total cards defined (checkpoint)
+- [ ] 500 total cards defined (checkpoint)
+- [ ] Blocked cards authored as abilities are implemented (tracked in `_authoring_worklist.json`)
 
 ---
 

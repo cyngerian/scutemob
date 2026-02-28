@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1118 tests passing; 70 approved scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 32/40 P3 validated; 0 HIGH/MEDIUM; ~40 LOW deferred; Phase 0 complete
+- **Status**: 1127 tests passing; 70 approved scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 32/40 P3 validated; 0 HIGH/MEDIUM; ~40 LOW deferred; Phase 0 complete; card pipeline Phases 5-9 DONE (one-file-per-card, skeleton generator, batch authoring ready)
 - **Last Updated**: 2026-02-28
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
@@ -193,6 +193,7 @@ Eleven project-scoped agents in `.claude/agents/` encode milestone and ability w
 | W2: TUI & Simulator | `W2:` | `W2: fix blocker declaration` |
 | W3: LOW Remediation | `W3:` | `W3: add debug_assert to sba.rs` |
 | W4: M10 Networking | `W4:` | `W4: add GameServer skeleton` |
+| W5: Card Authoring | `W5-cards:` | `W5-cards: author Skullclamp, Blood Artist` |
 | Cross-cutting | `chore:` | `chore: update workstream-state` |
 
 ---

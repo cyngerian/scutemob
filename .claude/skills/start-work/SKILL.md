@@ -14,6 +14,7 @@ and before doing any actual work.
 - `W2` — Claim W2 (TUI & simulator)
 - `W3` — Claim W3 (LOW remediation)
 - `W4` — Claim W4 (M10 networking)
+- `W5`, `W5-cards` — Claim W5 (card authoring — batch card definitions from worklist)
 - No args — Show current state and ask which workstream to claim
 
 ## Procedure
@@ -57,6 +58,7 @@ Based on the workstream, suggest which files to load:
 | W2 | `tools/tui/` source, `crates/simulator/` |
 | W3 | `docs/mtg-engine-low-issues-remediation.md` |
 | W4 | `docs/mtg-engine-roadmap.md` M10 section |
+| W5 | `test-data/test-decks/PLAN.md` — Phase 9 workflow; `test-data/test-decks/_authoring_worklist.json` — card list |
 
 If claiming W1 with a batch number, also report:
 - Which abilities are in that batch

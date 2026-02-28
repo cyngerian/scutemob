@@ -14,41 +14,39 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
+| W5: Card Authoring | — | available | — | Phase 9 ready; 1,061 cards in worklist; start with Tier 2 ready cards |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
 
 ## Last Handoff
 
-**Date**: 2026-02-28
-**Workstream**: W2: TUI & Simulator
-**Task**: Overview layout restructure + Card DSL in detail pane
+**Date**: 2026-02-28 (evening)
+**Workstream**: W5: Card Authoring (setup only — no cards authored)
+**Task**: Create W5 workstream infrastructure; plan Phase 9 batch authoring
 **Completed**:
-- Overview bottom row: 3-column layout (Reviews/Engine stacked left, Scripts middle, Cards right)
-- Engine Size restored as its own bordered widget, stacked below Code Reviews
-- Card DSL parser: extracts CardDefinition blocks from definitions.rs, dedents, keyed by name
-- Cards tab detail pane: shows syntax-highlighted DSL (cyan keys, white values) for authored cards
-- Detail pane scrollable via Shift+J/K; scroll resets on row/filter change
-- Clippy clean; commit `8d78f7b`
-**Next**: Other uncommitted TUI files (play/, render.rs) from prior sessions still unstaged. Phase 2 TUI work (file watching, Session tab, stepper subcommand) remains.
-**Hazards**: Uncommitted changes in engine files (turn_structure.rs, builder.rs, replay_harness.rs, tests) and other TUI files from prior sessions
-**Commit prefix used**: `W2:`
+- Added W5 as a proper workstream (separate from W1 abilities — different files, parallelizable)
+- Updated workstream-state.md, CLAUDE.md, docs/workstream-coordination.md, start-work skill
+- Commit prefix established: `W5-cards:`
+- Worklist confirmed: 1,061 ready cards, top Tier 2 = Skullclamp (7 decks), Ancient Tomb, Wooded Foothills (6), Blood Artist, Viscera Seer, Exotic Orchard, Godless Shrine, etc. (5)
+- Phase 5 progress checkboxes added to workstream-coordination.md
+**Next**: Claim W5, run `python3 tools/generate_skeleton.py` for Batch A (~10 Tier 2 cards), author abilities, `cargo check` per card, `cargo test --all`, commit `W5-cards: author ...`
+**Hazards**: Working tree has uncommitted changes to CLAUDE.md, workstream-state.md, workstream-coordination.md, start-work skill — commit as `chore:` before starting card authoring
+**Commit prefix used**: `chore:` (infrastructure only this session)
 
 ## Handoff History
 
+### 2026-02-28 (late) — W2: Card Pipeline Phases 5-9
+- Split definitions.rs → 112 files in defs/; build.rs auto-discovery; skeleton generator; agent rewrite; commit `f9f7c45`
+
+### 2026-02-28 — W2: Overview layout + Card DSL detail pane
+- Overview bottom row: 3-column layout; Card DSL parser + detail pane; commit `8d78f7b`
+
 ### 2026-02-28 — W3: T2 dead code removal + Phase 0 complete
-- MR-M1-14, MR-M9.5-08, MR-M9.4-11 closed; commit `7d535ec`
-- Phase 0 complete; Phase 1 (abilities) next
+- MR-M1-14, MR-M9.5-08, MR-M9.4-11 closed; commit `7d535ec`; Phase 0 complete
 
 ### 2026-02-28 — W3: T1 tests (14 total)
-- MR-M1-19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-13/14/15
-- 1118 tests pass; 70 approved scripts; commit `320b77f`
-
-### 2026-02-28 — Cross-cutting (chore): Improve /start-session progress checkboxes
-- Fixed `/start-session` to read progress checkboxes from `docs/workstream-coordination.md`
-- New Step 3 identifies current phase, next unchecked item, and concrete workstream recommendation
+- MR-M1-19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-13/14/15; commit `320b77f`
 
 ### 2026-02-28 — Cross-cutting (chore): Workstream coordination infrastructure
-- Created `docs/ability-batch-plan.md`, `docs/workstream-coordination.md`, `memory/workstream-state.md`
-- Created 3 project-scoped skills: `/start-session`, `/start-work`, `/end-session`
-- Reorganized `memory/abilities/` (109 plan+review files moved)
+- Created ability-batch-plan.md, workstream-coordination.md, workstream-state.md, 3 skills
