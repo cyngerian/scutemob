@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1106 tests passing; ~88 approved + 16 pending_review scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 32/40 P3 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
+- **Status**: 1118 tests passing; 70 approved scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 32/40 P3 validated; 0 HIGH/MEDIUM; ~40 LOW deferred; Phase 0 complete
 - **Last Updated**: 2026-02-28
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
@@ -27,7 +27,7 @@
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved through M9.4
 - **MEDIUM open**: 0 — all resolved through M9.4
-- **~43 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage — deferred, address opportunistically
+- **~40 LOW open**: schema improvements, partial name matching, FTS trigger gaps, stale replacement cleanup, hidden-info gaps, HashMap usage — deferred, address opportunistically
 - **Full details**: `docs/mtg-engine-milestone-reviews.md`
 
 ---
@@ -57,6 +57,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | LOW Issues Remediation | `docs/mtg-engine-low-issues-remediation.md` | Tiered plan for ~68 open LOW issues with risk assessment |
 | Workstream Coordination | `docs/workstream-coordination.md` | Cross-session coordination for 4 parallel workstreams (abilities, TUI, LOWs, M10) |
 | Ability Batch Plan | `docs/ability-batch-plan.md` | 16 batches covering all ~75 implementable abilities (P3+P4) with dependency map |
+| Card Pipeline & Scaling | `docs/mtg-engine-card-pipeline.md` | Card definition organization, Rust DSL rationale, scaling strategy (112 → 27k), authoring pipeline |
 | Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
 | This file | `CLAUDE.md` | Current project state; session context |
 
@@ -85,6 +86,7 @@ Before starting work, check which files apply to your task:
 | Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
+| Authoring card definitions | `docs/mtg-engine-card-pipeline.md`; worklist at `test-data/test-decks/PLAN.md` |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.
@@ -174,11 +176,24 @@ Eleven project-scoped agents in `.claude/agents/` encode milestone and ability w
 
 ---
 
-## Session Startup
+## Session & Workstream Protocol
 
-- Use `/start-session` for orientation — it runs only `git log --oneline -5`
+- `/start-session` — orientation: git log, workstream state, dispatch table
+- `/start-work W1-B3` — claim a workstream before coding (prevents parallel collisions)
+- `/end-session` — release claim, write handoff, update memory
+- State file: `memory/workstream-state.md` (shared across sessions)
 - Conventions: `memory/conventions.md` | Decisions: `memory/decisions.md`
 - Dev environment: `.claude/CLAUDE.local.md`
+
+### Commit Prefix Convention
+
+| Workstream | Prefix | Example |
+|------------|--------|---------|
+| W1: Abilities | `W1-B<N>:` | `W1-B3: implement Ninjutsu` |
+| W2: TUI & Simulator | `W2:` | `W2: fix blocker declaration` |
+| W3: LOW Remediation | `W3:` | `W3: add debug_assert to sba.rs` |
+| W4: M10 Networking | `W4:` | `W4: add GameServer skeleton` |
+| Cross-cutting | `chore:` | `chore: update workstream-state` |
 
 ---
 
