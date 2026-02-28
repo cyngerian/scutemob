@@ -12,14 +12,14 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 974 tests passing; ~80 approved + 12 pending_review scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 17/40 P3 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
-- **Last Updated**: 2026-02-27
+- **Status**: 1106 tests passing; ~88 approved + 16 pending_review scripts; 40/42 P1 validated + 2 complete (ETB trigger, Search library — no script); 16/17 P2 validated (Modal choice deferred); 32/40 P3 validated; 0 HIGH/MEDIUM; ~43 LOW deferred
+- **Last Updated**: 2026-02-28
 
-### What Exists (M9.5 complete + 30 abilities, includes M0-M9 + Engine Core Complete checkpoint)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 66+ hand-authored cards (all definitions correct — no simplifications), CardRegistry
-- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA)
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~78 approved game scripts, 831 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise` action types
+### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
+- `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry
+- `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, etc.)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste)
+- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~88 approved game scripts, 1106 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card` action types
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
 - All 36 corner cases: 29 COVERED, 4 GAP, 3 DEFERRED (phasing, morph, mutate)
@@ -54,6 +54,9 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Milestone Code Reviews | `docs/mtg-engine-milestone-reviews.md` | Per-milestone code review findings, file inventories, issue tracking |
 | Replay Viewer Design | `docs/mtg-engine-replay-viewer.md` | M9.5 game state stepper: architecture, API, Svelte components, shared-component strategy |
 | Ability Coverage Audit | `docs/mtg-engine-ability-coverage.md` | Keyword and pattern coverage tracking |
+| LOW Issues Remediation | `docs/mtg-engine-low-issues-remediation.md` | Tiered plan for ~68 open LOW issues with risk assessment |
+| Workstream Coordination | `docs/workstream-coordination.md` | Cross-session coordination for 4 parallel workstreams (abilities, TUI, LOWs, M10) |
+| Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
 | This file | `CLAUDE.md` | Current project state; session context |
 
 **Read the architecture doc before implementing anything.**
@@ -80,6 +83,8 @@ Before starting work, check which files apply to your task:
 | Implementing a keyword ability | `docs/mtg-engine-ability-coverage.md` |
 | Checking ability gaps | Use `/audit-abilities` or `/ability-status` |
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
+| Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
+| Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.
 

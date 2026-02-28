@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + 30 abilities (2026-02-26)
+# Rules Gotchas — Last verified: M9.5 + 59 abilities (2026-02-28)
 
 ## MTG Rules Gotchas
 

@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 30 abilities (2026-02-26)
+# Infra & Testing Gotchas — Last verified: M9.5 + 59 abilities (2026-02-28)
 
 ## Rust / im-rs Gotchas
 
@@ -47,6 +47,11 @@
   "permanent enters battlefield" must be added to BOTH. Currently: `apply_self_etb_from_definition`,
   `apply_global_etb_replacements`, `register_static_continuous_effects`,
   `fire_when_enters_triggered_effects`. Forgetting `lands.rs` means lands don't benefit.
+- **`handle_play_land` must emit `PermanentEnteredBattlefield` (fixed in e0ab8b7).** `LandPlayed`
+  is the land-play-count tracker event; `PermanentEnteredBattlefield` is what `check_triggers`
+  listens to for ALL ETB triggered abilities (Hideaway, Landfall, etc.). Without it, any ETB
+  trigger on a land silently never fires. Also: `Command::PlayLand` in `engine.rs` must call
+  `check_triggers + flush_pending_triggers` — the same pattern as `CastSpell` and `ActivateAbility`.
 - **`EffectFilter::AttachedCreature` resolves at characteristic-calc time** via `source.attached_to`.
   The equipment source must be on the battlefield with `attached_to` set; if unattached, filter
   matches nothing. Do NOT pass an `ObjectId` — the source reference is implicit.
@@ -131,10 +136,22 @@
   which uses the library directly. Approve the script if library tests pass.
 - **`game-script-generator` SCRIPT_FILTER**: When the HTTP server is DOWN, the agent uses
   `SCRIPT_FILTER=<script_name_without_ext> ~/.cargo/bin/cargo test --test run_all_scripts -- --nocapture`
-  (run from `crates/engine/`). This runs ONLY the named script (including `pending_review`) and
-  takes ~5-10s. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
+  (run from workspace root, e.g. `SCRIPT_FILTER=103 ~/.cargo/bin/cargo test -p mtg-engine --test run_all_scripts`).
+  This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
+- **`SCRIPT_FILTER=X matched 0 scripts` means serde parse failure**, not a filter miss. The harness
+  only runs scripts with `review_status: Approved`. If a script parses but is `pending_review`, SCRIPT_FILTER
+  still skips it. If it's Approved but matches 0, `serde_json::from_str::<GameScript>` is silently
+  failing — check JSON for schema violations. Common culprit fixed in e0ab8b7: `Dispute.step_index`
+  and `action_index` are now `Option<usize>` — null JSON values for script-level disputes caused
+  silent parse failure for any script with a `disputes` entry.
+- **Upkeep triggers don't auto-fire in the harness.** The harness initializes a raw game state
+  snapshot — it never processes a phase transition. Triggers that fire "at the beginning of upkeep"
+  (e.g., Suspend's SuspendCounterTrigger) only appear if the engine advances from a previous phase.
+  Script workarounds: (a) start with the trigger already on the stack, (b) test via the `suspend_card`
+  special action which does fire synchronously, (c) cover the trigger lifecycle via unit tests.
+  Same limitation applies to any turn-based trigger (end step, draw step, etc.).
 - **Aura attachment order in `resolution.rs`**: `set attached_to/attachments` MUST happen
   BEFORE `register_static_continuous_effects`. If continuous effects register before attachment,
   `EffectFilter::AttachedCreature` finds no target and the Aura's static effects never apply.
