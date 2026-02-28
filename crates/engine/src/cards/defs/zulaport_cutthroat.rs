@@ -1,0 +1,25 @@
+// Zulaport Cutthroat — {1}{B}, Creature — Human Rogue 1/1.
+// "Whenever Zulaport Cutthroat or another creature dies, each opponent loses 1
+// life and you gain 1 life for each opponent that lost life."
+// CR 603.2: WheneverCreatureDies trigger; DrainLife captures the "gain life equal
+// to total actually lost" semantics exactly (CR 702.101a).
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("zulaport-cutthroat"),
+        name: "Zulaport Cutthroat".to_string(),
+        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        types: creature_types(&["Human", "Rogue"]),
+        oracle_text: "Whenever Zulaport Cutthroat or another creature dies, each opponent loses 1 life and you gain 1 life for each opponent that lost life.".to_string(),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverCreatureDies,
+                effect: Effect::DrainLife { amount: EffectAmount::Fixed(1) },
+                intervening_if: None,
+            },
+        ],
+    }
+}
