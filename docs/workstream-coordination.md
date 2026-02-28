@@ -270,8 +270,8 @@ Track progress across sessions by checking these off:
 #### Phase 0: Stabilize
 - [x] W3 T1: 10 new tests written
 - [x] W3 T1: 4 existing tests improved
-- [ ] W3 T1: Dead code removed (MR-M1-14, MR-M9.5-08)
-- [ ] W1: Hideaway steps 5-7 complete (card def, script, coverage)
+- [x] W3 T1: Dead code removed (MR-M1-14, MR-M9.5-08)
+- [x] W1: Hideaway steps 5-7 complete (card def, script, coverage)
 - [ ] Committed
 
 #### Phase 1: Full Ability Coverage (see `docs/ability-batch-plan.md` for per-ability tracking)

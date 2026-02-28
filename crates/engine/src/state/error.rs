@@ -19,9 +19,6 @@ pub enum GameStateError {
     #[error("object {0:?} is not in zone {1:?}")]
     ObjectNotInZone(ObjectId, ZoneId),
 
-    #[error("invalid zone transition from {from:?} to {to:?}")]
-    InvalidZoneTransition { from: ZoneId, to: ZoneId },
-
     #[error("not the priority holder: expected {expected:?}, got {actual:?}")]
     NotPriorityHolder {
         expected: Option<PlayerId>,
