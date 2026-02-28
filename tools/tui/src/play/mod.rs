@@ -38,6 +38,10 @@ pub fn run(player_count: u32, bot_type: String, bot_delay_ms: u64) -> anyhow::Re
     // Main loop
     let result = main_loop(&mut terminal, &mut app);
 
+    // Flush log before restoring terminal
+    app.flush_log();
+    let log_path = app.log_path.clone();
+
     // Restore terminal
     disable_raw_mode()?;
     execute!(
@@ -46,6 +50,8 @@ pub fn run(player_count: u32, bot_type: String, bot_delay_ms: u64) -> anyhow::Re
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
+
+    println!("Game log saved to: {}", log_path.display());
 
     result
 }
@@ -99,7 +105,41 @@ fn main_loop(
             continue;
         }
 
-        // Human's turn — poll for input
+        // Human's turn — auto-pass if enabled, otherwise poll for input
+        if app.auto_pass {
+            if app.should_stop_auto_pass() {
+                app.auto_pass = false;
+                app.status_message = Some("Your main phase — auto-pass stopped".into());
+            } else {
+                let cmd = mtg_engine::Command::PassPriority {
+                    player: app.human_player,
+                };
+                app.execute_command(cmd)?;
+
+                // Still allow q/z during auto-pass
+                if event::poll(Duration::from_millis(10))? {
+                    if let Event::Key(key) = event::read()? {
+                        if key.kind == KeyEventKind::Press {
+                            match key.code {
+                                event::KeyCode::Char('q') => app.should_quit = true,
+                                event::KeyCode::Char('c')
+                                    if key.modifiers.contains(event::KeyModifiers::CONTROL) =>
+                                {
+                                    app.should_quit = true;
+                                }
+                                event::KeyCode::Char('z') => {
+                                    app.auto_pass = false;
+                                    app.status_message = Some("Auto-pass OFF".into());
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
+        }
+
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {

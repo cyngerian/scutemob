@@ -1,11 +1,16 @@
 //! App state for the interactive play mode.
 
 use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{BufWriter, Write};
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, process_command, start_game, CardDefinition, CardRegistry,
-    Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, start_game, AttackTarget, CardDefinition,
+    CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
+    PlayerId, ZoneId,
 };
 use mtg_simulator::{
     random_deck, Bot, HeuristicBot, LegalAction, LegalActionProvider, RandomBot, StubProvider,
@@ -17,9 +22,25 @@ use rand::prelude::*;
 #[allow(dead_code)]
 pub enum InputMode {
     Normal,
+    /// Choose which opponent to attack (shows popup with player list).
+    AttackTargetSelection {
+        /// Eligible creatures that will attack.
+        eligible: Vec<ObjectId>,
+        /// Valid targets (opponents).
+        targets: Vec<AttackTarget>,
+        /// Currently highlighted target index.
+        selected: usize,
+    },
     AttackerDeclaration,
     BlockerDeclaration,
     CardDetail(ObjectId),
+}
+
+/// Which zone has keyboard focus (determines Space key target and visual cue).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FocusZone {
+    Hand,
+    Battlefield,
 }
 
 /// An entry in the scrollable event log.
@@ -41,13 +62,20 @@ pub struct PlayApp {
     pub log_scroll: usize,
     pub selected_hand_idx: usize,
     pub selected_bf_idx: usize,
+    pub focus_zone: FocusZone,
     pub focused_player: PlayerId,
     pub bot_delay_ms: u64,
     pub status_message: Option<String>,
+    pub auto_pass: bool,
     pub consecutive_passes: u32,
     pub _player_count: u32,
+    pub log_path: PathBuf,
     _registry: Arc<CardRegistry>,
+    log_file: BufWriter<File>,
 }
+
+/// (ObjectId, name, tapped, power, toughness) — used by battlefield_nonlands.
+pub type NonlandEntry = (ObjectId, String, bool, Option<i32>, Option<i32>);
 
 /// Maximum consecutive passes before declaring a stuck game.
 const MAX_CONSECUTIVE_PASSES: u32 = 500;
@@ -61,8 +89,7 @@ impl PlayApp {
 
         // Build initial state with populated libraries
         let mut builder = GameStateBuilder::new().with_registry(registry.clone());
-        let player_ids: Vec<PlayerId> =
-            (1..=player_count).map(|i| PlayerId(i as u64)).collect();
+        let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
 
         for &pid in &player_ids {
             builder = builder.add_player(pid);
@@ -133,6 +160,16 @@ impl PlayApp {
             bots.insert(pid, bot);
         }
 
+        // Create game log file
+        let logs_dir = PathBuf::from("logs");
+        fs::create_dir_all(&logs_dir)?;
+        let secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let log_path = logs_dir.join(format!("game_{}.log", secs));
+        let log_file = BufWriter::new(File::create(&log_path)?);
+
         Ok(Self {
             state,
             human_player,
@@ -144,12 +181,16 @@ impl PlayApp {
             log_scroll: 0,
             selected_hand_idx: 0,
             selected_bf_idx: 0,
+            focus_zone: FocusZone::Hand,
             focused_player: human_player,
             bot_delay_ms: 200,
             status_message: None,
+            auto_pass: false,
             consecutive_passes: 0,
             _player_count: player_count,
+            log_path,
             _registry: registry,
+            log_file,
         })
     }
 
@@ -231,8 +272,8 @@ impl PlayApp {
     pub fn execute_command(&mut self, cmd: Command) -> anyhow::Result<()> {
         match process_command(self.state.clone(), cmd.clone()) {
             Ok((new_state, events)) => {
-                self.log_events(&events);
                 self.state = new_state;
+                self.log_events(&events);
                 self.status_message = None;
 
                 // Fix stale focused_player if they were eliminated
@@ -253,6 +294,19 @@ impl PlayApp {
                 Ok(())
             }
         }
+    }
+
+    /// Should auto-pass stop and give control back to the human?
+    /// Stops at the human's own main phases (where they can play lands/spells).
+    pub fn should_stop_auto_pass(&self) -> bool {
+        use mtg_engine::Step;
+        let is_active = self.state.turn.active_player == self.human_player;
+        let is_main = matches!(
+            self.state.turn.step,
+            Step::PreCombatMain | Step::PostCombatMain
+        );
+        let stack_empty = self.state.stack_objects.is_empty();
+        is_active && is_main && stack_empty
     }
 
     pub fn legal_actions(&self) -> Vec<LegalAction> {
@@ -277,19 +331,67 @@ impl PlayApp {
             .collect()
     }
 
+    /// Lands on the battlefield for a player — compact display row.
+    pub fn battlefield_lands(&self, player: PlayerId) -> Vec<(ObjectId, String, bool)> {
+        self.state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .iter()
+            .filter(|obj| {
+                obj.controller == player && obj.characteristics.card_types.contains(&CardType::Land)
+            })
+            .map(|obj| (obj.id, obj.characteristics.name.clone(), obj.status.tapped))
+            .collect()
+    }
+
+    /// Non-land permanents on the battlefield for a player — vertical list with P/T.
+    pub fn battlefield_nonlands(&self, player: PlayerId) -> Vec<NonlandEntry> {
+        self.state
+            .objects_in_zone(&ZoneId::Battlefield)
+            .iter()
+            .filter(|obj| {
+                obj.controller == player
+                    && !obj.characteristics.card_types.contains(&CardType::Land)
+            })
+            .map(|obj| {
+                (
+                    obj.id,
+                    obj.characteristics.name.clone(),
+                    obj.status.tapped,
+                    obj.characteristics.power,
+                    obj.characteristics.toughness,
+                )
+            })
+            .collect()
+    }
+
     fn log_events(&mut self, events: &[GameEvent]) {
         let turn = self.state.turn.turn_number;
         for event in events {
-            let text = format_event(event);
+            let text = format_event(event, &self.state);
             if !text.is_empty() {
+                let _ = writeln!(self.log_file, "[T{}] {}", turn, text);
                 self.event_log.push(LogEntry { text, turn });
             }
         }
+        let _ = self.log_file.flush();
+    }
+
+    /// Flush the log file to disk.
+    pub fn flush_log(&mut self) {
+        let _ = self.log_file.flush();
     }
 }
 
+/// Resolve an ObjectId to a card name from the game state, with fallback.
+fn resolve_name(state: &GameState, id: ObjectId) -> String {
+    state
+        .object(id)
+        .map(|obj| obj.characteristics.name.clone())
+        .unwrap_or_else(|_| "???".to_string())
+}
+
 /// Format a game event for the log.
-fn format_event(event: &GameEvent) -> String {
+fn format_event(event: &GameEvent, state: &GameState) -> String {
     match event {
         GameEvent::TurnStarted {
             player,
@@ -306,20 +408,90 @@ fn format_event(event: &GameEvent) -> String {
         GameEvent::CardDrawn { player, .. } => {
             format!("P{} draws a card", player.0)
         }
-        GameEvent::SpellCast { player, .. } => {
-            format!("P{} casts a spell", player.0)
+        GameEvent::SpellCast {
+            player,
+            source_object_id,
+            ..
+        } => {
+            let name = resolve_name(state, *source_object_id);
+            format!("P{} casts {}", player.0, name)
         }
-        GameEvent::SpellResolved { player, .. } => {
-            format!("P{}'s spell resolves", player.0)
+        GameEvent::SpellResolved {
+            player,
+            source_object_id,
+            ..
+        } => {
+            let name = resolve_name(state, *source_object_id);
+            format!("P{}'s {} resolves", player.0, name)
         }
-        GameEvent::PermanentEnteredBattlefield { player, .. } => {
-            format!("P{}: permanent enters the battlefield", player.0)
+        GameEvent::PermanentEnteredBattlefield {
+            player, object_id, ..
+        } => {
+            let name = resolve_name(state, *object_id);
+            format!("P{}: {} enters the battlefield", player.0, name)
         }
-        GameEvent::CreatureDied { controller, .. } => {
-            format!("P{}'s creature dies", controller.0)
+        GameEvent::CreatureDied {
+            controller,
+            object_id,
+            ..
+        } => {
+            // object_id is the old battlefield ID (retired) — try new_grave_id too
+            let name = state
+                .object(*object_id)
+                .map(|obj| obj.characteristics.name.clone())
+                .unwrap_or_else(|_| "a creature".to_string());
+            format!("P{}'s {} dies", controller.0, name)
+        }
+        GameEvent::LandPlayed {
+            player,
+            new_land_id,
+        } => {
+            let name = resolve_name(state, *new_land_id);
+            format!("P{} plays {}", player.0, name)
+        }
+        GameEvent::AttackersDeclared {
+            attacking_player,
+            attackers,
+        } => {
+            let names: Vec<String> = attackers
+                .iter()
+                .map(|(id, target)| {
+                    let name = resolve_name(state, *id);
+                    let tgt = match target {
+                        mtg_engine::AttackTarget::Player(pid) => format!("P{}", pid.0),
+                        mtg_engine::AttackTarget::Planeswalker(pw) => {
+                            resolve_name(state, *pw)
+                        }
+                    };
+                    format!("{} -> {}", name, tgt)
+                })
+                .collect();
+            format!("P{} attacks: {}", attacking_player.0, names.join(", "))
+        }
+        GameEvent::CombatDamageDealt { assignments } => {
+            let parts: Vec<String> = assignments
+                .iter()
+                .map(|a| {
+                    let src = resolve_name(state, a.source);
+                    let tgt = match &a.target {
+                        mtg_engine::CombatDamageTarget::Player(pid) => format!("P{}", pid.0),
+                        mtg_engine::CombatDamageTarget::Creature(cid) => {
+                            resolve_name(state, *cid)
+                        }
+                        mtg_engine::CombatDamageTarget::Planeswalker(pw) => {
+                            resolve_name(state, *pw)
+                        }
+                    };
+                    format!("{} deals {} to {}", src, a.amount, tgt)
+                })
+                .collect();
+            format!("Combat damage: {}", parts.join(", "))
         }
         GameEvent::DamageDealt { amount, .. } => {
             format!("{} damage dealt", amount)
+        }
+        GameEvent::LifeGained { player, amount } => {
+            format!("P{} gains {} life", player.0, amount)
         }
         GameEvent::PlayerLost { player, reason } => {
             format!("P{} loses ({:?})", player.0, reason)
@@ -331,10 +503,14 @@ fn format_event(event: &GameEvent) -> String {
                 "Game Over — Draw!".to_string()
             }
         }
-        GameEvent::LandPlayed { player, .. } => {
-            format!("P{} plays a land", player.0)
-        }
         GameEvent::AllPlayersPassed => "All players passed — advancing".to_string(),
+        GameEvent::PermanentTapped { object_id, .. } => {
+            let name = resolve_name(state, *object_id);
+            format!("{} tapped", name)
+        }
+        GameEvent::ManaAdded { player, color, amount } => {
+            format!("P{} adds {} {:?} mana", player.0, amount, color)
+        }
         _ => String::new(), // Skip verbose events
     }
 }

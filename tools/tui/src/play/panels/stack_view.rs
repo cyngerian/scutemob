@@ -3,6 +3,8 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
+use mtg_engine::StackObjectKind;
+
 use crate::play::app::PlayApp;
 
 pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
@@ -21,7 +23,64 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
         .rev()
         .enumerate()
         .map(|(i, so)| {
-            let desc = format!("[{}] {:?} (P{})", i + 1, so.kind, so.controller.0);
+            let (label, source_id) = match &so.kind {
+                StackObjectKind::Spell { source_object } => ("".to_string(), Some(*source_object)),
+                StackObjectKind::ActivatedAbility { source_object, .. } => {
+                    ("Activated: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::TriggeredAbility { source_object, .. } => {
+                    ("Triggered: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::CascadeTrigger { source_object, .. } => {
+                    ("Cascade: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::StormTrigger { source_object, .. } => {
+                    ("Storm: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::EvokeSacrificeTrigger { source_object } => {
+                    ("Evoke sac: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::MadnessTrigger { source_object, .. } => {
+                    ("Madness: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::MiracleTrigger { source_object, .. } => {
+                    ("Miracle: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::UnearthAbility { source_object } => {
+                    ("Unearth: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::UnearthTrigger { source_object } => {
+                    ("Unearth exile: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::ExploitTrigger { source_object } => {
+                    ("Exploit: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::ModularTrigger { source_object, .. } => {
+                    ("Modular: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::EvolveTrigger { source_object, .. } => {
+                    ("Evolve: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::MyriadTrigger { source_object, .. } => {
+                    ("Myriad: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::SuspendCounterTrigger { suspended_card, .. } => {
+                    ("Suspend tick: ".to_string(), Some(*suspended_card))
+                }
+                StackObjectKind::SuspendCastTrigger { suspended_card, .. } => {
+                    ("Suspend cast: ".to_string(), Some(*suspended_card))
+                }
+                StackObjectKind::HideawayTrigger { source_object, .. } => {
+                    ("Hideaway: ".to_string(), Some(*source_object))
+                }
+            };
+
+            let name = source_id
+                .and_then(|id| app.state.object(id).ok())
+                .map(|obj| obj.characteristics.name.clone())
+                .unwrap_or_else(|| "???".to_string());
+
+            let desc = format!("[{}] {}{} (P{})", i + 1, label, name, so.controller.0);
             Line::from(desc)
         })
         .collect();

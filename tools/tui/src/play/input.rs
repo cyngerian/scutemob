@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use mtg_engine::Command;
 use mtg_simulator::LegalAction;
 
-use super::app::{InputMode, PlayApp};
+use super::app::{FocusZone, InputMode, PlayApp};
 
 pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     // Global keys
@@ -19,6 +19,7 @@ pub fn handle_key(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     match &app.mode {
         InputMode::Normal => handle_normal_mode(app, key),
         InputMode::CardDetail(_) => handle_card_detail_mode(app, key),
+        InputMode::AttackTargetSelection { .. } => handle_attack_target_mode(app, key),
         InputMode::AttackerDeclaration => handle_attacker_mode(app, key),
         InputMode::BlockerDeclaration => handle_blocker_mode(app, key),
     }
@@ -58,8 +59,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                             Some(format!("'{}' is not a land — select a land first", name));
                     } else {
                         app.status_message = Some(
-                            "Can't play lands now (need Main phase, your turn, stack empty)"
-                                .into(),
+                            "Can't play lands now (need Main phase, your turn, stack empty)".into(),
                         );
                     }
                 }
@@ -70,20 +70,18 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
         KeyCode::Char('c') => {
             let hand = app.hand_objects();
             if let Some((obj_id, name)) = hand.get(app.selected_hand_idx) {
-                let is_legal = legal.iter().any(
-                    |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == *obj_id),
-                );
+                let is_legal = legal
+                    .iter()
+                    .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == *obj_id));
                 if is_legal {
                     // Auto-tap mana before casting
                     if let Ok(obj) = app.state.object(*obj_id) {
                         if let Some(ref cost) = obj.characteristics.mana_cost {
-                            if let Some(tap_cmds) =
-                                mtg_simulator::mana_solver::solve_mana_payment(
-                                    &app.state,
-                                    app.human_player,
-                                    cost,
-                                )
-                            {
+                            if let Some(tap_cmds) = mtg_simulator::mana_solver::solve_mana_payment(
+                                &app.state,
+                                app.human_player,
+                                cost,
+                            ) {
                                 for tap_cmd in tap_cmds {
                                     app.execute_command(tap_cmd)?;
                                 }
@@ -126,8 +124,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
 
         // Tap for mana
         KeyCode::Char('t') => {
-            let bf = app.battlefield_objects(app.human_player);
-            if let Some((obj_id, name, _)) = bf.get(app.selected_bf_idx) {
+            let bf = app.battlefield_nonlands(app.human_player);
+            if let Some((obj_id, name, ..)) = bf.get(app.selected_bf_idx) {
                 let tap_action = legal.iter().find(
                     |a| matches!(a, LegalAction::TapForMana { source, .. } if *source == *obj_id),
                 );
@@ -149,24 +147,36 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
 
         // Attack mode — only if attacks are available
         KeyCode::Char('a') => {
-            let has_attack = legal
+            if let Some(LegalAction::DeclareAttackers { eligible, targets }) = legal
                 .iter()
-                .any(|a| matches!(a, LegalAction::DeclareAttackers { .. }));
-            if has_attack {
-                app.mode = InputMode::AttackerDeclaration;
-                app.status_message =
-                    Some("Declare attackers: [Enter] attack with all, [Esc] cancel".into());
+                .find(|a| matches!(a, LegalAction::DeclareAttackers { .. }))
+            {
+                if targets.len() <= 1 {
+                    // Only one target — skip selection, go straight to confirmation
+                    app.mode = InputMode::AttackerDeclaration;
+                    app.status_message =
+                        Some("Declare attackers: [Enter] attack with all, [Esc] cancel".into());
+                } else {
+                    // Multiple targets — let user choose
+                    // Don't set status_message here: the AttackTargetSelection mode
+                    // renders its own UI in the action menu with highlighted targets.
+                    app.mode = InputMode::AttackTargetSelection {
+                        eligible: eligible.clone(),
+                        targets: targets.clone(),
+                        selected: 0,
+                    };
+                    app.status_message = None;
+                }
             } else {
-                app.status_message = Some(
-                    "Can't attack now (need Declare Attackers step, your turn)".into(),
-                );
+                app.status_message =
+                    Some("Can't attack now (need Declare Attackers step, your turn)".into());
             }
         }
 
         // Activate ability
         KeyCode::Char('e') => {
-            let bf = app.battlefield_objects(app.human_player);
-            if let Some((obj_id, name, _)) = bf.get(app.selected_bf_idx) {
+            let bf = app.battlefield_nonlands(app.human_player);
+            if let Some((obj_id, name, ..)) = bf.get(app.selected_bf_idx) {
                 let ability_action = legal.iter().find(
                     |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == *obj_id),
                 );
@@ -185,27 +195,31 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             }
         }
 
-        // Navigate hand
+        // Navigate hand (also sets focus to Hand)
         KeyCode::Left => {
+            app.focus_zone = FocusZone::Hand;
             if app.selected_hand_idx > 0 {
                 app.selected_hand_idx -= 1;
             }
         }
         KeyCode::Right => {
+            app.focus_zone = FocusZone::Hand;
             let hand_size = app.hand_objects().len();
             if hand_size > 0 && app.selected_hand_idx < hand_size - 1 {
                 app.selected_hand_idx += 1;
             }
         }
 
-        // Navigate battlefield
+        // Navigate battlefield (also sets focus to Battlefield)
         KeyCode::Up => {
+            app.focus_zone = FocusZone::Battlefield;
             if app.selected_bf_idx > 0 {
                 app.selected_bf_idx -= 1;
             }
         }
         KeyCode::Down => {
-            let bf_size = app.battlefield_objects(app.human_player).len();
+            app.focus_zone = FocusZone::Battlefield;
+            let bf_size = app.battlefield_nonlands(app.human_player).len();
             if bf_size > 0 && app.selected_bf_idx < bf_size - 1 {
                 app.selected_bf_idx += 1;
             }
@@ -227,11 +241,29 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             }
         }
 
-        // Card detail popup
-        KeyCode::Char(' ') => {
-            let hand = app.hand_objects();
-            if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
-                app.mode = InputMode::CardDetail(*obj_id);
+        // Card detail popup — opens for whichever zone is focused
+        KeyCode::Char(' ') => match app.focus_zone {
+            FocusZone::Hand => {
+                let hand = app.hand_objects();
+                if let Some((obj_id, _)) = hand.get(app.selected_hand_idx) {
+                    app.mode = InputMode::CardDetail(*obj_id);
+                }
+            }
+            FocusZone::Battlefield => {
+                let bf = app.battlefield_nonlands(app.human_player);
+                if let Some((obj_id, ..)) = bf.get(app.selected_bf_idx) {
+                    app.mode = InputMode::CardDetail(*obj_id);
+                }
+            }
+        },
+
+        // Toggle auto-pass
+        KeyCode::Char('z') => {
+            app.auto_pass = !app.auto_pass;
+            if app.auto_pass {
+                app.status_message = Some("Auto-pass ON — passing until your main phase".into());
+            } else {
+                app.status_message = Some("Auto-pass OFF".into());
             }
         }
 
@@ -272,6 +304,72 @@ fn handle_card_detail_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<(
     Ok(())
 }
 
+fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
+    // Extract mode data (need to take ownership for mutation)
+    let (eligible, targets, selected) = match &app.mode {
+        InputMode::AttackTargetSelection {
+            eligible,
+            targets,
+            selected,
+        } => (eligible.clone(), targets.clone(), *selected),
+        _ => return Ok(()),
+    };
+
+    match key.code {
+        KeyCode::Esc => {
+            app.mode = InputMode::Normal;
+            app.status_message = None;
+        }
+        KeyCode::Up | KeyCode::Left => {
+            let new_sel = if selected > 0 { selected - 1 } else { targets.len() - 1 };
+            app.mode = InputMode::AttackTargetSelection {
+                eligible,
+                targets,
+                selected: new_sel,
+            };
+        }
+        KeyCode::Down | KeyCode::Right => {
+            let new_sel = (selected + 1) % targets.len();
+            app.mode = InputMode::AttackTargetSelection {
+                eligible,
+                targets,
+                selected: new_sel,
+            };
+        }
+        // Number keys: select target directly
+        KeyCode::Char(c) if c.is_ascii_digit() && c != '0' => {
+            let idx = (c as usize) - ('1' as usize);
+            if idx < targets.len() {
+                let target = &targets[idx];
+                let attackers: Vec<_> =
+                    eligible.iter().map(|&id| (id, target.clone())).collect();
+                let cmd = Command::DeclareAttackers {
+                    player: app.human_player,
+                    attackers,
+                };
+                app.execute_command(cmd)?;
+                app.mode = InputMode::Normal;
+                app.status_message = None;
+            }
+        }
+        KeyCode::Enter => {
+            if let Some(target) = targets.get(selected) {
+                let attackers: Vec<_> =
+                    eligible.iter().map(|&id| (id, target.clone())).collect();
+                let cmd = Command::DeclareAttackers {
+                    player: app.human_player,
+                    attackers,
+                };
+                app.execute_command(cmd)?;
+            }
+            app.mode = InputMode::Normal;
+            app.status_message = None;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn handle_attacker_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
     match key.code {
         KeyCode::Esc => {
@@ -279,7 +377,7 @@ fn handle_attacker_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> 
             app.status_message = None;
         }
         KeyCode::Enter => {
-            // Declare all eligible creatures as attackers against a random opponent
+            // Declare all eligible creatures as attackers against first opponent
             let legal = app.legal_actions();
             if let Some(LegalAction::DeclareAttackers { eligible, targets }) = legal
                 .iter()

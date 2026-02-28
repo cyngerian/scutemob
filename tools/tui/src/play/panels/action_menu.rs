@@ -33,8 +33,51 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
             Style::default().fg(Color::DarkGray),
         ))
     } else {
-        match app.mode {
+        match &app.mode {
             InputMode::Normal => build_normal_actions(app),
+            InputMode::AttackTargetSelection {
+                targets, selected, ..
+            } => {
+                let mut spans: Vec<Span<'static>> = vec![Span::styled(
+                    " Attack who? ",
+                    Style::default().fg(Color::Yellow),
+                )];
+                for (i, target) in targets.iter().enumerate() {
+                    let label = match target {
+                        mtg_engine::AttackTarget::Player(pid) => {
+                            let life = app
+                                .state
+                                .players
+                                .get(pid)
+                                .map(|p| p.life_total)
+                                .unwrap_or(0);
+                            format!("[{}] P{} ({}hp)", i + 1, pid.0, life)
+                        }
+                        mtg_engine::AttackTarget::Planeswalker(pw) => {
+                            let name = app
+                                .state
+                                .object(*pw)
+                                .map(|o| o.characteristics.name.clone())
+                                .unwrap_or_else(|_| "???".to_string());
+                            format!("[{}] {}", i + 1, name)
+                        }
+                    };
+                    let style = if i == *selected {
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(Color::White)
+                    };
+                    spans.push(Span::styled(label, style));
+                    spans.push(Span::raw("  "));
+                }
+                spans.push(Span::styled(
+                    "[Esc] cancel",
+                    Style::default().fg(Color::DarkGray),
+                ));
+                Line::from(spans)
+            }
             InputMode::AttackerDeclaration => Line::from(Span::styled(
                 " Declare attackers: [Enter] confirm all, [Esc] cancel",
                 Style::default().fg(Color::Yellow),
@@ -62,9 +105,15 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
 fn build_normal_actions(app: &PlayApp) -> Line<'static> {
     let legal = app.legal_actions();
 
-    let has_land = legal.iter().any(|a| matches!(a, LegalAction::PlayLand { .. }));
-    let has_cast = legal.iter().any(|a| matches!(a, LegalAction::CastSpell { .. }));
-    let has_tap = legal.iter().any(|a| matches!(a, LegalAction::TapForMana { .. }));
+    let has_land = legal
+        .iter()
+        .any(|a| matches!(a, LegalAction::PlayLand { .. }));
+    let has_cast = legal
+        .iter()
+        .any(|a| matches!(a, LegalAction::CastSpell { .. }));
+    let has_tap = legal
+        .iter()
+        .any(|a| matches!(a, LegalAction::TapForMana { .. }));
     let has_attack = legal
         .iter()
         .any(|a| matches!(a, LegalAction::DeclareAttackers { .. }));
@@ -103,10 +152,35 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         spans.push(Span::raw("ffect "));
     }
 
-    spans.push(Span::styled("[Space]", Style::default().fg(Color::DarkGray)));
-    spans.push(Span::raw("detail "));
+    spans.push(Span::styled(
+        "[Space]",
+        Style::default().fg(Color::DarkGray),
+    ));
+    spans.push(Span::raw("inspect "));
+    // Show which zone is focused so the user knows what arrows/space target
+    let zone_hint = match app.focus_zone {
+        crate::play::app::FocusZone::Hand => "(\u{2190}\u{2192}hand",
+        crate::play::app::FocusZone::Battlefield => "(\u{2191}\u{2193}field",
+    };
+    spans.push(Span::styled(
+        format!("{}) ", zone_hint),
+        Style::default().fg(Color::DarkGray),
+    ));
     spans.push(Span::styled("[Tab]", Style::default().fg(Color::DarkGray)));
     spans.push(Span::raw("view "));
+    // Auto-pass toggle
+    if app.auto_pass {
+        spans.push(Span::styled(
+            "[z]AUTO ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ));
+    } else {
+        spans.push(Span::styled("[z]", Style::default().fg(Color::DarkGray)));
+        spans.push(Span::raw("auto "));
+    }
+
     spans.push(Span::styled("[q]", Style::default().fg(Color::DarkGray)));
     spans.push(Span::raw("uit"));
 

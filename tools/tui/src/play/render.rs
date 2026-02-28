@@ -16,7 +16,7 @@ pub fn render(f: &mut Frame, app: &PlayApp) {
             Constraint::Length(3), // Stack (if populated)
             Constraint::Min(10),   // Main area
             Constraint::Length(3), // Action menu / status
-            Constraint::Length(6), // Event log
+            Constraint::Length(8), // Event log
         ])
         .split(size);
 
@@ -35,17 +35,22 @@ pub fn render(f: &mut Frame, app: &PlayApp) {
         ])
         .split(chunks[2]);
 
-    // Left side: battlefield above, hand below
+    // Left side: battlefield, status bar, hand
+    let hand_count = app.hand_objects().len();
+    // Hand gets enough rows for its cards + 2 (border), capped at 50% of left area
+    let hand_height = (hand_count as u16 + 3).min(main_chunks[0].height / 2);
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(60), // Battlefield
-            Constraint::Percentage(40), // Hand
+            Constraint::Min(5),              // Battlefield (gets remaining space)
+            Constraint::Length(1),           // Status bar
+            Constraint::Length(hand_height), // Hand
         ])
         .split(main_chunks[0]);
 
     panels::battlefield::render(f, app, left_chunks[0]);
-    panels::hand_view::render(f, app, left_chunks[1]);
+    panels::status_bar::render(f, app, left_chunks[1]);
+    panels::hand_view::render(f, app, left_chunks[2]);
 
     // Right side: player sidebar
     panels::sidebar::render(f, app, main_chunks[1]);
