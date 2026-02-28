@@ -72,9 +72,9 @@ impl PlayApp {
         let card_defs: HashMap<String, CardDefinition> =
             cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
 
-        // Give each player a random deck
+        // Give each player a random deck: 7 cards in hand, rest in library
         for &pid in &player_ids {
-            if let Some(deck) = random_deck(&mut rng, &cards) {
+            if let Some(mut deck) = random_deck(&mut rng, &cards) {
                 // Commander in command zone
                 if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
                     let spec = ObjectSpec::card(pid, &def.name)
@@ -84,8 +84,28 @@ impl PlayApp {
                     builder = builder.object(spec);
                 }
 
-                // Main deck cards in library
-                for card_id in &deck.main_deck {
+                // Shuffle the deck before splitting hand/library
+                deck.main_deck.shuffle(&mut rng);
+
+                // First 7 cards go to hand (opening hand)
+                let (hand_cards, library_cards) = if deck.main_deck.len() >= 7 {
+                    deck.main_deck.split_at(7)
+                } else {
+                    (deck.main_deck.as_slice(), &[] as &[_])
+                };
+
+                for card_id in hand_cards {
+                    if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
+                        let spec = ObjectSpec::card(pid, &def.name)
+                            .in_zone(ZoneId::Hand(pid))
+                            .with_card_id(card_id.clone());
+                        let spec = enrich_spec_from_def(spec, &card_defs);
+                        builder = builder.object(spec);
+                    }
+                }
+
+                // Remaining cards in library
+                for card_id in library_cards {
                     if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
                         let spec = ObjectSpec::card(pid, &def.name)
                             .in_zone(ZoneId::Library(pid))
