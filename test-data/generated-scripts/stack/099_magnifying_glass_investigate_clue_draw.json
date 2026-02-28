@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_099",
+    "name": "Magnifying Glass Investigate creates Clue token, Clue activated to draw a card",
+    "description": "p1 has Magnifying Glass already on the battlefield untapped, with 5 colorless mana available. p1 activates Magnifying Glass's Investigate ability ({3}, {T}) — paying {3} generic and tapping the artifact. The ability resolves and creates a colorless Clue token on p1's battlefield (CR 701.16a: Investigate means 'Create a Clue token'; CR 111.10f: Clue is a colorless artifact with '{2}, Sacrifice this token: Draw a card.'). p1 then activates the Clue's ability by paying the remaining {2} generic mana and sacrificing the Clue token (CR 602.2c: sacrifice is a cost paid before the ability is placed on stack). After priority passes, the Clue ability resolves and p1 draws 1 card. Final state: p1 hand size +1 from the draw, Clue token gone, Magnifying Glass still on battlefield (tapped), stack empty.",
+    "cr_sections_tested": ["602.2", "602.2c", "608.2", "701.16", "701.16a", "111.1", "111.5", "111.10f"],
+    "corner_case_ref": null,
+    "tags": ["investigate", "clue-token", "token", "activated-ability", "draw", "sacrifice", "artifact", "magnifying-glass"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Magnifying Glass engine definition (definitions.rs line 2938): ability 0 = '{1},{T}: Add {C}' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:1}, Tap]), Effect::AddMana); ability 1 = '{3},{T}: Investigate' (AbilityDefinition::Activated with Cost::Sequence([Mana{generic:3}, Tap]), Effect::Investigate). CRITICAL harness behavior: the `enrich_spec_from_def` function in replay_harness.rs only filters out mana abilities when cost is exactly `Cost::Tap` (line 741: `matches!(cost, Cost::Tap)`). Because the first ability has `Cost::Sequence([Mana, Tap])`, it is NOT recognized as a mana ability and is placed in `characteristics.activated_abilities` as index 0. Therefore: ability_index 0 = mana ability '{1},{T}: Add {C}' (incorrectly included); ability_index 1 = Investigate ability '{3},{T}: Investigate'. This means the Investigate ability must use ability_index: 1, not 0. The Clue token (created by Investigate) has ability_index 0 — it has exactly one activated ability, no mana abilities. Mana plan: p1 starts with {5} colorless in mana pool. Activate Magnifying Glass Investigate: pay {3}, tap artifact → 2 colorless remain. Activate Clue: pay {2} + sacrifice → 0 mana remains. Library has one Plains to ensure the draw succeeds. Sacrifice as cost for Clue (CR 602.2c): Clue moves to graveyard at activation time, before ability hits stack. Clue token name is 'Clue' (clue_token_spec name field). Investigate effect creates the token inline during ability resolution (effects/mod.rs line 490: state.add_object, no separate stack entry for token creation). Script 098 (Thraben Inspector Clue) used as reference for the Clue activation pattern.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 5 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Magnifying Glass", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Magnifying Glass's Investigate ability ({3},{T}): pay {3} generic, tap Magnifying Glass",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Magnifying Glass on p1's battlefield (untapped), stack empty, hand empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Magnifying Glass" }] },
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0
+          },
+          "note": "p1 has 5 colorless mana in pool. Magnifying Glass is untapped and ready to activate."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Magnifying Glass",
+          "ability_index": 1,
+          "targets": [],
+          "mana_paid": { "colorless": 3 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: p1 activates Magnifying Glass ability_index 1 ('{3},{T}: Investigate'). Index 1 because the harness enrich_spec_from_def places the mana ability '{1},{T}: Add {C}' at index 0 (its cost is Cost::Sequence, not filtered as mana-only). Cost: {3} generic paid from pool + tap Magnifying Glass. Magnifying Glass is NOT sacrificed — it stays on battlefield tapped. The Investigate ability is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Magnifying Glass activation: ability on stack, Magnifying Glass still on battlefield (now tapped)",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Magnifying Glass" }] }
+          },
+          "note": "Magnifying Glass remains on battlefield (tapped). Investigate ability is on the stack awaiting resolution. 2 colorless mana remain in p1's pool."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Investigate ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Magnifying Glass ability",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": "Clue",
+              "owner": "p1",
+              "cr_ref": "701.16a",
+              "note": "CR 701.16a: Investigate means 'Create a Clue token.' CR 111.10f: Clue token is a colorless Clue artifact with '{2}, Sacrifice this token: Draw a card.' Token enters p1's battlefield (CR 111.1, 111.5)."
+            }
+          ],
+          "note": "CR 608.2: Investigate ability resolves; Effect::Investigate creates a Clue token directly on the battlefield (no separate stack entry). Magnifying Glass ability goes to the graveyard after resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Investigate resolves: Clue token on p1's battlefield, Magnifying Glass still on battlefield (tapped), stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Magnifying Glass" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Clue" }] },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Clue token created on p1's battlefield. Magnifying Glass remains tapped. Hand still empty (no draw yet)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates the Clue token's ability: pay {2}, sacrifice Clue to draw a card",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Clue",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": { "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: p1 activates Clue token ability_index 0 ('{2}, Sacrifice this token: Draw a card'). Cost: {2} generic paid from remaining pool + sacrifice Clue token. CR 602.2c: Sacrifice is a cost — Clue moves to graveyard at activation time, before the ability is placed on the stack. No {T} required (CR 111.10f: Clue cost is {2}+Sacrifice only, not {T}). Clue token has exactly one non-mana activated ability, so ability_index 0 is correct."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Clue activation: Clue token sacrificed (in graveyard), ability on stack, hand still empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": [{ "card": "Clue" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Clue" }] },
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 602.2c: Clue token sacrificed as cost — already in graveyard. Clue draw ability is on the stack. Hand still empty (draw has not resolved yet)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Clue draw ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Clue ability",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.36",
+              "note": "CR 701.36: p1 draws 1 card from the top of their library (Plains). Hand size increases from 0 to 1."
+            }
+          ],
+          "note": "CR 608.2: Clue activated ability resolves; DrawCards effect executes; p1 draws 1 card."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "token_ceases_to_exist",
+              "target": { "card": "Clue", "controller": "p1" },
+              "cr_ref": "704.5d",
+              "note": "CR 704.5d / CR 111.7: A token in a zone other than the battlefield ceases to exist as a state-based action. The Clue token was sacrificed as a cost and is in the graveyard."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked whenever a player would receive priority. Clue token in graveyard ceases to exist."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: p1 has 1 card in hand, Clue token gone, Magnifying Glass still on battlefield (tapped), stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Magnifying Glass" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Clue" }] },
+            "zones.library.p1.count": 0
+          },
+          "note": "p1 drew the Plains from library (hand 0 → 1). Clue token sacrificed and ceased to exist (CR 704.5d). Magnifying Glass remains on p1's battlefield (tapped). Library is now empty."
+        }
+      ]
+    }
+  ]
+}

@@ -194,6 +194,9 @@ fn test_add_object_to_state() {
         is_foretold: false,
         foretold_turn: 0,
         was_unearthed: false,
+        myriad_exile_at_eoc: false,
+        is_suspended: false,
+        exiled_by_hideaway: None,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

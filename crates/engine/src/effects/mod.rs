@@ -152,18 +152,43 @@ fn execute_effect_inner(
                             );
                         events.extend(prev_events);
                         if final_dmg > 0 {
-                            if let Some(player) = state.players.get_mut(&p) {
-                                player.life_total -= final_dmg as i32;
+                            // CR 702.90b / CR 120.3b: check source for infect.
+                            let source_has_infect =
+                                crate::rules::layers::calculate_characteristics(state, ctx.source)
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Infect))
+                                    .unwrap_or(false);
+
+                            if source_has_infect {
+                                // CR 120.3b: infect damage to a player gives poison counters
+                                // instead of causing life loss (CR 702.90b).
+                                if let Some(player) = state.players.get_mut(&p) {
+                                    player.poison_counters += final_dmg;
+                                }
+                                events.push(GameEvent::DamageDealt {
+                                    source: ctx.source,
+                                    target: damage_target,
+                                    amount: final_dmg,
+                                });
+                                events.push(GameEvent::PoisonCountersGiven {
+                                    player: p,
+                                    amount: final_dmg,
+                                    source: ctx.source,
+                                });
+                            } else {
+                                // CR 120.3a: normal damage causes life loss.
+                                if let Some(player) = state.players.get_mut(&p) {
+                                    player.life_total -= final_dmg as i32;
+                                }
+                                events.push(GameEvent::DamageDealt {
+                                    source: ctx.source,
+                                    target: damage_target,
+                                    amount: final_dmg,
+                                });
+                                events.push(GameEvent::LifeLost {
+                                    player: p,
+                                    amount: final_dmg,
+                                });
                             }
-                            events.push(GameEvent::DamageDealt {
-                                source: ctx.source,
-                                target: damage_target,
-                                amount: final_dmg,
-                            });
-                            events.push(GameEvent::LifeLost {
-                                player: p,
-                                amount: final_dmg,
-                            });
                         }
                     }
                     ResolvedTarget::Object(id) => {
@@ -204,20 +229,28 @@ fn execute_effect_inner(
                                         .insert(crate::state::types::CounterType::Loyalty, new_val);
                                 }
                             } else if card_types.contains(&CardType::Creature) {
-                                // CR 120.3d/e: check source for wither keyword.
-                                // CR 702.80a: wither only applies to damage dealt to creatures.
-                                // CR 702.80c: wither functions from any zone.
-                                let source_has_wither =
-                                    crate::rules::layers::calculate_characteristics(
-                                        state, ctx.source,
-                                    )
+                                // CR 120.3d/e: check source for wither and/or infect keyword.
+                                // CR 702.80a: wither applies to damage dealt to creatures.
+                                // CR 702.90c: infect also places -1/-1 counters on creatures.
+                                // CR 702.80c / CR 702.90e: both function from any zone.
+                                let source_chars = crate::rules::layers::calculate_characteristics(
+                                    state, ctx.source,
+                                );
+                                let source_has_wither = source_chars
+                                    .as_ref()
                                     .map(|c| c.keywords.contains(&KeywordAbility::Wither))
+                                    .unwrap_or(false);
+                                let source_has_infect = source_chars
+                                    .as_ref()
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                                     .unwrap_or(false);
 
                                 if let Some(obj) = state.objects.get_mut(&id) {
-                                    if source_has_wither {
-                                        // CR 702.80a / CR 120.3d: wither damage to a creature
-                                        // places -1/-1 counters instead of marking damage.
+                                    if source_has_wither || source_has_infect {
+                                        // CR 702.80a / CR 702.90c / CR 120.3d: wither and/or
+                                        // infect damage to a creature places -1/-1 counters
+                                        // instead of marking damage. Multiple instances are
+                                        // redundant (CR 702.80d / CR 702.90f).
                                         let cur = obj
                                             .counters
                                             .get(
@@ -448,6 +481,39 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.16a: Investigate — create N Clue tokens sequentially.
+        //
+        // Ruling 2024-06-07: "If you're instructed to investigate multiple times,
+        // those actions are sequential, meaning you'll create that many Clue tokens
+        // one at a time." Each token creation is a separate event that "whenever you
+        // create a token" triggers can respond to. Does nothing when count is 0.
+        Effect::Investigate { count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as u32;
+            if n > 0 {
+                let spec = crate::cards::card_definition::clue_token_spec(1);
+                // Create tokens one at a time (ruling 2024-06-07).
+                for _ in 0..n {
+                    let obj = make_token(&spec, ctx.controller);
+                    if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                        events.push(GameEvent::TokenCreated {
+                            player: ctx.controller,
+                            object_id: id,
+                        });
+                        events.push(GameEvent::PermanentEnteredBattlefield {
+                            player: ctx.controller,
+                            object_id: id,
+                        });
+                    }
+                }
+                // CR 701.16a: Emit Investigated event for "whenever you investigate"
+                // triggers (future cards like Lonis, Cryptozoologist).
+                events.push(GameEvent::Investigated {
+                    player: ctx.controller,
+                    count: n,
+                });
+            }
+        }
+
         Effect::DestroyPermanent { target } => {
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
@@ -465,6 +531,18 @@ fn execute_effect_inner(
                     if indestructible {
                         continue;
                     }
+
+                    // CR 701.19a/614.8: Check regeneration shields before destruction.
+                    // Self-replacement effects apply first (CR 614.15).
+                    if let Some(shield_id) =
+                        crate::rules::replacement::check_regeneration_shield(state, id)
+                    {
+                        let regen_events =
+                            crate::rules::replacement::apply_regeneration(state, id, shield_id);
+                        events.extend(regen_events);
+                        continue; // Skip destruction -- permanent stays on battlefield
+                    }
+
                     let (card_types, owner, pre_death_controller, pre_death_counters) = state
                         .objects
                         .get(&id)
@@ -1376,7 +1454,246 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.19a: Regenerate -- create a one-shot regeneration shield on the
+        // target permanent. The shield is a UntilEndOfTurn replacement effect that
+        // intercepts the next WouldBeDestroyed event for this specific permanent.
+        Effect::Regenerate { target } => {
+            use crate::state::continuous_effect::EffectDuration;
+            use crate::state::replacement_effect::{
+                ObjectFilter, ReplacementEffect, ReplacementModification, ReplacementTrigger,
+            };
+
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in &targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    let id = *id;
+                    // Verify the target is on the battlefield
+                    let on_battlefield = state
+                        .objects
+                        .get(&id)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false);
+                    if !on_battlefield {
+                        continue;
+                    }
+
+                    let regen_id = state.next_replacement_id();
+                    state.replacement_effects.push_back(ReplacementEffect {
+                        id: regen_id,
+                        source: Some(id), // The permanent being protected
+                        controller: ctx.controller,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        is_self_replacement: true, // CR 614.15: self-replacement
+                        trigger: ReplacementTrigger::WouldBeDestroyed {
+                            filter: ObjectFilter::SpecificObject(id),
+                        },
+                        modification: ReplacementModification::Regenerate,
+                    });
+
+                    events.push(GameEvent::RegenerationShieldCreated {
+                        object_id: id,
+                        shield_id: regen_id,
+                        controller: ctx.controller,
+                    });
+                }
+            }
+        }
+
+        // CR 701.34a: Proliferate -- add one counter of each kind to each
+        // permanent on the battlefield and each player that already has counters.
+        // Simplified: auto-select all eligible (interactive choice deferred to M10+).
+        //
+        // Ruling 2023-02-04: "You can't choose cards in any zone other than the
+        // battlefield, even if they have counters on them."
+        // Ruling 2023-02-04: "triggers even if you chose no permanents or players."
+        //
+        // WARNING: The auto-select-all model can produce game-losing states that a
+        // real player would never choose. For example, a player with 9 poison counters
+        // who casts a proliferate spell will have their own poison incremented to 10,
+        // triggering the "lose the game" SBA (CR 704.5c). In real MTG, no player would
+        // choose to proliferate their own poison. CR 701.34a says "choose ANY NUMBER" --
+        // the controller may choose zero or any subset of eligible permanents/players.
+        // TODO(M10+): When interactive choice is added, players must be able to opt out
+        // of adding harmful counters (poison, -1/-1) to themselves or their own permanents.
+        Effect::Proliferate => {
+            let controller = ctx.controller;
+
+            // 1. Iterate all permanents on the battlefield with at least one counter.
+            //    CR ruling 2023-02-04: "You can't choose cards in any zone other
+            //    than the battlefield, even if they have counters on them."
+            let battlefield_objects: Vec<(ObjectId, Vec<(crate::state::types::CounterType, u32)>)> =
+                state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && !obj.counters.is_empty())
+                    .map(|(id, obj)| {
+                        let counter_types: Vec<(crate::state::types::CounterType, u32)> = obj
+                            .counters
+                            .iter()
+                            .map(|(ct, &count)| (ct.clone(), count))
+                            .collect();
+                        (*id, counter_types)
+                    })
+                    .collect();
+
+            // Add one counter of each kind to each eligible permanent.
+            for (obj_id, counter_types) in &battlefield_objects {
+                if let Some(obj) = state.objects.get_mut(obj_id) {
+                    for (counter_type, _) in counter_types {
+                        let cur = obj.counters.get(counter_type).copied().unwrap_or(0);
+                        obj.counters.insert(counter_type.clone(), cur + 1);
+                        events.push(GameEvent::CounterAdded {
+                            object_id: *obj_id,
+                            counter: counter_type.clone(),
+                            count: 1,
+                        });
+                    }
+                }
+            }
+
+            // 2. Iterate all players with poison counters (the only player counter type).
+            //    CR 701.34a: "players that have a counter" -- poison_counters > 0.
+            //
+            // NOTE: Only poison counters are currently tracked on PlayerState. CR 122.1
+            // recognizes additional player counter types (experience from Commander 2015,
+            // energy, rad counters from CR 727). CounterType::Experience and
+            // CounterType::Energy exist in the type system but have no corresponding
+            // PlayerState fields. When those fields are added to PlayerState, update
+            // this loop to also proliferate them.
+            let eligible_players: Vec<crate::state::player::PlayerId> = state
+                .players
+                .iter()
+                .filter(|(_, ps)| !ps.has_lost && ps.poison_counters > 0)
+                .map(|(id, _)| *id)
+                .collect();
+
+            for pid in &eligible_players {
+                if let Some(player) = state.players.get_mut(pid) {
+                    player.poison_counters += 1;
+                    events.push(GameEvent::PoisonCountersGiven {
+                        player: *pid,
+                        amount: 1,
+                        source: ctx.source,
+                    });
+                }
+            }
+
+            // 3. Always emit Proliferated event (ruling 2023-02-04:
+            //    "triggers even if you chose no permanents or players").
+            events.push(GameEvent::Proliferated {
+                controller,
+                permanents_affected: battlefield_objects.len() as u32,
+                players_affected: eligible_players.len() as u32,
+            });
+        }
+
         Effect::Nothing => {}
+
+        // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
+        // Hideaway ETB trigger without paying its mana cost.
+        //
+        // Searches the exile zone for an object where:
+        //   - obj.exiled_by_hideaway == Some(ctx.source)
+        //   - obj.status.face_down == true
+        // If found: turns it face-up, clears exiled_by_hideaway, and moves it to the
+        // battlefield (for permanents) or handles it as a simplified free cast.
+        //
+        // Deterministic fallback: always plays the card (does not decline).
+        // CR 118.9: Playing without paying mana cost is an alternative cost.
+        // CR 701.13: "Play" includes playing lands AND casting spells.
+        Effect::PlayExiledCard => {
+            let source_id = ctx.source;
+            let controller = ctx.controller;
+
+            // Find the hideaway-exiled card in exile.
+            let hideaway_card_id = state
+                .objects
+                .iter()
+                .find(|(_, obj)| {
+                    obj.zone == ZoneId::Exile
+                        && obj.exiled_by_hideaway == Some(source_id)
+                        && obj.status.face_down
+                })
+                .map(|(id, _)| *id);
+
+            if let Some(card_id) = hideaway_card_id {
+                // Determine if the card is a land or a spell.
+                let is_land = state
+                    .objects
+                    .get(&card_id)
+                    .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
+                    .unwrap_or(false);
+
+                // Turn face-up and clear the hideaway link.
+                if let Some(obj) = state.objects.get_mut(&card_id) {
+                    obj.status.face_down = false;
+                    obj.exiled_by_hideaway = None;
+                }
+
+                if is_land {
+                    // Play the land: move directly to battlefield.
+                    // CR 701.13: Playing a land bypasses the stack.
+                    match state.move_object_to_zone(card_id, ZoneId::Battlefield) {
+                        Ok((new_id, _)) => {
+                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                                obj.controller = controller;
+                                obj.owner = controller;
+                            }
+                            events.push(GameEvent::PermanentEnteredBattlefield {
+                                player: controller,
+                                object_id: new_id,
+                            });
+                        }
+                        Err(_) => {
+                            // Card disappeared from exile — ability does nothing.
+                        }
+                    }
+                } else {
+                    // Cast as permanent without paying mana cost.
+                    // Simplified: move directly to the battlefield for permanent cards,
+                    // or to the graveyard for instants/sorceries (they "resolve" immediately).
+                    // CR 118.9: alternative cost of {0}.
+                    let is_permanent = state
+                        .objects
+                        .get(&card_id)
+                        .map(|obj| {
+                            let ct = &obj.characteristics.card_types;
+                            ct.contains(&CardType::Creature)
+                                || ct.contains(&CardType::Artifact)
+                                || ct.contains(&CardType::Enchantment)
+                                || ct.contains(&CardType::Planeswalker)
+                        })
+                        .unwrap_or(false);
+
+                    if is_permanent {
+                        if let Ok((new_id, _)) =
+                            state.move_object_to_zone(card_id, ZoneId::Battlefield)
+                        {
+                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                                obj.controller = controller;
+                                obj.owner = controller;
+                            }
+                            events.push(GameEvent::PermanentEnteredBattlefield {
+                                player: controller,
+                                object_id: new_id,
+                            });
+                        }
+                    } else {
+                        // Instant/sorcery: move to graveyard (simplified resolution).
+                        let graveyard_zone = ZoneId::Graveyard(controller);
+                        if let Ok((new_id, _)) = state.move_object_to_zone(card_id, graveyard_zone)
+                        {
+                            events.push(GameEvent::ObjectPutInGraveyard {
+                                player: controller,
+                                object_id: card_id,
+                                new_grave_id: new_id,
+                            });
+                        }
+                    }
+                }
+            }
+            // If no matching exiled card found, the ability does nothing (CR 607.2a).
+        }
 
         // CR 702.6a / CR 701.3a: Attach the source Equipment to the target creature.
         //
@@ -1604,6 +1921,12 @@ fn execute_effect_inner(
                                         modular_counter_count: None,
                                         is_evolve_trigger: false,
                                         evolve_entering_creature: None,
+                                        is_myriad_trigger: false,
+                                        is_suspend_counter_trigger: false,
+                                        is_suspend_cast_trigger: false,
+                                        suspend_card_id: None,
+                                        is_hideaway_trigger: false,
+                                        hideaway_count: None,
                                     });
                                 }
                             }
@@ -2058,6 +2381,9 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_foretold: false,
         foretold_turn: 0,
         was_unearthed: false,
+        myriad_exile_at_eoc: false,
+        is_suspended: false,
+        exiled_by_hideaway: None,
     }
 }
 
@@ -2206,6 +2532,12 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         modular_counter_count: None,
                         is_evolve_trigger: false,
                         evolve_entering_creature: None,
+                        is_myriad_trigger: false,
+                        is_suspend_counter_trigger: false,
+                        is_suspend_cast_trigger: false,
+                        suspend_card_id: None,
+                        is_hideaway_trigger: false,
+                        hideaway_count: None,
                     });
                 }
             }

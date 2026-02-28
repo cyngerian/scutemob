@@ -128,6 +128,12 @@ pub fn handle_choose_miracle(
         modular_counter_count: None,
         is_evolve_trigger: false,
         evolve_entering_creature: None,
+        is_myriad_trigger: false,
+        is_suspend_counter_trigger: false,
+        is_suspend_cast_trigger: false,
+        suspend_card_id: None,
+        is_hideaway_trigger: false,
+        hideaway_count: None,
     });
 
     Ok(vec![])

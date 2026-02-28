@@ -263,6 +263,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // If bestow_fallback is true, the spell reverted to creature mode;
                     // the permanent enters as a creature (not as a bestowed Aura).
                     obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
+                    // CR 702.62a: If the spell was cast via suspend and the permanent
+                    // is a creature, it gains haste (modelled as clearing summoning
+                    // sickness; V1 simplification per plan). The "until you lose control"
+                    // clause is deferred (V1: permanent effect for the casting player).
+                    if stack_obj.was_suspended
+                        && obj.characteristics.card_types.contains(&CardType::Creature)
+                    {
+                        obj.has_summoning_sickness = false;
+                    }
                 }
 
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
@@ -1133,6 +1142,418 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.116a: Myriad trigger resolves -- create token copies of the source
+        // creature for each opponent other than the defending player, each tapped and
+        // attacking that opponent.
+        //
+        // CR 702.116a: "for each opponent other than defending player, you may create
+        // a token that's a copy of this creature that's tapped and attacking that player."
+        // V1 simplification: auto-accept "you may" (always create tokens).
+        //
+        // CR 702.116b: Multiple instances trigger separately — this arm handles one
+        // trigger at a time.
+        //
+        // CR 707.2: Tokens that are copies of a permanent use Layer 1 (CopyOf) to
+        // reflect copiable values of the source at resolution time.
+        StackObjectKind::MyriadTrigger {
+            source_object,
+            defending_player,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Find all active opponents of the source's controller excluding the defending player.
+            // CR 702.116a: "for each opponent other than defending player."
+            let opponents: Vec<crate::state::player::PlayerId> = state
+                .players
+                .values()
+                .filter(|p| {
+                    !p.has_lost && !p.has_conceded && p.id != controller && p.id != defending_player
+                })
+                .map(|p| p.id)
+                .collect();
+
+            // CR 702.116a: If no eligible opponents, no tokens are created.
+            // (e.g. 2-player game where defending player is the only opponent).
+            for opponent_id in opponents {
+                // CR 608.2b / CR 400.7: If the source creature has left the battlefield
+                // before this trigger resolves, skip token creation entirely.
+                // "This creature" no longer exists; LKI infrastructure is not yet
+                // available to reconstruct its characteristics, so no tokens are created.
+                if state
+                    .objects
+                    .get(&source_object)
+                    .is_none_or(|o| o.zone != ZoneId::Battlefield)
+                {
+                    break;
+                }
+
+                // Build a blank token object that will become a copy of the source.
+                // CR 111.10: Tokens enter the battlefield as the stated kind of object.
+                // CR 707.2: Copy uses copiable values of the source creature.
+                let token_obj = crate::state::game_object::GameObject {
+                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                    card_id: None,
+                    characteristics: state
+                        .objects
+                        .get(&source_object)
+                        .map(|o| o.characteristics.clone())
+                        .unwrap_or_default(),
+                    controller,
+                    owner: controller,
+                    zone: ZoneId::Battlefield,
+                    status: crate::state::game_object::ObjectStatus {
+                        // CR 702.116a: "tapped and attacking" — enters tapped.
+                        tapped: true,
+                        ..crate::state::game_object::ObjectStatus::default()
+                    },
+                    counters: im::OrdMap::new(),
+                    attachments: im::Vector::new(),
+                    attached_to: None,
+                    damage_marked: 0,
+                    deathtouch_damage: false,
+                    is_token: true,
+                    timestamp: 0, // replaced by add_object
+                    // CR 302.6: Tokens have summoning sickness; they are already attacking
+                    // so sickness does not prevent combat participation this turn.
+                    has_summoning_sickness: true,
+                    goaded_by: im::Vector::new(),
+                    kicker_times_paid: 0,
+                    was_evoked: false,
+                    is_bestowed: false,
+                    was_escaped: false,
+                    is_foretold: false,
+                    foretold_turn: 0,
+                    was_unearthed: false,
+                    // CR 702.116a: "exile the tokens at end of combat"
+                    // Tagged here so end_combat() in turn_actions.rs can find them.
+                    myriad_exile_at_eoc: true,
+                    is_suspended: false,
+                    exiled_by_hideaway: None,
+                };
+
+                // Add the token to the battlefield.
+                let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+
+                // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
+                // has the copiable characteristics of the source creature.
+                // This ensures correct P/T, name, subtypes, etc. via the layer system.
+                let copy_effect = crate::rules::copy::create_copy_effect(
+                    state,
+                    token_id,
+                    source_object,
+                    controller,
+                );
+                state.continuous_effects.push_back(copy_effect);
+
+                // CR 702.116a: Token is "tapped and attacking" -- register it in combat state
+                // as attacking the opponent. Tokens enter attacking but were NOT declared
+                // as attackers, so "whenever a creature attacks" triggers do NOT fire
+                // on them (including the token's own myriad ability).
+                if let Some(combat) = state.combat.as_mut() {
+                    combat.attackers.insert(
+                        token_id,
+                        crate::state::combat::AttackTarget::Player(opponent_id),
+                    );
+                }
+
+                events.push(GameEvent::TokenCreated {
+                    player: controller,
+                    object_id: token_id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: token_id,
+                });
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.62a: Suspend counter-removal trigger resolves.
+        //
+        // "At the beginning of your upkeep, if this card is suspended, remove a
+        // time counter from it." (CR 702.62a second triggered ability)
+        //
+        // Intervening-if check (CR 603.4): verify card is still in exile and
+        // still has time counters (is still "suspended" per CR 702.62b).
+        StackObjectKind::SuspendCounterTrigger {
+            source_object: _,
+            suspended_card,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if condition at resolution.
+            // Card must still be in exile and have at least one time counter.
+            let current_counters = state
+                .objects
+                .get(&suspended_card)
+                .filter(|obj| obj.zone == ZoneId::Exile && obj.is_suspended)
+                .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
+
+            if let Some(count) = current_counters {
+                if count > 0 {
+                    // Remove one time counter (CR 702.62a).
+                    if let Some(obj) = state.objects.get_mut(&suspended_card) {
+                        let new_count = count - 1;
+                        if new_count == 0 {
+                            obj.counters.remove(&CounterType::Time);
+                        } else {
+                            obj.counters.insert(CounterType::Time, new_count);
+                        }
+                    }
+                    events.push(GameEvent::CounterRemoved {
+                        object_id: suspended_card,
+                        counter: CounterType::Time,
+                        count: 1,
+                    });
+
+                    // If this was the last time counter, queue the suspend cast trigger.
+                    // CR 702.62a (third triggered ability): "When the last time counter
+                    // is removed from this card, if it's exiled, you may play it without
+                    // paying its mana cost if able."
+                    if count == 1 {
+                        let owner = state
+                            .objects
+                            .get(&suspended_card)
+                            .map(|obj| obj.owner)
+                            .unwrap_or(controller);
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                source: suspended_card,
+                                ability_index: 0,
+                                controller: owner,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                is_evoke_sacrifice: false,
+                                is_madness_trigger: false,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                is_miracle_trigger: false,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                is_unearth_trigger: false,
+                                is_exploit_trigger: false,
+                                is_modular_trigger: false,
+                                modular_counter_count: None,
+                                is_evolve_trigger: false,
+                                evolve_entering_creature: None,
+                                is_myriad_trigger: false,
+                                is_suspend_counter_trigger: false,
+                                is_suspend_cast_trigger: true,
+                                suspend_card_id: Some(suspended_card),
+                                is_hideaway_trigger: false,
+                                hideaway_count: None,
+                            });
+                    }
+                }
+            }
+            // If not in exile or no counters, the trigger does nothing (CR 603.4).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.62a: Suspend cast trigger resolves.
+        //
+        // "When the last time counter is removed from this card, if it's exiled,
+        // you may play it without paying its mana cost if able." (CR 702.62a third ability)
+        //
+        // V1: Always cast (no interactive "may" choice). Cards are cast without
+        // paying their mana cost. Timing restrictions are ignored (CR 702.62d).
+        // If the spell is a creature, clear summoning sickness on ETB to grant haste.
+        StackObjectKind::SuspendCastTrigger {
+            source_object: _,
+            suspended_card,
+            owner,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if condition — card must still be in exile.
+            let still_in_exile = state
+                .objects
+                .get(&suspended_card)
+                .map(|obj| obj.zone == ZoneId::Exile)
+                .unwrap_or(false);
+
+            if still_in_exile {
+                // Cast the card without paying its mana cost (CR 702.62a / CR 702.62d).
+                // This follows the same pattern as cascade's free-cast (copy.rs:resolve_cascade).
+                let stack_entry_id = state.next_object_id();
+
+                // Move card from exile to stack zone (new ObjectId via CR 400.7).
+                match state.move_object_to_zone(suspended_card, ZoneId::Stack) {
+                    Ok((stack_source_id, _old)) => {
+                        // Check if the spell is a creature (for haste grant).
+                        let is_creature = state
+                            .objects
+                            .get(&stack_source_id)
+                            .map(|obj| obj.characteristics.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false);
+
+                        // Create a StackObject for the suspended spell.
+                        // CR 702.62a: suspend IS a cast — it triggers "whenever you cast a spell".
+                        let suspend_stack_obj = crate::state::stack::StackObject {
+                            id: stack_entry_id,
+                            controller: owner,
+                            kind: StackObjectKind::Spell {
+                                source_object: stack_source_id,
+                            },
+                            targets: vec![],
+                            cant_be_countered: false,
+                            is_copy: false,
+                            cast_with_flashback: false,
+                            kicker_times_paid: 0,
+                            was_evoked: false,
+                            was_bestowed: false,
+                            cast_with_madness: false,
+                            cast_with_miracle: false,
+                            was_escaped: false,
+                            cast_with_foretell: false,
+                            was_buyback_paid: false,
+                            // CR 702.62a: mark this spell as cast via suspend
+                            // so resolution.rs can clear summoning sickness on ETB.
+                            was_suspended: true,
+                        };
+                        state.stack_objects.push_back(suspend_stack_obj);
+
+                        // CR 116.3b: Casting a spell resets priority. All players must
+                        // pass again before the newly-cast suspend spell resolves.
+                        state.turn.players_passed = im::OrdSet::new();
+
+                        // CR 702.62a: suspend triggers "whenever you cast a spell".
+                        if let Some(ps) = state.players.get_mut(&owner) {
+                            ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                        }
+
+                        events.push(GameEvent::SpellCast {
+                            player: owner,
+                            stack_object_id: stack_entry_id,
+                            source_object_id: stack_source_id,
+                        });
+
+                        // For creature spells cast via suspend: the permanent will gain
+                        // haste. We mark this by noting is_creature here. The actual
+                        // haste grant (clearing summoning sickness) is done in the
+                        // Spell resolution arm when was_suspended is true.
+                        let _ = is_creature; // used at permanent ETB time via was_suspended flag
+                    }
+                    Err(_) => {
+                        // Card disappeared — nothing to cast.
+                    }
+                }
+            }
+            // If not in exile (already moved, countered, etc.), do nothing per CR 603.4.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.75a: Hideaway ETB trigger resolution.
+        //
+        // "When this permanent enters, look at the top N cards of your library.
+        // Exile one of them face down and put the rest on the bottom of your
+        // library in a random order."
+        //
+        // Deterministic fallback: exile the top card; put the rest on the
+        // bottom in seeded-shuffle order (using `timestamp_counter` as seed).
+        // CR 603.3: Trigger resolves even if source left the battlefield (CR 400.7).
+        StackObjectKind::HideawayTrigger {
+            source_object,
+            hideaway_count,
+        } => {
+            let controller = stack_obj.controller;
+            let lib_zone = ZoneId::Library(controller);
+
+            // Collect the top N cards from the controller's library.
+            // Library is an ordered zone: last element = top (CR 400.7, zone.rs).
+            let top_ids: Vec<ObjectId> = {
+                let lib = state.zones.get(&lib_zone);
+                lib.map(|z| {
+                    let all = z.object_ids(); // bottom-to-top order
+                    let n = hideaway_count as usize;
+                    let start = if all.len() > n { all.len() - n } else { 0 };
+                    all[start..].iter().rev().copied().collect() // top-first order
+                })
+                .unwrap_or_default()
+            };
+
+            if top_ids.is_empty() {
+                // Library has no cards; trigger resolves with no effect (CR 702.75a).
+                events.push(GameEvent::AbilityResolved {
+                    controller,
+                    stack_object_id: stack_obj.id,
+                });
+            } else {
+                // Deterministic fallback: exile the first (top) card.
+                let exile_card_id = top_ids[0];
+                let remaining: Vec<ObjectId> = top_ids[1..].to_vec();
+
+                // Move chosen card to exile face-down (CR 702.75a, CR 406.3).
+                match state.move_object_to_zone(exile_card_id, ZoneId::Exile) {
+                    Ok((new_exile_id, _)) => {
+                        // Set face_down and exiled_by_hideaway on the exiled object.
+                        if let Some(exile_obj) = state.objects.get_mut(&new_exile_id) {
+                            exile_obj.status.face_down = true;
+                            exile_obj.exiled_by_hideaway = Some(source_object);
+                        }
+
+                        // Put remaining cards on the bottom of the library in a random
+                        // (seeded) order (CR 702.75a: "random order").
+                        // Seeded Fisher-Yates using timestamp_counter as seed.
+                        let seed = state.timestamp_counter;
+                        let mut shuffled = remaining.clone();
+                        let mut rng_state = seed;
+                        for i in (1..shuffled.len()).rev() {
+                            rng_state = rng_state
+                                .wrapping_mul(6_364_136_223_846_793_005)
+                                .wrapping_add(1_442_695_040_888_963_407);
+                            let j = (rng_state as usize) % (i + 1);
+                            shuffled.swap(i, j);
+                        }
+                        // Each remaining card is already in the library (they were just
+                        // looked at, not moved). They stay in the library; we reorder
+                        // the bottom N-1 by moving them out and back in at the bottom.
+                        for &card_id in &shuffled {
+                            let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
+                        }
+
+                        events.push(GameEvent::HideawayExiled {
+                            player: controller,
+                            source: source_object,
+                            exiled_card: new_exile_id,
+                            remaining_count: shuffled.len() as u32,
+                        });
+                        events.push(GameEvent::AbilityResolved {
+                            controller,
+                            stack_object_id: stack_obj.id,
+                        });
+                    }
+                    Err(_) => {
+                        // Could not exile the card (already gone); do nothing.
+                        events.push(GameEvent::AbilityResolved {
+                            controller,
+                            stack_object_id: stack_obj.id,
+                        });
+                    }
+                }
+            }
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1234,7 +1655,11 @@ pub fn counter_stack_object(
         | StackObjectKind::UnearthTrigger { .. }
         | StackObjectKind::ExploitTrigger { .. }
         | StackObjectKind::ModularTrigger { .. }
-        | StackObjectKind::EvolveTrigger { .. } => {
+        | StackObjectKind::EvolveTrigger { .. }
+        | StackObjectKind::MyriadTrigger { .. }
+        | StackObjectKind::SuspendCounterTrigger { .. }
+        | StackObjectKind::SuspendCastTrigger { .. }
+        | StackObjectKind::HideawayTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

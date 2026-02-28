@@ -342,6 +342,19 @@ pub enum Command {
     /// The card can be cast for its foretell cost on a future turn.
     ForetellCard { player: PlayerId, card: ObjectId },
 
+    // -- Suspend (CR 702.62) -----------------------------------------------
+    /// Suspend a card from hand (CR 702.62a / CR 116.2f).
+    ///
+    /// Special action: pay the suspend cost, exile the card from hand face up with
+    /// N time counters. This does not use the stack. Legal any time the player has
+    /// priority and could begin to cast the card (timing check depends on card type).
+    ///
+    /// At the beginning of the owner's upkeep, a time counter is removed (triggered
+    /// ability that uses the stack). When the last counter is removed, the owner may
+    /// cast it without paying its mana cost (also a triggered ability). If cast via
+    /// suspend and the card is a creature spell, it gains haste.
+    SuspendCard { player: PlayerId, card: ObjectId },
+
     // -- Unearth (CR 702.84) -----------------------------------------------
     /// Activate a card's unearth ability from the graveyard (CR 702.84a).
     ///

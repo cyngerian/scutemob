@@ -298,6 +298,10 @@ fn trigger_matches(
                 target_filter: evt_filter,
             },
         ) => event_damage_target_matches_filter(evt_filter, eff_filter),
+        (
+            ReplacementTrigger::WouldBeDestroyed { filter: eff_filter },
+            ReplacementTrigger::WouldBeDestroyed { filter: evt_filter },
+        ) => event_object_matches_filter(state, evt_filter, eff_filter),
         // Different trigger types never match
         _ => false,
     }
@@ -1600,4 +1604,91 @@ fn draw_card_skipping_dredge(
     }
 
     Ok(events)
+}
+
+// ── Regeneration helpers (CR 701.19) ─────────────────────────────────────
+
+/// CR 701.19a/614.8: Check if a regeneration shield can replace destruction.
+///
+/// Returns `Some(shield_id)` if a regeneration shield exists for this permanent,
+/// or `None` if no shield applies.
+pub fn check_regeneration_shield(state: &GameState, object_id: ObjectId) -> Option<ReplacementId> {
+    let trigger = ReplacementTrigger::WouldBeDestroyed {
+        filter: ObjectFilter::SpecificObject(object_id),
+    };
+    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
+    // Find the first applicable regeneration modification
+    applicable.into_iter().find(|id| {
+        state
+            .replacement_effects
+            .iter()
+            .any(|e| e.id == *id && e.modification == ReplacementModification::Regenerate)
+    })
+}
+
+/// CR 701.19a: Apply a regeneration shield to a permanent that would be destroyed.
+///
+/// Performs the regeneration replacement:
+/// 1. Remove all damage marked on the permanent (CR 701.19a).
+/// 2. Tap the permanent (CR 701.19a).
+/// 3. If it's an attacking or blocking creature, remove it from combat (CR 701.19a).
+/// 4. Remove the one-shot regeneration shield (consumed).
+///
+/// Returns the events to emit.
+pub fn apply_regeneration(
+    state: &mut GameState,
+    object_id: ObjectId,
+    shield_id: ReplacementId,
+) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+
+    // 1. Remove all damage
+    if let Some(obj) = state.objects.get_mut(&object_id) {
+        obj.damage_marked = 0;
+        obj.deathtouch_damage = false;
+    }
+
+    // 2. Tap the permanent
+    if let Some(obj) = state.objects.get_mut(&object_id) {
+        obj.status.tapped = true;
+    }
+
+    // 3. Remove from combat (if attacking or blocking)
+    if let Some(combat) = &mut state.combat {
+        combat.attackers.remove(&object_id);
+        combat.blockers.remove(&object_id);
+        // Also remove from damage_assignment_order as an attacker
+        combat.damage_assignment_order.remove(&object_id);
+        // Remove as a blocker from all damage assignment orders.
+        // im::OrdMap has no iter_mut, so rebuild.
+        let updated: im::OrdMap<_, _> = combat
+            .damage_assignment_order
+            .iter()
+            .map(|(attacker_id, order)| {
+                let filtered: Vec<_> = order
+                    .iter()
+                    .filter(|&&blocker| blocker != object_id)
+                    .copied()
+                    .collect();
+                (*attacker_id, filtered)
+            })
+            .collect();
+        combat.damage_assignment_order = updated;
+    }
+
+    // 4. Remove the one-shot shield (consumed)
+    let keep: im::Vector<_> = state
+        .replacement_effects
+        .iter()
+        .filter(|e| e.id != shield_id)
+        .cloned()
+        .collect();
+    state.replacement_effects = keep;
+
+    events.push(GameEvent::Regenerated {
+        object_id,
+        shield_id,
+    });
+
+    events
 }

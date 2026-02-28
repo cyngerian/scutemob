@@ -21,6 +21,7 @@ pub mod protection;
 pub mod replacement;
 pub mod resolution;
 pub mod sba;
+pub mod suspend;
 pub mod turn_actions;
 pub mod turn_structure;
 

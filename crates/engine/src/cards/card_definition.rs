@@ -243,6 +243,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Buyback)` for quick
     /// presence-checking without scanning all abilities.
     Buyback { cost: ManaCost },
+    /// CR 702.62: Suspend N -- [cost]. Exile this card from your hand with N
+    /// time counters on it by paying [cost]. At the beginning of your upkeep,
+    /// remove a time counter. When the last is removed, you may cast it without
+    /// paying its mana cost. If it's a creature, it gains haste.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Suspend)` for quick
+    /// presence-checking without scanning all abilities.
+    Suspend { cost: ManaCost, time_counters: u32 },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -322,6 +331,13 @@ pub enum Effect {
     // ── Permanents ──────────────────────────────────────────────────────────
     /// CR 701.6: Create a token on the battlefield.
     CreateToken { spec: TokenSpec },
+    /// CR 701.16a: "Investigate" means "Create a Clue token."
+    ///
+    /// Creates `count` Clue tokens sequentially (ruling 2024-06-07:
+    /// "If you're instructed to investigate multiple times, those actions
+    /// are sequential, meaning you'll create that many Clue tokens one
+    /// at a time."). Does nothing when count resolves to 0.
+    Investigate { count: EffectAmount },
     /// CR 701.7: Destroy a permanent (does not apply to indestructible).
     DestroyPermanent { target: EffectTarget },
     /// CR 701.5: Put an object into exile.
@@ -470,6 +486,11 @@ pub enum Effect {
     /// controller's next turn. Enforcement of attack requirements is deferred
     /// to a future session.
     Goad { target: EffectTarget },
+    /// CR 701.19a: Regenerate -- create a one-shot regeneration shield on the target
+    /// permanent. The next time that permanent would be destroyed this turn, instead
+    /// remove all damage marked on it, tap it, and remove it from combat (if in combat).
+    /// The shield lasts until used or until end of turn (cleanup step).
+    Regenerate { target: EffectTarget },
     /// CR 702.6a / CR 701.3a: Attach the source Equipment to the target creature.
     ///
     /// Used as the effect of the Equip activated ability. On resolution:
@@ -497,6 +518,30 @@ pub enum Effect {
     /// If multiple tokens would be created (e.g., Doubling Season), the Equipment
     /// attaches to the first one. The others are subject to SBAs normally.
     CreateTokenAndAttachSource { spec: TokenSpec },
+    /// CR 701.34a: Proliferate -- choose any number of permanents and/or players
+    /// that have a counter, then give each one additional counter of each kind
+    /// that permanent or player already has.
+    ///
+    /// Simplified implementation: auto-selects all eligible permanents on the
+    /// battlefield and all players with counters (controller "chooses all").
+    /// Interactive selection deferred to M10+.
+    ///
+    /// Always emits a Proliferated event (even with 0 eligible targets) to
+    /// support "whenever you proliferate" triggers (ruling 2023-02-04).
+    Proliferate,
+    /// CR 702.75a / CR 607.2a: Play the card exiled face-down by this
+    /// permanent's Hideaway ETB trigger without paying its mana cost.
+    ///
+    /// At resolution: find the card in the exile zone where
+    /// `exiled_by_hideaway == Some(source_id)` and `status.face_down == true`,
+    /// turn it face-up, then move it to the battlefield (if a permanent) or
+    /// handle it as a cast spell.
+    ///
+    /// Deterministic fallback: always plays the card (does not decline).
+    /// If no matching exiled card is found, the ability does nothing.
+    ///
+    /// CR 118.9: Playing without paying the mana cost is an alternative cost.
+    PlayExiledCard,
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 }
@@ -697,6 +742,12 @@ pub enum TriggerCondition {
     /// actions were impossible. Fires even if the creature has left the battlefield
     /// before the event is processed (Psychic Pickpocket ruling, 2022-04-29).
     WhenConnives,
+    /// CR 701.16a: "Whenever you investigate."
+    ///
+    /// Fires after the investigate action completes (CR 701.16a), once per
+    /// investigate action. Does NOT fire when investigating 0 (no Investigated
+    /// event is emitted in that case).
+    WheneverYouInvestigate,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -835,6 +886,43 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
             effect: Some(Effect::GainLife {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(3),
+            }),
+            sorcery_speed: false,
+        }],
+        count,
+        tapped: false,
+        mana_color: None,
+    }
+}
+
+/// CR 111.10f: Predefined Clue token specification.
+///
+/// A colorless Clue artifact token with "{2}, Sacrifice this token: Draw a card."
+/// Note: Unlike Food tokens, the Clue ability does NOT require {T} — a tapped Clue
+/// can still have its ability activated.
+pub fn clue_token_spec(count: u32) -> TokenSpec {
+    TokenSpec {
+        name: "Clue".to_string(),
+        power: 0,
+        toughness: 0,
+        colors: OrdSet::new(),
+        card_types: [CardType::Artifact].into_iter().collect(),
+        subtypes: [SubType("Clue".to_string())].into_iter().collect(),
+        keywords: OrdSet::new(),
+        mana_abilities: vec![],
+        activated_abilities: vec![ActivatedAbility {
+            cost: crate::state::game_object::ActivationCost {
+                requires_tap: false,
+                mana_cost: Some(ManaCost {
+                    generic: 2,
+                    ..ManaCost::default()
+                }),
+                sacrifice_self: true,
+            },
+            description: "{2}, Sacrifice this token: Draw a card.".to_string(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
             }),
             sorcery_speed: false,
         }],

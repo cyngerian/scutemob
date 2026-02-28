@@ -132,6 +132,14 @@ pub fn handle_play_land(
         player,
         new_land_id,
     });
+    // CR 603.2: Emit PermanentEnteredBattlefield so that ETB-sensitive trigger
+    // checking (check_triggers) can detect abilities like Hideaway. LandPlayed is
+    // consumed by the land-play-count tracker; PermanentEnteredBattlefield is the
+    // canonical "object arrived on battlefield" signal for all triggered abilities.
+    events.push(GameEvent::PermanentEnteredBattlefield {
+        player,
+        object_id: new_land_id,
+    });
 
     // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects from card
     // definition inline (e.g., Rest in Peace ETB exile). Interactive ETB triggers

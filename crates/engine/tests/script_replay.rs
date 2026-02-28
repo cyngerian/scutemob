@@ -693,11 +693,13 @@ fn test_harness_assert_hand_count() {
                 card: "Lightning Bolt".to_string(),
                 is_commander: false,
                 owner: None,
+                ..Default::default()
             },
             CardInZone {
                 card: "Counterspell".to_string(),
                 is_commander: false,
                 owner: None,
+                ..Default::default()
             },
         ],
     );

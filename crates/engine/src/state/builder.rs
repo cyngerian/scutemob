@@ -661,6 +661,28 @@ impl GameStateBuilder {
                         effect: None, // Handled by ModularTrigger resolution
                     });
                 }
+
+                // CR 702.116a: Myriad -- "Whenever this creature attacks, for each opponent
+                // other than defending player, you may create a token that's a copy of this
+                // creature that's tapped and attacking that player or a planeswalker they
+                // control. If one or more tokens are created this way, exile the tokens at
+                // end of combat."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.116b).
+                // Token creation logic is handled by StackObjectKind::MyriadTrigger at
+                // resolution time in resolution.rs. End-of-combat exile is handled by
+                // end_combat() in turn_actions.rs.
+                if matches!(kw, KeywordAbility::Myriad) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: "Myriad (CR 702.116a): Whenever this creature attacks, \
+                                      for each opponent other than defending player, create a \
+                                      token copy tapped and attacking that player. Exile tokens \
+                                      at end of combat."
+                            .to_string(),
+                        effect: None, // Handled by MyriadTrigger resolution
+                    });
+                }
             }
 
             let characteristics = Characteristics {
@@ -720,6 +742,9 @@ impl GameStateBuilder {
                 is_foretold: false,
                 foretold_turn: 0,
                 was_unearthed: false,
+                myriad_exile_at_eoc: false,
+                is_suspended: false,
+                exiled_by_hideaway: None,
             };
 
             state.add_object(object, zone)?;

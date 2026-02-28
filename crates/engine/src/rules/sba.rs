@@ -336,28 +336,28 @@ fn check_creature_sbas(
     // Collect creatures on the battlefield that need to die.
     // MR-M5-02: use `chars_map` (layer-computed) instead of raw `obj.characteristics`.
     // damage_marked and deathtouch_damage remain on the GameObject (not in chars).
-    let dying: Vec<ObjectId> = state
+    //
+    // The bool in each tuple is `is_destruction`: true for 704.5g/h (can be regenerated),
+    // false for 704.5f zero-toughness (not destruction — regeneration does not apply,
+    // CR 701.19a: "destroyed" vs zero-toughness state replacement).
+    let dying: Vec<(ObjectId, bool)> = state
         .objects
         .iter()
-        .filter(|(id, obj)| {
+        .filter_map(|(id, obj)| {
             if obj.zone != ZoneId::Battlefield {
-                return false;
+                return None;
             }
 
             // Use layer-computed characteristics so continuous effects are visible.
-            let Some(chars) = chars_map.get(id) else {
-                return false;
-            };
+            let chars = chars_map.get(id)?;
 
             if !chars.card_types.contains(&CardType::Creature) {
-                return false;
+                return None;
             }
 
             // CR 704.5f/g/h only apply to creatures with a defined toughness.
             // A creature without toughness (e.g., a test card) is skipped.
-            let Some(toughness) = chars.toughness else {
-                return false;
-            };
+            let toughness = chars.toughness?;
 
             // MR-M5-02: indestructible is now read from layer-computed keywords —
             // an effect that removes Indestructible (e.g., Humility) is correctly seen.
@@ -365,8 +365,9 @@ fn check_creature_sbas(
 
             // CR 704.5f: toughness ≤ 0. Indestructible does NOT prevent this
             // (CR 702.12a only prevents "destroy"; zero-toughness is a state replacement).
+            // is_destruction = false: regeneration cannot prevent this (CR 701.19a).
             if toughness <= 0 {
-                return true;
+                return Some((*id, false));
             }
 
             // CR 704.5g: lethal damage (damage ≥ toughness > 0).
@@ -375,24 +376,33 @@ fn check_creature_sbas(
             // toughness > 0 is guaranteed by the check above, so the cast is safe.
             if !is_indestructible && obj.damage_marked > 0 && obj.damage_marked >= toughness as u32
             {
-                return true;
+                return Some((*id, true)); // is_destruction = true
             }
 
             // CR 704.5h: any damage from a deathtouch source.
             // CR 702.12a: Indestructible creatures cannot be destroyed — skip.
             if !is_indestructible && obj.deathtouch_damage && obj.damage_marked > 0 {
-                return true;
+                return Some((*id, true)); // is_destruction = true
             }
 
-            false
+            None
         })
-        .map(|(id, _)| *id)
         .collect();
 
-    for id in dying {
+    for (id, is_destruction) in dying {
         // Skip objects that already have a pending replacement choice.
         if state.pending_zone_changes.iter().any(|p| p.object_id == id) {
             continue;
+        }
+
+        // CR 701.19a/614.8: Check regeneration shields before destruction (704.5g/h only).
+        // CR 704.5f (zero toughness) is NOT destruction -- regeneration cannot prevent it.
+        if is_destruction {
+            if let Some(shield_id) = replacement::check_regeneration_shield(state, id) {
+                let regen_events = replacement::apply_regeneration(state, id, shield_id);
+                events.extend(regen_events);
+                continue; // Skip destruction -- permanent stays on battlefield
+            }
         }
 
         let (owner, pre_death_controller, pre_death_counters) = match state.objects.get(&id) {

@@ -2915,5 +2915,204 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
+        // 105. Thraben Inspector — {W}, Creature — Human Soldier 1/2;
+        // When Thraben Inspector enters the battlefield, investigate.
+        // (Create a Clue token. CR 701.16a / CR 111.10f)
+        CardDefinition {
+            card_id: cid("thraben-inspector"),
+            name: "Thraben Inspector".to_string(),
+            mana_cost: Some(ManaCost { white: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Soldier"]),
+            oracle_text: "When Thraben Inspector enters the battlefield, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")".to_string(),
+            power: Some(1),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
+                    intervening_if: None,
+                },
+            ],
+        },
+
+        // 106. Magnifying Glass — {3}, Artifact; {1},{T}: Add {C}. {3},{T}: Investigate.
+        // CR 701.16a: Investigate — create a Clue token.
+        CardDefinition {
+            card_id: cid("magnifying-glass"),
+            name: "Magnifying Glass".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, ..Default::default() }),
+            types: types(&[CardType::Artifact]),
+            oracle_text: "{1}, {T}: Add {C}.\n{3}, {T}: Investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")".to_string(),
+            abilities: vec![
+                // {1}, {T}: Add {C}.
+                AbilityDefinition::Activated {
+                    cost: Cost::Sequence(vec![
+                        Cost::Mana(ManaCost { generic: 1, ..Default::default() }),
+                        Cost::Tap,
+                    ]),
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(0, 0, 0, 0, 0, 1),
+                    },
+                    timing_restriction: None,
+                },
+                // {3}, {T}: Investigate.
+                AbilityDefinition::Activated {
+                    cost: Cost::Sequence(vec![
+                        Cost::Mana(ManaCost { generic: 3, ..Default::default() }),
+                        Cost::Tap,
+                    ]),
+                    effect: Effect::Investigate { count: EffectAmount::Fixed(1) },
+                    timing_restriction: None,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 107. Drudge Skeletons — {1}{B}, Creature — Skeleton 1/1; {B}: Regenerate ~.
+        // CR 701.19a: Regenerate — next time destroyed, remove damage, tap, remove from combat.
+        CardDefinition {
+            card_id: cid("drudge-skeletons"),
+            name: "Drudge Skeletons".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+            types: creature_types(&["Skeleton"]),
+            oracle_text: "{B}: Regenerate Drudge Skeletons.".to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(ManaCost { black: 1, ..Default::default() }),
+                    effect: Effect::Regenerate { target: EffectTarget::Source },
+                    timing_restriction: None,
+                },
+            ],
+        },
+
+        // 108. Glistener Elf — {G}, Creature — Elf Warrior 1/1; Infect.
+        // CR 702.90: Infect — damage to creatures as -1/-1 counters, to players as poison counters.
+        CardDefinition {
+            card_id: cid("glistener-elf"),
+            name: "Glistener Elf".to_string(),
+            mana_cost: Some(ManaCost { green: 1, ..Default::default() }),
+            types: creature_types(&["Elf", "Warrior"]),
+            oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)".to_string(),
+            power: Some(1),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Infect),
+            ],
+        },
+
+        // 110. Warchief Giant — {3}{R}{R}, Creature — Giant Warrior 5/3; Haste, Myriad.
+        // CR 702.116a: Myriad — whenever this attacks, create a token copy tapped and
+        // attacking each other opponent. Exile tokens at end of combat.
+        CardDefinition {
+            card_id: cid("warchief-giant"),
+            name: "Warchief Giant".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+            types: creature_types(&["Giant", "Warrior"]),
+            oracle_text: "Haste\nMyriad (Whenever this creature attacks, for each opponent other than the defending player, you may create a token that's a copy of this creature that's tapped and attacking that player. If one or more tokens are created this way, exile the tokens at end of combat.)".to_string(),
+            power: Some(5),
+            toughness: Some(3),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Haste),
+                AbilityDefinition::Keyword(KeywordAbility::Myriad),
+            ],
+        },
+
+        // 109. Inexorable Tide — {3}{U}{U}, Enchantment.
+        // CR 701.34a: "Whenever you cast a spell, proliferate."
+        // 111. Rift Bolt — {2}{R}, Sorcery; Suspend 1—{R}.
+        // CR 702.62: Suspend 1 means exile from hand with 1 time counter by paying {R};
+        // at upkeep, remove the counter and cast for free. Deals 3 damage to any target.
+        CardDefinition {
+            card_id: cid("rift-bolt"),
+            name: "Rift Bolt".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, red: 1, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Rift Bolt deals 3 damage to any target.\nSuspend 1—{R} (Rather than cast this card from your hand, pay {R} and exile it with a time counter on it. At the beginning of your upkeep, remove a time counter. When the last is removed, cast it without paying its mana cost.)".to_string(),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Suspend),
+                AbilityDefinition::Suspend {
+                    cost: ManaCost { red: 1, ..Default::default() },
+                    time_counters: 1,
+                },
+                AbilityDefinition::Spell {
+                    effect: Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(3),
+                    },
+                    targets: vec![TargetRequirement::TargetAny],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 112. Windbrisk Heights — Land — Plains; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
+        // CR 702.75: Hideaway 4 triggers on ETB: look at top 4, exile one face-down, put rest on bottom.
+        // CR 702.75b: older Hideaway cards errata'd to "Hideaway 4" + separate "enters tapped" line.
+        // The play condition ("attacked with 3+ creatures this turn") uses Condition::Always as
+        // a deterministic fallback — attack tracking is deferred.
+        CardDefinition {
+            card_id: cid("windbrisk-heights"),
+            name: "Windbrisk Heights".to_string(),
+            mana_cost: None,
+            types: types_sub(&[CardType::Land], &["Plains"]),
+            oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn.".to_string(),
+            abilities: vec![
+                // CR 702.75: Hideaway 4 — ETB trigger wired via KeywordAbility::Hideaway(4).
+                AbilityDefinition::Keyword(KeywordAbility::Hideaway(4)),
+                // CR 614.1c: self-replacement — this land enters the battlefield tapped.
+                AbilityDefinition::Replacement {
+                    trigger: ReplacementTrigger::WouldEnterBattlefield {
+                        filter: ObjectFilter::Any,
+                    },
+                    modification: ReplacementModification::EntersTapped,
+                    is_self: true,
+                },
+                // {T}: Add {W} (Plains subtype).
+                AbilityDefinition::Activated {
+                    cost: Cost::Tap,
+                    effect: Effect::AddMana {
+                        player: PlayerTarget::Controller,
+                        mana: mana_pool(1, 0, 0, 0, 0, 0),
+                    },
+                    timing_restriction: None,
+                },
+                // {W}, {T}: Play the exiled card without paying its mana cost.
+                // Condition::Always — the real attack-count condition is deferred.
+                AbilityDefinition::Activated {
+                    cost: Cost::Sequence(vec![
+                        Cost::Mana(ManaCost { white: 1, ..Default::default() }),
+                        Cost::Tap,
+                    ]),
+                    effect: Effect::PlayExiledCard,
+                    timing_restriction: None,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // Simple Proliferate enabler with no ETB targeting.
+        CardDefinition {
+            card_id: cid("inexorable-tide"),
+            name: "Inexorable Tide".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, blue: 2, ..Default::default() }),
+            types: types(&[CardType::Enchantment]),
+            oracle_text: "Whenever you cast a spell, proliferate. (You choose any number of permanents and/or players, then give each another counter of each kind already there.)".to_string(),
+            abilities: vec![
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                        during_opponent_turn: false,
+                    },
+                    effect: Effect::Proliferate,
+                    intervening_if: None,
+                },
+            ],
+            ..Default::default()
+        },
+
     ]
 }

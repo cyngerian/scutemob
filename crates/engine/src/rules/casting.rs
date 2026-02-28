@@ -892,6 +892,8 @@ pub fn handle_cast_spell(
         cast_with_foretell: casting_with_foretell,
         // CR 702.27a: Record whether the buyback additional cost was paid.
         was_buyback_paid,
+        // CR 702.62a: Not cast via suspend in the normal casting path.
+        was_suspended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -995,6 +997,7 @@ pub fn handle_cast_spell(
             was_escaped: false,
             cast_with_foretell: false,
             was_buyback_paid: false,
+            was_suspended: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1036,6 +1039,7 @@ pub fn handle_cast_spell(
             was_escaped: false,
             cast_with_foretell: false,
             was_buyback_paid: false,
+            was_suspended: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

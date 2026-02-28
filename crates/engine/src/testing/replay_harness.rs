@@ -125,7 +125,7 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
     }
 
-    // Add exile cards.
+    // Add exile cards (including suspended cards with time counters).
     for card in &init.zones.exile {
         let owner = card
             .owner
@@ -133,7 +133,13 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
             .and_then(|n| player_map.get(n))
             .copied()
             .unwrap_or(PlayerId(1));
-        builder = builder.object(make_spec(owner, &card.card, ZoneId::Exile));
+        let mut spec = make_spec(owner, &card.card, ZoneId::Exile);
+        for (ctype, count) in &card.counters {
+            if let Some(ct) = parse_counter_type(ctype) {
+                spec = spec.with_counter(ct, *count);
+            }
+        }
+        builder = builder.object(spec);
     }
 
     // Add library cards (top-to-bottom order).
@@ -158,6 +164,30 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
                     }
                 }
                 ps.land_plays_remaining = pstate.land_plays_remaining;
+                ps.poison_counters = pstate.poison_counters;
+            }
+        }
+    }
+
+    // Patch is_suspended on exile objects (CR 702.62: cards suspended from hand have
+    // this flag set so upkeep_actions can find them). The spec builder always sets it
+    // false, so we must patch post-build using name matching in the exile zone.
+    for card in &init.zones.exile {
+        if card.is_suspended {
+            let card_cid = card_name_to_id(&card.card);
+            let target_id = state.objects.iter().find_map(|(&id, obj)| {
+                if obj.zone == ZoneId::Exile
+                    && obj.card_id.as_ref().map(|c| c.0.as_str()) == Some(card_cid.0.as_str())
+                {
+                    Some(id)
+                } else {
+                    None
+                }
+            });
+            if let Some(id) = target_id {
+                if let Some(obj) = state.objects.get_mut(&id) {
+                    obj.is_suspended = true;
+                }
             }
         }
     }
@@ -462,6 +492,17 @@ pub fn translate_player_action(
         "unearth_card" => {
             let card_id = find_in_graveyard(state, player, card_name?)?;
             Some(Command::UnearthCard {
+                player,
+                card: card_id,
+            })
+        }
+
+        // CR 702.62a: Suspend a card from the player's hand. card_name is the card
+        // to suspend. The player pays the suspend cost; the card is exiled with N time
+        // counters (as defined by the card's AbilityDefinition::Suspend).
+        "suspend_card" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::SuspendCard {
                 player,
                 card: card_id,
             })
@@ -898,6 +939,46 @@ pub fn enrich_spec_from_def(
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
                 description: "Whenever this creature connives (CR 701.50b)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 701.16a: Convert "Whenever you investigate" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Investigated events.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouInvestigate,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerInvestigates,
+                intervening_if: None,
+                description: "Whenever you investigate (CR 701.16a)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 603.2: Convert "Whenever you cast a spell" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via SpellCast events. Covers Inexorable Tide and similar enchantments.
+    // The `during_opponent_turn` flag is not enforced here — turn filtering is
+    // done at trigger-collection time in abilities.rs via ControllerCastsSpell.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouCastSpell { .. },
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::ControllerCastsSpell,
+                intervening_if: None,
+                description: "Whenever you cast a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
             });
         }

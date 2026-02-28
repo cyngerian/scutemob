@@ -1,0 +1,263 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_092",
+    "name": "Infect — unblocked Glistener Elf gives poison counter to player instead of life loss",
+    "description": "P1 controls Glistener Elf (1/1, Infect). P2 has no blockers. P1 attacks with Glistener Elf targeting P2. Glistener Elf deals 1 combat damage to P2 with Infect — CR 702.90b and 120.3b convert that damage to 1 poison counter instead of 1 life loss. After combat, P2 is at 40 life (unchanged) and has 1 poison counter. This is the core Infect mechanic: player damage bypasses life loss and gives poison counters.",
+    "cr_sections_tested": [
+      "702.90",
+      "702.90b",
+      "702.90c",
+      "120.3b",
+      "120.3d",
+      "508.1",
+      "509.1",
+      "510.1",
+      "510.2",
+      "704.5c",
+      "704.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "combat",
+      "infect",
+      "poison-counter",
+      "replacement",
+      "sba",
+      "4-player"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Glistener Elf (card #105 in definitions.rs): {G}, Creature — Phyrexian Elf Warrior 1/1, Infect. Single-elf scenario to avoid duplicate-name harness limitation (find_on_battlefield returns lowest-ID match). P2 has no blockers so Glistener Elf is unblocked and deals 1 infect damage to P2 as a poison counter (CR 702.90b). P2 life remains 40 (no life loss). The -1/-1 counter path (CR 702.90c / 120.3d) is covered by unit tests in tests/keywords.rs.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Glistener Elf",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ],
+        "p2": [],
+        "p3": [],
+        "p4": []
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "P1 declares Glistener Elf as an attacker targeting P2. Glistener Elf taps (CR 508.1f). P2 has no blockers. All players pass priority.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Glistener Elf (1/1, Infect) on P1 battlefield untapped; P2 at 40 life, 0 poison counters; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Glistener Elf"
+                }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "players.p2.poison_counters": 0,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Glistener Elf has Infect (CR 702.90). P2 has no blockers — Glistener Elf will deal unblocked combat damage to P2. Stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            {
+              "card": "Glistener Elf",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: P1 declares Glistener Elf as an attacking creature targeting P2. CR 508.1f: Glistener Elf becomes tapped as part of attacking. Infect is a static ability — it does not trigger here."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Glistener Elf is tapped; stack empty",
+          "assertions": {
+            "permanent.Glistener Elf.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 508.1f: Glistener Elf tapped upon attacking. No triggered abilities from Infect at declare_attackers. Stack is empty."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: All players pass priority in APNAP order — advance to declare_blockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "P2 declares no blockers. Glistener Elf is unblocked (CR 509.1i) and will deal 1 infect damage directly to P2 as 1 poison counter (CR 702.90b, 120.3b).",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: P2 declares no blockers. Glistener Elf remains unblocked (CR 509.1i) — it will deal combat damage directly to P2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_blockers: Glistener Elf still on P1 battlefield (tapped); P2 still at 40 life; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Glistener Elf"
+                }
+              ]
+            },
+            "players.p2.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "No triggered abilities. Stack still empty. Combat damage will be dealt when all players pass priority."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: All players pass priority — advance to combat damage step. Glistener Elf (power 1, Infect, unblocked) deals 1 infect damage to P2. CR 702.90b: 1 infect damage to a player causes P2 to receive 1 poison counter instead of losing 1 life (CR 120.3b)."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "Combat damage step: Glistener Elf (1/1, Infect, unblocked) deals 1 infect damage to P2 — CR 702.90b converts it to 1 poison counter. P2 stays at 40 life.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.3: SBAs checked after combat damage. P2 has 1 poison counter — below 10, so SBA 704.5c does not apply. Glistener Elf has 0 damage marked. No SBAs fire."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: All players pass priority after combat damage and SBA check. Stack is empty — advance to end of combat."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: P2 at 40 life (Infect replaced life loss with poison counter — CR 702.90b, 120.3b); P2 has 1 poison counter; Glistener Elf on P1 battlefield (tapped); stack empty",
+          "assertions": {
+            "players.p2.life": 40,
+            "players.p2.poison_counters": 1,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Glistener Elf"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 702.90b: Infect on Glistener Elf replaced the 1 combat damage to P2 with 1 poison counter — P2 life remains 40 (not 39). CR 120.3b confirms: no life loss, only poison counter given. P2 has 1 poison counter — below 10 so no game loss (CR 704.5c). Glistener Elf survives combat (dealt damage to player, not creature). Infect creature-damage path (CR 702.90c / 120.3d: -1/-1 counters instead of marked damage) is validated by unit tests in tests/keywords.rs."
+        }
+      ]
+    }
+  ]
+}

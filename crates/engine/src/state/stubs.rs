@@ -169,6 +169,51 @@ pub struct PendingTrigger {
     /// If this creature left the battlefield, use last-known information.
     #[serde(default)]
     pub evolve_entering_creature: Option<ObjectId>,
+    /// CR 702.116a: If true, this pending trigger is a Myriad attack trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::MyriadTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `defending_player_id` field carries the defending player (the one NOT
+    /// to create copies for). The `ability_index` field is unused when this
+    /// is true.
+    #[serde(default)]
+    pub is_myriad_trigger: bool,
+    /// CR 702.62a: If true, this pending trigger is a suspend upkeep
+    /// counter-removal trigger ("at the beginning of your upkeep, remove a
+    /// time counter from this suspended card").
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::SuspendCounterTrigger`.
+    /// When this trigger resolves, one time counter is removed from the suspended
+    /// card. If that was the last counter, a SuspendCastTrigger is immediately queued.
+    #[serde(default)]
+    pub is_suspend_counter_trigger: bool,
+    /// CR 702.62a: If true, this pending trigger is the suspend cast trigger
+    /// ("when the last time counter is removed, you may cast it without paying
+    /// its mana cost").
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::SuspendCastTrigger`.
+    /// When this trigger resolves, the card is cast for free from exile.
+    #[serde(default)]
+    pub is_suspend_cast_trigger: bool,
+    /// CR 702.62a: ObjectId of the suspended card in exile.
+    ///
+    /// Only meaningful when `is_suspend_counter_trigger` or `is_suspend_cast_trigger`
+    /// is true.
+    #[serde(default)]
+    pub suspend_card_id: Option<ObjectId>,
+    /// CR 702.75a: If true, this pending trigger is a Hideaway ETB trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::HideawayTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.  The
+    /// `hideaway_count` field carries the N parameter.  The `ability_index`
+    /// field is unused when this is true.
+    #[serde(default)]
+    pub is_hideaway_trigger: bool,
+    /// CR 702.75a: Number of cards to look at from the top of the library.
+    ///
+    /// Only meaningful when `is_hideaway_trigger` is true.
+    #[serde(default)]
+    pub hideaway_count: Option<u32>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

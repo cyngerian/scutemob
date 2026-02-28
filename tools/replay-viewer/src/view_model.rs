@@ -455,6 +455,18 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::EvolveTrigger { source_object, .. } => {
             ("evolve_trigger", Some(*source_object))
         }
+        StackObjectKind::MyriadTrigger { source_object, .. } => {
+            ("myriad_trigger", Some(*source_object))
+        }
+        StackObjectKind::SuspendCounterTrigger { source_object, .. } => {
+            ("suspend_counter_trigger", Some(*source_object))
+        }
+        StackObjectKind::SuspendCastTrigger { source_object, .. } => {
+            ("suspend_cast_trigger", Some(*source_object))
+        }
+        StackObjectKind::HideawayTrigger { source_object, .. } => {
+            ("hideaway_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -654,5 +666,9 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Evolve => "Evolve".to_string(),
         KeywordAbility::Buyback => "Buyback".to_string(),
         KeywordAbility::Ascend => "Ascend".to_string(),
+        KeywordAbility::Infect => "Infect".to_string(),
+        KeywordAbility::Myriad => "Myriad".to_string(),
+        KeywordAbility::Suspend => "Suspend".to_string(),
+        KeywordAbility::Hideaway(n) => format!("Hideaway {n}"),
     }
 }

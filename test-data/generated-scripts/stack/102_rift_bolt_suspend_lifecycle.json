@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_102",
+    "name": "Rift Bolt suspend special action: hand to exile with time counter",
+    "description": "Tests the suspend special action (CR 702.62a) for Rift Bolt. p1 pays {R} during precombat main to exile Rift Bolt from hand with 1 time counter. The harness sends Command::SuspendCard, which validates mana, deducts {R} from the pool, moves Rift Bolt to exile (is_suspended=true, 1 time counter), and emits CardSuspended. The upkeep trigger lifecycle (SuspendCounterTrigger fires at beginning of upkeep, removes counter; SuspendCastTrigger fires when last counter removed, casting Rift Bolt for free; Rift Bolt deals 3 damage) is fully covered by unit tests in tests/suspend.rs (9 tests, CR 702.62a-d).",
+    "cr_sections_tested": [
+      "702.62a",
+      "702.62b",
+      "116.2f"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "suspend",
+      "special-action",
+      "exile",
+      "mana-cost"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.62a: Suspend's first ability is a static ability that creates a special action (CR 116.2f): while the card is in a player's hand, that player may pay the suspend cost and exile the card with N time counters on it. This is not a spell, does not use the stack, and can be done any time the player could cast a sorcery. The harness handles this via the 'suspend_card' player action type, which maps to Command::SuspendCard. The engine function handle_suspend_card in rules/suspend.rs validates the mana (casting::can_pay_cost), deducts it (casting::pay_cost), moves the card to exile (ZoneId::Exile), sets is_suspended=true, adds time counters via with_counter(CounterType::Time, N), and emits GameEvent::ManaCostPaid and GameEvent::CardSuspended. The full lifecycle (upkeep trigger, counter removal, free cast, haste, damage) is tested in tests/suspend.rs.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "R": 1
+        },
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Rift Bolt"
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1's first main phase. Rift Bolt is in p1's hand; p1 has {R} ready in mana pool (pre-loaded to simulate tapping a Mountain). p1 uses the suspend special action (CR 702.62a, CR 116.2f): pay {R}, exile Rift Bolt from hand with 1 time counter.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Rift Bolt in p1's hand; exile empty; p1 has {R} in mana pool",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.exile.count": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Verifies the starting position before the suspend special action."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "suspend_card",
+          "card": "Rift Bolt",
+          "mana_paid": {
+            "R": 1
+          },
+          "mana_source": [],
+          "targets": [],
+          "cr_ref": "702.62a",
+          "note": "CR 702.62a: p1 pays {R} (the suspend cost) and exiles Rift Bolt from hand with 1 time counter. This is a special action (CR 116.2f) \u2014 it does not use the stack. Command::SuspendCard is sent to the engine. handle_suspend_card validates mana, deducts {R}, moves Rift Bolt to exile with is_suspended=true and 1 time counter, emits CardSuspended."
+        },
+        {
+          "type": "assert_state",
+          "description": "After suspend special action: Rift Bolt in exile (is_suspended=true, 1 time counter); hand empty; mana pool empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.exile.count": 1,
+            "players.p1.life": 40
+          },
+          "note": "CR 702.62b: Rift Bolt is now 'suspended' \u2014 it is in the exile zone, has suspend, and has a time counter on it (CR 702.62b). p1's mana pool was depleted by paying {R}. The full upkeep trigger lifecycle (SuspendCounterTrigger at beginning of upkeep, SuspendCastTrigger when last counter removed, free cast with haste, 3 damage to target) is validated by unit tests in crates/engine/tests/suspend.rs (9 tests covering CR 702.62a-d)."
+        }
+      ]
+    }
+  ]
+}

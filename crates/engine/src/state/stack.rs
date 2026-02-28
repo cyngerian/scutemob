@@ -116,6 +116,14 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_buyback_paid: bool,
+    /// CR 702.62a: If true, this spell was cast via the suspend cast trigger
+    /// (the last time counter was removed). The spell was cast without paying
+    /// its mana cost. If the spell is a creature, the permanent gains haste
+    /// when it enters the battlefield.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_suspended: bool,
 }
 
 /// The kind of object on the stack.
@@ -284,5 +292,83 @@ pub enum StackObjectKind {
     EvolveTrigger {
         source_object: ObjectId,
         entering_creature: ObjectId,
+    },
+
+    /// CR 702.116a: Myriad triggered ability on the stack.
+    ///
+    /// "Whenever this creature attacks, for each opponent other than defending
+    /// player, you may create a token that's a copy of this creature that's
+    /// tapped and attacking that player."
+    ///
+    /// `source_object` is the attacking creature (the one with myriad).
+    /// `defending_player` is the player being attacked (the one NOT to copy for).
+    ///
+    /// When this trigger resolves: for each opponent of the source's controller
+    /// who is NOT `defending_player`, create a token copy of the source that is
+    /// tapped, attacking that opponent, and tagged `myriad_exile_at_eoc = true`.
+    /// Tokens are exiled at end of combat by `end_combat()` in turn_actions.rs.
+    ///
+    /// CR 702.116b: Multiple instances trigger separately (each creates its own
+    /// set of copies).
+    MyriadTrigger {
+        source_object: ObjectId,
+        defending_player: crate::state::player::PlayerId,
+    },
+
+    /// CR 702.62a: Suspend upkeep counter-removal trigger.
+    ///
+    /// "At the beginning of your upkeep, if this card is suspended, remove a
+    /// time counter from it." Fires at the start of the card owner's upkeep step.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the card is still in exile and still suspended (CR 603.4).
+    /// 2. Remove one time counter.
+    /// 3. If that was the last counter, queue a SuspendCastTrigger.
+    ///
+    /// If countered (e.g., Stifle), no counter is removed.
+    SuspendCounterTrigger {
+        source_object: ObjectId,
+        suspended_card: ObjectId,
+    },
+
+    /// CR 702.62a: Suspend cast trigger (last counter removed).
+    ///
+    /// "When the last time counter is removed from this card, if it's exiled,
+    /// you may play it without paying its mana cost if able." (CR 702.62a)
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the card is still in exile (CR 603.4 intervening-if).
+    /// 2. Cast the card without paying its mana cost.
+    ///    - Timing restrictions are ignored.
+    ///    - If the spell is a creature, clear summoning sickness at ETB.
+    ///
+    /// If countered (e.g., Stifle), the card stays in exile with 0 time counters
+    /// (no longer suspended per CR 702.62b).
+    SuspendCastTrigger {
+        source_object: ObjectId,
+        suspended_card: ObjectId,
+        owner: crate::state::player::PlayerId,
+    },
+    /// CR 702.75a: Hideaway ETB triggered ability on the stack.
+    ///
+    /// "When this permanent enters, look at the top N cards of your library.
+    /// Exile one of them face down and put the rest on the bottom of your
+    /// library in a random order."
+    ///
+    /// `source_object` is the Hideaway permanent's ObjectId on the battlefield.
+    /// `hideaway_count` is N (how many cards to look at).
+    ///
+    /// When this trigger resolves:
+    /// 1. Take the top N cards from the controller's library.
+    /// 2. Exile one face-down (deterministic: exile the top card).
+    /// 3. Set `exiled_by_hideaway = Some(source_object)` on the exiled card.
+    /// 4. Put the rest on the bottom in a random order (seeded shuffle).
+    ///
+    /// CR 603.3: The trigger goes on the stack and can be countered.
+    /// If the source has left the battlefield by resolution time (CR 400.7),
+    /// the trigger still resolves (it is already on the stack).
+    HideawayTrigger {
+        source_object: ObjectId,
+        hideaway_count: u32,
     },
 }

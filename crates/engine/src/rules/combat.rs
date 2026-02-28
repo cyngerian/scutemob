@@ -858,9 +858,10 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     }
 
     // --- Collect application info before mutating state ---
-    // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither, source_controller, commander_info)
+    // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither,
+    // source_infect, source_controller, commander_info)
     // commander_info = Some((attacking_player_id, card_id)) if source is a commander.
-    type DamageAppInfo = (bool, bool, bool, PlayerId, Option<(PlayerId, CardId)>);
+    type DamageAppInfo = (bool, bool, bool, bool, PlayerId, Option<(PlayerId, CardId)>);
     let app_info: Vec<DamageAppInfo> = assignments
         .iter()
         .map(|a| {
@@ -880,6 +881,12 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             let source_wither = chars
                 .as_ref()
                 .map(|c| c.keywords.contains(&KeywordAbility::Wither))
+                .unwrap_or(false);
+            // CR 702.90a: Damage dealt by a source with infect to a creature places
+            // -1/-1 counters; to a player gives poison counters (CR 120.3b, CR 120.3d).
+            let source_infect = chars
+                .as_ref()
+                .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                 .unwrap_or(false);
             let source_controller = obj.map(|o| o.controller).unwrap_or(PlayerId(0));
 
@@ -902,6 +909,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 source_deathtouch,
                 source_lifelink,
                 source_wither,
+                source_infect,
                 source_controller,
                 commander_info,
             )
@@ -936,14 +944,23 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     // --- Apply damage and collect lifelink gains ---
     // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
     let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
-    // Collect wither counter events during the damage application loop.
+    // Collect wither/infect counter events during the damage application loop.
     // These will be added to the event stream after the loop.
     let mut wither_counter_events: Vec<GameEvent> = Vec::new();
+    // Collect PoisonCountersGiven events for infect damage to players.
+    let mut poison_events: Vec<GameEvent> = Vec::new();
 
     for (
         (
             assignment,
-            (source_deathtouch, source_lifelink, source_wither, source_controller, commander_info),
+            (
+                source_deathtouch,
+                source_lifelink,
+                source_wither,
+                source_infect,
+                source_controller,
+                commander_info,
+            ),
         ),
         &final_dmg,
     ) in assignments
@@ -958,9 +975,11 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         match &assignment.target {
             CombatDamageTarget::Creature(obj_id) => {
                 if let Some(obj) = state.objects.get_mut(obj_id) {
-                    if *source_wither {
-                        // CR 702.80a / CR 120.3d: wither damage to a creature places
-                        // -1/-1 counters instead of marking damage.
+                    if *source_wither || *source_infect {
+                        // CR 702.80a / CR 702.90c / CR 120.3d: damage to a creature by a
+                        // source with wither and/or infect places -1/-1 counters instead
+                        // of marking damage. Multiple instances of wither/infect are
+                        // redundant (CR 702.80d / CR 702.90f) — this fires at most once.
                         let cur = obj
                             .counters
                             .get(&CounterType::MinusOneMinusOne)
@@ -983,11 +1002,26 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 }
             }
             CombatDamageTarget::Player(player_id) => {
-                // Apply life loss.
-                if let Some(player) = state.players.get_mut(player_id) {
-                    player.life_total -= final_dmg as i32;
+                if *source_infect {
+                    // CR 702.90b / CR 120.3b: infect damage to a player gives poison
+                    // counters instead of causing life loss.
+                    if let Some(player) = state.players.get_mut(player_id) {
+                        player.poison_counters += final_dmg;
+                    }
+                    poison_events.push(GameEvent::PoisonCountersGiven {
+                        player: *player_id,
+                        amount: final_dmg,
+                        source: assignment.source,
+                    });
+                } else {
+                    // CR 120.3a: normal damage causes life loss.
+                    if let Some(player) = state.players.get_mut(player_id) {
+                        player.life_total -= final_dmg as i32;
+                    }
                 }
                 // Track commander damage (CR 903.10a).
+                // Commander damage counts COMBAT damage dealt, not life lost — infect
+                // damage still counts toward commander damage totals (CR 903.10a).
                 if let Some((attacking_player, card_id)) = commander_info {
                     if player_id != attacking_player {
                         // Can't double-borrow players — read current value, then write.
@@ -1035,8 +1069,10 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
 
     // Prevention events fire before CombatDamageDealt (they modify the event as it happens).
     let mut events = prevention_events;
-    // CounterAdded events from wither precede the CombatDamageDealt summary event.
+    // CounterAdded events from wither/infect precede the CombatDamageDealt summary event.
     events.extend(wither_counter_events);
+    // PoisonCountersGiven events from infect player damage precede CombatDamageDealt.
+    events.extend(poison_events);
     events.push(GameEvent::CombatDamageDealt {
         assignments: final_assignments,
     });

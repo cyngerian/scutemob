@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_103",
+    "name": "Windbrisk Heights Hideaway ETB trigger: exile top card face-down",
+    "description": "Tests the full Hideaway (CR 702.75a) ETB lifecycle for Windbrisk Heights. p1 plays Windbrisk Heights; it enters tapped (CR 614.1c / 702.75b ETB replacement). The Hideaway 4 trigger fires: HideawayTrigger is placed on the stack. All players pass priority. HideawayTrigger resolves: the engine looks at the top 4 cards of p1's library (Lightning Bolt, Grizzly Bears, Llanowar Elves, Sol Ring), exiles Lightning Bolt face-down with exiled_by_hideaway set to the Windbrisk Heights ObjectId, and puts the other 3 on the bottom of the library. Final state: Windbrisk Heights on p1's battlefield (tapped), 1 card in exile, library has 2 cards remaining (Forest and Mountain were below the top 4), stack empty.",
+    "cr_sections_tested": [
+      "702.75a",
+      "702.75b",
+      "614.1c",
+      "603.3",
+      "406.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "hideaway",
+      "etb-trigger",
+      "face-down-exile",
+      "land",
+      "four-player"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.75a: When Windbrisk Heights enters, the Hideaway 4 trigger fires. The engine's check_triggers detects KeywordAbility::Hideaway(4) on the entering permanent and queues a HideawayTrigger (is_hideaway_trigger=true, hideaway_count=4) on PendingTrigger. flush_pending_triggers places HideawayTrigger on the stack. When it resolves, resolution.rs:HideawayTrigger arm looks at the top hideaway_count cards of the controller's library, exiles the first one face-down (face_down=true, exiled_by_hideaway=source ObjectId), and calls move_object_to_bottom_of_zone for the remaining cards. CR 702.75b: older Hideaway cards are errata'd to 'Hideaway N' plus a separate 'enters tapped' line modeled as AbilityDefinition::Replacement{EntersTapped, is_self:true}. Engine fix applied: Command::PlayLand now calls check_triggers + flush_pending_triggers (CR 603.3), matching the pattern used by CastSpell and ActivateAbility. Previously, ETB triggers on lands were silently dropped.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 1,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Windbrisk Heights"
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          {
+            "card": "Lightning Bolt"
+          },
+          {
+            "card": "Grizzly Bears"
+          },
+          {
+            "card": "Llanowar Elves"
+          },
+          {
+            "card": "Sol Ring"
+          },
+          {
+            "card": "Forest"
+          },
+          {
+            "card": "Mountain"
+          }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1's first main phase. p1 plays Windbrisk Heights as their land play for the turn.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Windbrisk Heights in p1 hand, library has 6 cards, exile empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.exile.count": 0,
+            "zones.library.p1.count": 6,
+            "players.p1.life": 40
+          },
+          "note": "Pre-condition before the land play."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "play_land",
+          "card": "Windbrisk Heights",
+          "targets": [],
+          "cr_ref": "702.75b",
+          "note": "CR 702.75b: p1 plays Windbrisk Heights. The EntersTapped replacement fires: the land enters tapped (CR 614.1c). After the land enters, check_triggers detects KeywordAbility::Hideaway(4) on the ETB permanent and queues a HideawayTrigger. flush_pending_triggers places it on the stack. CR 603.3: triggered abilities are placed on the stack after the action that caused them."
+        },
+        {
+          "type": "assert_state",
+          "description": "After play_land: Windbrisk Heights on p1 battlefield (tapped), hand empty, HideawayTrigger on stack",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 1,
+            "zones.stack.count": 1,
+            "players.p1.life": 40
+          },
+          "note": "Windbrisk Heights enters tapped. The Hideaway 4 ETB trigger is now on the stack waiting to resolve."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2",
+            "p3",
+            "p4"
+          ],
+          "result": "all_pass",
+          "note": "All players pass priority. With all players having passed and the stack non-empty, the top item (HideawayTrigger) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "HideawayTrigger",
+          "resolution": [
+            {
+              "effect": "exile_face_down",
+              "target": {
+                "type": "card",
+                "card": "Lightning Bolt",
+                "controller": "p1"
+              },
+              "amount": null,
+              "card": "Lightning Bolt",
+              "owner": "p1",
+              "cr_ref": "702.75a",
+              "note": "CR 702.75a: HideawayTrigger resolves. The engine looks at the top 4 cards (Lightning Bolt, Grizzly Bears, Llanowar Elves, Sol Ring). The first card (Lightning Bolt) is exiled face-down with face_down=true and exiled_by_hideaway=Windbrisk Heights ObjectId (CR 607.2a linked ability). The other 3 cards are put on the bottom of the library in a random order."
+            },
+            {
+              "effect": "put_on_bottom",
+              "target": {
+                "type": "zone",
+                "zone": "library"
+              },
+              "amount": 3,
+              "card": null,
+              "owner": "p1",
+              "cr_ref": "702.75a",
+              "note": "The remaining 3 cards (Grizzly Bears, Llanowar Elves, Sol Ring) are put on the bottom of p1's library in a random order. Library now has 5 cards: Forest, Mountain (original bottom) + the 3 returned cards."
+            }
+          ],
+          "note": "HideawayTrigger resolves. 1 card exiled face-down, 3 cards go to the bottom of the library."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Windbrisk Heights on battlefield (tapped), 1 card in exile, library has 5 cards, stack empty",
+          "assertions": {
+            "zones.exile.count": 1,
+            "zones.library.p1.count": 5,
+            "zones.stack.count": 0,
+            "zones.battlefield.p1.count": 1,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.75a: One card is exiled face-down (Lightning Bolt). The 3 remaining top cards are on the bottom. Library: was 6 (Lightning Bolt + Grizzly Bears + Llanowar Elves + Sol Ring + Forest + Mountain) \u2192 exiled 1 \u2192 5 remain. Windbrisk Heights is on the battlefield tapped. The exiled card's exiled_by_hideaway field links it to Windbrisk Heights for the play ability (CR 607.2a)."
+        }
+      ]
+    }
+  ]
+}

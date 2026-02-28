@@ -7,7 +7,7 @@ use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::stubs::PendingTrigger;
 use crate::state::turn::Step;
-use crate::state::types::KeywordAbility;
+use crate::state::types::{CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -18,6 +18,7 @@ use super::events::{GameEvent, LossReason};
 pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     match state.turn.step {
         Step::Untap => Ok(untap_active_player_permanents(state)),
+        Step::Upkeep => Ok(upkeep_actions(state)),
         Step::Draw => draw_for_turn(state),
         Step::BeginningOfCombat => Ok(begin_combat(state)),
         Step::FirstStrikeDamage => Ok(first_strike_damage_step(state)),
@@ -27,6 +28,75 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
         Step::End => Ok(end_step_actions(state)),
         _ => Ok(Vec::new()),
     }
+}
+
+/// CR 503.1 / CR 702.62a: Upkeep step turn-based actions.
+///
+/// Queue suspend counter-removal triggers for each suspended card owned by the active
+/// player in exile. CR 702.62a (second ability): "At the beginning of your upkeep, if
+/// this card is suspended, remove a time counter from it."
+///
+/// A card is "suspended" (CR 702.62b) if:
+/// - It is in the exile zone,
+/// - It has the Suspend keyword ability, AND
+/// - It has one or more time counters on it.
+///
+/// These are triggered abilities (not turn-based actions); they use the stack and can be
+/// countered (e.g., Stifle prevents a time counter from being removed). In multiplayer,
+/// only the ACTIVE player's suspended cards tick down on their own upkeep.
+fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
+    let active = state.turn.active_player;
+
+    // Collect suspended cards in exile owned by the active player.
+    // CR 702.62b: Must have suspend keyword, be in exile, AND have time counters.
+    let suspended_cards: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Exile
+                && obj.owner == active
+                && obj.is_suspended
+                && obj.counters.get(&CounterType::Time).copied().unwrap_or(0) > 0
+        })
+        .map(|obj| obj.id)
+        .collect();
+
+    for card_id in suspended_cards {
+        // CR 702.62a: Queue a suspend counter-removal trigger. These go on the stack
+        // in APNAP order (all controlled by active player here, so order is FIFO).
+        state.pending_triggers.push_back(PendingTrigger {
+            source: card_id,
+            ability_index: 0,
+            controller: active,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            is_evoke_sacrifice: false,
+            is_madness_trigger: false,
+            madness_exiled_card: None,
+            madness_cost: None,
+            is_miracle_trigger: false,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            is_unearth_trigger: false,
+            is_exploit_trigger: false,
+            is_modular_trigger: false,
+            modular_counter_count: None,
+            is_evolve_trigger: false,
+            evolve_entering_creature: None,
+            is_myriad_trigger: false,
+            is_suspend_counter_trigger: true,
+            is_suspend_cast_trigger: false,
+            suspend_card_id: Some(card_id),
+            is_hideaway_trigger: false,
+            hideaway_count: None,
+        });
+    }
+
+    Vec::new() // No direct events; triggers are flushed by enter_step
 }
 
 /// CR 702.84a: End step actions -- queue delayed exile triggers for all unearthed permanents.
@@ -70,6 +140,12 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             modular_counter_count: None,
             is_evolve_trigger: false,
             evolve_entering_creature: None,
+            is_myriad_trigger: false,
+            is_suspend_counter_trigger: false,
+            is_suspend_cast_trigger: false,
+            suspend_card_id: None,
+            is_hideaway_trigger: false,
+            hideaway_count: None,
         });
     }
 
@@ -340,6 +416,12 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         modular_counter_count: None,
                         is_evolve_trigger: false,
                         evolve_entering_creature: None,
+                        is_myriad_trigger: false,
+                        is_suspend_counter_trigger: false,
+                        is_suspend_cast_trigger: false,
+                        suspend_card_id: None,
+                        is_hideaway_trigger: false,
+                        hideaway_count: None,
                     });
                 }
             }
@@ -470,7 +552,54 @@ fn combat_damage_step(state: &mut GameState) -> Vec<GameEvent> {
 /// CR 511.1: Clear combat state at the end of the combat phase.
 ///
 /// Called as a turn-based action in `Step::EndOfCombat`.
+///
+/// CR 702.116a: Before clearing combat state, exile all myriad token copies that
+/// were created this combat. These tokens are tagged with `myriad_exile_at_eoc = true`.
+/// CR 511.2: "at end of combat" triggers fire as the end of combat step begins,
+/// which is modeled here as a turn-based action (no delayed trigger infrastructure
+/// needed — the tag on the token is sufficient).
+///
+/// TODO(M10+): Per CR 702.116a / CR 603.7, the myriad exile is actually a delayed
+/// triggered ability created when the myriad trigger resolves, not a turn-based action.
+/// As a delayed trigger it would go on the stack at the beginning of the end-of-combat
+/// step (CR 511.2), giving players an opportunity to respond (e.g., Stifle to keep the
+/// tokens). The current TBA implementation exiles tokens with no interaction window.
+/// Refactor to use a proper DelayedTrigger when that infrastructure is expanded (M10+).
 fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+
+    // CR 702.116a: Exile all myriad tokens. Collect first to avoid borrow issues.
+    let myriad_token_ids: Vec<crate::state::game_object::ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == crate::state::zone::ZoneId::Battlefield
+                && obj.is_token
+                && obj.myriad_exile_at_eoc
+        })
+        .map(|obj| obj.id)
+        .collect();
+
+    for token_id in myriad_token_ids {
+        // Capture controller before moving zone (needed for the exile event).
+        let controller = state
+            .objects
+            .get(&token_id)
+            .map(|o| o.controller)
+            .unwrap_or(state.turn.active_player);
+
+        if let Ok((new_exile_id, _old)) =
+            state.move_object_to_zone(token_id, crate::state::zone::ZoneId::Exile)
+        {
+            events.push(GameEvent::ObjectExiled {
+                player: controller,
+                object_id: token_id,
+                new_exile_id,
+            });
+        }
+    }
+
     state.combat = None;
-    vec![GameEvent::CombatEnded]
+    events.push(GameEvent::CombatEnded);
+    events
 }

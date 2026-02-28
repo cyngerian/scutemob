@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_100",
+    "name": "Regenerate shield intercepts Murder",
+    "description": "P1 controls Drudge Skeletons (1/1 Skeleton, {B}: Regenerate). P2 casts Murder targeting Drudge Skeletons. P1 activates Regenerate in response, placing a regeneration shield on the Skeletons. When Murder resolves and attempts to destroy the Skeletons, the regeneration shield intercepts: all damage is removed, the Skeletons become tapped, and they remain on the battlefield. This tests CR 701.19a (regeneration as a replacement effect) and CR 614.1 (replacement effect intercepts destruction with an alternate outcome).",
+    "cr_sections_tested": ["601.2", "602.2", "608.2", "614.1", "614.1a", "701.19", "701.19a"],
+    "corner_case_ref": null,
+    "tags": ["regenerate", "replacement-effect", "destroy", "stack", "instant"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 701.19a: When an effect of a resolving spell or ability regenerates a permanent, it creates a replacement effect (shield). 'Regenerate [permanent]' means 'The next time [permanent] would be destroyed this turn, instead remove all damage marked on it and its controller taps it. If it's an attacking or blocking creature, remove it from combat.' CR 614.1a: replacement effects use 'instead' — they fire as the destroy event happens, completely replacing it. Drudge Skeletons ability: {B}, activated, non-mana → ability_index 0. Murder: {1}{B}{B}, destroy target creature. Sequence: (1) P2 is active player and casts Murder targeting P1's Drudge Skeletons; (2) P2 passes priority to P1; (3) P1 activates Regenerate in response using {B} from pool — ability goes on stack; (4) After P1 activates, priority resets to active player P2 first, then P1 passes → Regenerate resolves registering the shield; (5) Priority resets to active player P2, both pass → Murder resolves; (6) Destroy event intercepted by the shield: damage removed, Skeletons tapped, stay on battlefield. P1 life unchanged at 40. P2's Murder goes to P2's graveyard. priority_round players order: active player P2 first, then P1.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "black": 2, "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Drudge Skeletons", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Swamp", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Swamp", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Command Tower", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p2": [
+          { "card": "Murder", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P2 casts Murder targeting P1's Drudge Skeletons; P1 activates Regenerate in response",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Drudge Skeletons on P1's battlefield (untapped), Murder in P2's hand, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Drudge Skeletons" }] },
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40
+          },
+          "note": "Drudge Skeletons is untapped on battlefield with no regeneration shield yet."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Murder",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Drudge Skeletons", "controller": "p1" }
+          ],
+          "mana_paid": { "black": 2, "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P2 casts Murder ({1}{B}{B}), targeting P1's Drudge Skeletons. Murder goes onto the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Murder cast: Murder on stack, P2's hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Drudge Skeletons" }] }
+          },
+          "note": "Murder is on the stack. Drudge Skeletons is still on battlefield — targeted but not yet destroyed."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "pass_priority",
+          "card": null,
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "116.3",
+          "note": "CR 116.3: P2 (active player) passes priority after casting Murder. P1 now has priority and may respond."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Drudge Skeletons",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": { "black": 1 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: P1 activates Drudge Skeletons' Regenerate ability (ability_index 0, cost {B}). This places the regenerate ability on the stack on top of Murder. Priority resets to active player P2 after any player takes an action."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Regenerate activation: two objects on stack (Regenerate on top, Murder below)",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.battlefield.p1": { "includes": [{ "card": "Drudge Skeletons" }] }
+          },
+          "note": "Stack (top to bottom): Drudge Skeletons regenerate ability, Murder. Drudge Skeletons is still on battlefield — the shield is not yet active until the ability resolves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Active player P2 passes, then P1 passes. Top of stack (Regenerate ability) will resolve."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Drudge Skeletons regenerate ability",
+          "resolution": [
+            {
+              "effect": "regenerate",
+              "target": { "type": "permanent", "card": "Drudge Skeletons", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.19a",
+              "note": "CR 701.19a: The regenerate ability resolves and creates a replacement effect (shield) on Drudge Skeletons. The next time it would be destroyed this turn, instead remove all damage marked on it and its controller taps it."
+            }
+          ],
+          "note": "CR 608.2: Regenerate ability resolves. A regeneration shield is now registered on Drudge Skeletons. Stack now contains only Murder."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Regenerate resolves: stack has only Murder, Drudge Skeletons still on battlefield with shield registered",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Drudge Skeletons" }] }
+          },
+          "note": "Regeneration shield is now active on Drudge Skeletons. Murder remains on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Active player P2 passes, then P1 passes. Murder (top of stack) will now resolve."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Murder",
+          "resolution": [
+            {
+              "effect": "destroy",
+              "target": { "type": "permanent", "card": "Drudge Skeletons", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Murder attempts to destroy Drudge Skeletons. CR 614.1a + 701.19a: The regeneration shield intercepts — 'instead remove all damage marked on it and its controller taps it.' Drudge Skeletons remains on battlefield but becomes tapped; damage (0) is cleared; shield is consumed."
+            }
+          ],
+          "note": "CR 608.2: Murder resolves. The destroy effect is replaced by the regeneration shield (CR 614.1a, 701.19a): Drudge Skeletons is tapped, damage is removed, and it stays on the battlefield. Murder moves to P2's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Drudge Skeletons still on battlefield (tapped), Murder in P2's graveyard, P1 life unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Drudge Skeletons" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Drudge Skeletons" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Murder" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Regeneration shield successfully intercepted Murder's destroy effect (CR 701.19a, 614.1a). Drudge Skeletons remains on the battlefield tapped. P1 life is unchanged at 40. Murder is in P2's graveyard. The shield was one-shot and is now consumed."
+        }
+      ]
+    }
+  ]
+}

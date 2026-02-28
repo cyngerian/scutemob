@@ -340,6 +340,7 @@ pub fn handle_activate_ability(
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -520,6 +521,12 @@ pub fn handle_cycle_card(
             modular_counter_count: None,
             is_evolve_trigger: false,
             evolve_entering_creature: None,
+            is_myriad_trigger: false,
+            is_suspend_counter_trigger: false,
+            is_suspend_cast_trigger: false,
+            suspend_card_id: None,
+            is_hideaway_trigger: false,
+            hideaway_count: None,
         });
     }
 
@@ -551,6 +558,7 @@ pub fn handle_cycle_card(
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -722,6 +730,7 @@ pub fn handle_unearth_card(
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -831,6 +840,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             modular_counter_count: None,
                             is_evolve_trigger: false,
                             evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: false,
+                            hideaway_count: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -892,8 +907,69 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 modular_counter_count: None,
                                 is_evolve_trigger: false,
                                 evolve_entering_creature: None,
+                                is_myriad_trigger: false,
+                                is_suspend_counter_trigger: false,
+                                is_suspend_cast_trigger: false,
+                                suspend_card_id: None,
+                                is_hideaway_trigger: false,
+                                hideaway_count: None,
                             });
                         }
+                    }
+                }
+
+                // CR 702.75a: Hideaway(N) — "When this permanent enters, look at
+                // the top N cards of your library. Exile one of them face down
+                // and put the rest on the bottom of your library in a random order."
+                //
+                // Each Hideaway(N) keyword on the permanent generates one trigger.
+                // Multiple instances trigger separately (CR 603.2: each keyword instance
+                // is a separate triggered ability).
+                if let Some(obj) = state.objects.get(object_id) {
+                    let controller = obj.controller;
+                    let hideaway_keywords: Vec<u32> = obj
+                        .characteristics
+                        .keywords
+                        .iter()
+                        .filter_map(|kw| {
+                            if let KeywordAbility::Hideaway(n) = kw {
+                                Some(*n)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    for n in hideaway_keywords {
+                        triggers.push(PendingTrigger {
+                            source: *object_id,
+                            ability_index: 0, // unused for hideaway triggers
+                            controller,
+                            triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
+                            entering_object_id: Some(*object_id),
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            is_evoke_sacrifice: false,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: false,
+                            modular_counter_count: None,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: true,
+                            hideaway_count: Some(n),
+                        });
                     }
                 }
 
@@ -1034,6 +1110,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             modular_counter_count: None,
                                             is_evolve_trigger: true,
                                             evolve_entering_creature: Some(*object_id),
+                                            is_myriad_trigger: false,
+                                            is_suspend_counter_trigger: false,
+                                            is_suspend_cast_trigger: false,
+                                            suspend_card_id: None,
+                                            is_hideaway_trigger: false,
+                                            hideaway_count: None,
                                         });
                                     }
                                 }
@@ -1180,6 +1262,26 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     };
                     for t in &mut triggers[pre_len..] {
                         t.defending_player_id = defending_player;
+                    }
+
+                    // CR 702.116a/b: Tag myriad triggers for special stack handling.
+                    // A SelfAttacks trigger is a myriad trigger if its source object has
+                    // the Myriad keyword. We check the triggered ability's description
+                    // (set by builder.rs) to identify myriad triggers -- they carry
+                    // `effect: None` and start with "Myriad". The `is_myriad_trigger`
+                    // flag causes flush_pending_triggers to create a MyriadTrigger stack
+                    // object (not a plain TriggeredAbility) so resolution.rs can execute
+                    // the copy-and-attack logic.
+                    for t in &mut triggers[pre_len..] {
+                        if let Some(obj) = state.objects.get(&t.source) {
+                            if let Some(ta) =
+                                obj.characteristics.triggered_abilities.get(t.ability_index)
+                            {
+                                if ta.effect.is_none() && ta.description.starts_with("Myriad") {
+                                    t.is_myriad_trigger = true;
+                                }
+                            }
+                        }
                     }
 
                     // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
@@ -1368,6 +1470,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             modular_counter_count,
                             is_evolve_trigger: false,
                             evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: false,
+                            hideaway_count: None,
                         });
                     }
                 }
@@ -1418,6 +1526,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             modular_counter_count: None,
                             is_evolve_trigger: false,
                             evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: false,
+                            hideaway_count: None,
                         });
                     }
                 }
@@ -1438,6 +1552,27 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         state,
                         &mut triggers,
                         TriggerEvent::ControllerSurveils,
+                        Some(obj_id),
+                        None,
+                    );
+                }
+            }
+
+            GameEvent::Investigated { player, .. } => {
+                // CR 701.16a: "Whenever you investigate" triggers on all permanents
+                // controlled by the investigating player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                    .map(|obj| obj.id)
+                    .collect();
+
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerInvestigates,
                         Some(obj_id),
                         None,
                     );
@@ -1491,6 +1626,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             modular_counter_count: None,
                             is_evolve_trigger: false,
                             evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: false,
+                            hideaway_count: None,
                         });
                     }
                 }
@@ -1515,6 +1656,27 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             None,
                         );
                     }
+                }
+            }
+
+            GameEvent::Proliferated { controller, .. } => {
+                // CR 701.34: "Whenever you proliferate" triggers on all permanents
+                // controlled by the proliferating player.
+                let controller_sources: Vec<ObjectId> = state
+                    .objects
+                    .values()
+                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *controller)
+                    .map(|obj| obj.id)
+                    .collect();
+
+                for obj_id in controller_sources {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::ControllerProliferates,
+                        Some(obj_id),
+                        None,
+                    );
                 }
             }
 
@@ -1595,6 +1757,12 @@ fn collect_triggers_for_event(
                 modular_counter_count: None,
                 is_evolve_trigger: false,
                 evolve_entering_creature: None,
+                is_myriad_trigger: false,
+                is_suspend_counter_trigger: false,
+                is_suspend_cast_trigger: false,
+                suspend_card_id: None,
+                is_hideaway_trigger: false,
+                hideaway_count: None,
             });
         }
     }
@@ -1781,6 +1949,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     was_escaped: false,
                     cast_with_foretell: false,
                     was_buyback_paid: false,
+                    was_suspended: false,
                 };
                 state.stack_objects.push_back(stack_obj);
 
@@ -1809,6 +1978,45 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     entering_creature: trigger.evolve_entering_creature.unwrap_or(trigger.source),
                 }
+            } else if trigger.is_myriad_trigger {
+                // CR 702.116a: Myriad SelfAttacks trigger -- "Whenever this creature
+                // attacks, for each opponent other than defending player, create a token
+                // copy tapped and attacking that player."
+                // The `defending_player_id` was tagged by the AttackersDeclared handler
+                // in check_triggers. Fallback to active player if somehow None.
+                let defending = trigger
+                    .defending_player_id
+                    .unwrap_or(state.turn.active_player);
+                StackObjectKind::MyriadTrigger {
+                    source_object: trigger.source,
+                    defending_player: defending,
+                }
+            } else if trigger.is_suspend_counter_trigger {
+                // CR 702.62a: Suspend upkeep counter-removal trigger.
+                // "At the beginning of your upkeep, if this card is suspended, remove a
+                // time counter from it." This trigger goes on the stack and can be
+                // responded to (e.g., Stifle can counter it, preventing counter removal).
+                StackObjectKind::SuspendCounterTrigger {
+                    source_object: trigger.source,
+                    suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                }
+            } else if trigger.is_suspend_cast_trigger {
+                // CR 702.62a: Suspend cast trigger (last time counter removed).
+                // "When the last time counter is removed from this card, if it's exiled,
+                // you may play it without paying its mana cost if able."
+                StackObjectKind::SuspendCastTrigger {
+                    source_object: trigger.source,
+                    suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                    owner: trigger.controller,
+                }
+            } else if trigger.is_hideaway_trigger {
+                // CR 702.75a: Hideaway ETB trigger — "When this permanent enters,
+                // look at the top N cards of your library. Exile one of them face
+                // down and put the rest on the bottom of your library in a random order."
+                StackObjectKind::HideawayTrigger {
+                    source_object: trigger.source,
+                    hideaway_count: trigger.hideaway_count.unwrap_or(4),
+                }
             } else {
                 StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
@@ -1831,6 +2039,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 was_escaped: false,
                 cast_with_foretell: false,
                 was_buyback_paid: false,
+                was_suspended: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -2176,6 +2385,7 @@ pub fn handle_crew_vehicle(
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     };
     state.stack_objects.push_back(stack_obj);
 

@@ -63,8 +63,10 @@ pub enum ReviewStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Dispute {
-    pub step_index: usize,
-    pub action_index: usize,
+    /// None for script-level disputes not tied to a specific step.
+    pub step_index: Option<usize>,
+    /// None for script-level disputes not tied to a specific action.
+    pub action_index: Option<usize>,
     pub raised_by: String,
     pub description: String,
     pub resolution: Option<String>,
@@ -153,12 +155,18 @@ pub struct PermanentInitState {
     pub is_basic: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CardInZone {
     pub card: String,
     #[serde(default)]
     pub is_commander: bool,
     pub owner: Option<String>,
+    /// CR 702.62: True for cards exiled via suspend (they have time counters ticking down).
+    #[serde(default)]
+    pub is_suspended: bool,
+    /// Counters on the exiled card (e.g., time counters for suspend). Key = counter type string.
+    #[serde(default)]
+    pub counters: HashMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

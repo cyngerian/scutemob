@@ -132,6 +132,9 @@ fn test_clone_independence_object_modification() {
                 is_foretold: false,
                 foretold_turn: 0,
                 was_unearthed: false,
+                myriad_exile_at_eoc: false,
+                is_suspended: false,
+                exiled_by_hideaway: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

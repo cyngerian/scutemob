@@ -356,6 +356,20 @@ pub enum GameEvent {
     /// A player lost life outside of damage (CR 118.4).
     LifeLost { player: PlayerId, amount: u32 },
 
+    /// A player received poison counters from an infect source (CR 120.3b, CR 702.90b).
+    ///
+    /// Emitted when infect damage is dealt to a player, replacing the normal LifeLost
+    /// event. The DamageDealt event is still emitted alongside this one (damage IS dealt,
+    /// just with a different result per CR 702.90b).
+    PoisonCountersGiven {
+        /// The player receiving the poison counters.
+        player: PlayerId,
+        /// Number of poison counters given (equals the infect damage dealt).
+        amount: u32,
+        /// The source of the infect damage.
+        source: ObjectId,
+    },
+
     // ── M7: Effect execution events ────────────────────────────────────────
     /// Non-combat damage was dealt by a spell or ability (CR 120).
     ///
@@ -688,6 +702,14 @@ pub enum GameEvent {
     /// CR 701.25c: NOT emitted when surveilling 0.
     Surveilled { player: PlayerId, count: u32 },
 
+    // ── Investigate event ─────────────────────────────────────────────────
+    /// A player performed an investigate action (CR 701.16a).
+    ///
+    /// Emitted by `Effect::Investigate` when the player creates Clue tokens.
+    /// Enables "whenever you investigate" triggers (future cards like
+    /// Lonis, Cryptozoologist). NOT emitted when investigating 0.
+    Investigated { player: PlayerId, count: u32 },
+
     // ── M9.4: Goaded event ────────────────────────────────────────────────
     /// A permanent was goaded (CR 701.38).
     ///
@@ -753,6 +775,22 @@ pub enum GameEvent {
         new_exile_id: ObjectId,
     },
 
+    // ── Suspend events (CR 702.62) ────────────────────────────────────────
+    /// CR 702.62a / CR 116.2f: A card was exiled from hand via the suspend special
+    /// action. The suspend cost was paid and the card was exiled with N time counters.
+    /// This is a special action -- it does not use the stack.
+    ///
+    /// Unlike foretell, suspended cards are exiled FACE UP (they are public information).
+    CardSuspended {
+        player: PlayerId,
+        /// The card's ObjectId before exile (now retired per CR 400.7).
+        object_id: ObjectId,
+        /// New ObjectId in the exile zone.
+        new_exile_id: ObjectId,
+        /// Number of time counters placed on the card.
+        time_counters: u32,
+    },
+
     // ── Ascend event (CR 702.131) ─────────────────────────────────────────
     /// CR 702.131: A player gained the city's blessing designation.
     ///
@@ -773,6 +811,66 @@ pub enum GameEvent {
         /// Number of +1/+1 counters placed (0 if only lands discarded, creature
         /// left the battlefield, or draw/discard was impossible).
         counters_placed: u32,
+    },
+
+    // ── Regeneration events (CR 701.19) ──────────────────────────────────
+    /// A regeneration shield was created on a permanent (CR 701.19a).
+    ///
+    /// Emitted when `Effect::Regenerate` resolves, creating a one-shot
+    /// replacement effect that will intercept the next destruction event.
+    RegenerationShieldCreated {
+        /// The permanent the shield protects.
+        object_id: ObjectId,
+        /// The ReplacementId of the shield (for tracking consumption).
+        shield_id: ReplacementId,
+        /// The controller who created the shield.
+        controller: PlayerId,
+    },
+
+    /// A permanent was regenerated -- destruction was replaced (CR 701.19a/614.8).
+    ///
+    /// Emitted when a regeneration shield intercepts destruction. The permanent
+    /// remains on the battlefield with all damage removed, tapped, and removed
+    /// from combat (if applicable).
+    Regenerated {
+        /// The permanent that was regenerated (still on the battlefield).
+        object_id: ObjectId,
+        /// The shield that was consumed.
+        shield_id: ReplacementId,
+    },
+
+    // ── Hideaway event (CR 702.75a) ────────────────────────────────────────
+    /// A card was exiled face-down by a Hideaway ETB trigger (CR 702.75a).
+    ///
+    /// Emitted when `StackObjectKind::HideawayTrigger` resolves and one card
+    /// from the top N is exiled face-down.  The exiled card's `exiled_by_hideaway`
+    /// is set to `source`.  Opponents cannot see the identity of the exiled card
+    /// (it is face-down per CR 406.3); this event is private to the controller.
+    HideawayExiled {
+        /// The player whose library was searched (the Hideaway permanent's controller).
+        player: PlayerId,
+        /// ObjectId of the Hideaway permanent on the battlefield (the trigger source).
+        source: ObjectId,
+        /// New ObjectId of the card now in the exile zone (CR 400.7).
+        exiled_card: ObjectId,
+        /// Number of cards put back on the bottom of the library.
+        remaining_count: u32,
+    },
+
+    // -- Proliferate event (CR 701.34) ------------------------------------------
+    /// CR 701.34a: A player proliferated.
+    ///
+    /// Emitted by `Effect::Proliferate` after all counters have been added.
+    /// Always emitted, even if no permanents or players were chosen (ruling
+    /// 2023-02-04: "triggers even if you chose no permanents or players").
+    /// Enables "whenever you proliferate" triggers.
+    Proliferated {
+        /// The player who performed the proliferate action.
+        controller: PlayerId,
+        /// Number of permanents that received additional counters.
+        permanents_affected: u32,
+        /// Number of players that received additional counters.
+        players_affected: u32,
     },
 }
 

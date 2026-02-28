@@ -188,6 +188,14 @@ pub enum TriggerEvent {
     /// The conniving-object match is done at trigger-collection time in
     /// `rules/abilities.rs`.
     SourceConnives,
+    /// CR 701.16a: Triggers when the controller of this permanent investigates.
+    /// Used by "whenever you investigate" cards (e.g., Lonis, Cryptozoologist).
+    /// The controller match is done at trigger-collection time in `rules/abilities.rs`.
+    ControllerInvestigates,
+    /// CR 701.34: Triggers when the controller of this permanent proliferates.
+    /// Used by "whenever you proliferate" cards (e.g., Core Prowler, Vat Emergence).
+    /// The controller match is done at trigger-collection time in `rules/abilities.rs`.
+    ControllerProliferates,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -381,4 +389,32 @@ pub struct GameObject {
     /// Set when the UnearthAbility resolves. Reset on zone changes (CR 400.7).
     #[serde(default)]
     pub was_unearthed: bool,
+    /// CR 702.116a: If true, this token was created by a myriad ability and must
+    /// be exiled at end of combat.
+    ///
+    /// Set when a MyriadTrigger resolves and creates the token. Checked in
+    /// `end_combat()` in turn_actions.rs. Reset on zone changes (CR 400.7).
+    #[serde(default)]
+    pub myriad_exile_at_eoc: bool,
+    /// CR 702.62b: If true, this object in exile was suspended (exiled via the
+    /// suspend special action from hand with time counters). Used to identify
+    /// suspended cards for the upkeep counter-removal trigger.
+    ///
+    /// A card is "suspended" (CR 702.62b) if it's in exile, has suspend, AND
+    /// has a time counter on it. This flag is set when the suspend special action
+    /// exiles the card. Unlike foretell, suspended cards are exiled face up.
+    #[serde(default)]
+    pub is_suspended: bool,
+    /// CR 702.75a / CR 607.2a: If set, this object in exile was exiled face-down
+    /// by a Hideaway ETB trigger from the permanent with this ObjectId.
+    ///
+    /// Used by the linked "play the exiled card" ability (`Effect::PlayExiledCard`)
+    /// to identify which exiled card belongs to which Hideaway source.  Set when
+    /// the HideawayTrigger resolves.  Cleared when the card is played out of
+    /// exile or leaves exile for any other reason.
+    ///
+    /// The ObjectId stored here is the Hideaway permanent's ObjectId on the
+    /// battlefield at the time the trigger resolved (CR 607.2a).
+    #[serde(default)]
+    pub exiled_by_hideaway: Option<ObjectId>,
 }

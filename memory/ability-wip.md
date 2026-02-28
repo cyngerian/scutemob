@@ -1,21 +1,21 @@
-# Ability WIP: Food tokens
+# Ability WIP: Hideaway
 
-ability: Food tokens
-cr: 111.10b
+ability: Hideaway
+cr: 702.75
 priority: P3
 started: 2026-02-28
-phase: close
-plan_file: memory/ability-plan-food.md
-
-## Review
-findings: 3 (1 MEDIUM, 2 LOW) — all fixed
-review_file: memory/ability-review-food.md
+phase: closed
+plan_file: memory/ability-plan-hideaway.md
 
 ## Step Checklist
-- [x] 1. Enum variant / token type — card_definition.rs:763-770, definitions.rs:707/743/955/2174, builder.rs:581/638, hash.rs:2061, mod.rs:16, lib.rs:9
-- [x] 2. Rule enforcement — effects/mod.rs:2013-2016 (make_token propagates activated_abilities); card_definition.rs:803-847 (food_token_spec)
-- [x] 3. Trigger wiring — n/a (Food uses activated abilities, not triggers)
-- [x] 4. Unit tests — crates/engine/tests/food_tokens.rs (11 tests, all passing)
-- [x] 5. Card definition — Bake into a Pie (definitions.rs)
-- [x] 6. Game script — test-data/generated-scripts/stack/097_bake_into_pie_food_token_gain_life.json
-- [ ] 7. Coverage doc update
+- [x] 1. Enum variant (types.rs:544, hash.rs:439, game_object.rs:420, stack.rs:370, stubs.rs:205, hash.rs:1310, card_definition.rs:544, hash.rs:2660, events.rs:843, hash.rs:2099)
+- [x] 2. Rule enforcement (resolution.rs:1468 HideawayTrigger arm; effects/mod.rs:1592 PlayExiledCard arm)
+- [x] 3. Trigger wiring (abilities.rs:921 check_triggers ETB generation; abilities.rs:2011 flush_pending_triggers HideawayTrigger branch)
+- [x] 4. Unit tests (crates/engine/tests/hideaway.rs: 7 tests — ETB trigger fires, resolution exiles face-down, exiled_by_hideaway tracking, empty library edge case, face_down enforcement, PlayExiledCard activation, negative no-keyword)
+## Review
+findings: 1 HIGH, 1 MEDIUM, 6 LOW — fixes applied (HIGH-1, MEDIUM-2); 6 LOWs deferred
+review_file: memory/ability-review-hideaway.md
+
+- [x] 5. Card definition — Windbrisk Heights (Land—Plains, Hideaway 4, enters tapped, {T}:{W}, {W},{T}: play exiled) — definitions.rs #112
+- [x] 6. Game script — test-data/generated-scripts/baseline/103_windbrisk_heights_hideaway_etb.json
+- [x] 7. Coverage doc update

@@ -17,7 +17,8 @@ use mtg_engine::{
     all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AttackTarget,
     CardRegistry, CardType, Color, Command, CounterType, Effect, EffectDuration, EffectFilter,
     EffectLayer, GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, LayerModification,
-    ManaColor, ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target, ZoneId,
+    LossReason, ManaColor, ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target,
+    ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -2595,5 +2596,727 @@ fn test_702_80_wither_noncombat_damage_places_counters() {
     assert!(
         damage_dealt,
         "CR 702.80a: DamageDealt event must be emitted even when wither places counters"
+    );
+}
+
+// ── CR 702.90: Infect ─────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.90c / CR 120.3d — Damage dealt to a creature by a source with infect
+/// places -1/-1 counters instead of marking damage.
+/// CR 120.3e — The defending creature has damage_marked == 0.
+fn test_702_90_infect_combat_damage_places_minus_counters_on_creature() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1's 3/6 infect attacker survives the 4-damage counterattack from p2's 4/4 blocker.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Infect Attacker", 3, 6).with_keyword(KeywordAbility::Infect),
+        )
+        .object(ObjectSpec::creature(p2, "Big Blocker", 4, 4))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Infect Attacker");
+    let blocker_id = find_object(&state, "Big Blocker");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Advance to combat damage step.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // Big Blocker must have 3 -1/-1 counters, NOT damage_marked.
+    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let minus_counters = blocker_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 3,
+        "CR 702.90c: Big Blocker should have 3 -1/-1 counters from infect damage"
+    );
+    assert_eq!(
+        blocker_obj.damage_marked, 0,
+        "CR 120.3d: infect damage must NOT mark damage_marked on the creature"
+    );
+
+    // Attacker receives normal damage from blocker (no infect on blocker).
+    let attacker_obj = state.objects.get(&attacker_id).unwrap();
+    assert_eq!(
+        attacker_obj.damage_marked, 4,
+        "Infect Attacker should have 4 damage_marked from normal blocker damage"
+    );
+    assert_eq!(
+        attacker_obj
+            .counters
+            .get(&CounterType::MinusOneMinusOne)
+            .copied()
+            .unwrap_or(0),
+        0,
+        "Infect Attacker should have no -1/-1 counters (blocker has no infect)"
+    );
+
+    // A CounterAdded event must have been emitted for the -1/-1 counters.
+    let counter_added = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CounterAdded {
+                object_id,
+                counter: CounterType::MinusOneMinusOne,
+                count: 3,
+            } if *object_id == blocker_id
+        )
+    });
+    assert!(
+        counter_added,
+        "CR 702.90c: CounterAdded event must be emitted for infect -1/-1 counters"
+    );
+}
+
+#[test]
+/// CR 702.90b / CR 120.3b — Damage dealt to a player by a source with infect
+/// does NOT cause life loss. Instead, the player receives that many poison counters.
+/// DamageDealt event is still emitted; LifeLost is NOT emitted.
+fn test_702_90_infect_combat_damage_gives_poison_counters_to_player() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Infect Striker", 3, 3).with_keyword(KeywordAbility::Infect),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Infect Striker");
+    let initial_life = state.players[&p2].life_total;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // p2 should have 3 poison counters.
+    assert_eq!(
+        state.players[&p2].poison_counters, 3,
+        "CR 702.90b: infect damage to a player must give poison counters"
+    );
+
+    // p2's life total must be UNCHANGED.
+    assert_eq!(
+        state.players[&p2].life_total, initial_life,
+        "CR 120.3b: infect damage to a player must NOT cause life loss"
+    );
+
+    // PoisonCountersGiven event must be emitted.
+    let poison_given = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::PoisonCountersGiven { player, amount: 3, .. }
+            if *player == p2
+        )
+    });
+    assert!(
+        poison_given,
+        "CR 702.90b: PoisonCountersGiven event must be emitted for infect player damage"
+    );
+
+    // CombatDamageDealt must be emitted (combat damage IS dealt, CR 702.90b).
+    // Note: for combat damage, CombatDamageDealt is the summary event, not DamageDealt.
+    let combat_damage_dealt = events.iter().any(|e| {
+        matches!(e, GameEvent::CombatDamageDealt { assignments }
+            if assignments.iter().any(|a| a.source == attacker_id && a.amount == 3))
+    });
+    assert!(
+        combat_damage_dealt,
+        "CR 702.90b: CombatDamageDealt event must be emitted even when infect gives poison counters"
+    );
+
+    // LifeLost must NOT be emitted for p2 (infect replaces life loss with poison).
+    let life_lost_for_p2 = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LifeLost { player, .. } if *player == p2));
+    assert!(
+        !life_lost_for_p2,
+        "CR 702.90b: LifeLost must NOT be emitted when infect damage goes to a player"
+    );
+}
+
+#[test]
+/// CR 702.90c / CR 120.3d / CR 702.90e — Non-combat damage from an infect source
+/// targeting a creature places -1/-1 counters instead of marking damage.
+/// (Exercises the DealDamage effect handler path in effects/mod.rs.)
+fn test_702_90_infect_noncombat_damage_creature_places_counters() {
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::{CardEffectTarget, EffectAmount, SpellTarget, Target};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 controls a 2/2 infect creature (the damage source).
+    // p2 controls a 3/3 creature (the target — must survive to examine counters).
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Infect Source", 2, 2).with_keyword(KeywordAbility::Infect),
+        )
+        .object(ObjectSpec::creature(p2, "Target Creature", 3, 3))
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Infect Source");
+    let target_id = find_object(&state, "Target Creature");
+
+    let effect = Effect::DealDamage {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        amount: EffectAmount::Fixed(2),
+    };
+    let mut ctx = EffectContext::new(
+        p1,
+        source_id,
+        vec![SpellTarget {
+            target: Target::Object(target_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // CR 702.90c: target creature must have 2 -1/-1 counters, NOT damage_marked.
+    let target_obj = state.objects.get(&target_id).unwrap();
+    let minus_counters = target_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 2,
+        "CR 702.90c: non-combat damage from infect source must place 2 -1/-1 counters"
+    );
+    assert_eq!(
+        target_obj.damage_marked, 0,
+        "CR 702.90c: infect non-combat damage must NOT mark damage_marked on the creature"
+    );
+
+    // A CounterAdded event must have been emitted.
+    let counter_added = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CounterAdded {
+                object_id,
+                counter: CounterType::MinusOneMinusOne,
+                count: 2,
+            } if *object_id == target_id
+        )
+    });
+    assert!(
+        counter_added,
+        "CR 702.90c: CounterAdded event must be emitted for non-combat infect counters"
+    );
+
+    // A DamageDealt event must also have been emitted.
+    let damage_dealt = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::DamageDealt { source, amount: 2, .. }
+            if *source == source_id
+        )
+    });
+    assert!(
+        damage_dealt,
+        "CR 702.90c: DamageDealt event must be emitted even when infect places counters"
+    );
+}
+
+#[test]
+/// CR 702.90b / CR 120.3b / CR 702.90e — Non-combat damage from an infect source
+/// targeting a player gives poison counters instead of causing life loss.
+/// (Exercises the DealDamage effect handler path in effects/mod.rs.)
+fn test_702_90_infect_noncombat_damage_player_gives_poison() {
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::{CardEffectTarget, EffectAmount, SpellTarget, Target};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Infect Caster", 2, 2).with_keyword(KeywordAbility::Infect),
+        )
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Infect Caster");
+    let initial_life = state.players[&p2].life_total;
+
+    let effect = Effect::DealDamage {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        amount: EffectAmount::Fixed(3),
+    };
+    let mut ctx = EffectContext::new(
+        p1,
+        source_id,
+        vec![SpellTarget {
+            target: Target::Player(p2),
+            zone_at_cast: None,
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // CR 702.90b: player must have poison counters instead of life loss.
+    assert_eq!(
+        state.players[&p2].poison_counters, 3,
+        "CR 702.90b: non-combat infect damage to a player must give poison counters"
+    );
+    assert_eq!(
+        state.players[&p2].life_total, initial_life,
+        "CR 120.3b: non-combat infect damage to a player must NOT cause life loss"
+    );
+
+    // PoisonCountersGiven event must be emitted.
+    let poison_given = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::PoisonCountersGiven { player, amount: 3, .. }
+            if *player == p2
+        )
+    });
+    assert!(
+        poison_given,
+        "CR 702.90b: PoisonCountersGiven event must be emitted for non-combat infect damage"
+    );
+
+    // DamageDealt must still be emitted.
+    let damage_dealt = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::DamageDealt { amount: 3, .. }));
+    assert!(
+        damage_dealt,
+        "CR 702.90b: DamageDealt event must be emitted for non-combat infect damage"
+    );
+
+    // LifeLost must NOT be emitted for p2.
+    let life_lost = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LifeLost { player, .. } if *player == p2));
+    assert!(
+        !life_lost,
+        "CR 702.90b: LifeLost must NOT be emitted when infect gives poison counters"
+    );
+}
+
+#[test]
+/// CR 702.90b + CR 704.5c — Infect damage can accumulate poison counters to 10,
+/// triggering the state-based action that makes the player lose.
+fn test_702_90_infect_kills_via_poison_sba() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p2 starts with 8 poison; p1's 2/2 infect attacker deals 2 more (10 total).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .player_poison(p2, 8)
+        .object(
+            ObjectSpec::creature(p1, "Infect Finisher", 2, 2).with_keyword(KeywordAbility::Infect),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Infect Finisher");
+    let initial_life = state.players[&p2].life_total;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+
+    // pass_all triggers damage step and then SBAs.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // p2 should have exactly 10 poison counters.
+    assert_eq!(
+        state.players[&p2].poison_counters, 10,
+        "CR 702.90b: p2 should have 10 poison counters after infect damage"
+    );
+
+    // p2's life total must be UNCHANGED (infect gave poison, not life loss).
+    assert_eq!(
+        state.players[&p2].life_total, initial_life,
+        "CR 120.3b: infect damage must not reduce p2's life total"
+    );
+
+    // p2 must have lost the game via PoisonCounters SBA.
+    let p2_lost = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::PlayerLost { player, reason: LossReason::PoisonCounters }
+            if *player == p2
+        )
+    });
+    assert!(
+        p2_lost,
+        "CR 704.5c: p2 must lose the game when poison counters reach 10"
+    );
+}
+
+#[test]
+/// CR 702.90f — Multiple instances of infect on the same object are redundant.
+/// Two infect instances still deal only (power) poison counters, not doubled.
+fn test_702_90_infect_redundant_instances() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 has a 2/2 creature with two Infect keywords. p2 has a 3/3 blocker.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Double Infect", 2, 2)
+                .with_keyword(KeywordAbility::Infect)
+                .with_keyword(KeywordAbility::Infect),
+        )
+        .object(ObjectSpec::creature(p2, "Sturdy Blocker", 3, 3))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Double Infect");
+    let blocker_id = find_object(&state, "Sturdy Blocker");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Sturdy Blocker should have exactly 2 -1/-1 counters (power 2), not 4.
+    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let minus_counters = blocker_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 2,
+        "CR 702.90f: two infect instances are redundant; exactly power(2) -1/-1 counters placed"
+    );
+    assert_eq!(
+        blocker_obj.damage_marked, 0,
+        "CR 702.90f: infect damage must not mark damage_marked regardless of instance count"
+    );
+}
+
+#[test]
+/// CR 120.3d — A creature with BOTH Wither and Infect deals combat damage to another
+/// creature. -1/-1 counters are placed ONCE (not doubled), and damage_marked == 0.
+fn test_702_90_infect_wither_overlap_creature() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Infect Creature", 3, 6)
+                .with_keyword(KeywordAbility::Wither)
+                .with_keyword(KeywordAbility::Infect),
+        )
+        .object(ObjectSpec::creature(p2, "Heavy Blocker", 4, 4))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Wither Infect Creature");
+    let blocker_id = find_object(&state, "Heavy Blocker");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Heavy Blocker should have exactly 3 -1/-1 counters (power 3), not 6.
+    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let minus_counters = blocker_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 3,
+        "CR 120.3d: wither+infect together place -1/-1 counters ONCE, not doubled"
+    );
+    assert_eq!(
+        blocker_obj.damage_marked, 0,
+        "CR 120.3d: wither+infect damage must NOT mark damage_marked"
+    );
+}
+
+#[test]
+/// CR 120.3c (separate from CR 120.3b) — Infect source deals damage to a
+/// planeswalker. Loyalty counters are removed normally; no -1/-1 counters,
+/// no poison counters.
+fn test_702_90_infect_does_not_affect_planeswalker_damage() {
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::{CardEffectTarget, EffectAmount, SpellTarget, Target};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Infect Source", 3, 3).with_keyword(KeywordAbility::Infect),
+        )
+        .object(
+            ObjectSpec::card(p2, "Test Planeswalker")
+                .with_types(vec![CardType::Planeswalker])
+                .with_supertypes(vec![SuperType::Legendary])
+                .with_counter(CounterType::Loyalty, 4),
+        )
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Infect Source");
+    let pw_id = find_object(&state, "Test Planeswalker");
+
+    let effect = Effect::DealDamage {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        amount: EffectAmount::Fixed(2),
+    };
+    let mut ctx = EffectContext::new(
+        p1,
+        source_id,
+        vec![SpellTarget {
+            target: Target::Object(pw_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // Planeswalker should have 2 loyalty counters removed (4 - 2 = 2).
+    let pw_obj = state.objects.get(&pw_id).unwrap();
+    let loyalty = pw_obj
+        .counters
+        .get(&CounterType::Loyalty)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        loyalty, 2,
+        "CR 120.3c: infect damage to a planeswalker removes loyalty counters normally"
+    );
+
+    // No -1/-1 counters on the planeswalker.
+    let minus_counters = pw_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 0,
+        "CR 120.3c: infect must NOT place -1/-1 counters on a planeswalker"
+    );
+
+    // No PoisonCountersGiven event (planeswalker is not a player).
+    let poison_given = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::PoisonCountersGiven { .. }));
+    assert!(
+        !poison_given,
+        "CR 120.3c: PoisonCountersGiven must NOT be emitted for planeswalker damage"
+    );
+
+    // DamageDealt event must be emitted.
+    let damage_dealt = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::DamageDealt { amount: 2, .. }));
+    assert!(
+        damage_dealt,
+        "CR 120.3c: DamageDealt event must be emitted for planeswalker damage"
+    );
+}
+
+#[test]
+/// CR 903.10a + CR 702.90b — An infect commander deals combat damage to a player.
+/// Commander damage tracking still applies (combat damage = commander damage regardless
+/// of infect). Player receives poison counters, not life loss.
+fn test_702_90_infect_commander_damage_still_tracks() {
+    use mtg_engine::CardId;
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let card_id = CardId("InfectCommander".to_string());
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .player_commander(p1, card_id.clone())
+        .object(
+            ObjectSpec::creature(p1, "Infect Commander", 11, 11)
+                .with_keyword(KeywordAbility::Infect)
+                .with_card_id(card_id.clone()),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Infect Commander");
+    let initial_life = state.players[&p2].life_total;
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+
+    // Advance through damage and SBAs.
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // p2 should have 11 poison counters (not life loss).
+    assert_eq!(
+        state.players[&p2].poison_counters, 11,
+        "CR 702.90b: infect commander damage gives poison counters to the player"
+    );
+    assert_eq!(
+        state.players[&p2].life_total, initial_life,
+        "CR 120.3b: infect commander damage must NOT reduce life total"
+    );
+
+    // Commander damage must still be tracked.
+    let commander_dmg = state
+        .players
+        .get(&p2)
+        .and_then(|p| p.commander_damage_received.get(&p1))
+        .and_then(|m| m.get(&card_id))
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        commander_dmg, 11,
+        "CR 903.10a: commander damage tracking must apply even when infect replaces life loss"
+    );
+
+    // p2 must have lost (11 poison > 10 triggers SBA 704.5c).
+    let p2_lost_poison = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::PlayerLost { player, reason: LossReason::PoisonCounters }
+            if *player == p2
+        )
+    });
+    assert!(
+        p2_lost_poison,
+        "CR 704.5c: p2 must lose via poison SBA after 11 poison counters from infect commander"
     );
 }

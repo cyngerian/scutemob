@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Food tokens validated; CR 111.10b fully implemented in card_definition.rs + effects/mod.rs; Bake into a Pie card def; 11 unit tests in food_tokens.rs; game script stack/097 pending_review; P3 validated 23→24, total validated 79→80)
+> Last audited: 2026-02-28 (Hideaway validated; 702.75 confirmed; types.rs, stack.rs, stubs.rs, game_object.rs, abilities.rs, resolution.rs, events.rs, effects/mod.rs, lands.rs, engine.rs, hash.rs; Windbrisk Heights card def #112; 7 unit tests in hideaway.rs; game script baseline/103 approved; P3 validated 31->32, total validated 87->88)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 24        | 0        | 0       | 16   | 0   |
+| P3       | 40    | 32        | 0        | 0       | 8    | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **80**   | **2**    | **0**   | **105**| **12** |
+| **Total**| **199**| **88**   | **2**    | **0**   | **97**| **12** |
 
 ---
 
@@ -173,7 +173,7 @@ Keywords that modify combat or trigger during combat.
 | Provoke | 702.39 | P4 | `none` | — | — | — | — | Force target creature to block this |
 | Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |
 | Battle Cry | 702.91 | P3 | `validated` | `state/types.rs:309`, `state/hash.rs:369-370+1976`, `cards/card_definition.rs:750-753`, `state/builder.rs:438-451`, `effects/mod.rs:1995-1998`, `tools/replay-viewer/src/view_model.rs:608` | Signal Pest | `combat/076` | — | KeywordAbility::BattleCry enum + ForEachTarget::EachOtherAttackingCreature; builder keyword-to-trigger translation (WhenAttacks + ForEach over EachOtherAttackingCreature with +1/+0); effects collect_for_each arm excludes source; 7 unit tests in `tests/battle_cry.rs`; Signal Pest card def in definitions.rs:1866; game script combat/076 validated |
-| Myriad | 702.116 | P3 | `none` | — | — | — | — | Create token copies attacking each other opponent |
+| Myriad | 702.116 | P3 | `validated` | state/types.rs, state/stack.rs, state/stubs.rs, state/builder.rs, state/game_object.rs, rules/abilities.rs, rules/resolution.rs, rules/turn_actions.rs | Warchief Giant | myriad.rs (7) | combat/093 | Token copies attacking each opponent; end-of-combat exile; myriad_exile_at_eoc flag; multiple instances trigger separately (CR 702.116b) |
 | Melee | 702.122 | P4 | `none` | — | — | — | — | +1/+1 for each opponent attacked this combat |
 | Enlist | 702.155 | P4 | `none` | — | — | — | — | Tap non-attacking creature to add its power |
 | Annihilator | 702.86 | P2 | `validated` | `state/types.rs:269`, `state/hash.rs:351+2223`, `state/stubs.rs:83`, `state/builder.rs:418-435`, `rules/abilities.rs:657-677,1000-1003`, `cards/card_definition.rs:349-354`, `effects/mod.rs:1034` | Ulamog's Crusher | `combat/068` | — | KeywordAbility::Annihilator(u32) enum + Effect::SacrificePermanents; defending_player_id on PendingTrigger; builder keyword-to-trigger translation (WhenAttacks + SacrificePermanents); check_triggers dispatch + flush_pending_triggers Target::Player wiring; 8 unit tests in `tests/annihilator.rs`; game script pending_review; TODO: "attacks each combat if able" static ability on Ulamog's Crusher is cosmetic only |
@@ -232,7 +232,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Cycling | 702.29 | P2 | `validated` | `state/types.rs:195`, `cards/card_definition.rs:145`, `state/hash.rs:316+1630+2220`, `rules/command.rs:182`, `rules/engine.rs:185`, `rules/abilities.rs:365`, `rules/events.rs:386` | Lonely Sandbar | `stack/061` | — | KeywordAbility::Cycling enum + AbilityDefinition::Cycling { cost }; Command::CycleCard dispatch; handle_cycle_card validates zone/keyword/mana, discards as cost, pushes draw onto stack; GameEvent::CardCycled emitted; 12 unit tests in `tests/cycling.rs`; game script approved |
-| Suspend | 702.62 | P3 | `none` | — | — | — | — | Exile with time counters; remove each upkeep; cast when last removed |
+| Suspend | 702.62 | P3 | `validated` | `state/types.rs:543`, `cards/card_definition.rs:252`, `rules/suspend.rs` (197 lines), `rules/command.rs:356`, `rules/events.rs:784`, `rules/engine.rs:304`, `rules/turn_actions.rs:35-91`, `rules/abilities.rs`, `rules/resolution.rs:1278-1449`, `state/hash.rs:439+2086` | Rift Bolt (#111) | `stack/102` | — | KeywordAbility::Suspend enum + AbilityDefinition::Suspend { cost, time_counters }; Command::SuspendCard special action (CR 116.2f); handle_suspend_card validates zone/keyword/timing/mana, exiles face-up with N time counters, is_suspended=true; GameEvent::CardSuspended (hash 86); upkeep trigger dispatch in turn_actions.rs queues SuspendCounterTrigger; resolution.rs removes counter, queues SuspendCastTrigger when last removed; cast trigger casts without paying mana cost (CR 702.62d), creatures gain haste (CR 702.62a); multiplayer: only owner's upkeep ticks; 9 unit tests in `tests/suspend.rs`; game script approved |
 | Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
 | Cumulative Upkeep | 702.24 | P4 | `none` | — | — | — | — | Increasing cost each upkeep |
 | Echo | 702.31 | P4 | `none` | — | — | — | — | Pay mana cost again on next upkeep or sacrifice |
@@ -286,11 +286,11 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Devoid | 702.114 | P4 | `none` | — | — | — | — | Colorless regardless of mana cost |
 | Ingest | 702.115 | P4 | `none` | — | — | — | — | Combat damage to player → exile top card of library |
 | Wither | 702.80 | P3 | `validated` | state/types.rs:481, state/hash.rs:422, rules/combat.rs:863-1006, effects/mod.rs:206-241 | Boggart Ram-Gang | combat/091 | CR 702.80a fully enforced; combat + non-combat damage to creatures places -1/-1 counters instead of marking damage; 6 unit tests in keywords.rs; script pending_review | Damage dealt as -1/-1 counters |
-| Infect | 702.90 | P3 | `none` | — | — | — | — | Damage to creatures as -1/-1 counters, to players as poison |
+| Infect | 702.90 | P3 | `validated` | state/types.rs:511-520, state/hash.rs:433-444, rules/events.rs:357-374, rules/combat.rs:863-1073, effects/mod.rs:143-275 | Glistener Elf | combat/092 | CR 702.90 fully enforced; creature damage as -1/-1 counters (reusing Wither path); player damage as poison counters; 9 unit tests in tests/keywords.rs; poison SBA (704.5c) was pre-existing |
 | Poisonous | 702.70 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters |
 | Toxic | 702.156 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters (fixed number) |
 | Corrupted | — | P4 | `none` | — | — | — | — | Ability word; if opponent has 3+ poison counters |
-| Hideaway | 702.75 | P3 | `none` | — | — | — | — | ETB: look at top N, exile one face-down; cast when condition met |
+| Hideaway | 702.75 | P3 | `validated` | types.rs:544, stack.rs:370, stubs.rs:205, game_object.rs:409, abilities.rs:921, abilities.rs:2011, resolution.rs:1468, events.rs:843, effects/mod.rs:1593, lands.rs:136, engine.rs:72, hash.rs:439 | Windbrisk Heights (#112) | baseline/103 | 7 unit tests in hideaway.rs; ETB trigger, resolution, exile tracking, empty-library edge, face-down, PlayExiledCard, negative test |
 | Retrain | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
 | Perpetually | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
 | Conjure | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
@@ -310,14 +310,14 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Ascend | 702.131 | P3 | `validated` | `state/types.rs` (KeywordAbility enum), `rules/sba.rs:91-176` (check_ascend SBA function), `rules/resolution.rs:192-207` (instant/sorcery ascend at resolution), `rules/events.rs:762` (GameEvent::CitysBlessingGained), `state/game_object.rs` (has_citys_blessing on PlayerState) | Wayward Swordtooth | `baseline/096` | 7 tests in ascend.rs | CR 702.131a/b/c: Static Ascend when 10+ permanents with keyword source; spell Ascend at resolution; blessing permanent once gained; city's blessing is irremovable designation |
 | Treasure tokens | 111.10a | P2 | `validated` | `state/game_object.rs:42-81` (ManaAbility with sacrifice_self + any_color), `rules/mana.rs:95-149` (sacrifice cost + any-color handling), `cards/card_definition.rs:629-683` (TokenSpec.mana_abilities, treasure_token_spec helper), `effects/mod.rs:1700-1714` (make_token populates mana_abilities), `state/hash.rs:457-462,1816-1830` | Strike It Rich | `stack/073` | — | CR 111.10a fully enforced; colorless Treasure artifact token with "{T}, Sacrifice this token: Add one mana of any color"; mana ability resolves without stack (CR 605.3b); sacrifice as cost (CR 602.2c); token ceases to exist in graveyard (CR 111.7/704.5d); 9 unit tests in `tests/treasure_tokens.rs`; game script pending_review (all assertions pass) |
 | Food tokens | CR 111.10b | P3 | `validated` | card_definition.rs:L815–845; effects/mod.rs (make_token propagation) | Bake into a Pie | stack/097 (pending_review) | 11 unit tests in food_tokens.rs | CR 111.10b: colorless Food artifact token with {2}, {T}, Sacrifice → gain 3 life. Validated: food_token_spec() helper, TokenSpec.activated_abilities, make_token() propagates abilities, unit tests cover activation/cost/sacrifice/SBA, game script exercises spell→token→activate→resolve. |
-| Clue tokens | — | P3 | `none` | — | — | — | — | Predefined token: {2}, sacrifice → draw a card |
+| Clue tokens | CR 111.10f | P3 | `validated` | `cards/card_definition.rs:847-882` (clue_token_spec), `cards/mod.rs:16`, `lib.rs:9` | Thraben Inspector | `stack/098` (pending_review) | 11 unit tests in clue_tokens.rs | CR 111.10f: colorless Clue artifact token with {2}, Sacrifice → draw a card; no tap cost (unlike Food); clue_token_spec() helper, TokenSpec.activated_abilities, make_token() propagates abilities |
 | Blood tokens | — | P4 | `none` | — | — | — | — | Predefined token: {1}, tap, discard, sacrifice → draw |
 | Prowess | 702.108 | P1 | `validated` | `state/types.rs`, `state/hash.rs`, `state/game_object.rs`, `state/builder.rs`, `state/continuous_effect.rs`, `rules/abilities.rs`, `effects/mod.rs` | Monastery Swiftspear | `stack/056` | — | KeywordAbility::Prowess enum + TriggerEvent::ControllerCastsNoncreatureSpell dispatch; EffectFilter::Source in continuous_effect.rs; TriggeredAbilityDef auto-expansion in builder.rs; 8 unit tests in `tests/prowess.rs`; game script 056 (pending_review, all assertions pass) |
-| Regenerate | 701.15 | P3 | `none` | — | — | — | — | Keyword action (not ability): replace destruction with tap+remove from combat |
-| Proliferate | 701.27 | P3 | `none` | — | — | — | — | Keyword action: add counter to any permanent/player with counters |
+| Regenerate | 701.19 | P3 | `validated` | `cards/card_definition.rs:484` (Effect::Regenerate), `state/replacement_effect.rs` (WouldBeDestroyed, Regenerate mod), `rules/replacement.rs:1609` (check_regeneration_shield, apply_regeneration), `effects/mod.rs:534+1457`, `rules/sba.rs:336`, `rules/events.rs:799` | Drudge Skeletons | `stack/100` | 10 tests in regenerate.rs | CR 701.19a: next time destroyed, remove damage, tap, remove from combat; one-shot replacement shield; zero-toughness (704.5f) bypasses regeneration; indestructible prevents before regeneration check |
+| Proliferate | 701.34 | P3 | `validated` | `effects/mod.rs:1518`, `rules/events.rs:833`, `state/game_object.rs:198`, `rules/abilities.rs:1542` | Inexorable Tide | `stack/101` | 14 tests in `proliferate.rs` | Effect::Proliferate + GameEvent::Proliferated + TriggerEvent::ControllerProliferates; auto-selects all eligible permanents/players (interactive choice deferred M10+); game script `pending_review` |
 | Transform | 701.28 | P3 | `none` | — | — | — | — | Keyword action: flip DFC to other face |
 | Daybound/Nightbound | 702.145 | P4 | `none` | — | — | — | Transform | DFC auto-transform based on day/night cycle |
-| Investigate | 701.36 | P3 | `none` | — | — | — | Clue tokens | Keyword action: create a Clue token |
+| Investigate | 701.16 | P3 | `validated` | `cards/card_definition.rs:325` (Effect::Investigate), `effects/mod.rs:484` (execution), `rules/events.rs:706` (GameEvent::Investigated), `state/game_object.rs:193` (TriggerEvent::ControllerInvestigates), `state/hash.rs` (hash arms), `rules/abilities.rs:1447` (trigger dispatch) | Magnifying Glass, Thraben Inspector | `stack/099` (pending_review) | 6 unit tests in investigate.rs | CR 701.16a: "Investigate" means "Create a Clue token"; Effect::Investigate wraps clue_token_spec(1) x N; TriggerEvent::ControllerInvestigates wired; Thraben Inspector uses Effect::Investigate on ETB |
 | Amass | 701.44 | P4 | `none` | — | — | — | — | Put +1/+1 counters on Army token or create one |
 | Discover | 702.161 | P4 | `none` | — | — | — | Cascade | Cascade variant without the free cast restriction |
 | Forage | 701.55 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
@@ -499,3 +499,15 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Wither (CR 702.80) — validated 2026-02-28 (script combat/091, Boggart Ram-Gang, 6 unit tests in keywords.rs).
 
 **Resolved**: Modular (CR 702.43) — validated 2026-02-28 (script stack/092, Arcbound Worker, 9 unit tests in modular.rs).
+
+**Resolved**: Clue tokens (CR 111.10f) — validated 2026-02-28 (script stack/098, Thraben Inspector, 11 unit tests in clue_tokens.rs).
+
+**Resolved**: Regenerate (CR 701.19) — validated 2026-02-28 (script stack/100, Drudge Skeletons, 10 unit tests in regenerate.rs).
+
+**Resolved**: Proliferate (CR 701.34) — validated 2026-02-28 (script stack/101, Inexorable Tide, 14 unit tests in proliferate.rs).
+
+**Resolved**: Myriad (CR 702.116) — validated 2026-02-28 (script combat/093, Warchief Giant, 7 unit tests in myriad.rs).
+
+**Resolved**: Suspend (CR 702.62) — validated 2026-02-28 (script stack/102, Rift Bolt, 9 unit tests in suspend.rs).
+
+**Resolved**: Hideaway (CR 702.75) — validated 2026-02-28 (script baseline/103, Windbrisk Heights, 7 unit tests in hideaway.rs).

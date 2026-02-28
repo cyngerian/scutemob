@@ -23,6 +23,7 @@ use super::priority::{self, PriorityResult};
 use super::replacement;
 use super::resolution;
 use super::sba;
+use super::suspend;
 use super::turn_actions;
 use super::turn_structure;
 
@@ -66,7 +67,15 @@ pub fn process_command(
             validate_player_active(&state, player)?;
             // CR 104.4b: playing a land is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events = lands::handle_play_land(&mut state, player, card)?;
+            let mut events = lands::handle_play_land(&mut state, player, card)?;
+            // CR 603.3: Check for triggered abilities arising from the land entering
+            // (e.g., Hideaway ETB trigger, Landfall). Mirrors CastSpell / ActivateAbility.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
             all_events.extend(events);
         }
         Command::CastSpell {
@@ -296,6 +305,15 @@ pub fn process_command(
             // CR 104.4b: foretelling is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
             let events = foretell::handle_foretell_card(&mut state, player, card)?;
+            all_events.extend(events);
+        }
+
+        // ── Suspend (CR 702.62) ───────────────────────────────────────────
+        Command::SuspendCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: suspending is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let events = suspend::handle_suspend_card(&mut state, player, card)?;
             all_events.extend(events);
         }
 

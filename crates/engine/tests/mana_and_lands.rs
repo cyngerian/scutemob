@@ -266,6 +266,7 @@ fn test_play_land_stack_nonempty_fails() {
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     });
 
     let result = mtg_engine::process_command(

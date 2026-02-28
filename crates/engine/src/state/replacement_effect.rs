@@ -44,6 +44,10 @@ pub enum ReplacementTrigger {
     /// Damage would be dealt (CR 614.2, 615.1).
     /// Used by both replacement and prevention effects on damage.
     DamageWouldBeDealt { target_filter: DamageTargetFilter },
+    /// A permanent would be destroyed (CR 701.8, 614.8).
+    /// Matches both SBA-based destruction (704.5g/h) and effect-based destruction
+    /// (Effect::DestroyPermanent). Does NOT match 704.5f (zero toughness -- not destruction).
+    WouldBeDestroyed { filter: ObjectFilter },
 }
 
 /// What a replacement effect does when it applies (CR 614.6).
@@ -71,6 +75,10 @@ pub enum ReplacementModification {
     /// "if it would be put into a graveyard, shuffle it into its owner's library instead."
     /// Unlike `RedirectToZone(Library)`, this also emits a `LibraryShuffled` event.
     ShuffleIntoOwnerLibrary,
+    /// CR 701.19a/614.8: Regeneration -- instead of being destroyed, remove all damage
+    /// marked on the permanent, tap it, and remove it from combat (if attacking/blocking).
+    /// One-shot: consumed after one use.
+    Regenerate,
 }
 
 /// Filters which objects a replacement trigger matches.

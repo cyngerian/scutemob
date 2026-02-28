@@ -287,6 +287,12 @@ impl GameState {
             foretold_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
+            // CR 400.7: myriad token exile flag is not preserved across zone changes.
+            myriad_exile_at_eoc: false,
+            // CR 400.7: suspend status is not preserved across zone changes.
+            is_suspended: false,
+            // CR 400.7: hideaway exile link is cleared on zone change.
+            exiled_by_hideaway: None,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -368,6 +374,12 @@ impl GameState {
             foretold_turn: 0,
             // CR 400.7: unearth status is not preserved across zone changes.
             was_unearthed: false,
+            // CR 400.7: myriad token exile flag is not preserved across zone changes.
+            myriad_exile_at_eoc: false,
+            // CR 400.7: suspend status is not preserved across zone changes.
+            is_suspended: false,
+            // CR 400.7: hideaway exile link is cleared on zone change.
+            exiled_by_hideaway: None,
         };
 
         // Insert at the front (= bottom) of the destination zone.

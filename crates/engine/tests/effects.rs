@@ -1023,6 +1023,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         was_escaped: false,
         cast_with_foretell: false,
         was_buyback_paid: false,
+        was_suspended: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.

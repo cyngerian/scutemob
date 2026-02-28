@@ -431,6 +431,17 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Buyback => 61u8.hash_into(hasher),
             // Ascend (discriminant 62) -- CR 702.131
             KeywordAbility::Ascend => 62u8.hash_into(hasher),
+            // Infect (discriminant 63) -- CR 702.90
+            KeywordAbility::Infect => 63u8.hash_into(hasher),
+            // Myriad (discriminant 64) -- CR 702.116
+            KeywordAbility::Myriad => 64u8.hash_into(hasher),
+            // Suspend (discriminant 65) -- CR 702.62
+            KeywordAbility::Suspend => 65u8.hash_into(hasher),
+            // Hideaway (discriminant 66) -- CR 702.75
+            KeywordAbility::Hideaway(n) => {
+                66u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -588,6 +599,12 @@ impl HashInto for GameObject {
         self.foretold_turn.hash_into(hasher);
         // Unearth (CR 702.84a) — permanent was returned to battlefield via unearth
         self.was_unearthed.hash_into(hasher);
+        // Myriad (CR 702.116a) — token copy must be exiled at end of combat
+        self.myriad_exile_at_eoc.hash_into(hasher);
+        // Suspend (CR 702.62b) — card was exiled from hand via suspend special action
+        self.is_suspended.hash_into(hasher);
+        // Hideaway (CR 702.75a / CR 607.2a) — card was exiled face-down by a Hideaway trigger
+        self.exiled_by_hideaway.hash_into(hasher);
     }
 }
 
@@ -934,6 +951,11 @@ impl HashInto for ReplacementTrigger {
                 4u8.hash_into(hasher);
                 target_filter.hash_into(hasher);
             }
+            // CR 701.8/614.8: WouldBeDestroyed (discriminant 5)
+            ReplacementTrigger::WouldBeDestroyed { filter } => {
+                5u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
         }
     }
 }
@@ -958,6 +980,8 @@ impl HashInto for ReplacementModification {
             }
             ReplacementModification::PreventAllDamage => 5u8.hash_into(hasher),
             ReplacementModification::ShuffleIntoOwnerLibrary => 6u8.hash_into(hasher),
+            // CR 701.19a/614.8: Regenerate (discriminant 7)
+            ReplacementModification::Regenerate => 7u8.hash_into(hasher),
         }
     }
 }
@@ -1024,6 +1048,16 @@ impl HashInto for PendingTrigger {
         // CR 702.100a: is_evolve_trigger -- evolve ETB trigger marker
         self.is_evolve_trigger.hash_into(hasher);
         self.evolve_entering_creature.hash_into(hasher);
+        // CR 702.116a: is_myriad_trigger -- myriad attack trigger marker
+        self.is_myriad_trigger.hash_into(hasher);
+        // CR 702.62a: is_suspend_counter_trigger -- suspend upkeep trigger marker
+        self.is_suspend_counter_trigger.hash_into(hasher);
+        // CR 702.62a: is_suspend_cast_trigger -- suspend cast trigger marker
+        self.is_suspend_cast_trigger.hash_into(hasher);
+        self.suspend_card_id.hash_into(hasher);
+        // CR 702.75a: is_hideaway_trigger -- hideaway ETB trigger marker
+        self.is_hideaway_trigger.hash_into(hasher);
+        self.hideaway_count.hash_into(hasher);
     }
 }
 
@@ -1074,6 +1108,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfAttacksPlayerWithMostLife => 14u8.hash_into(hasher),
             // CR 701.50b: SourceConnives trigger — discriminant 15
             TriggerEvent::SourceConnives => 15u8.hash_into(hasher),
+            // CR 701.16a: ControllerInvestigates trigger — discriminant 16
+            TriggerEvent::ControllerInvestigates => 16u8.hash_into(hasher),
+            // CR 701.34: ControllerProliferates trigger — discriminant 17
+            TriggerEvent::ControllerProliferates => 17u8.hash_into(hasher),
         }
     }
 }
@@ -1251,6 +1289,44 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 entering_creature.hash_into(hasher);
             }
+            // MyriadTrigger (discriminant 13) — CR 702.116a
+            StackObjectKind::MyriadTrigger {
+                source_object,
+                defending_player,
+            } => {
+                13u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                defending_player.hash_into(hasher);
+            }
+            // SuspendCounterTrigger (discriminant 14) — CR 702.62a
+            StackObjectKind::SuspendCounterTrigger {
+                source_object,
+                suspended_card,
+            } => {
+                14u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                suspended_card.hash_into(hasher);
+            }
+            // SuspendCastTrigger (discriminant 15) — CR 702.62a
+            StackObjectKind::SuspendCastTrigger {
+                source_object,
+                suspended_card,
+                owner,
+            } => {
+                15u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                suspended_card.hash_into(hasher);
+                owner.hash_into(hasher);
+            }
+            // HideawayTrigger (discriminant 16) — CR 702.75a
+            StackObjectKind::HideawayTrigger {
+                source_object,
+                hideaway_count,
+            } => {
+                16u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                hideaway_count.hash_into(hasher);
+            }
         }
     }
 }
@@ -1304,6 +1380,8 @@ impl HashInto for StackObject {
         self.cast_with_foretell.hash_into(hasher);
         // Buyback — spell was cast with buyback cost paid
         self.was_buyback_paid.hash_into(hasher);
+        // Suspend (CR 702.62a) — spell was cast via suspend cast trigger from exile
+        self.was_suspended.hash_into(hasher);
     }
 }
 
@@ -1976,6 +2054,80 @@ impl HashInto for GameEvent {
                 80u8.hash_into(hasher);
                 player.hash_into(hasher);
             }
+            // CR 702.90b / CR 120.3b: PoisonCountersGiven (discriminant 81)
+            GameEvent::PoisonCountersGiven {
+                player,
+                amount,
+                source,
+            } => {
+                81u8.hash_into(hasher);
+                player.hash_into(hasher);
+                amount.hash_into(hasher);
+                source.hash_into(hasher);
+            }
+            // CR 701.16a: Investigated (discriminant 82)
+            GameEvent::Investigated { player, count } => {
+                82u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // CR 701.19a: RegenerationShieldCreated (discriminant 83)
+            GameEvent::RegenerationShieldCreated {
+                object_id,
+                shield_id,
+                controller,
+            } => {
+                83u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                shield_id.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
+            // CR 701.19a/614.8: Regenerated (discriminant 84)
+            GameEvent::Regenerated {
+                object_id,
+                shield_id,
+            } => {
+                84u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                shield_id.hash_into(hasher);
+            }
+            // CR 701.34a: Proliferated (discriminant 85)
+            GameEvent::Proliferated {
+                controller,
+                permanents_affected,
+                players_affected,
+            } => {
+                85u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                permanents_affected.hash_into(hasher);
+                players_affected.hash_into(hasher);
+            }
+            // CR 702.62a / CR 116.2f: CardSuspended (discriminant 86)
+            GameEvent::CardSuspended {
+                player,
+                object_id,
+                new_exile_id,
+                time_counters,
+            } => {
+                86u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_exile_id.hash_into(hasher);
+                time_counters.hash_into(hasher);
+            }
+            // CR 702.75a: HideawayExiled (discriminant 87)
+            GameEvent::HideawayExiled {
+                player,
+                source,
+                exiled_card,
+                remaining_count,
+            } => {
+                87u8.hash_into(hasher);
+                player.hash_into(hasher);
+                source.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+                remaining_count.hash_into(hasher);
+            }
         }
     }
 }
@@ -2237,6 +2389,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WheneverYouSurveil => 18u8.hash_into(hasher),
             // CR 701.50b: "Whenever this creature connives" — discriminant 19
             TriggerCondition::WhenConnives => 19u8.hash_into(hasher),
+            // CR 701.16a: "Whenever you investigate" — discriminant 20
+            TriggerCondition::WheneverYouInvestigate => 20u8.hash_into(hasher),
         }
     }
 }
@@ -2521,6 +2675,24 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // CR 701.16a: Investigate (discriminant 36)
+            Effect::Investigate { count } => {
+                36u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // CR 701.19a: Regenerate (discriminant 37)
+            Effect::Regenerate { target } => {
+                37u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            // CR 701.34a: Proliferate (discriminant 38)
+            Effect::Proliferate => {
+                38u8.hash_into(hasher);
+            }
+            // CR 702.75a / CR 607.2a: PlayExiledCard (discriminant 39)
+            Effect::PlayExiledCard => {
+                39u8.hash_into(hasher);
+            }
         }
     }
 }
@@ -2656,6 +2828,15 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Buyback { cost } => {
                 19u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Suspend (discriminant 20) -- CR 702.62
+            AbilityDefinition::Suspend {
+                cost,
+                time_counters,
+            } => {
+                20u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                time_counters.hash_into(hasher);
             }
         }
     }

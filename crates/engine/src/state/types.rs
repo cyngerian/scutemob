@@ -508,6 +508,55 @@ pub enum KeywordAbility {
     /// On permanents: static ability checked continuously.
     /// The city's blessing is a designation with no inherent rules meaning (CR 702.131c).
     Ascend,
+    /// CR 702.90: Infect -- "Damage dealt to a creature by a source with infect isn't
+    /// marked on that creature. Rather, it causes that many -1/-1 counters to be put
+    /// on that creature. Damage dealt to a player by a source with infect doesn't cause
+    /// that player to lose life. Rather, it causes that player to get that many poison
+    /// counters."
+    ///
+    /// Static ability. Functions from any zone (CR 702.90e). Multiple instances are
+    /// redundant (CR 702.90f). Shares creature-damage mechanic with Wither (CR 120.3d);
+    /// additionally replaces player damage with poison counters (CR 120.3b).
+    Infect,
+    /// CR 702.116: Myriad -- "Whenever this creature attacks, for each opponent other
+    /// than defending player, you may create a token that's a copy of this creature
+    /// that's tapped and attacking that player or a planeswalker they control. If one
+    /// or more tokens are created this way, exile the tokens at end of combat."
+    ///
+    /// Triggered ability. builder.rs auto-generates a TriggeredAbilityDef from this
+    /// keyword at object-construction time. Multiple instances each trigger separately
+    /// (CR 702.116b). Tokens created are tagged `myriad_exile_at_eoc = true` and exiled
+    /// by the end_combat() turn-based action.
+    Myriad,
+    /// CR 702.62: Suspend N -- [cost]. Three abilities:
+    /// (1) Static ability while in hand: pay [cost] and exile from hand with N time
+    ///     counters (special action, CR 116.2f).
+    /// (2) Triggered ability in exile: at the beginning of the owner's upkeep, if
+    ///     this card is suspended, remove a time counter from it.
+    /// (3) Triggered ability in exile: when the last time counter is removed, if
+    ///     this card is exiled, you may cast it without paying its mana cost. If a
+    ///     creature spell is cast this way, it gains haste until you lose control.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The suspend cost and counter count are stored in
+    /// `AbilityDefinition::Suspend { cost, time_counters }`.
+    Suspend,
+    /// CR 702.75: Hideaway N -- "When this permanent enters, look at the top N
+    /// cards of your library. Exile one of them face down and put the rest on
+    /// the bottom of your library in a random order."
+    ///
+    /// Triggered ability keyword. `abilities.rs` detects this keyword at trigger-
+    /// scan time (ETB event) and queues a `PendingTrigger` with
+    /// `is_hideaway_trigger = true`.  Resolution creates a
+    /// `StackObjectKind::HideawayTrigger` and executes the look/exile/put-back
+    /// sequence in `resolution.rs`.
+    ///
+    /// The N parameter specifies how many cards to look at.
+    ///
+    /// The "play the exiled card" part is card-specific and NOT derived from
+    /// this keyword — each card defines its own activated ability with a
+    /// condition and `Effect::PlayExiledCard`.
+    Hideaway(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

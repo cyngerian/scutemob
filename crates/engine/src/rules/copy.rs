@@ -187,6 +187,8 @@ pub fn copy_spell_on_stack(
         // CR 702.143a: Copies are never cast, so cast_with_foretell is always false.
         cast_with_foretell: false,
         was_buyback_paid: false,
+        // CR 702.62a: Copies are never cast via suspend.
+        was_suspended: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -361,6 +363,7 @@ pub fn resolve_cascade(
                 was_escaped: false,
                 cast_with_foretell: false,
                 was_buyback_paid: false,
+                was_suspended: false,
             };
             state.stack_objects.push_back(stack_obj);
 
