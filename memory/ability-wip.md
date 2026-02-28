@@ -1,21 +1,21 @@
-# Ability WIP: Bolster
+# Ability WIP: Adapt
 
-ability: Bolster
-cr: 701.39
+ability: Adapt
+cr: 701.46
 priority: P3
 started: 2026-02-28
 phase: closed
-plan_file: memory/abilities/ability-plan-bolster.md
+plan_file: memory/abilities/ability-plan-adapt.md
 
 ## Step Checklist
-- [x] 1. Enum variant — `Effect::Bolster` in `crates/engine/src/cards/card_definition.rs:388`; hash in `crates/engine/src/state/hash.rs:2695`
-- [x] 2. Rule enforcement — execution arm in `crates/engine/src/effects/mod.rs:971` (Counters section)
-- [x] 3. Trigger wiring — N/A (Bolster is an effect payload, not a triggered keyword)
-- [x] 4. Unit tests — `crates/engine/tests/bolster.rs` (8 tests, all passing)
-- [x] 5. Card definition — `crates/engine/src/cards/defs/cached_defenses.rs`
-- [x] 6. Game script — `test-data/generated-scripts/baseline/104_cached_defenses_bolster.json`
+- [x] 1. Enum variant (types.rs:559, hash.rs:441, view_model.rs:672)
+- [x] 2. Rule enforcement (card_definition.rs:785, effects/mod.rs:2731, hash.rs:2428)
+- [x] 3. Trigger wiring (n/a — uses existing activated ability pipeline)
+- [x] 4. Unit tests (crates/engine/tests/adapt.rs — 6 tests)
+- [x] 5. Card definition — crates/engine/src/cards/defs/sharktocrab.rs
+- [x] 6. Game script — test-data/generated-scripts/baseline/105_sharktocrab_adapt.json
 - [x] 7. Coverage doc update
 
 ## Review
-findings: 2 MEDIUM, 1 LOW — MEDIUM fixes applied; LOW deferred
-review_file: memory/abilities/ability-review-bolster.md
+findings: 0 HIGH/MEDIUM, 2 LOW — clean (no fixes needed)
+review_file: memory/abilities/ability-review-adapt.md

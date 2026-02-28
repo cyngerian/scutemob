@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Bolster validated; CR 701.39 confirmed; card_definition.rs:388, effects/mod.rs:971; Cached Defenses card def; 8 unit tests in bolster.rs; game script baseline/104 approved; P3 validated 32->33, total validated 88->89)
+> Last audited: 2026-02-28 (Adapt validated; CR 701.46 confirmed; state/types.rs:560, card_definition.rs:793, effects/mod.rs:2731; Sharktocrab card def; 6 unit tests in adapt.rs; game script baseline/105 approved; P3 validated 33->34, total validated 89->90)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 33        | 0        | 0       | 7    | 0   |
+| P3       | 40    | 34        | 0        | 0       | 6    | 0   |
 | P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **89**   | **2**    | **0**   | **96**| **12** |
+| **Total**| **199**| **90**   | **2**    | **0**   | **95**| **12** |
 
 ---
 
@@ -220,7 +220,7 @@ Keywords involving counter manipulation and creature growth.
 | Scavenge | 702.97 | P4 | `none` | — | — | — | — | Exile from graveyard → put +1/+1 counters on creature |
 | Outlast | 702.107 | P4 | `none` | — | — | — | — | Tap + mana → +1/+1 counter (sorcery speed) |
 | Amplify | 702.38 | P4 | `none` | — | — | — | — | Reveal creature cards from hand for +1/+1 counters |
-| Adapt | — | P3 | `none` | — | — | — | — | If no +1/+1 counters → put N +1/+1 counters (ability word, not keyword) |
+| Adapt | 701.46 | P3 | `validated` | `state/types.rs:560`, `cards/card_definition.rs:793`, `effects/mod.rs:2731`, `state/hash.rs:445,2431` | Sharktocrab | `baseline/105` | — | CR 701.46a fully enforced; keyword action (not keyword ability); KeywordAbility::Adapt(u32) enum + Condition::SourceHasNoCountersOfType + Conditional effect; resolution-time check per ruling 2019-01-25 (activation always legal); re-adapt after losing counters verified; 6 unit tests in `adapt.rs`; game script approved |
 | Bolster | 701.39 | P3 | `validated` | `cards/card_definition.rs:388`, `effects/mod.rs:971` | Cached Defenses | `baseline/104` | — | CR 701.39a fully enforced; keyword action (not keyword ability); chooses creature with least layer-aware toughness (ruling 2014-11-24); does NOT target (protection irrelevant); deterministic tie-break by smallest ObjectId; no-op if controller has no creatures; 8 unit tests in `bolster.rs`; game script approved |
 
 ---
@@ -327,7 +327,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Collect evidence | 701.53 | P4 | `none` | — | — | — | — | Exile cards from graveyard with total MV >= N |
 | Suspect | 701.52 | P4 | `none` | — | — | — | — | Menace + can't block |
 | Surveil | 701.25 | P2 | `validated` | `cards/card_definition.rs:293-303` (Effect::Surveil), `rules/events.rs:678-684` (GameEvent::Surveilled), `state/game_object.rs:147-150` (TriggerEvent::ControllerSurveils), `cards/card_definition.rs:577-582` (TriggerCondition::WheneverYouSurveil), `effects/mod.rs:917-953` (execution), `rules/abilities.rs:846-865` (trigger dispatch), `testing/replay_harness.rs:635-651` (enrichment), `state/hash.rs:959,1736,1996,2259` (hash arms) | Consider | `stack/071` | — | CR 701.25a/c/d fully enforced; deterministic fallback (all surveilled cards go to graveyard); surveil 0 suppresses event (CR 701.25c); event fires even with empty/partial library (CR 701.25d); WheneverYouSurveil trigger pipeline complete; 7 unit tests in `tests/surveil.rs`; game script pending_review (all assertions pass) |
-| Adapt (keyword action) | — | P3 | `none` | — | — | — | — | See Section 9 |
+| Adapt (keyword action) | 701.46 | P3 | `validated` | — | — | — | — | See Section 9 (primary row); implementation tracked there |
 | Venture/Dungeon | 309 | P4 | `n/a` | — | — | — | — | Dungeon cards not in Commander precons; very niche |
 | The Ring Tempts You | — | P4 | `n/a` | — | — | — | — | LotR-specific mechanic |
 
@@ -513,3 +513,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Hideaway (CR 702.75) — validated 2026-02-28 (script baseline/103, Windbrisk Heights, 7 unit tests in hideaway.rs).
 
 **Resolved**: Bolster (CR 701.39) — validated 2026-02-28 (script baseline/104, Cached Defenses, 8 unit tests in bolster.rs).
+
+**Resolved**: Adapt (CR 701.46) — validated 2026-02-28 (script baseline/105, Sharktocrab, 6 unit tests in adapt.rs).

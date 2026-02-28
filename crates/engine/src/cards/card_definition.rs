@@ -783,6 +783,14 @@ pub enum Condition {
     TargetIsLegal { index: usize },
     /// "if ~ has N or more [counter] counters on it"
     SourceHasCounters { counter: CounterType, min: u32 },
+    /// "if ~ has no [counter] counters on it" — negation of SourceHasCounters.
+    ///
+    /// Used by Adapt (CR 701.46a): the condition check happens at resolution time,
+    /// not at activation time (ruling 2019-01-25). If the source has zero counters
+    /// of the given type, the condition is true and counters are placed.
+    /// If the source has any counters of the given type, the condition is false
+    /// and the counters are NOT placed (but the ability still resolved; mana was spent).
+    SourceHasNoCountersOfType { counter: CounterType },
     /// Always true (for Conditional branches that always fire).
     Always,
     /// CR 702.33d: "if this spell was kicked" — true when `kicker_times_paid > 0`.

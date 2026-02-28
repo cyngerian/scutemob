@@ -2728,6 +2728,14 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .and_then(|obj| obj.counters.get(counter).copied())
             .map(|count| count >= *min)
             .unwrap_or(false),
+        // CR 701.46a: "if ~ has no [counter] counters on it" — used by Adapt.
+        // If the source no longer exists (e.g., removed in response), treat as
+        // "no counters" (safe default — the AddCounter effect will silently no-op).
+        Condition::SourceHasNoCountersOfType { counter } => state
+            .objects
+            .get(&ctx.source)
+            .map(|obj| obj.counters.get(counter).copied().unwrap_or(0) == 0)
+            .unwrap_or(true),
         // CR 702.33d: "if this spell was kicked" — true when kicker_times_paid > 0.
         Condition::WasKicked => ctx.kicker_times_paid > 0,
     }

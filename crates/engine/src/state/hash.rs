@@ -442,6 +442,11 @@ impl HashInto for KeywordAbility {
                 66u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Adapt (discriminant 67) -- CR 701.46
+            KeywordAbility::Adapt(n) => {
+                67u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -2423,6 +2428,11 @@ impl HashInto for Condition {
             Condition::Always => 6u8.hash_into(hasher),
             // Kicker condition (discriminant 7) — CR 702.33d
             Condition::WasKicked => 7u8.hash_into(hasher),
+            // SourceHasNoCountersOfType (discriminant 8) — used by Adapt (CR 701.46)
+            Condition::SourceHasNoCountersOfType { counter } => {
+                8u8.hash_into(hasher);
+                counter.hash_into(hasher);
+            }
         }
     }
 }

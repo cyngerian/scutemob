@@ -7,8 +7,8 @@ pub use im::OrdSet;
 
 pub use crate::state::player::PlayerId;
 pub use crate::state::{
-    AffinityTarget, CardId, CardType, Color, EnchantTarget, KeywordAbility, LandwalkType, ManaCost,
-    ManaPool, SubType, SuperType,
+    AffinityTarget, CardId, CardType, Color, CounterType, EnchantTarget, KeywordAbility,
+    LandwalkType, ManaCost, ManaPool, SubType, SuperType,
 };
 
 pub use super::card_definition::{

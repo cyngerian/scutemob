@@ -670,5 +670,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Myriad => "Myriad".to_string(),
         KeywordAbility::Suspend => "Suspend".to_string(),
         KeywordAbility::Hideaway(n) => format!("Hideaway {n}"),
+        KeywordAbility::Adapt(n) => format!("Adapt {n}"),
     }
 }

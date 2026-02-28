@@ -557,6 +557,18 @@ pub enum KeywordAbility {
     /// this keyword — each card defines its own activated ability with a
     /// condition and `Effect::PlayExiledCard`.
     Hideaway(u32),
+    /// CR 701.46: Adapt N -- keyword action used as activated ability.
+    /// "Adapt N" means "If this permanent has no +1/+1 counters on it, put N
+    /// +1/+1 counters on it."
+    ///
+    /// Marker for quick presence-checking. The activation cost and conditional
+    /// effect are stored in `AbilityDefinition::Activated` on the card definition.
+    /// The u32 parameter is the N value (number of +1/+1 counters to add).
+    ///
+    /// Always used as an activated ability on the card (instant speed).
+    /// The condition check (no +1/+1 counters) happens at resolution time,
+    /// not at activation time (ruling 2019-01-25).
+    Adapt(u32),
 }
 
 /// All creature subtypes from CR 205.3m.
