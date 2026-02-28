@@ -143,7 +143,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     convoke,
                     improvise,
                     delve,
+                    escape,
                     kicked,
+                    buyback,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -158,7 +160,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             convoke,
                             improvise,
                             delve,
+                            escape,
                             *kicked,
+                            *buyback,
                             &state,
                             &players,
                         );

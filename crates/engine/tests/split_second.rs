@@ -168,6 +168,12 @@ fn test_split_second_blocks_casting_spells() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -196,6 +202,12 @@ fn test_split_second_blocks_casting_spells() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -269,6 +281,12 @@ fn test_split_second_blocks_activated_abilities() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -355,6 +373,12 @@ fn test_split_second_blocks_cycling() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -434,6 +458,12 @@ fn test_split_second_allows_mana_abilities() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -520,6 +550,12 @@ fn test_split_second_allows_pass_priority() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -593,6 +629,12 @@ fn test_split_second_blocks_caster_too() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -614,6 +656,12 @@ fn test_split_second_blocks_caster_too() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -687,6 +735,12 @@ fn test_split_second_restriction_ends_after_resolution() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap();
@@ -722,6 +776,12 @@ fn test_split_second_restriction_ends_after_resolution() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -789,6 +849,12 @@ fn test_split_second_triggered_abilities_still_fire() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

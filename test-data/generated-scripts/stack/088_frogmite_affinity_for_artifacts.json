@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_088",
+    "name": "Frogmite cast via Affinity for artifacts — cost reduced to {0}",
+    "description": "p1 controls four distinct artifacts (Sol Ring, Arcane Signet, Swiftfoot Boots, Lightning Greaves) and casts Frogmite (base cost {4}). Affinity for artifacts applies: cost is reduced by {1} for each artifact controlled (CR 702.41a). With 4 artifacts on the battlefield, the reduction is {4}, making the total cost {0}. p1 casts Frogmite for free, it resolves, and enters the battlefield as a 2/2 Artifact Creature — Frog. After resolution p1 controls 5 artifacts.",
+    "cr_sections_tested": ["702.41", "702.41a", "702.41b", "601.2", "601.2b", "601.2f", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["affinity", "cost-reduction", "artifact", "casting", "stack"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tests the Affinity keyword (CR 702.41a): each artifact controlled reduces the spell's cost by {1}. Frogmite has base cost {4} and Affinity for artifacts. With exactly 4 artifacts controlled, the cost is reduced by 4 to {0} — p1 needs no mana in pool. Frogmite's oracle text: 'Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)' — it is itself an artifact, but Frogmite is in hand (not on the battlefield) when cast, so only the 4 already-controlled artifacts count toward the reduction (CR 702.41a says 'for each artifact you control', and a spell on the stack is not a permanent you control). The four artifacts used are all distinct engine-supported cards: Sol Ring ({1}), Arcane Signet ({2}), Swiftfoot Boots ({2}), Lightning Greaves ({2}). Affinity is a static cost-reduction ability that functions while the spell is on the stack (CR 702.41a), calculated during the total-cost determination step (CR 601.2f). After Frogmite resolves it enters the battlefield as an artifact creature, bringing p1's total artifact count to 5.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Arcane Signet", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Swiftfoot Boots", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Lightning Greaves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Frogmite", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Frogmite using Affinity for artifacts — 4 artifacts reduce {4} cost to {0}",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 controls 4 artifacts, Frogmite in hand, stack empty, p1 mana pool empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 4,
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "4 artifacts on battlefield establishes the affinity reduction of {4}"
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Frogmite",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2 + CR 702.41a: p1 casts Frogmite; Affinity for artifacts reduces {4} cost by {1} per artifact controlled (4 artifacts) = {4} reduction; total cost is {0}. No mana needed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Frogmite on stack, hand empty, 4 artifacts still on battlefield",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1,
+            "zones.battlefield.p1.count": 4
+          },
+          "note": "Frogmite moved from hand to stack; the 4 artifacts are permanents and remain on the battlefield"
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Frogmite",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "permanent", "player": "p1", "card": "Frogmite" },
+              "amount": null,
+              "card": "Frogmite",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Frogmite resolves and enters the battlefield under p1's control as a 2/2 Artifact Creature — Frog."
+            }
+          ],
+          "note": "CR 608.2: Frogmite resolves, entering the battlefield. The Affinity static ability was applied during casting (CR 702.41a); no further cost-related effect at resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Frogmite on p1's battlefield (now 5 artifacts total), stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 5,
+            "zones.battlefield.p1": { "includes": [{ "card": "Frogmite" }] }
+          },
+          "note": "Frogmite entered battlefield as an artifact creature; p1 now controls 5 artifacts (Sol Ring, Arcane Signet, Swiftfoot Boots, Lightning Greaves, Frogmite)."
+        }
+      ]
+    }
+  ]
+}

@@ -126,6 +126,12 @@ fn test_kicker_basic_cast_with_kicker() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with kicker failed: {:?}", e));
@@ -228,6 +234,12 @@ fn test_kicker_basic_cast_without_kicker() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without kicker failed: {:?}", e));
@@ -314,6 +326,12 @@ fn test_kicker_insufficient_mana_with_kicker() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -378,6 +396,12 @@ fn test_kicker_non_kicker_spell_rejected() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -446,6 +470,12 @@ fn test_kicker_standard_kicker_rejects_multiple() {
             delve_cards: vec![],
             kicker_times: 2,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -522,6 +552,12 @@ fn test_kicker_permanent_etb_kicked() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger kicked failed: {:?}", e));
@@ -611,6 +647,12 @@ fn test_kicker_permanent_etb_not_kicked() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger not kicked failed: {:?}", e));
@@ -692,6 +734,12 @@ fn test_kicker_does_not_change_mana_value() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Burst Lightning kicked failed: {:?}", e));
@@ -817,6 +865,12 @@ fn test_kicker_with_commander_tax() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander + kicker cast failed: {:?}", e));
@@ -924,6 +978,12 @@ fn test_kicker_spell_cast_event_emitted() {
             delve_cards: vec![],
             kicker_times: 1,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell kicked failed: {:?}", e));

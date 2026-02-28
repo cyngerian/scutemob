@@ -30,7 +30,7 @@ use crate::state::player::PlayerId;
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
-use crate::state::types::{CardType, KeywordAbility, SubType};
+use crate::state::types::{AffinityTarget, CardType, EnchantTarget, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -59,6 +59,12 @@ pub fn handle_cast_spell(
     delve_cards: Vec<ObjectId>,
     kicker_times: u32,
     cast_with_evoke: bool,
+    cast_with_bestow: bool,
+    cast_with_miracle: bool,
+    cast_with_escape: bool,
+    escape_exile_cards: Vec<ObjectId>,
+    cast_with_foretell: bool,
+    cast_with_buyback: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -76,24 +82,111 @@ pub fn handle_cast_spell(
         ));
     }
 
-    // Fetch the card and validate it is in the player's hand, command zone, or graveyard
-    // (with flashback). CR 903.8: A player may cast their commander from the command zone.
+    // Fetch the card and validate it is in the player's hand, command zone, graveyard
+    // (with flashback), or exile (with madness).
+    // CR 903.8: A player may cast their commander from the command zone.
     // CR 702.34a: A card with flashback may be cast from its owner's graveyard.
-    let (casting_from_command_zone, casting_with_flashback, card_id, base_mana_cost) = {
+    // CR 702.35a: A card with madness may be cast from exile (exiled via discard).
+    // CR 702.94a: A card with miracle may be cast from hand (while MiracleTrigger is on stack).
+    let (
+        casting_from_command_zone,
+        casting_from_graveyard,
+        casting_with_flashback,
+        casting_with_madness,
+        card_has_escape_keyword,
+        card_id,
+        base_mana_cost,
+    ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
         let casting_from_graveyard = card_obj.zone == ZoneId::Graveyard(player);
+        let casting_from_exile = card_obj.zone == ZoneId::Exile;
+        let casting_from_hand = card_obj.zone == ZoneId::Hand(player);
 
         // CR 702.34a: Flashback — allowed if card has the flashback keyword and is in graveyard.
+        // Suppress auto-detection when cast_with_escape is true: the player is explicitly
+        // choosing escape over flashback, which is legal per CR 118.9a and the ruling for
+        // Glimpse of Freedom / Ox of Agonas (2020-01-24): "If a card has multiple abilities
+        // giving you permission to cast it... you choose which one to apply."
         let casting_with_flashback = casting_from_graveyard
             && card_obj
                 .characteristics
                 .keywords
-                .contains(&KeywordAbility::Flashback);
+                .contains(&KeywordAbility::Flashback)
+            && !cast_with_escape;
+
+        // CR 702.138a: Escape — allowed if card has the escape keyword and is in graveyard.
+        let card_has_escape_keyword = card_obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Escape);
+        let casting_with_escape_auto =
+            casting_from_graveyard && card_has_escape_keyword && !casting_with_flashback;
+
+        // CR 702.35a: Madness — allowed if card has the madness keyword and is in exile.
+        // The card must have been exiled via the madness discard replacement.
+        let casting_with_madness = casting_from_exile
+            && card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Madness);
+
+        // CR 702.94a: Miracle — validate if cast_with_miracle is true.
+        // Card must be in hand with miracle keyword, and a MiracleTrigger for it must be on stack.
+        if cast_with_miracle {
+            if !casting_from_hand {
+                return Err(GameStateError::InvalidCommand(
+                    "miracle: card must be in your hand (CR 702.94a)".into(),
+                ));
+            }
+            if !card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Miracle)
+            {
+                return Err(GameStateError::InvalidCommand(
+                    "miracle: card does not have the Miracle keyword (CR 702.94a)".into(),
+                ));
+            }
+            // Verify a MiracleTrigger for this card is on the stack.
+            let has_miracle_trigger = state.stack_objects.iter().any(|so| {
+                matches!(&so.kind, StackObjectKind::MiracleTrigger { revealed_card, .. }
+                    if *revealed_card == card)
+            });
+            if !has_miracle_trigger {
+                return Err(GameStateError::InvalidCommand(
+                    "miracle: no MiracleTrigger for this card on the stack (CR 702.94a)".into(),
+                ));
+            }
+        }
+
+        // CR 702.143a: Foretell -- allowed if cast_with_foretell is true.
+        // Card must be in ZoneId::Exile with is_foretold == true and foretold on a prior turn.
+        if cast_with_foretell {
+            if card_obj.zone != ZoneId::Exile {
+                return Err(GameStateError::InvalidCommand(
+                    "foretell: card must be in exile (CR 702.143a)".into(),
+                ));
+            }
+            if !card_obj.is_foretold {
+                return Err(GameStateError::InvalidCommand(
+                    "foretell: card was not foretold (CR 702.143a)".into(),
+                ));
+            }
+            if card_obj.foretold_turn >= state.turn.turn_number {
+                return Err(GameStateError::InvalidCommand(
+                    "foretell: cannot cast foretold card on the same turn it was foretold (CR 702.143a: 'after the current turn has ended')".into(),
+                ));
+            }
+        }
 
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
+            && !casting_with_madness
+            && !casting_with_escape_auto
+            && !cast_with_escape
+            && !cast_with_foretell
         {
             return Err(GameStateError::InvalidCommand(
                 "card is not in your hand".into(),
@@ -101,7 +194,10 @@ pub fn handle_cast_spell(
         }
         (
             casting_from_command_zone,
+            casting_from_graveyard,
             casting_with_flashback,
+            casting_with_madness,
+            card_has_escape_keyword,
             card_obj.card_id.clone(),
             card_obj.characteristics.mana_cost.clone(),
         )
@@ -124,7 +220,7 @@ pub fn handle_cast_spell(
     // Use calculate_characteristics for type/keyword checks to respect continuous effects
     // (CR 613). Falls back to raw characteristics if the object is not found (command zone
     // objects may not participate in layer calculations).
-    let chars = calculate_characteristics(state, card).unwrap_or_else(|| {
+    let mut chars = calculate_characteristics(state, card).unwrap_or_else(|| {
         state
             .object(card)
             .map(|o| o.characteristics.clone())
@@ -175,6 +271,211 @@ pub fn handle_cast_spell(
                 "spell does not have evoke".into(),
             ));
         }
+        // Escape mutual exclusion is handled in Step 1e below.
+        true
+    } else {
+        false
+    };
+
+    // Step 1b: Validate bestow (CR 702.103a / CR 118.9a).
+    let casting_with_bestow = if cast_with_bestow {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine bestow with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine bestow with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_bestow_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have bestow".into(),
+            ));
+        }
+        // CR 702.103b: When cast bestowed, the spell becomes an Aura enchantment
+        // with enchant creature. Transform chars for target validation.
+        chars.card_types.remove(&CardType::Creature);
+        chars.card_types.insert(CardType::Enchantment);
+        chars.subtypes.insert(SubType("Aura".to_string()));
+        chars
+            .keywords
+            .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
+        true
+    } else {
+        false
+    };
+
+    // Step 1c: Validate madness exclusion (CR 601.2b / CR 118.9a).
+    // A player can't apply two alternative costs to a single spell. Since madness is an
+    // auto-detected alternative cost (from the card's exile zone + keyword), a buggy or
+    // malicious client could submit cast_with_evoke/bestow alongside a madness card.
+    if casting_with_madness {
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine madness with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine madness with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Note: madness (exile) and flashback (graveyard) are mutually exclusive by zone,
+        // but we validate explicitly for defense-in-depth (CR 118.9a).
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine madness with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+    }
+
+    // Step 1d: Validate miracle exclusion (CR 118.9a).
+    // Miracle is an alternative cost — cannot combine with other alternative costs.
+    if cast_with_miracle {
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine miracle with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine miracle with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine miracle with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine miracle with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+    }
+
+    // Step 1e: Validate escape (CR 702.138a / CR 118.9a).
+    // Escape is an alternative cost -- cannot combine with other alternative costs.
+    // Auto-detect: if the card is in the graveyard with Escape keyword but no Flashback,
+    // treat it as an escape cast (for convenience / backward compat). The explicit
+    // cast_with_escape: true flag is also accepted (for disambiguation with flashback).
+    let casting_with_escape = if cast_with_escape {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine escape with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine escape with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine escape with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine escape with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine escape with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Card must be in graveyard with Escape keyword (CR 702.138a).
+        if !casting_from_graveyard {
+            return Err(GameStateError::InvalidCommand(
+                "escape: card must be in your graveyard (CR 702.138a)".into(),
+            ));
+        }
+        if !card_has_escape_keyword {
+            return Err(GameStateError::InvalidCommand(
+                "escape: card does not have the Escape keyword (CR 702.138a)".into(),
+            ));
+        }
+        true
+    } else {
+        // Auto-detect: card in graveyard with Escape but no Flashback keyword.
+        // If casting_with_flashback is also true, prefer flashback (Flashback wins by position check).
+        // This branch handles the common case where the player doesn't set cast_with_escape: true
+        // but the card is in the graveyard with only Escape (no Flashback).
+        casting_from_graveyard
+            && card_has_escape_keyword
+            && !casting_with_flashback
+            && !casting_with_madness
+    };
+
+    // Also add escape to existing mutual exclusion checks for evoke, bestow, madness, miracle:
+    if casting_with_escape {
+        // (Already validated mutual exclusion above in the cast_with_escape: true branch.)
+        // For auto-detected escape, evoke/bestow/madness/miracle checks:
+        if !cast_with_escape {
+            if casting_with_evoke {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine escape with evoke (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+            if casting_with_bestow {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine escape with bestow (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+            if cast_with_miracle {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot combine escape with miracle (CR 118.9a: only one alternative cost)"
+                        .into(),
+                ));
+            }
+        }
+    }
+
+    // Step 1f: Validate foretell mutual exclusion (CR 118.9a).
+    // Foretell is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_foretell = if cast_with_foretell {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with madness (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with miracle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine foretell with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
         true
     } else {
         false
@@ -185,9 +486,55 @@ pub fn handle_cast_spell(
         // CR 702.74a: Pay evoke cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_evoke_cost(&card_id, &state.card_registry)
+    } else if casting_with_bestow {
+        // CR 702.103a: Pay bestow cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_bestow_cost(&card_id, &state.card_registry)
     } else if casting_with_flashback {
         // CR 702.34a: Pay flashback cost instead of mana cost.
         get_flashback_cost(&card_id, &state.card_registry)
+    } else if casting_with_madness {
+        // CR 702.35b: Pay madness cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // A None cost here means the card has the Madness keyword but no AbilityDefinition::Madness
+        // cost — that is a malformed card definition, not a valid free-cast scenario.
+        let cost = get_madness_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Madness keyword but no madness cost defined".into(),
+            ));
+        }
+        cost
+    } else if cast_with_miracle {
+        // CR 702.94a: Pay miracle cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let cost = get_miracle_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Miracle keyword but no miracle cost defined".into(),
+            ));
+        }
+        cost
+    } else if casting_with_escape {
+        // CR 702.138a: Pay escape mana cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let cost_opt = get_escape_cost(&card_id, &state.card_registry);
+        if cost_opt.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Escape keyword but no escape cost defined".into(),
+            ));
+        }
+        cost_opt.map(|(cost, _)| cost)
+    } else if casting_with_foretell {
+        // CR 702.143a: Pay foretell cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let cost = get_foretell_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Foretell keyword but no foretell cost defined".into(),
+            ));
+        }
+        cost
     } else {
         base_mana_cost
     };
@@ -247,8 +594,46 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.27a / 601.2f: If the player declared intention to pay buyback, validate
+    // the spell has a buyback ability and bind the cost for use below.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let buyback_cost_opt: Option<ManaCost> = if cast_with_buyback {
+        match get_buyback_cost(&card_id, &state.card_registry) {
+            Some(cost) => Some(cost),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell does not have buyback".into(),
+                ));
+            }
+        }
+    } else {
+        None
+    };
+    let was_buyback_paid = buyback_cost_opt.is_some();
+
+    // CR 601.2f: Add buyback cost to the total mana cost.
+    let mana_cost = if let Some(buyback_cost) = buyback_cost_opt {
+        let mut total = mana_cost.unwrap_or_default();
+        total.white += buyback_cost.white;
+        total.blue += buyback_cost.blue;
+        total.black += buyback_cost.black;
+        total.red += buyback_cost.red;
+        total.green += buyback_cost.green;
+        total.generic += buyback_cost.generic;
+        total.colorless += buyback_cost.colorless;
+        Some(total)
+    } else {
+        mana_cost
+    };
+
     // Validate casting window.
-    if !is_instant_speed {
+    // CR 702.35 ruling: Madness ignores timing restrictions — a sorcery cast via madness
+    // can be cast any time the player has priority, like an instant.
+    // CR 702.94a ruling: Miracle ignores timing restrictions — a sorcery cast via miracle
+    // can be cast at instant speed (while the miracle trigger is on the stack).
+    // CR 702.138a ruling (2020-01-24): Escape does NOT ignore timing restrictions —
+    // sorcery-speed cards with escape can only be cast at sorcery speed.
+    if !is_instant_speed && !casting_with_madness && !cast_with_miracle {
         // Sorcery speed: active player only, main phase, empty stack (CR 307.1).
         if state.turn.active_player != player {
             return Err(GameStateError::InvalidCommand(
@@ -336,9 +721,21 @@ pub fn handle_cast_spell(
         }
     }
 
+    // CR 702.41a / 601.2f: Apply affinity cost reduction AFTER total cost is determined
+    // (including commander tax, kicker) and BEFORE convoke/improvise/delve.
+    // Affinity is a static ability — the engine counts qualifying permanents automatically.
+    // CR 702.41b: Multiple instances of affinity are cumulative.
+    let mana_cost = apply_affinity_reduction(state, player, &chars, mana_cost);
+
+    // CR 702.125a: Apply undaunted cost reduction AFTER total cost is determined
+    // (including commander tax, kicker, affinity) and BEFORE convoke/improvise/delve.
+    // Undaunted is a static ability — the engine counts opponents automatically.
+    // CR 702.125c: Multiple instances of undaunted are cumulative.
+    let mana_cost = apply_undaunted_reduction(state, player, &chars, mana_cost);
+
     // CR 702.51a / 702.51b: Apply convoke cost reduction AFTER total cost is determined.
     // Convoke is not an additional or alternative cost — it applies to the total cost.
-    // Order: base_mana_cost → commander_tax → flashback → CONVOKE → DELVE → pay.
+    // Order: base_mana_cost → commander_tax → kicker → affinity → CONVOKE → improvise → delve → pay.
     let mut convoke_events: Vec<GameEvent> = Vec::new();
     let mana_cost = if !convoke_creatures.is_empty() {
         if !chars.keywords.contains(&KeywordAbility::Convoke) {
@@ -393,6 +790,27 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.138a: Validate and exile cards for escape cost (CR 601.2h).
+    // The escape exile cards are validated and exiled BEFORE the card moves to the stack
+    // (the card hasn't moved yet at this point -- it will move below via move_object_to_zone).
+    // Since the card being cast is still in the graveyard at this point, we must ensure
+    // the exile list doesn't contain the escape card itself.
+    // The exile happens as part of cost payment (CR 601.2h), similar to delve.
+    let mut escape_exile_events: Vec<GameEvent> = Vec::new();
+    if casting_with_escape {
+        let escape_exile_count = get_escape_cost(&card_id, &state.card_registry)
+            .map(|(_, count)| count)
+            .unwrap_or(0);
+        apply_escape_exile_cost(
+            state,
+            player,
+            card,
+            &escape_exile_cards,
+            escape_exile_count,
+            &mut escape_exile_events,
+        )?;
+    }
+
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
 
@@ -423,6 +841,10 @@ pub fn handle_cast_spell(
     // CR 702.66a / CR 601.2h: Emit ObjectExiled events for delve cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(delve_events);
+
+    // CR 702.138a / CR 601.2h: Emit ObjectExiled events for escape exile cards.
+    // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
+    events.extend(escape_exile_events);
 
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
@@ -458,8 +880,44 @@ pub fn handle_cast_spell(
         kicker_times_paid,
         // CR 702.74a: Record whether this spell was cast by paying its evoke cost.
         was_evoked: casting_with_evoke,
+        // CR 702.103b: Record whether this spell was cast by paying its bestow cost.
+        was_bestowed: casting_with_bestow,
+        // CR 702.35a: Record whether this spell was cast via madness from exile.
+        cast_with_madness: casting_with_madness,
+        // CR 702.94a: Record whether this spell was cast via miracle from hand.
+        cast_with_miracle,
+        // CR 702.138b: Record whether this spell was cast via escape from graveyard.
+        was_escaped: casting_with_escape,
+        // CR 702.143a: Record whether this spell was cast via foretell from exile.
+        cast_with_foretell: casting_with_foretell,
+        // CR 702.27a: Record whether the buyback additional cost was paid.
+        was_buyback_paid,
     };
     state.stack_objects.push_back(stack_obj);
+
+    // CR 702.103b: When cast bestowed, apply the type transformation to the source
+    // object on the stack. The spell becomes an Aura enchantment with enchant creature
+    // and loses the Creature type while on the stack.
+    if casting_with_bestow {
+        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+            stack_source
+                .characteristics
+                .card_types
+                .remove(&CardType::Creature);
+            stack_source
+                .characteristics
+                .card_types
+                .insert(CardType::Enchantment);
+            stack_source
+                .characteristics
+                .subtypes
+                .insert(SubType("Aura".to_string()));
+            stack_source
+                .characteristics
+                .keywords
+                .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
+        }
+    }
 
     // CR 903.8: Increment commander tax counter if cast from command zone.
     let commander_tax_paid = if casting_from_command_zone {
@@ -531,6 +989,12 @@ pub fn handle_cast_spell(
             cast_with_flashback: false,
             kicker_times_paid: 0,
             was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -566,6 +1030,12 @@ pub fn handle_cast_spell(
             cast_with_flashback: false,
             kicker_times_paid: 0,
             was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -640,6 +1110,27 @@ fn get_kicker_cost(
     })
 }
 
+/// CR 702.27a: Look up the buyback cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Buyback { cost }`, or `None`
+/// if the card has no definition or no buyback ability defined.
+fn get_buyback_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Buyback { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
 /// CR 702.74a: Look up the evoke cost from the card's `AbilityDefinition`.
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Evoke { cost }`, or `None`
@@ -659,6 +1150,177 @@ fn get_evoke_cost(
             })
         })
     })
+}
+
+/// CR 702.103a / CR 118.9: Look up the bestow cost from the card's `AbilityDefinition`.
+fn get_bestow_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Bestow { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.35b / CR 118.9: Look up the madness cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Madness { cost }`, or `None`
+/// if the card has no definition or no madness ability defined. When `None` is returned,
+/// no mana payment is required (free madness — rare but correct per CR 118.9).
+fn get_madness_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Madness { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.94a / CR 118.9: Look up the miracle cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Miracle { cost }`, or `None`
+/// if the card has no definition or no miracle ability defined.
+fn get_miracle_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Miracle { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.138a / CR 118.9: Look up the escape cost from the card's `AbilityDefinition`.
+///
+/// Returns `Some((ManaCost, exile_count))` from `AbilityDefinition::Escape { cost, exile_count }`,
+/// or `None` if the card has no escape ability definition.
+fn get_escape_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(ManaCost, u32)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Escape { cost, exile_count } = a {
+                    Some((cost.clone(), *exile_count))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.143a / CR 118.9: Look up the foretell cost from the card's `AbilityDefinition`.
+///
+/// Returns `Some(ManaCost)` from `AbilityDefinition::Foretell { cost }`,
+/// or `None` if the card has no foretell ability definition.
+fn get_foretell_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Foretell { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.138a: Validate and exile cards for escape cost payment.
+///
+/// Unlike delve (which reduces generic mana), escape's exile is a FIXED count
+/// that is part of the alternative cost. The player must exile exactly
+/// `required_count` OTHER cards from their graveyard (not the escape card itself).
+///
+/// Validation:
+/// - Count must match exactly `required_count`.
+/// - No duplicates in the exile list.
+/// - Each card must be in the caster's graveyard.
+/// - Each card must NOT be the escape card itself (`escape_card_id`).
+///
+/// On success, moves each card to exile and emits `ObjectExiled` events.
+fn apply_escape_exile_cost(
+    state: &mut GameState,
+    player: PlayerId,
+    escape_card_id: ObjectId,
+    escape_cards: &[ObjectId],
+    required_count: u32,
+    events: &mut Vec<GameEvent>,
+) -> Result<(), GameStateError> {
+    if escape_cards.len() as u32 != required_count {
+        return Err(GameStateError::InvalidCommand(format!(
+            "escape requires exactly {} cards to exile, but {} were provided",
+            required_count,
+            escape_cards.len()
+        )));
+    }
+    // Validate uniqueness.
+    let mut seen = std::collections::HashSet::new();
+    for &id in escape_cards {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate card {:?} in escape_exile_cards",
+                id
+            )));
+        }
+    }
+    // Validate each card is in caster's graveyard and is not the escape card itself.
+    for &id in escape_cards {
+        if id == escape_card_id {
+            return Err(GameStateError::InvalidCommand(
+                "escape: cannot exile the card being cast as part of its own escape cost (CR 702.138a: 'other cards')"
+                    .into(),
+            ));
+        }
+        let obj = state.objects.get(&id).ok_or_else(|| {
+            GameStateError::InvalidCommand(format!("escape exile card {:?} not found", id))
+        })?;
+        if obj.zone != ZoneId::Graveyard(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "escape exile card {:?} is not in your graveyard (CR 702.138a)",
+                id
+            )));
+        }
+    }
+    // Exile each card (CR 400.7: new ObjectId after zone change).
+    for &id in escape_cards {
+        let (new_exile_id, _) = state.move_object_to_zone(id, ZoneId::Exile)?;
+        events.push(GameEvent::ObjectExiled {
+            player,
+            object_id: id,
+            new_exile_id,
+        });
+    }
+    Ok(())
 }
 
 /// CR 702.51a: Validate convoke creatures and compute the reduced mana cost.
@@ -1302,4 +1964,137 @@ pub fn pay_cost(
             break;
         }
     }
+}
+
+/// CR 702.41a: Apply affinity cost reduction to the total mana cost.
+///
+/// For each instance of `KeywordAbility::Affinity(target)` on the spell,
+/// count the number of permanents matching `target` that the caster controls,
+/// and reduce the generic mana component by that count.
+///
+/// CR 702.41b: Multiple instances of affinity are cumulative — each one
+/// independently counts and reduces. Two instances of "affinity for artifacts"
+/// with 3 artifacts = 6 generic mana reduction.
+///
+/// CR 601.2f: The generic mana component cannot be reduced below 0.
+/// Colored and colorless pips are unaffected.
+fn apply_affinity_reduction(
+    state: &GameState,
+    player: PlayerId,
+    chars: &Characteristics,
+    cost: Option<ManaCost>,
+) -> Option<ManaCost> {
+    // Collect all affinity instances from the spell's keywords.
+    let affinity_targets: Vec<&AffinityTarget> = chars
+        .keywords
+        .iter()
+        .filter_map(|kw| {
+            if let KeywordAbility::Affinity(target) = kw {
+                Some(target)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if affinity_targets.is_empty() {
+        return cost;
+    }
+
+    // CR 601.2f: If the spell has no mana cost (None), there is nothing to reduce.
+    let mut reduced = cost?;
+
+    // CR 702.41b: Each instance applies independently.
+    for target in &affinity_targets {
+        let count = count_affinity_permanents(state, player, target);
+        // CR 601.2f: Generic cannot go below 0.
+        let reduction = count.min(reduced.generic);
+        reduced.generic -= reduction;
+    }
+
+    Some(reduced)
+}
+
+/// Count permanents on the battlefield matching the affinity target
+/// that are controlled by the given player.
+///
+/// CR 702.41a: Counts ALL matching permanents — tapped or untapped.
+fn count_affinity_permanents(state: &GameState, player: PlayerId, target: &AffinityTarget) -> u32 {
+    state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.controller == player
+                && matches_affinity_target(state, obj, target)
+        })
+        .count() as u32
+}
+
+/// Check if a game object matches the given affinity target.
+///
+/// Uses `calculate_characteristics` for layer-correct type checking.
+fn matches_affinity_target(
+    state: &GameState,
+    obj: &crate::state::game_object::GameObject,
+    target: &AffinityTarget,
+) -> bool {
+    let chars =
+        calculate_characteristics(state, obj.id).unwrap_or_else(|| obj.characteristics.clone());
+    match target {
+        AffinityTarget::Artifacts => chars.card_types.contains(&CardType::Artifact),
+        AffinityTarget::BasicLandType(subtype) => {
+            chars.card_types.contains(&CardType::Land) && chars.subtypes.contains(subtype)
+        }
+    }
+}
+
+/// CR 702.125a: Apply undaunted cost reduction to the total mana cost.
+///
+/// For each instance of `KeywordAbility::Undaunted` on the spell,
+/// count the number of opponents the caster has (CR 702.125b: only active
+/// players who have not left the game), and reduce the generic mana
+/// component by that count.
+///
+/// CR 702.125c: Multiple instances of undaunted are cumulative -- each one
+/// independently counts opponents and reduces. Two instances with 3 opponents
+/// = 6 generic mana reduction.
+///
+/// CR 601.2f: The generic mana component cannot be reduced below 0.
+/// Colored and colorless pips are unaffected.
+fn apply_undaunted_reduction(
+    state: &GameState,
+    player: PlayerId,
+    chars: &Characteristics,
+    cost: Option<ManaCost>,
+) -> Option<ManaCost> {
+    // Count how many instances of Undaunted the spell has.
+    let undaunted_count = chars
+        .keywords
+        .iter()
+        .filter(|kw| matches!(kw, KeywordAbility::Undaunted))
+        .count() as u32;
+
+    if undaunted_count == 0 {
+        return cost;
+    }
+
+    // CR 601.2f: If the spell has no mana cost (None), there is nothing to reduce.
+    let mut reduced = cost?;
+
+    // CR 702.125b: Count only active players (not lost/conceded) who are NOT the caster.
+    let opponent_count = state
+        .active_players()
+        .iter()
+        .filter(|&&pid| pid != player)
+        .count() as u32;
+
+    // CR 702.125c: Each instance applies independently.
+    let total_reduction = undaunted_count * opponent_count;
+
+    // CR 601.2f: Generic cannot go below 0.
+    let reduction = total_reduction.min(reduced.generic);
+    reduced.generic -= reduction;
+
+    Some(reduced)
 }

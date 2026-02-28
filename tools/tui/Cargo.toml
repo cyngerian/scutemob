@@ -23,3 +23,8 @@ anyhow = "1"
 # Serialization (for hook state file)
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Engine + simulator for play mode
+mtg-engine = { path = "../../crates/engine" }
+mtg-simulator = { path = "../../crates/simulator" }
+rand = "0.8"

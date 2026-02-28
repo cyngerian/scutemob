@@ -74,6 +74,70 @@ pub fn check_and_apply_sbas(state: &mut GameState) -> Vec<GameEvent> {
     all_events
 }
 
+// ── CR 702.131b: Ascend check ────────────────────────────────────────────────
+
+/// CR 702.131b: Ascend on a permanent is a static ability.
+/// "Any time you control ten or more permanents and you don't have the city's
+/// blessing, you get the city's blessing for the rest of the game."
+///
+/// This check must run FIRST in each SBA pass, before permanents are removed
+/// by other SBAs (e.g., legendary rule, creature death). This ensures the
+/// ruling: "If your tenth permanent enters the battlefield and then a permanent
+/// leaves the battlefield immediately afterwards (most likely due to the Legend
+/// Rule or 0-toughness), you get the city's blessing before it leaves."
+///
+/// Uses `chars_map` (layer-computed keywords) so effects that remove all
+/// abilities (e.g., Humility) correctly suppress Ascend on affected permanents.
+fn check_ascend(
+    state: &mut GameState,
+    chars_map: &HashMap<ObjectId, Characteristics>,
+) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+
+    let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
+    for pid in player_ids {
+        // Skip players who already have the city's blessing (CR 702.131c: permanent).
+        let already_has = state
+            .players
+            .get(&pid)
+            .map(|p| p.has_citys_blessing)
+            .unwrap_or(true); // treat missing player as already having it (skip)
+        if already_has {
+            continue;
+        }
+
+        // CR 702.131b: Player must control a permanent with Ascend.
+        let has_ascend_permanent = state.objects.iter().any(|(id, obj)| {
+            obj.zone == ZoneId::Battlefield
+                && obj.controller == pid
+                && chars_map
+                    .get(id)
+                    .map(|chars| chars.keywords.contains(&KeywordAbility::Ascend))
+                    .unwrap_or(false)
+        });
+        if !has_ascend_permanent {
+            continue;
+        }
+
+        // Count all permanents controlled by this player (tokens and non-tokens alike).
+        // CR 702.131 ruling: "A permanent is any object on the battlefield, including tokens."
+        let permanent_count = state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == pid)
+            .count();
+
+        if permanent_count >= 10 {
+            if let Some(p) = state.players.get_mut(&pid) {
+                p.has_citys_blessing = true;
+            }
+            events.push(GameEvent::CitysBlessingGained { player: pid });
+        }
+    }
+
+    events
+}
+
 // ── One pass of SBA checking ────────────────────────────────────────────────
 
 /// Apply all applicable SBAs simultaneously in one pass.
@@ -103,6 +167,39 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
         .collect();
 
     let mut events = Vec::new();
+
+    // CR 702.131b: Ascend check runs FIRST so the player gets the city's blessing
+    // before other SBAs (legend rule, creature death) may remove permanents in the
+    // same pass. This enforces the ruling: "If your tenth permanent enters and then
+    // leaves immediately (e.g., legend rule), you still get the city's blessing."
+    let ascend_events = check_ascend(state, &chars_map);
+
+    // CR 702.131d: "After a player gets the city's blessing, continuous effects are
+    // reapplied before the game checks to see if the game state or preceding events
+    // have matched any trigger conditions."
+    //
+    // If any blessing was granted, rebuild chars_map so that blessing-dependent
+    // continuous effects (e.g., "+1/+1 to your creatures as long as you have the
+    // city's blessing") are reflected in the remaining SBA checks within this pass.
+    // This is only relevant when a card has a blessing-conditional continuous effect
+    // that changes characteristics checked by later SBAs in the same pass (narrow
+    // edge case, but CR-required).
+    let chars_map = if ascend_events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CitysBlessingGained { .. }))
+    {
+        battlefield_ids
+            .iter()
+            .filter_map(|&id| {
+                let chars = calculate_characteristics(state, id)?;
+                Some((id, chars))
+            })
+            .collect()
+    } else {
+        chars_map
+    };
+
+    events.extend(ascend_events);
 
     // Collect events from each SBA category. Order matches CR 704.5 numbering
     // but all are treated as simultaneous within a pass.
@@ -639,6 +736,15 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             {
                 return false;
             }
+            // CR 303.4d: An Aura that's also a creature can't enchant anything.
+            // Check layer-computed characteristics so type-changing effects apply
+            // (e.g., a global "all permanents are creatures" effect).
+            let aura_card_types = calculate_characteristics(state, **aura_id)
+                .map(|c| c.card_types)
+                .unwrap_or_default();
+            if aura_card_types.contains(&CardType::Creature) {
+                return true;
+            }
             // Aura is illegal if it's not attached to anything on the battlefield.
             match obj.attached_to {
                 None => true, // Unattached aura — always illegal on battlefield.
@@ -697,7 +803,47 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         .map(|(id, _)| *id)
         .collect();
 
-    for id in illegal_auras {
+    // CR 702.103f: Separate bestowed Auras from normal illegal Auras.
+    // Bestowed Auras revert to creatures instead of going to the graveyard.
+    // Normal illegal Auras go to the graveyard (CR 704.5m).
+    let (bestowed_auras, normal_auras): (Vec<ObjectId>, Vec<ObjectId>) =
+        illegal_auras.into_iter().partition(|id| {
+            state
+                .objects
+                .get(id)
+                .map(|obj| obj.is_bestowed)
+                .unwrap_or(false)
+        });
+
+    // CR 702.103f: For bestowed Auras — clear attachment, revert to creature.
+    for aura_id in bestowed_auras {
+        // Clear the attachment link on the target.
+        if let Some(obj) = state.objects.get(&aura_id) {
+            if let Some(target_id) = obj.attached_to {
+                if let Some(target) = state.objects.get_mut(&target_id) {
+                    target.attachments.retain(|id| *id != aura_id);
+                }
+            }
+        }
+        // Revert the bestowed Aura to an enchantment creature.
+        if let Some(obj) = state.objects.get_mut(&aura_id) {
+            obj.attached_to = None;
+            obj.is_bestowed = false;
+            // Remove Aura subtype and enchant creature keyword.
+            obj.characteristics
+                .subtypes
+                .remove(&SubType("Aura".to_string()));
+            obj.characteristics
+                .keywords
+                .remove(&KeywordAbility::Enchant(EnchantTarget::Creature));
+            // Restore Creature card type.
+            obj.characteristics.card_types.insert(CardType::Creature);
+        }
+        events.push(GameEvent::BestowReverted { object_id: aura_id });
+    }
+
+    // CR 704.5m: Normal illegal Auras go to the graveyard.
+    for id in normal_auras {
         let owner = match state.objects.get(&id) {
             Some(obj) => obj.owner,
             None => continue,

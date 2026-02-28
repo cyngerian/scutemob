@@ -78,6 +78,12 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -148,6 +154,12 @@ fn test_protection_from_red_allows_green_spell() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -228,6 +240,12 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -291,6 +309,12 @@ fn test_protection_from_all_blocks_all_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 

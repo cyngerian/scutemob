@@ -257,6 +257,7 @@ impl GameStateBuilder {
                 no_max_hand_size: false,
                 cards_drawn_this_turn: 0,
                 spells_cast_this_turn: 0,
+                has_citys_blessing: false,
             };
             players.insert(config.id, player_state);
         }
@@ -461,6 +462,30 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
+                // with the most life or tied for most life, put a +1/+1 counter on
+                // this creature."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.105b).
+                // The trigger uses SelfAttacksPlayerWithMostLife, a dedicated event
+                // that is only dispatched in abilities.rs when the defending player
+                // has the most life (or is tied). This avoids unconditional firing
+                // on all attacks.
+                if matches!(kw, KeywordAbility::Dethrone) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacksPlayerWithMostLife,
+                        intervening_if: None,
+                        description: "Dethrone (CR 702.105a): Whenever this creature attacks \
+                                      the player with the most life or tied for most life, \
+                                      put a +1/+1 counter on this creature."
+                            .to_string(),
+                        effect: Some(Effect::AddCounter {
+                            target: EffectTarget::Source,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        }),
+                    });
+                }
+
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."
@@ -554,6 +579,7 @@ impl GameStateBuilder {
                                 tapped: false,
                                 mana_color: None,
                                 mana_abilities: vec![],
+                                activated_abilities: vec![],
                             },
                         }),
                     });
@@ -576,6 +602,63 @@ impl GameStateBuilder {
                         effect: Some(Effect::DrainLife {
                             amount: EffectAmount::Fixed(1),
                         }),
+                    });
+                }
+
+                // CR 702.92a: Living Weapon -- "When this Equipment enters, create a
+                // 0/0 black Phyrexian Germ creature token, then attach this Equipment
+                // to it."
+                // ETB trigger on the Equipment itself. Uses CreateTokenAndAttachSource
+                // to atomically create + attach before SBAs.
+                if matches!(kw, KeywordAbility::LivingWeapon) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfEntersBattlefield,
+                        intervening_if: None,
+                        description: "Living Weapon (CR 702.92a): When this Equipment enters, \
+                                      create a 0/0 black Phyrexian Germ creature token, then \
+                                      attach this Equipment to it."
+                            .to_string(),
+                        effect: Some(Effect::CreateTokenAndAttachSource {
+                            spec: crate::cards::card_definition::TokenSpec {
+                                name: "Phyrexian Germ".to_string(),
+                                power: 0,
+                                toughness: 0,
+                                colors: [Color::Black].into_iter().collect(),
+                                card_types: [CardType::Creature].into_iter().collect(),
+                                subtypes: [
+                                    SubType("Phyrexian".to_string()),
+                                    SubType("Germ".to_string()),
+                                ]
+                                .into_iter()
+                                .collect(),
+                                keywords: im::OrdSet::new(),
+                                count: 1,
+                                tapped: false,
+                                mana_color: None,
+                                mana_abilities: vec![],
+                                activated_abilities: vec![],
+                            },
+                        }),
+                    });
+                }
+
+                // CR 702.43a: Modular N -- "When this permanent is put into a graveyard from
+                // the battlefield, you may put a +1/+1 counter on target artifact creature
+                // for each +1/+1 counter on this permanent."
+                // Each Modular instance generates one TriggeredAbilityDef (CR 702.43b).
+                // The effect is NOT encoded here because the counter count is dynamic
+                // (based on pre_death_counters, not the static N). Resolution is handled
+                // by StackObjectKind::ModularTrigger.
+                if let KeywordAbility::Modular(_n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfDies,
+                        intervening_if: None,
+                        description: "Modular (CR 702.43a): When this permanent is put into a \
+                                      graveyard from the battlefield, you may put a +1/+1 counter \
+                                      on target artifact creature for each +1/+1 counter on this \
+                                      permanent."
+                            .to_string(),
+                        effect: None, // Handled by ModularTrigger resolution
                     });
                 }
             }
@@ -632,6 +715,11 @@ impl GameStateBuilder {
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 was_evoked: false,
+                is_bestowed: false,
+                was_escaped: false,
+                is_foretold: false,
+                foretold_turn: 0,
+                was_unearthed: false,
             };
 
             state.add_object(object, zone)?;

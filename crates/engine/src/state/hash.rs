@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
-    ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
+    ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -285,6 +285,18 @@ impl HashInto for EnchantTarget {
     }
 }
 
+impl HashInto for AffinityTarget {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            AffinityTarget::Artifacts => 0u8.hash_into(hasher),
+            AffinityTarget::BasicLandType(st) => {
+                1u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
+        }
+    }
+}
+
 impl HashInto for KeywordAbility {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -377,6 +389,48 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Extort => 43u8.hash_into(hasher),
             // Improvise (discriminant 44) -- CR 702.126
             KeywordAbility::Improvise => 44u8.hash_into(hasher),
+            // Bestow (discriminant 45) -- CR 702.103
+            KeywordAbility::Bestow => 45u8.hash_into(hasher),
+            // Fear (discriminant 46) -- CR 702.36
+            KeywordAbility::Fear => 46u8.hash_into(hasher),
+            // LivingWeapon (discriminant 47) -- CR 702.92
+            KeywordAbility::LivingWeapon => 47u8.hash_into(hasher),
+            // Madness (discriminant 48) -- CR 702.35
+            KeywordAbility::Madness => 48u8.hash_into(hasher),
+            // Miracle (discriminant 49) -- CR 702.94
+            KeywordAbility::Miracle => 49u8.hash_into(hasher),
+            // Escape (discriminant 50) -- CR 702.138
+            KeywordAbility::Escape => 50u8.hash_into(hasher),
+            // Foretell (discriminant 51) -- CR 702.143
+            KeywordAbility::Foretell => 51u8.hash_into(hasher),
+            // Unearth (discriminant 52) -- CR 702.84
+            KeywordAbility::Unearth => 52u8.hash_into(hasher),
+            // Affinity (discriminant 53) -- CR 702.41
+            KeywordAbility::Affinity(target) => {
+                53u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            // Undaunted (discriminant 54) -- CR 702.125
+            KeywordAbility::Undaunted => 54u8.hash_into(hasher),
+            // Dethrone (discriminant 55) -- CR 702.105
+            KeywordAbility::Dethrone => 55u8.hash_into(hasher),
+            // Riot (discriminant 56) -- CR 702.136
+            KeywordAbility::Riot => 56u8.hash_into(hasher),
+            // Exploit (discriminant 57) -- CR 702.110
+            KeywordAbility::Exploit => 57u8.hash_into(hasher),
+            // Wither (discriminant 58) -- CR 702.80
+            KeywordAbility::Wither => 58u8.hash_into(hasher),
+            // Modular (discriminant 59) -- CR 702.43
+            KeywordAbility::Modular(n) => {
+                59u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Evolve (discriminant 60) -- CR 702.100
+            KeywordAbility::Evolve => 60u8.hash_into(hasher),
+            // Buyback (discriminant 61) -- CR 702.27
+            KeywordAbility::Buyback => 61u8.hash_into(hasher),
+            // Ascend (discriminant 62) -- CR 702.131
+            KeywordAbility::Ascend => 62u8.hash_into(hasher),
         }
     }
 }
@@ -525,6 +579,15 @@ impl HashInto for GameObject {
         self.kicker_times_paid.hash_into(hasher);
         // Evoke (CR 702.74a) — permanent was cast by paying its evoke cost
         self.was_evoked.hash_into(hasher);
+        // Bestow (CR 702.103b) — permanent is currently bestowed as an Aura
+        self.is_bestowed.hash_into(hasher);
+        // Escape (CR 702.138b) — permanent was cast via escape from graveyard
+        self.was_escaped.hash_into(hasher);
+        // Foretell (CR 702.143a) — card was foretold (exiled face-down from hand)
+        self.is_foretold.hash_into(hasher);
+        self.foretold_turn.hash_into(hasher);
+        // Unearth (CR 702.84a) — permanent was returned to battlefield via unearth
+        self.was_unearthed.hash_into(hasher);
     }
 }
 
@@ -549,6 +612,7 @@ impl HashInto for PlayerState {
         self.cards_drawn_this_turn.hash_into(hasher);
         // M9.4: spells_cast_this_turn (CR 702.40a)
         self.spells_cast_this_turn.hash_into(hasher);
+        self.has_citys_blessing.hash_into(hasher);
     }
 }
 
@@ -942,6 +1006,24 @@ impl HashInto for PendingTrigger {
         self.defending_player_id.hash_into(hasher);
         // CR 702.74a: is_evoke_sacrifice — evoke sacrifice trigger marker
         self.is_evoke_sacrifice.hash_into(hasher);
+        // CR 702.35a: is_madness_trigger — madness trigger marker
+        self.is_madness_trigger.hash_into(hasher);
+        self.madness_exiled_card.hash_into(hasher);
+        self.madness_cost.hash_into(hasher);
+        // CR 702.94a: is_miracle_trigger — miracle trigger marker
+        self.is_miracle_trigger.hash_into(hasher);
+        self.miracle_revealed_card.hash_into(hasher);
+        self.miracle_cost.hash_into(hasher);
+        // CR 702.84a: is_unearth_trigger -- unearth delayed exile trigger marker
+        self.is_unearth_trigger.hash_into(hasher);
+        // CR 702.110a: is_exploit_trigger -- exploit ETB trigger marker
+        self.is_exploit_trigger.hash_into(hasher);
+        // CR 702.43a: is_modular_trigger -- modular dies trigger marker
+        self.is_modular_trigger.hash_into(hasher);
+        self.modular_counter_count.hash_into(hasher);
+        // CR 702.100a: is_evolve_trigger -- evolve ETB trigger marker
+        self.is_evolve_trigger.hash_into(hasher);
+        self.evolve_entering_creature.hash_into(hasher);
     }
 }
 
@@ -988,6 +1070,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::ControllerSurveils => 12u8.hash_into(hasher),
             // CR 702.101a: Controller-casts-any-spell trigger — discriminant 13
             TriggerEvent::ControllerCastsSpell => 13u8.hash_into(hasher),
+            // CR 702.105a: Dethrone "attacks player with most life" trigger — discriminant 14
+            TriggerEvent::SelfAttacksPlayerWithMostLife => 14u8.hash_into(hasher),
+            // CR 701.50b: SourceConnives trigger — discriminant 15
+            TriggerEvent::SourceConnives => 15u8.hash_into(hasher),
         }
     }
 }
@@ -1106,6 +1192,65 @@ impl HashInto for StackObjectKind {
                 5u8.hash_into(hasher);
                 source_object.hash_into(hasher);
             }
+            // MadnessTrigger (discriminant 6) — CR 702.35a
+            StackObjectKind::MadnessTrigger {
+                source_object,
+                exiled_card,
+                madness_cost,
+                owner,
+            } => {
+                6u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+                madness_cost.hash_into(hasher);
+                owner.hash_into(hasher);
+            }
+            // MiracleTrigger (discriminant 7) — CR 702.94a
+            StackObjectKind::MiracleTrigger {
+                source_object,
+                revealed_card,
+                miracle_cost,
+                owner,
+            } => {
+                7u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                revealed_card.hash_into(hasher);
+                miracle_cost.hash_into(hasher);
+                owner.hash_into(hasher);
+            }
+            // UnearthAbility (discriminant 8) — CR 702.84a
+            StackObjectKind::UnearthAbility { source_object } => {
+                8u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
+            // UnearthTrigger (discriminant 9) — CR 702.84a
+            StackObjectKind::UnearthTrigger { source_object } => {
+                9u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
+            // ExploitTrigger (discriminant 10) — CR 702.110a
+            StackObjectKind::ExploitTrigger { source_object } => {
+                10u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
+            // ModularTrigger (discriminant 11) — CR 702.43a
+            StackObjectKind::ModularTrigger {
+                source_object,
+                counter_count,
+            } => {
+                11u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                counter_count.hash_into(hasher);
+            }
+            // EvolveTrigger (discriminant 12) — CR 702.100a
+            StackObjectKind::EvolveTrigger {
+                source_object,
+                entering_creature,
+            } => {
+                12u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                entering_creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -1147,6 +1292,18 @@ impl HashInto for StackObject {
         self.kicker_times_paid.hash_into(hasher);
         // Evoke (CR 702.74a) — spell was cast by paying its evoke cost
         self.was_evoked.hash_into(hasher);
+        // Bestow (CR 702.103b) — spell was cast by paying its bestow cost
+        self.was_bestowed.hash_into(hasher);
+        // Madness (CR 702.35a) — spell was cast via madness from exile
+        self.cast_with_madness.hash_into(hasher);
+        // Miracle (CR 702.94a) — spell was cast via miracle from hand
+        self.cast_with_miracle.hash_into(hasher);
+        // Escape (CR 702.138b) — spell was cast via escape from graveyard
+        self.was_escaped.hash_into(hasher);
+        // Foretell (CR 702.143a) — spell was cast via foretell from exile
+        self.cast_with_foretell.hash_into(hasher);
+        // Buyback — spell was cast with buyback cost paid
+        self.was_buyback_paid.hash_into(hasher);
     }
 }
 
@@ -1776,6 +1933,49 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // CR 702.103f: BestowReverted (discriminant 76)
+            GameEvent::BestowReverted { object_id } => {
+                76u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
+            // CR 702.94a: MiracleRevealChoiceRequired (discriminant 77)
+            GameEvent::MiracleRevealChoiceRequired {
+                player,
+                card_object_id,
+                miracle_cost,
+            } => {
+                77u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_object_id.hash_into(hasher);
+                miracle_cost.hash_into(hasher);
+            }
+            // CR 702.143a: CardForetold (discriminant 78)
+            GameEvent::CardForetold {
+                player,
+                object_id,
+                new_exile_id,
+            } => {
+                78u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_exile_id.hash_into(hasher);
+            }
+            // CR 701.50b: Connived (discriminant 79)
+            GameEvent::Connived {
+                object_id,
+                player,
+                counters_placed,
+            } => {
+                79u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                player.hash_into(hasher);
+                counters_placed.hash_into(hasher);
+            }
+            // CR 702.131: CitysBlessingGained (discriminant 80)
+            GameEvent::CitysBlessingGained { player } => {
+                80u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
         }
     }
 }
@@ -1859,6 +2059,7 @@ impl HashInto for TokenSpec {
         self.tapped.hash_into(hasher);
         self.mana_color.hash_into(hasher);
         self.mana_abilities.hash_into(hasher);
+        self.activated_abilities.hash_into(hasher);
     }
 }
 
@@ -2034,6 +2235,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenBecomesTargetByOpponent => 17u8.hash_into(hasher),
             // CR 701.25d: "Whenever you surveil" — discriminant 18
             TriggerCondition::WheneverYouSurveil => 18u8.hash_into(hasher),
+            // CR 701.50b: "Whenever this creature connives" — discriminant 19
+            TriggerCondition::WhenConnives => 19u8.hash_into(hasher),
         }
     }
 }
@@ -2307,6 +2510,17 @@ impl HashInto for Effect {
                 33u8.hash_into(hasher);
                 amount.hash_into(hasher);
             }
+            // CR 702.92a: CreateTokenAndAttachSource (discriminant 34)
+            Effect::CreateTokenAndAttachSource { spec } => {
+                34u8.hash_into(hasher);
+                spec.hash_into(hasher);
+            }
+            // Connive (discriminant 35)
+            Effect::Connive { target, count } => {
+                35u8.hash_into(hasher);
+                target.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }
@@ -2396,6 +2610,51 @@ impl HashInto for AbilityDefinition {
             // Evoke (discriminant 11) — CR 702.74
             AbilityDefinition::Evoke { cost } => {
                 11u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Bestow (discriminant 12) — CR 702.103
+            AbilityDefinition::Bestow { cost } => {
+                12u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Madness (discriminant 13) -- CR 702.35
+            AbilityDefinition::Madness { cost } => {
+                13u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Miracle (discriminant 14) -- CR 702.94
+            AbilityDefinition::Miracle { cost } => {
+                14u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Escape (discriminant 15) -- CR 702.138
+            AbilityDefinition::Escape { cost, exile_count } => {
+                15u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                exile_count.hash_into(hasher);
+            }
+            // EscapeWithCounter (discriminant 16) -- CR 702.138c
+            AbilityDefinition::EscapeWithCounter {
+                counter_type,
+                count,
+            } => {
+                16u8.hash_into(hasher);
+                counter_type.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // Foretell (discriminant 17) -- CR 702.143
+            AbilityDefinition::Foretell { cost } => {
+                17u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Unearth (discriminant 18) -- CR 702.84
+            AbilityDefinition::Unearth { cost } => {
+                18u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Buyback (discriminant 19) -- CR 702.27
+            AbilityDefinition::Buyback { cost } => {
+                19u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

@@ -89,6 +89,12 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -136,6 +142,12 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -183,6 +195,12 @@ fn test_702_5_enchant_land_targets_land_valid() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -228,6 +246,12 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .expect("CastSpell should succeed");
@@ -400,6 +424,12 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 delve_cards: vec![],
                 kicker_times: 0,
                 cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
             },
         );
         assert!(
@@ -438,6 +468,12 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 delve_cards: vec![],
                 kicker_times: 0,
                 cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
             },
         );
         assert!(
@@ -481,6 +517,12 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -531,6 +573,12 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -580,6 +628,12 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .expect("CastSpell should succeed");

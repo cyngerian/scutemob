@@ -10,7 +10,7 @@
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 
-use crate::state::game_object::ManaAbility;
+use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
     CardId, CardType, Color, CounterType, KeywordAbility, ManaColor, ManaCost, ManaPool, SubType,
@@ -173,6 +173,76 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Evoke)` for quick
     /// presence-checking without scanning all abilities.
     Evoke { cost: ManaCost },
+    /// CR 702.103: Bestow [cost]. The card may be cast by paying this cost instead
+    /// of its mana cost (alternative cost, CR 118.9). When cast bestowed, the spell
+    /// becomes an Aura enchantment with enchant creature (CR 702.103b).
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Bestow)` for quick
+    /// presence-checking without scanning all abilities.
+    Bestow { cost: ManaCost },
+    /// CR 702.35: Madness [cost]. When this card is discarded, it is exiled instead
+    /// of going to the graveyard. Then a triggered ability fires: the owner may cast
+    /// it by paying [cost] (an alternative cost, CR 118.9). If they decline, it goes
+    /// to the graveyard.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Madness)` for quick
+    /// presence-checking without scanning all abilities.
+    Madness { cost: ManaCost },
+    /// CR 702.94: Miracle [cost]. When this card is drawn as the first card of
+    /// the turn, the player may reveal it and trigger a triggered ability:
+    /// "you may cast it by paying [cost] instead of its mana cost" (alternative
+    /// cost, CR 118.9).
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Miracle)` for quick
+    /// presence-checking without scanning all abilities.
+    Miracle { cost: ManaCost },
+    /// CR 702.138: Escape [mana cost], Exile [N] other cards from your graveyard.
+    /// The card may be cast from its owner's graveyard by paying this alternative cost.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Escape)` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// `exile_count` is the number of OTHER cards that must be exiled from the
+    /// graveyard as part of the escape cost. These are exiled during cost payment
+    /// (CR 601.2h), similar to how delve exiles cards for cost reduction.
+    Escape { cost: ManaCost, exile_count: u32 },
+    /// CR 702.138c: "This permanent escapes with [N] [counter type] counter(s) on it."
+    /// If the permanent escaped, it enters the battlefield with the specified counters.
+    /// This is a replacement effect on the ETB event.
+    EscapeWithCounter {
+        counter_type: CounterType,
+        count: u32,
+    },
+    /// CR 702.143: Foretell [cost]. During your turn, pay {2} and exile this card
+    /// from your hand face down. Cast it on a later turn for [cost] rather than
+    /// its mana cost (alternative cost, CR 118.9).
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Foretell)` for quick
+    /// presence-checking without scanning all abilities.
+    Foretell { cost: ManaCost },
+    /// CR 702.84: Unearth [cost]. The card's unearth ability can be activated
+    /// from its owner's graveyard by paying this cost. When the ability resolves,
+    /// the card returns to the battlefield with haste, a delayed exile trigger
+    /// at the next end step, and a replacement effect that exiles it if it
+    /// would leave the battlefield for any non-exile zone.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Unearth)` for quick
+    /// presence-checking without scanning all abilities.
+    Unearth { cost: ManaCost },
+    /// CR 702.27: Buyback [cost]. You may pay an additional [cost] as you cast
+    /// this spell. If you do, put this spell into its owner's hand instead of
+    /// into that player's graveyard as it resolves.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Buyback)` for quick
+    /// presence-checking without scanning all abilities.
+    Buyback { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -320,6 +390,17 @@ pub enum Effect {
         player: PlayerTarget,
         count: EffectAmount,
     },
+    /// CR 701.50: Connive -- a permanent's controller draws a card, then discards
+    /// a card. If a nonland card is discarded this way, put a +1/+1 counter on
+    /// the conniving permanent.
+    ///
+    /// Deterministic fallback: discards the first card in hand (alphabetically).
+    /// CR 701.50e: Connive N draws N and discards N, placing counters equal to
+    /// the number of nonland cards discarded.
+    Connive {
+        target: EffectTarget,
+        count: EffectAmount,
+    },
     /// CR 701.20: Put N cards from a zone onto the top of a player's library.
     ///
     /// M7: Deterministic — moves the first N objects (by ObjectId ascending) from
@@ -405,6 +486,17 @@ pub enum Effect {
         /// The creature to attach to. Should be `EffectTarget::DeclaredTarget { index: 0 }`.
         target: EffectTarget,
     },
+    /// CR 702.92a: Create a token and immediately attach the source Equipment to it.
+    ///
+    /// Used by Living Weapon. The token creation and attachment happen as a single
+    /// atomic operation -- SBAs are not checked between token creation and attachment
+    /// (ruling: "The Germ token enters the battlefield as a 0/0 creature and the
+    /// Equipment becomes attached to it before state-based actions would cause the
+    /// token to die.").
+    ///
+    /// If multiple tokens would be created (e.g., Doubling Season), the Equipment
+    /// attaches to the first one. The others are subject to SBAs normally.
+    CreateTokenAndAttachSource { spec: TokenSpec },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 }
@@ -599,6 +691,12 @@ pub enum TriggerCondition {
     /// action regardless of how many cards were looked at. Does NOT fire when
     /// surveilling 0 (CR 701.25c — no surveil event occurs).
     WheneverYouSurveil,
+    /// CR 701.50b: "Whenever this creature connives."
+    ///
+    /// Fires after the connive action completes (CR 701.50b), even if some or all
+    /// actions were impossible. Fires even if the creature has left the battlefield
+    /// before the event is processed (Psychic Pickpocket ruling, 2022-04-29).
+    WhenConnives,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -663,6 +761,11 @@ pub struct TokenSpec {
     /// Used by Treasure tokens (CR 111.10a), Gold tokens (CR 111.10c), etc.
     #[serde(default)]
     pub mana_abilities: Vec<ManaAbility>,
+    /// Non-mana activated abilities on the token (CR 602).
+    /// Used by Food tokens (CR 111.10b), Clue tokens (CR 111.10f),
+    /// Shard tokens (CR 111.10e), etc.
+    #[serde(default)]
+    pub activated_abilities: Vec<ActivatedAbility>,
 }
 
 impl Default for TokenSpec {
@@ -679,6 +782,7 @@ impl Default for TokenSpec {
             tapped: false,
             mana_color: None,
             mana_abilities: Vec::new(),
+            activated_abilities: Vec::new(),
         }
     }
 }
@@ -697,6 +801,43 @@ pub fn treasure_token_spec(count: u32) -> TokenSpec {
         subtypes: [SubType("Treasure".to_string())].into_iter().collect(),
         keywords: OrdSet::new(),
         mana_abilities: vec![ManaAbility::treasure()],
+        activated_abilities: vec![],
+        count,
+        tapped: false,
+        mana_color: None,
+    }
+}
+
+/// CR 111.10b: Predefined Food token specification.
+///
+/// A colorless Food artifact token with "{2}, {T}, Sacrifice this token:
+/// You gain 3 life."
+pub fn food_token_spec(count: u32) -> TokenSpec {
+    TokenSpec {
+        name: "Food".to_string(),
+        power: 0,
+        toughness: 0,
+        colors: OrdSet::new(),
+        card_types: [CardType::Artifact].into_iter().collect(),
+        subtypes: [SubType("Food".to_string())].into_iter().collect(),
+        keywords: OrdSet::new(),
+        mana_abilities: vec![],
+        activated_abilities: vec![ActivatedAbility {
+            cost: crate::state::game_object::ActivationCost {
+                requires_tap: true,
+                mana_cost: Some(ManaCost {
+                    generic: 2,
+                    ..ManaCost::default()
+                }),
+                sacrifice_self: true,
+            },
+            description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
+            effect: Some(Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(3),
+            }),
+            sorcery_speed: false,
+        }],
         count,
         tapped: false,
         mana_color: None,

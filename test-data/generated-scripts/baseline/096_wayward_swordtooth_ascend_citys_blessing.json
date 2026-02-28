@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_096",
+    "name": "Wayward Swordtooth ETB grants city's blessing via Ascend",
+    "description": "P1 controls exactly 9 permanents (7 Forests, Llanowar Elves, Elvish Mystic) and casts Wayward Swordtooth ({2}{G}{G}). When Wayward Swordtooth enters the battlefield as the 10th permanent, the Ascend static ability (CR 702.131b) is immediately satisfied — not using the stack — and P1 gains the city's blessing for the rest of the game. The test asserts that after resolution P1 has the city's blessing and that Wayward Swordtooth (a 5/5 Dinosaur) is on the battlefield.",
+    "cr_sections_tested": ["601.2", "608.2", "702.131b", "702.131c"],
+    "corner_case_ref": null,
+    "tags": ["ascend", "citys-blessing", "etb", "static-ability", "permanent-count", "dinosaur"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.131b defines Ascend on a permanent as a static ability: 'Any time you control ten or more permanents and you don't have the city's blessing, you get the city's blessing for the rest of the game.' It does not use the stack and cannot be responded to (confirmed by Scryfall ruling 2018-01-19: 'Ascend on a permanent isn't a triggered ability and doesn't use the stack.'). P1 starts with 9 permanents: 7 Forests + Llanowar Elves + Elvish Mystic. Wayward Swordtooth costs {2}{G}{G}; P1 has {colorless:2, green:2} pre-loaded in the mana pool. When Wayward Swordtooth resolves and enters the battlefield as permanent #10, the static ability fires immediately and P1 gains the city's blessing. Assert: players.p1.has_citys_blessing = true, Wayward Swordtooth on battlefield (10 permanents total). DISPUTE: Wayward Swordtooth is not in the engine Available Cards list; the harness will return a missing-definition error until a CardDefinition is authored for this card (5/5 Dinosaur, Ascend static, additional land play, attack/block restriction without city's blessing). The script logic and CR citations are correct; validation is blocked on the card definition gap.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "game-script-generator",
+        "description": "Wayward Swordtooth does not appear in the engine's Available Cards list. The harness will return a missing-definition or InvalidTarget error until a CardDefinition is authored for it. Script logic and CR citations are correct; harness validation is blocked on the card definition gap.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "green": 2, "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Forest", "tapped": true },
+          { "card": "Forest", "tapped": true },
+          { "card": "Forest", "tapped": true },
+          { "card": "Forest", "tapped": false },
+          { "card": "Forest", "tapped": false },
+          { "card": "Forest", "tapped": false },
+          { "card": "Forest", "tapped": false },
+          { "card": "Llanowar Elves", "tapped": false },
+          { "card": "Elvish Mystic", "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Wayward Swordtooth", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Wayward Swordtooth as the 10th permanent; Ascend static ability grants city's blessing immediately on ETB",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: p1 controls exactly 9 permanents, has Wayward Swordtooth in hand",
+          "assertions": {
+            "zones.battlefield.p1.count": 9,
+            "zones.hand.p1.count": 1,
+            "players.p1.has_citys_blessing": false
+          },
+          "note": "9 permanents: 7 Forests + Llanowar Elves + Elvish Mystic. City's blessing not yet acquired."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wayward Swordtooth",
+          "targets": [],
+          "mana_paid": { "green": 2, "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wayward Swordtooth ({2}{G}{G}) from hand; no targets; mana paid from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Wayward Swordtooth on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Wayward Swordtooth is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves top object."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wayward Swordtooth",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Wayward Swordtooth",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Creature spell resolves; Wayward Swordtooth enters the battlefield under p1's control as the 10th permanent."
+            },
+            {
+              "effect": "gain_citys_blessing",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.131b",
+              "note": "CR 702.131b: Ascend on a permanent is a static ability. The moment p1 controls 10 or more permanents and does not already have the city's blessing, p1 immediately gets the city's blessing. This does not use the stack and cannot be responded to."
+            }
+          ],
+          "note": "CR 608.2: Spell resolves. CR 702.131b: Ascend static ability fires immediately as Wayward Swordtooth (the 10th permanent) enters — city's blessing granted without using the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Wayward Swordtooth on battlefield (p1 controls 10 permanents), p1 has city's blessing, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 10,
+            "zones.battlefield.p1": { "includes": [{ "card": "Wayward Swordtooth" }] },
+            "players.p1.has_citys_blessing": true,
+            "players.p2.has_citys_blessing": false
+          },
+          "note": "CR 702.131b: p1 now controls 10 permanents (9 original + Wayward Swordtooth), satisfying Ascend. City's blessing is permanent for the rest of the game (CR 702.131c). p2 did not gain it."
+        }
+      ]
+    }
+  ]
+}

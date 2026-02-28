@@ -19,7 +19,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, SubType};
+use crate::state::types::{CardType, CounterType, EnchantTarget, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -46,54 +46,82 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             let controller = stack_obj.controller;
 
             // CR 608.2b: Check target legality before resolving.
+            // CR 702.103e / 608.3b: Bestowed Aura spells with all-illegal targets revert
+            // to creature spells instead of fizzling.
             let targets = &stack_obj.targets;
-            if !targets.is_empty() {
+            let bestow_fallback = if !targets.is_empty() {
                 let legal_count = targets.iter().filter(|t| is_target_legal(state, t)).count();
 
                 if legal_count == 0 {
-                    // CR 608.2b: All targets illegal — fizzle.
-                    // Card goes to graveyard without effect (same zone move as normal
-                    // instant/sorcery resolution, but emits SpellFizzled, not SpellResolved).
-                    //
-                    // CR 702.34a: If cast with flashback, the card is exiled instead of
-                    // going to the graveyard — this applies even on fizzle.
-                    //
-                    // CR 707.10: Copies have no physical card to move — skip zone move.
-                    let fizzle_source_id = if stack_obj.is_copy {
-                        source_object
+                    if stack_obj.was_bestowed {
+                        // CR 702.103e / 608.3b: Bestowed Aura with illegal target ceases
+                        // to be bestowed and resolves as a creature spell. Revert the
+                        // type transformation on the source object.
+                        if let Some(source_obj) = state.objects.get_mut(&source_object) {
+                            source_obj
+                                .characteristics
+                                .subtypes
+                                .remove(&SubType("Aura".to_string()));
+                            source_obj
+                                .characteristics
+                                .keywords
+                                .remove(&KeywordAbility::Enchant(EnchantTarget::Creature));
+                            source_obj
+                                .characteristics
+                                .card_types
+                                .insert(CardType::Creature);
+                        }
+                        // Fall through to permanent resolution; targets cleared below.
+                        true
                     } else {
-                        let owner = state.object(source_object)?.owner;
-                        let destination = if stack_obj.cast_with_flashback {
-                            ZoneId::Exile // CR 702.34a
+                        // CR 608.2b: All targets illegal — fizzle.
+                        // Card goes to graveyard without effect (same zone move as normal
+                        // instant/sorcery resolution, but emits SpellFizzled, not SpellResolved).
+                        //
+                        // CR 702.34a: If cast with flashback, the card is exiled instead of
+                        // going to the graveyard — this applies even on fizzle.
+                        //
+                        // CR 707.10: Copies have no physical card to move — skip zone move.
+                        let fizzle_source_id = if stack_obj.is_copy {
+                            source_object
                         } else {
-                            ZoneId::Graveyard(owner)
+                            let owner = state.object(source_object)?.owner;
+                            let destination = if stack_obj.cast_with_flashback {
+                                ZoneId::Exile // CR 702.34a
+                            } else {
+                                ZoneId::Graveyard(owner)
+                            };
+                            let (new_id, _old) =
+                                state.move_object_to_zone(source_object, destination)?;
+                            new_id
                         };
-                        let (new_id, _old) =
-                            state.move_object_to_zone(source_object, destination)?;
-                        new_id
-                    };
 
-                    events.push(GameEvent::SpellFizzled {
-                        player: controller,
-                        stack_object_id: stack_obj.id,
-                        source_object_id: fizzle_source_id,
-                    });
+                        events.push(GameEvent::SpellFizzled {
+                            player: controller,
+                            stack_object_id: stack_obj.id,
+                            source_object_id: fizzle_source_id,
+                        });
 
-                    // CR 704.3: Check SBAs before granting priority.
-                    let sba_evts = sba::check_and_apply_sbas(state);
-                    events.extend(sba_evts);
+                        // CR 704.3: Check SBAs before granting priority.
+                        let sba_evts = sba::check_and_apply_sbas(state);
+                        events.extend(sba_evts);
 
-                    // Priority resets to active player after fizzle.
-                    state.turn.players_passed = OrdSet::new();
-                    let active = state.turn.active_player;
-                    state.turn.priority_holder = Some(active);
-                    events.push(GameEvent::PriorityGiven { player: active });
+                        // Priority resets to active player after fizzle.
+                        state.turn.players_passed = OrdSet::new();
+                        let active = state.turn.active_player;
+                        state.turn.priority_holder = Some(active);
+                        events.push(GameEvent::PriorityGiven { player: active });
 
-                    return Ok(events);
+                        return Ok(events);
+                    }
+                } else {
+                    false
                 }
-                // Partial fizzle (some targets illegal): spell resolves normally.
-                // Illegal targets will be unaffected when effects are implemented (M7+).
-            }
+            } else {
+                false
+            };
+            // Partial fizzle (some targets illegal): spell resolves normally.
+            // Illegal targets will be unaffected when effects are implemented (M7+).
 
             // Determine destination zone based on card type (CR 608.2n vs 608.3).
             let (card_types, owner, card_id) = {
@@ -161,6 +189,44 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
 
+            // CR 702.131a: Ascend on an instant or sorcery is a spell ability.
+            // "If you control ten or more permanents and you don't have the city's
+            // blessing, you get the city's blessing for the rest of the game."
+            // Checked at resolution time (after effects execute), not at cast time.
+            // Note: uses raw characteristics.keywords for the stack spell (not layer-
+            // computed) because the spell is on the stack, not the battlefield.
+            {
+                let has_ascend = state
+                    .objects
+                    .get(&source_object)
+                    .map(|obj| {
+                        obj.characteristics
+                            .keywords
+                            .contains(&KeywordAbility::Ascend)
+                    })
+                    .unwrap_or(false);
+                if has_ascend {
+                    let already_has = state
+                        .players
+                        .get(&controller)
+                        .map(|p| p.has_citys_blessing)
+                        .unwrap_or(true);
+                    if !already_has {
+                        let permanent_count = state
+                            .objects
+                            .values()
+                            .filter(|o| o.zone == ZoneId::Battlefield && o.controller == controller)
+                            .count();
+                        if permanent_count >= 10 {
+                            if let Some(p) = state.players.get_mut(&controller) {
+                                p.has_citys_blessing = true;
+                            }
+                            events.push(GameEvent::CitysBlessingGained { player: controller });
+                        }
+                    }
+                }
+            }
+
             // CR 707.10: Copies of spells are not real cards — they don't move to
             // a destination zone when they resolve.  The source_object belongs to
             // the original spell and must not be moved by a copy's resolution.
@@ -188,6 +254,155 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     obj.controller = controller;
                     obj.kicker_times_paid = stack_obj.kicker_times_paid;
                     obj.was_evoked = stack_obj.was_evoked;
+                    // CR 702.138b: Transfer escaped status from stack to permanent.
+                    // A permanent "escaped" if the spell that became it was cast from
+                    // the graveyard using an escape ability. Used by "escapes with
+                    // [counter]" (CR 702.138c) and "escapes with [ability]" (CR 702.138d).
+                    obj.was_escaped = stack_obj.was_escaped;
+                    // CR 702.103b: Transfer bestowed status from stack to permanent.
+                    // If bestow_fallback is true, the spell reverted to creature mode;
+                    // the permanent enters as a creature (not as a bestowed Aura).
+                    obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
+                }
+
+                // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
+                // it enters the battlefield with the specified counters. This is a
+                // replacement effect on ETB (not a triggered ability). Applied here
+                // immediately after the permanent enters the battlefield.
+                if stack_obj.was_escaped {
+                    if let Some(cid) = card_id.clone() {
+                        if let Some(def) = registry.get(cid) {
+                            for ability in &def.abilities {
+                                if let crate::cards::card_definition::AbilityDefinition::EscapeWithCounter {
+                                    counter_type,
+                                    count,
+                                } = ability
+                                {
+                                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                                        let current =
+                                            obj.counters.get(counter_type).copied().unwrap_or(0);
+                                        obj.counters = obj
+                                            .counters
+                                            .update(counter_type.clone(), current + count);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CR 702.136a: Riot -- "You may have this permanent enter with an
+                // additional +1/+1 counter on it. If you don't, it gains haste."
+                // CR 702.136b: Multiple instances each work separately.
+                // CR 614.1c: This is a replacement effect -- applied inline before
+                // PermanentEnteredBattlefield is emitted, not a triggered ability.
+                //
+                // Implementation: For each instance of Riot on the permanent,
+                // default to choosing +1/+1 counter (deterministic testing).
+                // TODO: Add Command::ChooseRiot for player-interactive choice.
+                //
+                // OrdSet deduplicates KeywordAbility::Riot, so we count Riot
+                // instances from the card definition, not from the keywords set
+                // (same approach as Afterlife/Annihilator count parameters).
+                {
+                    let riot_count = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter(|a| {
+                                    matches!(
+                                        a,
+                                        crate::cards::card_definition::AbilityDefinition::Keyword(
+                                            KeywordAbility::Riot
+                                        )
+                                    )
+                                })
+                                .count()
+                        })
+                        .unwrap_or(0);
+
+                    for _ in 0..riot_count {
+                        // Default choice: +1/+1 counter (CR 702.136a).
+                        // Each Riot instance adds one +1/+1 counter.
+                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                            let current = obj
+                                .counters
+                                .get(&CounterType::PlusOnePlusOne)
+                                .copied()
+                                .unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::PlusOnePlusOne, current + 1);
+                        }
+                        events.push(GameEvent::CounterAdded {
+                            object_id: new_id,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        });
+                    }
+                }
+
+                // CR 702.43a: Modular N -- "This permanent enters with N +1/+1 counters
+                // on it." (static ability / ETB replacement effect, CR 614.1c)
+                // CR 702.43b: Multiple instances each work separately; their N values sum.
+                // Count from the card definition (same approach as Riot / Afterlife) since
+                // OrdSet deduplication would collapse Modular(1) + Modular(2) if they had
+                // the same discriminant -- but they don't (different N), so they ARE distinct
+                // variants and would NOT be deduplicated. We still count from the card def
+                // for consistency and correctness.
+                {
+                    let modular_total: u32 = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Modular(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .sum()
+                        })
+                        .unwrap_or(0);
+
+                    if modular_total > 0 {
+                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                            let current = obj
+                                .counters
+                                .get(&CounterType::PlusOnePlusOne)
+                                .copied()
+                                .unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::PlusOnePlusOne, current + modular_total);
+                        }
+                        events.push(GameEvent::CounterAdded {
+                            object_id: new_id,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: modular_total,
+                        });
+                    }
+                }
+
+                // CR 702.103b: If the permanent is bestowed, re-apply the type
+                // transformation after move_object_to_zone (which resets to printed types).
+                // The permanent enters as an Aura enchantment with enchant creature,
+                // not as a creature.
+                if stack_obj.was_bestowed && !bestow_fallback {
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.characteristics.card_types.remove(&CardType::Creature);
+                        obj.characteristics.card_types.insert(CardType::Enchantment);
+                        obj.characteristics
+                            .subtypes
+                            .insert(SubType("Aura".to_string()));
+                        obj.characteristics
+                            .keywords
+                            .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
+                    }
                 }
 
                 // CR 303.4a / 303.4b: If the resolved permanent is an Aura, attach it
@@ -304,8 +519,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             } else {
                 // CR 608.2n: Instant/sorcery — card moves to owner's graveyard.
                 // CR 702.34a: If cast with flashback, exile instead of graveyard.
+                // Flashback overrides buyback: "exile instead of putting it anywhere
+                // else any time it would leave the stack" (CR 702.34a).
+                // CR 702.27a: If buyback was paid (and not flashbacked), return to hand.
                 let destination = if stack_obj.cast_with_flashback {
-                    ZoneId::Exile // CR 702.34a
+                    ZoneId::Exile // CR 702.34a — overrides all other destinations
+                } else if stack_obj.was_buyback_paid {
+                    ZoneId::Hand(owner) // CR 702.27a
                 } else {
                     ZoneId::Graveyard(owner)
                 };
@@ -550,6 +770,369 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.35a: Madness triggered ability resolves.
+        //
+        // "When this card is exiled this way, its owner may cast it by paying [cost]
+        // rather than paying its mana cost. If that player doesn't, they put this
+        // card into their graveyard."
+        //
+        // MVP: Auto-decline — card goes to graveyard. The player can also cast the
+        // card from exile (before the trigger resolves) using CastSpell, which
+        // handle_cast_spell allows when the card has KeywordAbility::Madness and is
+        // in ZoneId::Exile.
+        StackObjectKind::MadnessTrigger {
+            source_object: _,
+            exiled_card,
+            madness_cost: _,
+            owner,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 702.35a: Check if the card is still in exile (CR 400.7).
+            // If the owner already cast it (or it moved via another effect), do nothing.
+            let still_in_exile = state
+                .objects
+                .get(&exiled_card)
+                .map(|obj| obj.zone == ZoneId::Exile)
+                .unwrap_or(false);
+
+            if still_in_exile {
+                // Auto-decline: move the card from exile to its owner's graveyard.
+                if let Ok((new_grave_id, _)) =
+                    state.move_object_to_zone(exiled_card, ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::ObjectPutInGraveyard {
+                        player: owner,
+                        object_id: exiled_card,
+                        new_grave_id,
+                    });
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.94a: Miracle triggered ability resolves.
+        //
+        // "When you reveal this card this way, you may cast it by paying [cost]
+        // rather than its mana cost."
+        //
+        // The player's window to cast for miracle cost is while this trigger was
+        // on the stack (they had priority). They use `CastSpell` with
+        // `cast_with_miracle: true`. On resolution, the trigger just expires.
+        // If the card is still in hand (player did not cast it), it stays there.
+        // If the card was already cast (left hand), nothing to do (CR 400.7).
+        StackObjectKind::MiracleTrigger {
+            source_object: _,
+            revealed_card: _,
+            miracle_cost: _,
+            owner: _,
+        } => {
+            let controller = stack_obj.controller;
+            // CR 702.94a: The trigger resolves — nothing happens to the card here.
+            // If the player cast it (CastSpell with cast_with_miracle: true), it was
+            // already moved to the stack when cast. If they declined, the card remains
+            // in hand normally. No auto-movement is needed.
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.84a: Unearth activated ability resolves.
+        //
+        // "Return this card from your graveyard to the battlefield. It gains haste."
+        // The card stays in the graveyard until this ability resolves; it is NOT
+        // moved to the stack as a cost. Per ruling: "If that card is removed from
+        // your graveyard before the ability resolves, that unearth ability will
+        // resolve and do nothing." (CR 400.7)
+        StackObjectKind::UnearthAbility { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source card is still in the graveyard (CR 400.7).
+            let still_in_graveyard = state
+                .objects
+                .get(&source_object)
+                .map(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
+                .unwrap_or(false);
+
+            if still_in_graveyard {
+                // 1. Move card from graveyard to battlefield (CR 702.84a).
+                let (new_id, _old) =
+                    state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
+
+                // 2. Set controller, was_unearthed flag, and grant haste.
+                //    CR 702.84a: "It gains haste."
+                //    CR 702.84a: The exile effects are NOT granted to the creature
+                //    (per ruling) -- they are tracked via was_unearthed flag on the
+                //    object, which persists even if the creature loses all abilities.
+                let card_id = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    obj.controller = controller;
+                    obj.was_unearthed = true;
+                    // CR 702.10a: Haste — can attack and use tap abilities immediately.
+                    obj.characteristics.keywords.insert(KeywordAbility::Haste);
+                }
+
+                // 3. Apply self ETB replacements (e.g., "enters tapped") and global
+                //    ETB replacements (Rest in Peace, etc.) before emitting PEB event.
+                let registry = state.card_registry.clone();
+                let self_evts = super::replacement::apply_self_etb_from_definition(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(self_evts);
+                let etb_evts =
+                    super::replacement::apply_etb_replacements(state, new_id, controller);
+                events.extend(etb_evts);
+
+                // 4. Register replacement abilities and static continuous effects.
+                super::replacement::register_permanent_replacement_abilities(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                super::replacement::register_static_continuous_effects(
+                    state,
+                    new_id,
+                    card_id.as_ref(),
+                    &registry,
+                );
+
+                // 5. Emit PermanentEnteredBattlefield.
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: new_id,
+                });
+
+                // 6. Fire WhenEntersBattlefield triggered effects from card definition.
+                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(etb_trigger_evts);
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.84a: Unearth delayed triggered ability resolves.
+        //
+        // "Exile it at the beginning of the next end step."
+        // This is a delayed triggered ability created when the unearthed permanent
+        // entered the battlefield. If countered (e.g., by Stifle), the permanent
+        // stays on the battlefield, but the replacement effect still applies (per ruling).
+        StackObjectKind::UnearthTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source is still on the battlefield (CR 400.7).
+            let owner_opt = state
+                .objects
+                .get(&source_object)
+                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .map(|obj| obj.owner);
+
+            if let Some(owner) = owner_opt {
+                // Exile the permanent directly. No zone-change replacement needed:
+                // the replacement effect only fires when the permanent would go to a
+                // NON-exile zone. Here we are already exiling it, so no replacement applies.
+                let (new_exile_id, _old) =
+                    state.move_object_to_zone(source_object, ZoneId::Exile)?;
+                events.push(GameEvent::ObjectExiled {
+                    player: owner,
+                    object_id: source_object,
+                    new_exile_id,
+                });
+            }
+            // If not on battlefield, do nothing (already exiled by replacement or removed).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
+        // a creature. Default (deterministic, no interactive choice): decline.
+        //
+        // TODO: Add Command::ExploitCreature for player-interactive sacrifice choice.
+        // When interactive choice is added, the trigger would pause and emit an
+        // ExploitChoiceRequired event; the player responds with ExploitCreature
+        // (naming the creature to sacrifice) or DeclineExploit.
+        StackObjectKind::ExploitTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // CR 400.7: Check if the source is still on the battlefield.
+            // If it left (blinked, bounced, destroyed), the trigger still resolves
+            // but there's nothing to "exploit with." (Check is informational only;
+            // the default "decline sacrifice" path is identical in both cases.)
+            let _source_on_bf = state
+                .objects
+                .get(&source_object)
+                .is_some_and(|obj| obj.zone == ZoneId::Battlefield);
+
+            // Default: decline sacrifice. No creature is sacrificed.
+            // The trigger resolves with no effect.
+            // NOTE: Even though the sacrifice is declined, the ability DID resolve.
+            // "When this creature exploits a creature" secondary triggers do NOT fire
+            // because no creature was sacrificed (CR 702.110b).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.43a: Modular trigger resolves -- put +1/+1 counters on target
+        // artifact creature equal to counter_count (last-known information from
+        // pre_death_counters, Arcbound Worker ruling 2006-09-25).
+        StackObjectKind::ModularTrigger {
+            source_object: _,
+            counter_count,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 608.2b: Fizzle check -- verify target is still a legal artifact creature
+            // on the battlefield. If it is not, the trigger fizzles with no effect.
+            let target_id_opt = stack_obj.targets.first().and_then(|t| match &t.target {
+                Target::Object(id) => {
+                    let still_legal = state.objects.get(id).is_some_and(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.characteristics.card_types.contains(&CardType::Artifact)
+                            && obj.characteristics.card_types.contains(&CardType::Creature)
+                    });
+                    if still_legal {
+                        Some(*id)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            });
+
+            if let Some(target_id) = target_id_opt {
+                if counter_count > 0 {
+                    if let Some(obj) = state.objects.get_mut(&target_id) {
+                        let current = obj
+                            .counters
+                            .get(&CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters = obj
+                            .counters
+                            .update(CounterType::PlusOnePlusOne, current + counter_count);
+                    }
+                    events.push(GameEvent::CounterAdded {
+                        object_id: target_id,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: counter_count,
+                    });
+                }
+            }
+            // If target illegal (fizzled) or counter_count == 0, do nothing.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.100a: Evolve trigger resolves -- re-check the intervening-if
+        // condition (CR 603.4) and place a +1/+1 counter on the source creature
+        // if the entering creature still has greater P and/or T.
+        StackObjectKind::EvolveTrigger {
+            source_object,
+            entering_creature,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Resolution-time intervening-if re-check.
+            // Compare entering creature's P/T vs evolve creature's P/T.
+            //
+            // Ruling 2013-04-15: "If the creature that entered the battlefield
+            // leaves the battlefield before evolve tries to resolve, use its
+            // last known power and toughness to compare the stats."
+            //
+            // Use calculate_characteristics for layer-aware P/T; fall back to
+            // raw characteristics for objects that left the battlefield.
+            let entering_chars =
+                crate::rules::layers::calculate_characteristics(state, entering_creature).or_else(
+                    || {
+                        state
+                            .objects
+                            .get(&entering_creature)
+                            .map(|o| o.characteristics.clone())
+                    },
+                );
+
+            let evolve_chars =
+                crate::rules::layers::calculate_characteristics(state, source_object).or_else(
+                    || {
+                        state
+                            .objects
+                            .get(&source_object)
+                            .map(|o| o.characteristics.clone())
+                    },
+                );
+
+            let condition_holds = match (entering_chars, evolve_chars) {
+                (Some(entering), Some(evolve)) => {
+                    let ep = entering.power.unwrap_or(0);
+                    let et = entering.toughness.unwrap_or(0);
+                    let sp = evolve.power.unwrap_or(0);
+                    let st = evolve.toughness.unwrap_or(0);
+                    // CR 702.100a: "greater than this creature's power and/or
+                    // that creature's toughness is greater than this creature's
+                    // toughness" — inclusive OR.
+                    ep > sp || et > st
+                }
+                // One or both objects no longer exist — condition fails (conservative).
+                _ => false,
+            };
+
+            if condition_holds {
+                // CR 702.100a: Put a +1/+1 counter on the evolve creature.
+                // The source must still be on the battlefield.
+                if let Some(obj) = state.objects.get_mut(&source_object) {
+                    if obj.zone == ZoneId::Battlefield {
+                        let current = obj
+                            .counters
+                            .get(&CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters = obj
+                            .counters
+                            .update(CounterType::PlusOnePlusOne, current + 1);
+
+                        events.push(GameEvent::CounterAdded {
+                            object_id: source_object,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        });
+                    }
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -644,7 +1227,14 @@ pub fn counter_stack_object(
         | StackObjectKind::TriggeredAbility { .. }
         | StackObjectKind::CascadeTrigger { .. }
         | StackObjectKind::StormTrigger { .. }
-        | StackObjectKind::EvokeSacrificeTrigger { .. } => {
+        | StackObjectKind::EvokeSacrificeTrigger { .. }
+        | StackObjectKind::MadnessTrigger { .. }
+        | StackObjectKind::MiracleTrigger { .. }
+        | StackObjectKind::UnearthAbility { .. }
+        | StackObjectKind::UnearthTrigger { .. }
+        | StackObjectKind::ExploitTrigger { .. }
+        | StackObjectKind::ModularTrigger { .. }
+        | StackObjectKind::EvolveTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

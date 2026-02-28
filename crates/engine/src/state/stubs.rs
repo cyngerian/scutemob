@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::game_object::ObjectId;
+use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
 
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
@@ -88,6 +88,87 @@ pub struct PendingTrigger {
     /// [effect on defending player]" trigger. `None` for all other trigger types.
     #[serde(default)]
     pub defending_player_id: Option<PlayerId>,
+    /// CR 702.35a: If true, this pending trigger is a Madness trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::MadnessTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The fields
+    /// `madness_exiled_card` and `madness_cost` carry the madness-specific data.
+    /// The `ability_index` field is unused when this is true.
+    #[serde(default)]
+    pub is_madness_trigger: bool,
+    /// CR 702.35a: ObjectId of the card in exile (new ID after the discard replacement).
+    ///
+    /// Only meaningful when `is_madness_trigger` is true.
+    #[serde(default)]
+    pub madness_exiled_card: Option<ObjectId>,
+    /// CR 702.35a: The madness alternative cost captured at trigger time.
+    ///
+    /// Only meaningful when `is_madness_trigger` is true.
+    #[serde(default)]
+    pub madness_cost: Option<ManaCost>,
+    /// CR 702.94a: If true, this pending trigger is a Miracle trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::MiracleTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The fields
+    /// `miracle_revealed_card` and `miracle_cost` carry the miracle-specific data.
+    /// The `ability_index` field is unused when this is true.
+    #[serde(default)]
+    pub is_miracle_trigger: bool,
+    /// CR 702.94a: ObjectId of the revealed card in hand.
+    ///
+    /// Only meaningful when `is_miracle_trigger` is true.
+    #[serde(default)]
+    pub miracle_revealed_card: Option<ObjectId>,
+    /// CR 702.94a: The miracle alternative cost captured at trigger time.
+    ///
+    /// Only meaningful when `is_miracle_trigger` is true.
+    #[serde(default)]
+    pub miracle_cost: Option<ManaCost>,
+    /// CR 702.84a: If true, this pending trigger is the unearth delayed exile trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::UnearthTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The `ability_index`
+    /// field is unused when this is true.
+    #[serde(default)]
+    pub is_unearth_trigger: bool,
+    /// CR 702.110a: If true, this pending trigger is an Exploit trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::ExploitTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The `ability_index`
+    /// field is unused when this is true.
+    #[serde(default)]
+    pub is_exploit_trigger: bool,
+    /// CR 702.43a: If true, this pending trigger is a Modular trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::ModularTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `modular_counter_count` carries the +1/+1 counter count from last-known
+    /// information (pre_death_counters). The `ability_index` field is unused
+    /// when this is true.
+    #[serde(default)]
+    pub is_modular_trigger: bool,
+    /// CR 702.43a: Number of +1/+1 counters on the creature at death time.
+    ///
+    /// Only meaningful when `is_modular_trigger` is true. Captured from
+    /// `pre_death_counters[PlusOnePlusOne]` at trigger-check time (last-known
+    /// information per Arcbound Worker ruling 2006-09-25).
+    #[serde(default)]
+    pub modular_counter_count: Option<u32>,
+    /// CR 702.100a: If true, this pending trigger is an Evolve trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::EvolveTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `evolve_entering_creature` carries the ObjectId of the creature that
+    /// entered the battlefield and triggered evolve.
+    #[serde(default)]
+    pub is_evolve_trigger: bool,
+    /// CR 702.100a: ObjectId of the creature that entered the battlefield.
+    ///
+    /// Only meaningful when `is_evolve_trigger` is true. Used at resolution
+    /// time for the intervening-if re-check (P/T comparison, CR 603.4).
+    /// If this creature left the battlefield, use last-known information.
+    #[serde(default)]
+    pub evolve_entering_creature: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

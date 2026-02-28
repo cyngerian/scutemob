@@ -196,6 +196,12 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -289,6 +295,12 @@ fn test_convoke_colored_mana_match() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -375,6 +387,12 @@ fn test_convoke_generic_mana_any_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -446,6 +464,12 @@ fn test_convoke_reject_no_keyword() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -499,6 +523,12 @@ fn test_convoke_reject_tapped_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -551,6 +581,12 @@ fn test_convoke_reject_not_creature() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -604,6 +640,12 @@ fn test_convoke_reject_not_controlled() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -668,6 +710,12 @@ fn test_convoke_reject_too_many_creatures() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -772,6 +820,12 @@ fn test_convoke_with_commander_tax() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -856,6 +910,12 @@ fn test_convoke_no_summoning_sickness() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -915,6 +975,12 @@ fn test_convoke_zero_creatures() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -989,6 +1055,12 @@ fn test_convoke_multicolored_creature_pays_colored() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

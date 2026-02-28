@@ -189,6 +189,11 @@ fn test_add_object_to_state() {
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
         was_evoked: false,
+        is_bestowed: false,
+        was_escaped: false,
+        is_foretold: false,
+        foretold_turn: 0,
+        was_unearthed: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

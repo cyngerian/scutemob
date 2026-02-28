@@ -127,6 +127,11 @@ fn test_clone_independence_object_modification() {
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 was_evoked: false,
+                is_bestowed: false,
+                was_escaped: false,
+                is_foretold: false,
+                foretold_turn: 0,
+                was_unearthed: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

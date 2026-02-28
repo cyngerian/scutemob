@@ -31,6 +31,7 @@ use crate::cards::card_definition::{
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{Characteristics, GameObject, ObjectId, ObjectStatus};
 use crate::state::player::PlayerId;
+use crate::state::stubs::PendingTrigger;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{CardType, KeywordAbility, ManaColor};
 use crate::state::zone::{ZoneId, ZoneType};
@@ -202,14 +203,49 @@ fn execute_effect_inner(
                                     obj.counters
                                         .insert(crate::state::types::CounterType::Loyalty, new_val);
                                 }
+                            } else if card_types.contains(&CardType::Creature) {
+                                // CR 120.3d/e: check source for wither keyword.
+                                // CR 702.80a: wither only applies to damage dealt to creatures.
+                                // CR 702.80c: wither functions from any zone.
+                                let source_has_wither =
+                                    crate::rules::layers::calculate_characteristics(
+                                        state, ctx.source,
+                                    )
+                                    .map(|c| c.keywords.contains(&KeywordAbility::Wither))
+                                    .unwrap_or(false);
+
+                                if let Some(obj) = state.objects.get_mut(&id) {
+                                    if source_has_wither {
+                                        // CR 702.80a / CR 120.3d: wither damage to a creature
+                                        // places -1/-1 counters instead of marking damage.
+                                        let cur = obj
+                                            .counters
+                                            .get(
+                                                &crate::state::types::CounterType::MinusOneMinusOne,
+                                            )
+                                            .copied()
+                                            .unwrap_or(0);
+                                        obj.counters.insert(
+                                            crate::state::types::CounterType::MinusOneMinusOne,
+                                            cur + final_dmg,
+                                        );
+                                        events.push(GameEvent::CounterAdded {
+                                            object_id: id,
+                                            counter:
+                                                crate::state::types::CounterType::MinusOneMinusOne,
+                                            count: final_dmg,
+                                        });
+                                    } else {
+                                        // CR 120.3e: normal damage marking.
+                                        obj.damage_marked += final_dmg;
+                                    }
+                                }
                             } else {
-                                // CR 120.3b: damage to a creature marks damage_marked.
+                                // CR 120.3e: non-creature, non-planeswalker permanents (e.g.,
+                                // battles, CR 120.3h) mark damage normally. Wither does NOT
+                                // apply (CR 702.80a — only creatures receive -1/-1 counters).
                                 if let Some(obj) = state.objects.get_mut(&id) {
                                     obj.damage_marked += final_dmg;
-                                    // CR 702.2: deathtouch — mark for SBA.
-                                    // (deathtouch_damage field exists on the source; for spell
-                                    // damage we do not set deathtouch_damage here — spell damage
-                                    // sources don't have the deathtouch keyword in this context.)
                                 }
                             }
                             events.push(GameEvent::DamageDealt {
@@ -340,6 +376,73 @@ fn execute_effect_inner(
                     events.push(GameEvent::PermanentEnteredBattlefield {
                         player: ctx.controller,
                         object_id: id,
+                    });
+                }
+            }
+        }
+
+        // CR 702.92a: Create a token and immediately attach the source Equipment to it.
+        //
+        // Used by Living Weapon. The create + attach happen atomically: SBAs do not fire
+        // between creation and attachment (ruling: "The Germ token enters the battlefield
+        // as a 0/0 creature and the Equipment becomes attached to it before state-based
+        // actions would cause the token to die.").
+        //
+        // If multiple tokens are created (e.g., Doubling Season), the Equipment attaches
+        // to the first one. Others are subject to SBAs normally (ruling 2020-08-07).
+        Effect::CreateTokenAndAttachSource { spec } => {
+            let mut first_token_id: Option<ObjectId> = None;
+            for _ in 0..spec.count {
+                let obj = make_token(spec, ctx.controller);
+                if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                    events.push(GameEvent::TokenCreated {
+                        player: ctx.controller,
+                        object_id: id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: ctx.controller,
+                        object_id: id,
+                    });
+                    if first_token_id.is_none() {
+                        first_token_id = Some(id);
+                    }
+                }
+            }
+            // Attach source Equipment to the first created token (CR 702.92a).
+            // If Doubling Season creates extras, only the first gets equipped (ruling).
+            if let Some(token_id) = first_token_id {
+                let equip_id = ctx.source;
+                // Verify source is still on the battlefield and is an Equipment.
+                let source_on_bf = state
+                    .objects
+                    .get(&equip_id)
+                    .map(|o| o.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+                if source_on_bf {
+                    // Detach from previous (should not be attached, but defensive).
+                    let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
+                    if let Some(prev_target) = prev_target_opt {
+                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                            prev.attachments.retain(|&x| x != equip_id);
+                        }
+                    }
+                    // Attach to token (CR 702.92a).
+                    // CR 701.3c / CR 613.7e: new timestamp on attach.
+                    state.timestamp_counter += 1;
+                    let new_ts = state.timestamp_counter;
+                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                        equip_obj.attached_to = Some(token_id);
+                        equip_obj.timestamp = new_ts;
+                    }
+                    if let Some(target_obj) = state.objects.get_mut(&token_id) {
+                        if !target_obj.attachments.contains(&equip_id) {
+                            target_obj.attachments.push_back(equip_id);
+                        }
+                    }
+                    events.push(GameEvent::EquipmentAttached {
+                        equipment_id: equip_id,
+                        target_id: token_id,
+                        controller: ctx.controller,
                     });
                 }
             }
@@ -1381,6 +1484,173 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 701.50a/e: Connive N — the permanent's controller draws N cards,
+        // discards N cards, then puts a +1/+1 counter on the permanent for each
+        // nonland card discarded this way.
+        // CR 701.50b: The permanent "connives" even if some actions were impossible.
+        // CR 701.50c: If the permanent left the battlefield, no counter is placed.
+        Effect::Connive { target, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let targets = resolve_effect_target_list(state, target, ctx);
+
+            for resolved in targets {
+                if let ResolvedTarget::Object(creature_id) = resolved {
+                    // CR 701.50a: The permanent's CONTROLLER draws and discards.
+                    // CR 701.50c: If the permanent left the battlefield, fall back
+                    // to ctx.controller so the controller still draws/discards.
+                    let controller = state
+                        .objects
+                        .get(&creature_id)
+                        .map(|obj| obj.controller)
+                        .unwrap_or(ctx.controller);
+
+                    // Step 1: Draw N cards (CR 701.50e).
+                    for _ in 0..n {
+                        let draw_evts = draw_one_card(state, controller);
+                        events.extend(draw_evts);
+                    }
+
+                    // Step 2: Discard N cards and count nonland discards.
+                    // Cannot reuse discard_cards helper — we need per-card type info
+                    // to determine the counter count. Inline the discard logic here.
+                    let hand_zone = ZoneId::Hand(controller);
+                    let mut nonland_count: u32 = 0;
+
+                    for _ in 0..n {
+                        // Deterministic: discard the card with the smallest ObjectId.
+                        let card_id = state
+                            .objects
+                            .iter()
+                            .filter(|(_, obj)| obj.zone == hand_zone)
+                            .map(|(&id, _)| id)
+                            .min_by_key(|id| id.0);
+
+                        if let Some(card_id) = card_id {
+                            // CR 701.50a: Check if the discarded card is nonland
+                            // BEFORE moving it (card types survive in hand only).
+                            let is_nonland = state
+                                .objects
+                                .get(&card_id)
+                                .map(|obj| {
+                                    !obj.characteristics.card_types.contains(&CardType::Land)
+                                })
+                                .unwrap_or(false);
+
+                            if is_nonland {
+                                nonland_count += 1;
+                            }
+
+                            // CR 702.35a: Check for Madness before zone change.
+                            let obj_card_id =
+                                state.objects.get(&card_id).and_then(|o| o.card_id.clone());
+                            let has_madness = state
+                                .objects
+                                .get(&card_id)
+                                .map(|obj| {
+                                    obj.characteristics
+                                        .keywords
+                                        .contains(&KeywordAbility::Madness)
+                                })
+                                .unwrap_or(false);
+
+                            let destination = if has_madness {
+                                ZoneId::Exile
+                            } else {
+                                ZoneId::Graveyard(controller)
+                            };
+
+                            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination)
+                            {
+                                // CR ruling: CardDiscarded fires even when card goes to exile.
+                                events.push(GameEvent::CardDiscarded {
+                                    player: controller,
+                                    object_id: card_id,
+                                    new_id,
+                                });
+
+                                if has_madness {
+                                    // CR 702.35a: Look up madness cost and queue trigger.
+                                    let madness_cost = obj_card_id.as_ref().and_then(|cid| {
+                                        state.card_registry.get(cid.clone()).and_then(|def| {
+                                            def.abilities.iter().find_map(|a| {
+                                                if let crate::cards::card_definition::AbilityDefinition::Madness { cost } = a {
+                                                    Some(cost.clone())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                        })
+                                    });
+                                    state.pending_triggers.push_back(PendingTrigger {
+                                        source: new_id,
+                                        ability_index: 0,
+                                        controller,
+                                        triggering_event: None,
+                                        entering_object_id: None,
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        is_evoke_sacrifice: false,
+                                        is_madness_trigger: true,
+                                        madness_exiled_card: Some(new_id),
+                                        madness_cost,
+                                        is_miracle_trigger: false,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        is_unearth_trigger: false,
+                                        is_exploit_trigger: false,
+                                        is_modular_trigger: false,
+                                        modular_counter_count: None,
+                                        is_evolve_trigger: false,
+                                        evolve_entering_creature: None,
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Step 3: Place +1/+1 counters on the conniving permanent.
+                    // CR 701.50c: Only if the permanent is still on the battlefield.
+                    let creature_on_battlefield = state
+                        .objects
+                        .get(&creature_id)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false);
+
+                    if nonland_count > 0 && creature_on_battlefield {
+                        if let Some(obj) = state.objects.get_mut(&creature_id) {
+                            let cur = obj
+                                .counters
+                                .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                                .copied()
+                                .unwrap_or(0);
+                            obj.counters.insert(
+                                crate::state::types::CounterType::PlusOnePlusOne,
+                                cur + nonland_count,
+                            );
+                            events.push(GameEvent::CounterAdded {
+                                object_id: creature_id,
+                                counter: crate::state::types::CounterType::PlusOnePlusOne,
+                                count: nonland_count,
+                            });
+                        }
+                    }
+
+                    // CR 701.50b: The permanent "connives" regardless of whether
+                    // actions were possible. Emit Connived for trigger support.
+                    events.push(GameEvent::Connived {
+                        object_id: creature_id,
+                        player: controller,
+                        counters_placed: if creature_on_battlefield {
+                            nonland_count
+                        } else {
+                            0
+                        },
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -1742,6 +2012,10 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         mana_abilities.push_back(ma.clone());
     }
 
+    // CR 111.10b: propagate non-mana activated abilities (e.g. Food's sacrifice-for-life).
+    let activated_abilities: Vec<crate::state::game_object::ActivatedAbility> =
+        spec.activated_abilities.clone();
+
     let characteristics = Characteristics {
         name: spec.name.clone(),
         power: Some(spec.power),
@@ -1751,6 +2025,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         subtypes,
         colors,
         mana_abilities,
+        activated_abilities,
         ..Characteristics::default()
     };
 
@@ -1778,6 +2053,11 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
         was_evoked: false,
+        is_bestowed: false,
+        was_escaped: false,
+        is_foretold: false,
+        foretold_turn: 0,
+        was_unearthed: false,
     }
 }
 
@@ -1824,10 +2104,17 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
                 if let Some(ps) = state.players.get_mut(&player) {
                     ps.cards_drawn_this_turn += 1;
                 }
-                vec![GameEvent::CardDrawn {
+                let mut events = vec![GameEvent::CardDrawn {
                     player,
                     new_object_id: new_id,
-                }]
+                }];
+                // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
+                if let Some(miracle_event) =
+                    crate::rules::miracle::check_miracle_eligible(state, player, new_id)
+                {
+                    events.push(miracle_event);
+                }
+                events
             } else {
                 vec![]
             }
@@ -1836,6 +2123,12 @@ fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
 }
 
 /// Discard `n` cards from a player's hand (first by ObjectId, deterministic).
+///
+/// CR 702.35a: If a discarded card has `KeywordAbility::Madness`, it is exiled
+/// instead of going to the graveyard. The `CardDiscarded` event still fires (per
+/// CR ruling: "A card with madness that's discarded counts as having been discarded
+/// even though it's put into exile rather than a graveyard"). A `MadnessTrigger` is
+/// pushed onto the stack so the owner may cast the card for its madness cost.
 fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut Vec<GameEvent>) {
     let hand_id = ZoneId::Hand(player);
     for _ in 0..n {
@@ -1847,12 +2140,74 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
             .min_by_key(|id| id.0);
 
         if let Some(card_id) = card_id {
-            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, ZoneId::Graveyard(player)) {
+            // CR 702.35a: Check if the card has Madness before zone change.
+            let obj_card_id = state.objects.get(&card_id).and_then(|o| o.card_id.clone());
+            let has_madness = state
+                .objects
+                .get(&card_id)
+                .map(|obj| {
+                    obj.characteristics
+                        .keywords
+                        .contains(&KeywordAbility::Madness)
+                })
+                .unwrap_or(false);
+
+            let destination = if has_madness {
+                ZoneId::Exile
+            } else {
+                ZoneId::Graveyard(player)
+            };
+
+            if let Ok((new_id, _)) = state.move_object_to_zone(card_id, destination) {
+                // CR ruling: CardDiscarded always fires, even when card goes to exile.
                 events.push(GameEvent::CardDiscarded {
                     player,
                     object_id: card_id,
                     new_id,
                 });
+
+                if has_madness {
+                    // CR 702.35a: Look up the madness cost and queue the trigger via
+                    // pending_triggers so flush_pending_triggers properly signals priority.
+                    let madness_cost = obj_card_id.as_ref().and_then(|cid| {
+                        state.card_registry.get(cid.clone()).and_then(|def| {
+                            def.abilities.iter().find_map(|a| {
+                                if let crate::cards::card_definition::AbilityDefinition::Madness {
+                                    cost,
+                                } = a
+                                {
+                                    Some(cost.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                    });
+                    state.pending_triggers.push_back(PendingTrigger {
+                        source: new_id,
+                        ability_index: 0,
+                        controller: player,
+                        triggering_event: None,
+                        entering_object_id: None,
+                        targeting_stack_id: None,
+                        triggering_player: None,
+                        exalted_attacker_id: None,
+                        defending_player_id: None,
+                        is_evoke_sacrifice: false,
+                        is_madness_trigger: true,
+                        madness_exiled_card: Some(new_id),
+                        madness_cost,
+                        is_miracle_trigger: false,
+                        miracle_revealed_card: None,
+                        miracle_cost: None,
+                        is_unearth_trigger: false,
+                        is_exploit_trigger: false,
+                        is_modular_trigger: false,
+                        modular_counter_count: None,
+                        is_evolve_trigger: false,
+                        evolve_entering_creature: None,
+                    });
+                }
             }
         }
     }

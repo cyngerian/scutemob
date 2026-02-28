@@ -225,6 +225,12 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -366,6 +372,12 @@ fn test_evoke_basic_cast_without_evoke() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -461,6 +473,12 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -562,6 +580,12 @@ fn test_evoke_does_not_change_mana_value() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -695,6 +719,12 @@ fn test_evoke_cannot_combine_with_flashback() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -759,6 +789,12 @@ fn test_evoke_non_evoke_spell_rejected() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -833,6 +869,12 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
     assert!(
@@ -916,6 +958,12 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: true,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .unwrap();

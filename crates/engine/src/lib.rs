@@ -6,8 +6,8 @@ pub mod testing;
 
 pub use cards::definitions::all_cards;
 pub use cards::{
-    treasure_token_spec, AbilityDefinition, CardDefinition, CardRegistry, Condition,
-    ContinuousEffectDef as CardContinuousEffectDef, Cost, Effect, EffectAmount,
+    food_token_spec, treasure_token_spec, AbilityDefinition, CardDefinition, CardRegistry,
+    Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost, Effect, EffectAmount,
     EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget,
     TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
     TriggerCondition, TypeLine, ZoneTarget,
@@ -16,9 +16,9 @@ pub use cards::{
 // Convenience re-exports of primary types
 pub use state::types::ALL_CREATURE_TYPES;
 pub use state::{
-    AbilityInstance, AttackTarget, CardId, CardType, Characteristics, Color, CombatState,
-    ContinuousEffect, CounterType, DamageTargetFilter, EffectDuration, EffectFilter, EffectId,
-    EffectLayer, EnchantTarget, GameObject, GameState, GameStateBuilder, GameStateError,
+    AbilityInstance, AffinityTarget, AttackTarget, CardId, CardType, Characteristics, Color,
+    CombatState, ContinuousEffect, CounterType, DamageTargetFilter, EffectDuration, EffectFilter,
+    EffectId, EffectLayer, EnchantTarget, GameObject, GameState, GameStateBuilder, GameStateError,
     KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
     ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder,
     PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId,

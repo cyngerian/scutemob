@@ -565,6 +565,34 @@ pub fn check_zone_change_replacement(
     owner: PlayerId,
     already_applied: &HashSet<ReplacementId>,
 ) -> ZoneChangeAction {
+    use crate::state::zone::ZoneType;
+
+    // CR 702.84a: Unearth replacement effect -- "If it would leave the battlefield,
+    // exile it instead of putting it anywhere else."
+    //
+    // This is NOT an ability on the creature -- it persists even if the creature
+    // loses all abilities (Humility, Sudden Spoiling, etc.). The was_unearthed flag
+    // on the object is the tracking mechanism (independent of creature abilities).
+    //
+    // Per ruling: "If the spell or ability is actually trying to exile it, it
+    // succeeds at exiling it." -- only redirect if destination is not already exile.
+    if from == ZoneType::Battlefield && to != ZoneType::Exile {
+        if let Some(obj) = state.objects.get(&object_id) {
+            if obj.was_unearthed {
+                // Redirect to exile (CR 702.84a).
+                return ZoneChangeAction::Redirect {
+                    to: ZoneId::Exile,
+                    events: vec![GameEvent::ReplacementEffectApplied {
+                        effect_id: crate::state::replacement_effect::ReplacementId(u64::MAX),
+                        description: "Unearth: exiled instead of leaving the battlefield"
+                            .to_string(),
+                    }],
+                    applied_id: crate::state::replacement_effect::ReplacementId(u64::MAX),
+                };
+            }
+        }
+    }
+
     let trigger = ReplacementTrigger::WouldChangeZone {
         from: Some(from),
         to,
@@ -1558,8 +1586,18 @@ fn draw_card_skipping_dredge(
         p.cards_drawn_this_turn += 1;
     }
 
-    Ok(vec![GameEvent::CardDrawn {
+    let mut events = vec![GameEvent::CardDrawn {
         player,
         new_object_id: new_id,
-    }])
+    }];
+
+    // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
+    // (After the player declined dredge, this is a normal draw and miracle applies.)
+    if let Some(miracle_event) =
+        crate::rules::miracle::check_miracle_eligible(state, player, new_id)
+    {
+        events.push(miracle_event);
+    }
+
+    Ok(events)
 }

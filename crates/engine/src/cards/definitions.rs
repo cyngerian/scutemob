@@ -21,14 +21,14 @@ use im::OrdSet;
 
 use crate::state::player::PlayerId;
 use crate::state::{
-    CardId, CardType, Color, EnchantTarget, KeywordAbility, LandwalkType, ManaCost, ManaPool,
-    SubType, SuperType,
+    AffinityTarget, CardId, CardType, Color, EnchantTarget, KeywordAbility, LandwalkType, ManaCost,
+    ManaPool, SubType, SuperType,
 };
 
 use super::card_definition::{
-    treasure_token_spec, AbilityDefinition, CardDefinition, Condition, ContinuousEffectDef, Cost,
-    Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget, TargetFilter,
-    TargetRequirement, TimingRestriction, TriggerCondition, TypeLine, ZoneTarget,
+    food_token_spec, treasure_token_spec, AbilityDefinition, CardDefinition, Condition,
+    ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget,
+    TargetFilter, TargetRequirement, TimingRestriction, TriggerCondition, TypeLine, ZoneTarget,
 };
 use crate::state::continuous_effect::{
     EffectDuration, EffectFilter, EffectLayer, LayerModification,
@@ -705,6 +705,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             tapped: false,
                             mana_color: None,
                             mana_abilities: vec![],
+                            activated_abilities: vec![],
                         },
                     },
                 ]),
@@ -741,6 +742,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             tapped: false,
                             mana_color: None,
                             mana_abilities: vec![],
+                            activated_abilities: vec![],
                         },
                     },
                 ]),
@@ -815,6 +817,27 @@ pub fn all_cards() -> Vec<CardDefinition> {
                     cant_be_countered: false,
                 },
             ],
+            ..Default::default()
+        },
+
+        // Bake into a Pie — {2BB}, Instant; destroy target creature, create a Food token.
+        CardDefinition {
+            card_id: cid("bake-into-a-pie"),
+            name: "Bake into a Pie".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, black: 2, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Destroy target creature. Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")".to_string(),
+            abilities: vec![AbilityDefinition::Spell {
+                effect: Effect::Sequence(vec![
+                    Effect::DestroyPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    Effect::CreateToken { spec: food_token_spec(1) },
+                ]),
+                targets: vec![TargetRequirement::TargetCreature],
+                modes: None,
+                cant_be_countered: false,
+            }],
             ..Default::default()
         },
 
@@ -953,6 +976,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             tapped: false,
                             mana_color: None,
                             mana_abilities: vec![],
+                            activated_abilities: vec![],
                         },
                     },
                 ]),
@@ -1508,6 +1532,60 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ..Default::default()
         },
 
+        // 48. Batterskull — {5}, Artifact — Equipment; Living weapon. Equipped creature gets
+        //     +4/+4 and has vigilance and lifelink. Equip {5}.
+        //     CR 702.92a: Living weapon ETB trigger creates 0/0 black Phyrexian Germ, attaches.
+        //     CR 702.6a: Equipment static ability grants keywords to equipped creature.
+        CardDefinition {
+            card_id: cid("batterskull"),
+            name: "Batterskull".to_string(),
+            mana_cost: Some(ManaCost { generic: 5, ..Default::default() }),
+            types: types_sub(&[CardType::Artifact], &["Equipment"]),
+            oracle_text:
+                "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ \
+                 creature token, then attach this Equipment to it.)\n\
+                 Equipped creature gets +4/+4 and has vigilance and lifelink.\n\
+                 Equip {5}"
+                    .to_string(),
+            abilities: vec![
+                // CR 702.92a: Living weapon — ETB trigger handled by builder.rs keyword wiring.
+                AbilityDefinition::Keyword(KeywordAbility::LivingWeapon),
+                // CR 702.6a: Equipped creature gets +4/+4 (layer 7c).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::PtModify,
+                        modification: LayerModification::ModifyBoth(4),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
+                // CR 702.6a: Equipped creature has vigilance and lifelink (layer 6).
+                AbilityDefinition::Static {
+                    continuous_effect: ContinuousEffectDef {
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeywords(
+                            [KeywordAbility::Vigilance, KeywordAbility::Lifelink]
+                                .into_iter()
+                                .collect(),
+                        ),
+                        filter: EffectFilter::AttachedCreature,
+                        duration: EffectDuration::WhileSourceOnBattlefield,
+                    },
+                },
+                // Equip {5}: attach this Equipment to target creature you control.
+                // CR 702.6b/d: Equip is a sorcery-speed activated ability.
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(ManaCost { generic: 5, ..Default::default() }),
+                    effect: Effect::AttachEquipment {
+                        equipment: EffectTarget::Source,
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                },
+            ],
+            ..Default::default()
+        },
+
         // ── Utility creatures ────────────────────────────────────────────────
 
         // 47. Llanowar Elves — {G}, Creature — Elf Druid 1/1; {T}: add {G}.
@@ -1658,7 +1736,37 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
-        // 57. Bog Raiders — {2B}, Creature — Zombie 2/2; Swampwalk.
+        // 57. Fiery Temper — {1RR}, Instant; Fiery Temper deals 3 damage to any target.
+        //     Madness {R} (If you discard this card, discard it into exile. When you do,
+        //     cast it for its madness cost or put it into your graveyard.)
+        //     CR 702.35: Madness — exile replacement + triggered cast opportunity.
+        CardDefinition {
+            card_id: cid("fiery-temper"),
+            name: "Fiery Temper".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, red: 2, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text:
+                "Fiery Temper deals 3 damage to any target.\n\
+                 Madness {R} (If you discard this card, discard it into exile. When you do, \
+                 cast it for its madness cost or put it into your graveyard.)"
+                    .to_string(),
+            abilities: vec![
+                AbilityDefinition::Spell {
+                    effect: Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(3),
+                    },
+                    targets: vec![TargetRequirement::TargetAny],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+                AbilityDefinition::Keyword(KeywordAbility::Madness),
+                AbilityDefinition::Madness { cost: ManaCost { red: 1, ..Default::default() } },
+            ],
+            ..Default::default()
+        },
+
+        // 58. Bog Raiders — {2B}, Creature — Zombie 2/2; Swampwalk.
         CardDefinition {
             card_id: cid("bog-raiders"),
             name: "Bog Raiders".to_string(),
@@ -1674,7 +1782,37 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
-        // 58. Audacious Thief — {2B}, Creature — Human Rogue 2/2;
+        // 58. Severed Legion — {1BB}, Creature — Zombie 2/2; Fear.
+        CardDefinition {
+            card_id: cid("severed-legion"),
+            name: "Severed Legion".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, black: 2, ..Default::default() }),
+            types: creature_types(&["Zombie"]),
+            oracle_text: "Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Fear),
+            ],
+        },
+
+        // 59. Boon Satyr — {2G}, Creature — Satyr 4/2; Flash; Bestow {4GG}.
+        CardDefinition {
+            card_id: cid("boon-satyr"),
+            name: "Boon Satyr".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+            types: creature_types(&["Satyr"]),
+            oracle_text: "Flash\nBestow {4}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached to a creature.)".to_string(),
+            power: Some(4),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Flash),
+                AbilityDefinition::Keyword(KeywordAbility::Bestow),
+                AbilityDefinition::Bestow { cost: ManaCost { generic: 4, green: 2, ..Default::default() } },
+            ],
+        },
+
+        // 60. Audacious Thief — {2B}, Creature — Human Rogue 2/2;
         //     Whenever this creature attacks, you draw a card and you lose 1 life.
         CardDefinition {
             card_id: cid("audacious-thief"),
@@ -1930,6 +2068,82 @@ pub fn all_cards() -> Vec<CardDefinition> {
             ],
         },
 
+        // 71. Boggart Ram-Gang — {R/G}{R/G}{R/G}, Creature — Goblin Warrior 3/3;
+        //     Haste. Wither.
+        //     Oracle cost is {R/G}{R/G}{R/G} (hybrid); simplified here to {R}{R}{R} because
+        //     the ManaCost struct does not support hybrid mana symbols.
+        CardDefinition {
+            card_id: cid("boggart-ram-gang"),
+            name: "Boggart Ram-Gang".to_string(),
+            mana_cost: Some(ManaCost { red: 3, ..Default::default() }),
+            types: creature_types(&["Goblin", "Warrior"]),
+            oracle_text: "Haste\nWither (This deals damage to creatures in the form of -1/-1 counters.)".to_string(),
+            power: Some(3),
+            toughness: Some(3),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Haste),
+                // TODO: Add KeywordAbility::Wither variant (CR 702.77a): damage dealt to
+                // creatures is in the form of -1/-1 counters instead of marked damage.
+            ],
+        },
+
+        // 72. Cloudfin Raptor — {U}, Creature — Bird Mutant 0/1;
+        //     Flying. Evolve (CR 702.100a).
+        CardDefinition {
+            card_id: cid("cloudfin-raptor"),
+            name: "Cloudfin Raptor".to_string(),
+            mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+            types: creature_types(&["Bird", "Mutant"]),
+            oracle_text: "Flying\nEvolve (Whenever a creature with greater power and/or toughness enters the battlefield under your control, put a +1/+1 counter on this creature.)".to_string(),
+            power: Some(0),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Flying),
+                AbilityDefinition::Keyword(KeywordAbility::Evolve),
+            ],
+        },
+
+        // 73. Raffine's Informant — {1}{W}, Creature — Human Wizard 2/1;
+        //     When Raffine's Informant enters the battlefield, it connives.
+        //     (CR 701.50a)
+        CardDefinition {
+            card_id: cid("raffines-informant"),
+            name: "Raffine's Informant".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, white: 1, ..Default::default() }),
+            types: creature_types(&["Human", "Wizard"]),
+            oracle_text: "When Raffine's Informant enters the battlefield, it connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)".to_string(),
+            power: Some(2),
+            toughness: Some(1),
+            abilities: vec![
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::Connive {
+                        target: EffectTarget::Source,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    intervening_if: None,
+                },
+            ],
+        },
+
+        // 74. Wayward Swordtooth — {2}{G}, Creature — Dinosaur 5/5;
+        //     Ascend. You may play an additional land on each of your turns.
+        //     Wayward Swordtooth can't attack or block unless you have the city's blessing.
+        //     (Additional land play and attack/block restriction noted in oracle_text;
+        //      Ascend keyword fully modeled.)
+        CardDefinition {
+            card_id: cid("wayward-swordtooth"),
+            name: "Wayward Swordtooth".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, green: 1, ..Default::default() }),
+            types: creature_types(&["Dinosaur"]),
+            oracle_text: "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nYou may play an additional land on each of your turns.\nWayward Swordtooth can't attack or block unless you have the city's blessing.".to_string(),
+            power: Some(5),
+            toughness: Some(5),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Ascend),
+            ],
+        },
+
         // ── Replacement-effect cards (M8 Session 6) ──────────────────────────
 
         // 55. Alela, Cunning Conqueror — {2UB}, Legendary Creature — Faerie Warlock 2/4;
@@ -1982,6 +2196,7 @@ pub fn all_cards() -> Vec<CardDefinition> {
                             tapped: false,
                             mana_color: None,
                             mana_abilities: vec![],
+                            activated_abilities: vec![],
                         },
                     },
                     intervening_if: None,
@@ -2419,6 +2634,81 @@ pub fn all_cards() -> Vec<CardDefinition> {
         // replaces the mana cost when cast via flashback. The card is exiled on any stack departure
         // when cast via flashback.
         // CR 111.10a: Treasure token — colorless Artifact — Treasure with mana ability.
+
+        // 71. Ox of Agonas — {3}{R}{R}, Creature — Ox 4/2; ETB: discard hand, draw 3.
+        //     Escape — {R}{R}, Exile eight other cards from your graveyard.
+        //
+        //     ETB effect approximated: DiscardCards up to 7 then DrawCards 3 (interactive
+        //     hand discard deferred). Escape cost and exile count accurate per oracle text.
+        CardDefinition {
+            card_id: cid("ox-of-agonas"),
+            name: "Ox of Agonas".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, red: 2, ..Default::default() }),
+            types: creature_types(&["Ox"]),
+            oracle_text: "When Ox of Agonas enters the battlefield, discard your hand, then draw three cards.\nEscape — {R}{R}, Exile eight other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)".to_string(),
+            power: Some(4),
+            toughness: Some(2),
+            abilities: vec![
+                // CR 702.138a: Escape keyword marker for quick presence-check.
+                AbilityDefinition::Keyword(KeywordAbility::Escape),
+                // CR 702.138a: Escape cost ({R}{R}) and exile count (8).
+                AbilityDefinition::Escape {
+                    cost: ManaCost { red: 2, ..Default::default() },
+                    exile_count: 8,
+                },
+                // ETB: discard hand then draw 3.
+                AbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    intervening_if: None,
+                    effect: Effect::Sequence(vec![
+                        Effect::DiscardCards {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::Fixed(7),
+                        },
+                        Effect::DrawCards {
+                            player: PlayerTarget::Controller,
+                            count: EffectAmount::Fixed(3),
+                        },
+                    ]),
+                },
+            ],
+        },
+
+        // 72. Terminus — {4}{W}{W}, Sorcery; Put all creatures on the bottom of their owners'
+        //     libraries. Miracle {W} (You may cast this card for its miracle cost. Cast it only
+        //     as the first card you drew this turn.)
+        //
+        //     Effect approximation: destroys all creatures (engine does not yet support
+        //     "put on bottom of owner's library" as a ForEach with per-creature owner
+        //     routing). Terminus is included primarily to validate the Miracle keyword
+        //     (CR 702.94). The full oracle text and mana cost are correct.
+        CardDefinition {
+            card_id: cid("terminus"),
+            name: "Terminus".to_string(),
+            mana_cost: Some(ManaCost { generic: 4, white: 2, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} (You may cast this card for its miracle cost. Cast it only as the first card you drew this turn.)".to_string(),
+            abilities: vec![
+                // CR 702.94a: Miracle keyword marker.
+                AbilityDefinition::Keyword(KeywordAbility::Miracle),
+                // CR 702.94a: The miracle alternative cost ({W}).
+                AbilityDefinition::Miracle {
+                    cost: ManaCost { white: 1, ..Default::default() },
+                },
+                // The spell effect: destroy all creatures (approximates "put on bottom of
+                // their owners' libraries" — owners' library routing deferred to M10+).
+                AbilityDefinition::Spell {
+                    effect: Effect::DestroyPermanent {
+                        target: EffectTarget::AllCreatures,
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
         CardDefinition {
             card_id: cid("strike-it-rich"),
             name: "Strike It Rich".to_string(),
@@ -2438,6 +2728,186 @@ pub fn all_cards() -> Vec<CardDefinition> {
                         spec: treasure_token_spec(1),
                     },
                     targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 73. Saw It Coming — {2}{U}{U}, Instant; Counter target spell.
+        //     Foretell {1}{U} (During your turn, you may pay {2} and exile this card from
+        //     your hand face down. Cast it on a future turn for its foretell cost.)
+        CardDefinition {
+            card_id: cid("saw-it-coming"),
+            name: "Saw It Coming".to_string(),
+            mana_cost: Some(ManaCost { generic: 2, blue: 2, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Counter target spell.\nForetell {1}{U} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a future turn for its foretell cost.)".to_string(),
+            abilities: vec![
+                // CR 702.143a: Foretell keyword marker.
+                AbilityDefinition::Keyword(KeywordAbility::Foretell),
+                // CR 702.143a: Foretell cost ({1}{U}).
+                AbilityDefinition::Foretell {
+                    cost: ManaCost { generic: 1, blue: 1, ..Default::default() },
+                },
+                // Spell effect: counter target spell.
+                AbilityDefinition::Spell {
+                    effect: Effect::CounterSpell {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    targets: vec![TargetRequirement::TargetSpell],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // 74. Dregscape Zombie — {1}{B}, Creature — Zombie 2/1;
+        //     Unearth {B} (Pay {B}: Return this card from your graveyard to the battlefield.
+        //     It gains haste. Exile it at the beginning of the next end step or if it would
+        //     leave the battlefield. Unearth only as a sorcery.)
+        CardDefinition {
+            card_id: cid("dregscape-zombie"),
+            name: "Dregscape Zombie".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+            types: creature_types(&["Zombie"]),
+            oracle_text: "Unearth {B} (Pay {B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)".to_string(),
+            power: Some(2),
+            toughness: Some(1),
+            abilities: vec![
+                // CR 702.84a: Unearth keyword marker for quick presence-check.
+                AbilityDefinition::Keyword(KeywordAbility::Unearth),
+                // CR 702.84a: Unearth cost ({B}).
+                AbilityDefinition::Unearth {
+                    cost: ManaCost { black: 1, ..Default::default() },
+                },
+            ],
+        },
+
+        // 75. Frogmite — {4}, Artifact Creature — Frog 2/2; Affinity for artifacts.
+        //     (This spell costs {1} less to cast for each artifact you control.)
+        //     With 4 artifacts controlled, Frogmite costs {0} to cast.
+        CardDefinition {
+            card_id: cid("frogmite"),
+            name: "Frogmite".to_string(),
+            mana_cost: Some(ManaCost { generic: 4, ..Default::default() }),
+            types: {
+                let mut tl = creature_types(&["Frog"]);
+                tl.card_types.insert(CardType::Artifact);
+                tl
+            },
+            oracle_text: "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                // CR 702.41a: Affinity for artifacts — costs {1} less for each artifact controlled.
+                AbilityDefinition::Keyword(KeywordAbility::Affinity(AffinityTarget::Artifacts)),
+            ],
+        },
+
+        // 79. Qarsi Sadist — {1}{B}, Creature — Human Cleric 1/3; Exploit.
+        //     CR 702.110a: When this enters, you may sacrifice a creature.
+        CardDefinition {
+            card_id: cid("qarsi-sadist"),
+            name: "Qarsi Sadist".to_string(),
+            mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Creature], &["Human", "Cleric"]),
+            oracle_text: "Exploit (When this creature enters the battlefield, you may sacrifice a creature.)".to_string(),
+            power: Some(1),
+            toughness: Some(3),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Exploit),
+            ],
+        },
+
+        // 78. Zhur-Taa Goblin — {R}{G}, Creature — Goblin Berserker 2/2; Riot.
+        //     CR 702.136a: As this enters, choose +1/+1 counter OR haste.
+        CardDefinition {
+            card_id: cid("zhur-taa-goblin"),
+            name: "Zhur-Taa Goblin".to_string(),
+            mana_cost: Some(ManaCost { red: 1, green: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Creature], &["Goblin", "Berserker"]),
+            oracle_text: "Riot (As this enters, choose to have it enter with a +1/+1 counter or gain haste.)".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Riot),
+            ],
+        },
+
+        // 77. Marchesa's Emissary — {3}{U}, Creature — Human Rogue 2/2; Hexproof, Dethrone.
+        //     Dethrone: CR 702.105 — whenever this attacks the player with most life (or tied),
+        //     put a +1/+1 counter on it.
+        CardDefinition {
+            card_id: cid("marchesas-emissary"),
+            name: "Marchesa's Emissary".to_string(),
+            mana_cost: Some(ManaCost { generic: 3, blue: 1, ..Default::default() }),
+            types: types_sub(&[CardType::Creature], &["Human", "Rogue"]),
+            oracle_text: "Hexproof\nDethrone".to_string(),
+            power: Some(2),
+            toughness: Some(2),
+            abilities: vec![
+                AbilityDefinition::Keyword(KeywordAbility::Hexproof),
+                AbilityDefinition::Keyword(KeywordAbility::Dethrone),
+            ],
+        },
+
+        // 76. Sublime Exhalation — {6}{W}, Sorcery; Undaunted (This spell costs {1} less to
+        //     cast for each of your opponents.)
+        //     Destroy all creatures.
+        //     In a 4-player Commander game (3 opponents), costs {3}{W} instead of {6}{W}.
+        CardDefinition {
+            card_id: cid("sublime-exhalation"),
+            name: "Sublime Exhalation".to_string(),
+            mana_cost: Some(ManaCost { generic: 6, white: 1, ..Default::default() }),
+            types: types(&[CardType::Sorcery]),
+            oracle_text: "Undaunted (This spell costs {1} less to cast for each of your opponents.)\nDestroy all creatures.".to_string(),
+            abilities: vec![
+                // CR 702.125a: Undaunted keyword marker.
+                AbilityDefinition::Keyword(KeywordAbility::Undaunted),
+                // Spell effect: destroy all creatures.
+                AbilityDefinition::Spell {
+                    effect: Effect::DestroyPermanent {
+                        target: EffectTarget::AllCreatures,
+                    },
+                    targets: vec![],
+                    modes: None,
+                    cant_be_countered: false,
+                },
+            ],
+            ..Default::default()
+        },
+
+        // ── Buyback cards ────────────────────────────────────────────────────────────
+
+        // Searing Touch — {R}, Instant; Buyback {4}; deals 1 damage to any target.
+        //
+        // CR 702.27a: Buyback — you may pay an additional {4} as you cast this spell.
+        // If you do, put this card into your hand as it resolves instead of the graveyard.
+        //
+        // TODO: KeywordAbility::Buyback does not yet exist in state/mod.rs; add it and
+        // pair AbilityDefinition::Keyword(KeywordAbility::Buyback) here for quick
+        // presence-checking (see card_definition.rs line ~243).
+        CardDefinition {
+            card_id: cid("searing-touch"),
+            name: "Searing Touch".to_string(),
+            mana_cost: Some(ManaCost { red: 1, ..Default::default() }),
+            types: types(&[CardType::Instant]),
+            oracle_text: "Buyback {4} (You may pay an additional {4} as you cast this spell. If you do, put this card into your hand as it resolves.)\nSearing Touch deals 1 damage to any target.".to_string(),
+            abilities: vec![
+                // CR 702.27a: Buyback cost ({4}).
+                AbilityDefinition::Buyback {
+                    cost: ManaCost { generic: 4, ..Default::default() },
+                },
+                // Spell effect: deal 1 damage to any target.
+                AbilityDefinition::Spell {
+                    effect: Effect::DealDamage {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                        amount: EffectAmount::Fixed(1),
+                    },
+                    targets: vec![TargetRequirement::TargetAny],
                     modes: None,
                     cant_be_countered: false,
                 },

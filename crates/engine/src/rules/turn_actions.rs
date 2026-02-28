@@ -1,10 +1,13 @@
 //! Turn-based actions: untap, draw, cleanup, mana pool emptying, combat (CR 500-514).
 
+use crate::cards::card_definition::AbilityDefinition;
 use crate::state::combat::CombatState;
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
+use crate::state::stubs::PendingTrigger;
 use crate::state::turn::Step;
+use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -21,8 +24,56 @@ pub fn execute_turn_based_actions(state: &mut GameState) -> Result<Vec<GameEvent
         Step::CombatDamage => Ok(combat_damage_step(state)),
         Step::EndOfCombat => Ok(end_combat(state)),
         Step::Cleanup => Ok(cleanup_actions(state)),
+        Step::End => Ok(end_step_actions(state)),
         _ => Ok(Vec::new()),
     }
+}
+
+/// CR 702.84a: End step actions -- queue delayed exile triggers for all unearthed permanents.
+///
+/// "Exile it at the beginning of the next end step."
+/// At the beginning of the end step, scan all battlefield permanents with
+/// `was_unearthed == true` and queue a `UnearthTrigger` for each one.
+///
+/// These are delayed triggered abilities created when the unearth ability resolved.
+/// They can be countered (e.g., by Stifle); the replacement effect persists independently.
+pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
+    // Collect unearthed permanents on the battlefield.
+    let unearthed: Vec<(ObjectId, crate::state::player::PlayerId)> = state
+        .objects
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.was_unearthed)
+        .map(|obj| (obj.id, obj.controller))
+        .collect();
+
+    for (obj_id, controller) in unearthed {
+        state.pending_triggers.push_back(PendingTrigger {
+            source: obj_id,
+            ability_index: 0, // unused for unearth triggers
+            controller,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            is_evoke_sacrifice: false,
+            is_madness_trigger: false,
+            madness_exiled_card: None,
+            madness_cost: None,
+            is_miracle_trigger: false,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            is_unearth_trigger: true,
+            is_exploit_trigger: false,
+            is_modular_trigger: false,
+            modular_counter_count: None,
+            is_evolve_trigger: false,
+            evolve_entering_creature: None,
+        });
+    }
+
+    Vec::new() // No direct events; the triggers will be flushed by enter_step
 }
 
 /// CR 502.2: "Second, the active player's phased-out permanents phase in and
@@ -149,10 +200,18 @@ pub fn draw_card(
         p.cards_drawn_this_turn += 1;
     }
 
-    Ok(vec![GameEvent::CardDrawn {
+    let mut events = vec![GameEvent::CardDrawn {
         player,
         new_object_id: new_id,
-    }])
+    }];
+
+    // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
+    // If so, emit MiracleRevealChoiceRequired so the player can choose to reveal.
+    if let Some(miracle_event) = super::miracle::check_miracle_eligible(state, player, new_id) {
+        events.push(miracle_event);
+    }
+
+    Ok(events)
 }
 
 /// CR 514.1: "First, if the active player's hand contains more cards than their
@@ -214,13 +273,75 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
             // MR-M2-06: Use the old hand ObjectId, not the new graveyard ID.
             // `discard_id` identifies the card while it was in hand; callers
             // (triggers, UI) correlate by the hand identity, not the new zone ID.
-            if let Ok((_new_id, _)) = state.move_object_to_zone(discard_id, graveyard_zone) {
+
+            // CR 702.35a: If the discarded card has Madness, exile it instead of graveyard.
+            let cleanup_card_id_opt = state
+                .objects
+                .get(&discard_id)
+                .and_then(|o| o.card_id.clone());
+            let has_madness = state
+                .objects
+                .get(&discard_id)
+                .map(|obj| {
+                    obj.characteristics
+                        .keywords
+                        .contains(&KeywordAbility::Madness)
+                })
+                .unwrap_or(false);
+
+            let destination = if has_madness {
+                ZoneId::Exile
+            } else {
+                graveyard_zone
+            };
+
+            if let Ok((new_id, _)) = state.move_object_to_zone(discard_id, destination) {
                 events.push(GameEvent::DiscardedToHandSize {
                     player: active,
                     object_id: discard_id,
                     zone_from: hand_zone,
-                    zone_to: graveyard_zone,
+                    zone_to: destination,
                 });
+
+                // CR 702.35a: Queue the madness trigger via pending_triggers so that
+                // flush_pending_triggers properly signals priority granting in cleanup.
+                if has_madness {
+                    let madness_cost = cleanup_card_id_opt.as_ref().and_then(|cid| {
+                        state.card_registry.get(cid.clone()).and_then(|def| {
+                            def.abilities.iter().find_map(|a| {
+                                if let AbilityDefinition::Madness { cost } = a {
+                                    Some(cost.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                    });
+                    state.pending_triggers.push_back(PendingTrigger {
+                        source: new_id,
+                        ability_index: 0,
+                        controller: active,
+                        triggering_event: None,
+                        entering_object_id: None,
+                        targeting_stack_id: None,
+                        triggering_player: None,
+                        exalted_attacker_id: None,
+                        defending_player_id: None,
+                        is_evoke_sacrifice: false,
+                        is_madness_trigger: true,
+                        madness_exiled_card: Some(new_id),
+                        madness_cost,
+                        is_miracle_trigger: false,
+                        miracle_revealed_card: None,
+                        miracle_cost: None,
+                        is_unearth_trigger: false,
+                        is_exploit_trigger: false,
+                        is_modular_trigger: false,
+                        modular_counter_count: None,
+                        is_evolve_trigger: false,
+                        evolve_entering_creature: None,
+                    });
+                }
             }
         } else {
             break;
@@ -287,12 +408,28 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     if let Some(p) = state.players.get_mut(&player) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
-        // CR 121.1: per-turn draw count resets at the start of each turn.
-        // Used by Sylvan Library (CC#33) and similar draw-tracking effects.
-        p.cards_drawn_this_turn = 0;
         // CR 702.40a: per-turn spell cast count resets at the start of each turn.
         // Used by storm to count copies.
         p.spells_cast_this_turn = 0;
+    }
+
+    // CR 702.94a / CR 121.1: "the first card you've drawn this turn" refers to the
+    // current game turn (the active player's turn). Every player's draw counter must
+    // reset at each turn boundary so that miracle eligibility is correct in multiplayer.
+    // Example: Player B draws on Player C's turn (counter = 1). If only the active player's
+    // counter is reset, Player B's counter stays at 1 on Player D's turn, so the second draw
+    // on Player D's turn is seen as draw #2 and miracle never triggers. Resetting ALL players'
+    // draw counters at each turn boundary fixes this.
+    //
+    // Note: spells_cast_this_turn is NOT reset for all players because storm counts spells
+    // cast during the storm player's own turn only. Draw tracking (miracle, Sylvan Library)
+    // is scoped to "this game turn" for any player who draws.
+    let player_ids: Vec<PlayerId> = state.players.keys().copied().collect();
+    for pid in player_ids {
+        if let Some(p) = state.players.get_mut(&pid) {
+            // CR 121.1: per-turn draw count resets at the start of each turn for all players.
+            p.cards_drawn_this_turn = 0;
+        }
     }
 }
 

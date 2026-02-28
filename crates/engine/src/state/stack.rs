@@ -63,6 +63,59 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) — copies are not cast.
     #[serde(default)]
     pub was_evoked: bool,
+    /// CR 702.103b: If true, this spell was cast by paying its bestow cost.
+    /// On the stack, this spell is an Aura enchantment (not a creature) with
+    /// enchant creature. At resolution, if the target is illegal, it ceases
+    /// to be bestowed and resolves as a creature (CR 702.103e / 608.3b).
+    ///
+    /// CR 702.103c: If the original spell was bestowed, copies are also bestowed
+    /// Aura spells. Any rule that refers to a spell cast bestowed applies to the
+    /// copy as well.
+    #[serde(default)]
+    pub was_bestowed: bool,
+    /// CR 702.35a: If true, this spell was cast via madness from exile. The card
+    /// was exiled during a discard, and the owner chose to cast it by paying the
+    /// madness cost. Unlike flashback, madness does NOT change where the card goes
+    /// on resolution -- it resolves normally (permanent to battlefield, instant/sorcery
+    /// to graveyard).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_with_madness: bool,
+    /// CR 702.94a: If true, this spell was cast via miracle from hand. The card
+    /// was drawn as the first card this turn, revealed, and the owner chose to
+    /// cast it by paying the miracle cost. Like madness, miracle does NOT change
+    /// where the card goes on resolution -- it resolves normally.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_with_miracle: bool,
+    /// CR 702.138b: If true, this spell was cast via escape from the graveyard.
+    /// The spell's escape cost (mana + exiling other cards) was paid as an
+    /// alternative cost. Unlike flashback, escape does NOT change where the
+    /// spell goes on resolution -- it resolves normally.
+    ///
+    /// This flag is propagated to the permanent as `was_escaped` at resolution
+    /// time (for "escapes with [counter]" and "escapes with [ability]" effects).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_escaped: bool,
+    /// CR 702.143a: If true, this spell was cast from exile by paying its foretell
+    /// cost. The foretell cost is an alternative cost (CR 118.9). Unlike flashback,
+    /// foretell does NOT change where the card goes on resolution -- it resolves
+    /// normally (permanent to battlefield, instant/sorcery to graveyard).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_with_foretell: bool,
+    /// CR 702.27a: If true, this spell was cast with its buyback cost paid as an
+    /// additional cost. On resolution, the spell returns to its owner's hand
+    /// instead of going to the graveyard.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_buyback_paid: bool,
 }
 
 /// The kind of object on the stack.
@@ -140,4 +193,96 @@ pub enum StackObjectKind {
     /// bounced, etc.), the trigger does nothing per CR 400.7 — the source
     /// is a new object and is no longer the evoked permanent.
     EvokeSacrificeTrigger { source_object: ObjectId },
+    /// CR 702.35a: Madness triggered ability on the stack.
+    ///
+    /// When a card with madness is discarded and exiled by the madness static
+    /// ability, this trigger fires: "When this card is exiled this way, its
+    /// owner may cast it by paying [cost] rather than paying its mana cost.
+    /// If that player doesn't, they put this card into their graveyard."
+    ///
+    /// `exiled_card` is the ObjectId of the card in exile (new ID after zone move).
+    /// `madness_cost` is captured at trigger time from the card definition.
+    MadnessTrigger {
+        source_object: ObjectId,
+        exiled_card: ObjectId,
+        madness_cost: crate::state::game_object::ManaCost,
+        owner: PlayerId,
+    },
+    /// CR 702.94a: Miracle triggered ability on the stack.
+    ///
+    /// When a player reveals a card using its miracle ability (as the first draw of
+    /// the turn), this trigger fires: "When you reveal this card this way, you may
+    /// cast it by paying [cost] rather than its mana cost."
+    ///
+    /// `revealed_card` is the ObjectId of the card in hand (new ID after draw zone move).
+    /// `miracle_cost` is captured at trigger time from the card definition.
+    /// When this trigger resolves, the player may have already cast the card (from hand
+    /// using `CastSpell` with `cast_with_miracle: true` while the trigger was on the stack).
+    /// If the card is still in hand at resolution, it stays there (player declined).
+    MiracleTrigger {
+        source_object: ObjectId,
+        revealed_card: ObjectId,
+        miracle_cost: crate::state::game_object::ManaCost,
+        owner: PlayerId,
+    },
+    /// CR 702.84a: Unearth activated ability on the stack.
+    ///
+    /// When this ability resolves: (1) move the source card from graveyard to
+    /// battlefield, (2) grant haste, (3) set was_unearthed flag, (4) fire normal
+    /// ETB triggers.
+    ///
+    /// If the source card is no longer in the graveyard at resolution time,
+    /// the ability does nothing (card was exiled, shuffled, etc.) -- CR 400.7.
+    UnearthAbility { source_object: ObjectId },
+    /// CR 702.84a: Unearth delayed triggered ability on the stack.
+    ///
+    /// "Exile [this permanent] at the beginning of the next end step."
+    /// This is a delayed triggered ability created when the unearthed permanent
+    /// enters the battlefield. It fires at the beginning of the next end step.
+    ///
+    /// If the source has left the battlefield by resolution time (CR 400.7),
+    /// the trigger does nothing. If countered (e.g., by Stifle), the permanent
+    /// stays on the battlefield but the replacement effect still applies.
+    UnearthTrigger { source_object: ObjectId },
+    /// CR 702.110a: Exploit triggered ability on the stack.
+    ///
+    /// "When this creature enters, you may sacrifice a creature."
+    /// When this trigger resolves, the controller may sacrifice a creature they
+    /// control. The default (deterministic, no interactive choice) is to decline.
+    ///
+    /// If the source has left the battlefield by resolution time (CR 400.7),
+    /// the trigger does nothing (no creature to exploit with).
+    ExploitTrigger { source_object: ObjectId },
+    /// CR 702.43a: Modular triggered ability on the stack.
+    ///
+    /// "When this permanent is put into a graveyard from the battlefield,
+    /// you may put a +1/+1 counter on target artifact creature for each
+    /// +1/+1 counter on this permanent."
+    ///
+    /// `counter_count` is the number of +1/+1 counters on the creature at
+    /// death time (last-known information from pre_death_counters — Arcbound
+    /// Worker ruling 2006-09-25). The target artifact creature is in
+    /// `StackObject.targets[0]`.
+    ///
+    /// If no legal artifact creature target exists at trigger time,
+    /// the trigger is not placed on the stack (CR 603.3d).
+    ModularTrigger {
+        source_object: ObjectId,
+        counter_count: u32,
+    },
+
+    /// CR 702.100a: Evolve trigger on the stack.
+    ///
+    /// When a creature with evolve sees another creature its controller controls
+    /// enter the battlefield with greater power and/or toughness, this trigger
+    /// fires. The `entering_creature` field carries the ObjectId of the creature
+    /// that entered, needed for the resolution-time intervening-if re-check
+    /// (CR 603.4 — compare entering creature P/T vs source P/T at resolution).
+    ///
+    /// If the entering creature left the battlefield before resolution, use
+    /// last-known information for the P/T comparison (ruling 2013-04-15).
+    EvolveTrigger {
+        source_object: ObjectId,
+        entering_creature: ObjectId,
+    },
 }

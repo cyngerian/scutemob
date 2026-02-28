@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_082",
+    "name": "Batterskull Living Weapon — ETB trigger creates Germ token attached with +4/+4",
+    "description": "p1 casts Batterskull ({5} Artifact Equipment). On resolution it enters the battlefield and the Living Weapon triggered ability fires (CR 702.92a): create a 0/0 black Phyrexian Germ creature token, then attach Batterskull to it. The trigger resolves using CreateTokenAndAttachSource — the Germ and attachment are atomic, so the Germ immediately has Batterskull's +4/+4, vigilance, and lifelink, making it effectively a 4/4. No zero-toughness SBA fires (CR 704.5f) because the attachment occurs before SBAs are checked. Final state: Batterskull and the Phyrexian Germ token both on p1's battlefield, with the Germ effectively 4/4 with vigilance and lifelink.",
+    "cr_sections_tested": ["601.2", "603.2", "603.3", "608.2", "702.92a", "111.1", "111.5", "704.5f", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["living-weapon", "equipment", "etb-trigger", "token-creation", "lifelink", "vigilance", "batterskull", "germ-token"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Batterskull oracle text (Scryfall verified via MCP): '{5}, Artifact — Equipment. Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it.) Equipped creature gets +4/+4 and has vigilance and lifelink. {3}: Return this Equipment to its owner's hand. Equip {5}.' CardDefinition confirmed in crates/engine/src/cards/definitions.rs:1511-1563: LivingWeapon keyword wired in builder.rs:587-616 as TriggerEvent::SelfEntersBattlefield → Effect::CreateTokenAndAttachSource { spec: Phyrexian Germ 0/0 black Phyrexian/Germ subtypes }. Key ruling (2020-08-07): 'The Germ token enters the battlefield as a 0/0 creature and the Equipment becomes attached to it before state-based actions would cause the token to die.' This means the 0/0 toughness SBA (CR 704.5f) does NOT apply because Batterskull's +4/+4 static effect grants toughness atomically with attachment. The trigger goes on the stack after Batterskull enters the battlefield (CR 603.2, 603.3). Both players pass priority, trigger resolves. After resolution: Germ is 4/4 with vigilance and lifelink. Mana setup: p1 has 5 colorless mana in pool (representing 5 generic from any source) to pay Batterskull's {5} cost. The combat portion (Germ attacking with lifelink) is intentionally omitted from this script — the declare_attackers harness action requires the initial game state to be in the declare_attackers step/phase, which cannot be combined in a single linear script that starts in precombat_main. A separate combat script can demonstrate the equipped Germ attacking with lifelink damage.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 5 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Batterskull", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Batterskull ({5}) from hand. Both players pass, Batterskull resolves and enters battlefield. Living Weapon ETB trigger fires, then resolves to create Germ token and attach Batterskull.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Batterskull in p1 hand, battlefield empty, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "is_empty": true }
+          },
+          "note": "p1 has 5 colorless mana in pool to pay Batterskull's {5} generic cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Batterskull",
+          "targets": [],
+          "mana_paid": { "colorless": 5 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Batterskull as an artifact spell. {5} generic paid from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Batterskull on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Batterskull is on the stack as an artifact spell awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Batterskull",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Batterskull",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Batterskull (permanent spell) resolves and enters the battlefield under p1's control."
+            },
+            {
+              "effect": "trigger",
+              "source": "Batterskull",
+              "trigger_condition": "living_weapon_etb",
+              "cr_ref": "702.92a",
+              "note": "CR 702.92a: Living weapon triggered ability fires — 'When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this Equipment to it.' Trigger is placed on the stack (CR 603.2, 603.3)."
+            }
+          ],
+          "note": "CR 608.2: Batterskull enters battlefield; Living Weapon ETB trigger goes on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Batterskull enters: Batterskull on battlefield, Living Weapon trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Batterskull" }]
+            }
+          },
+          "note": "Batterskull has entered the battlefield. The Living Weapon trigger is on the stack. No Germ token exists yet — the token is created when the trigger resolves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Living Weapon trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Living Weapon trigger",
+          "resolution": [
+            {
+              "effect": "create_token_and_attach",
+              "controller": "p1",
+              "token": {
+                "name": "Phyrexian Germ",
+                "power": 0,
+                "toughness": 0,
+                "colors": ["black"],
+                "types": ["Creature"],
+                "subtypes": ["Phyrexian", "Germ"],
+                "abilities": []
+              },
+              "equipment_attached": "Batterskull",
+              "cr_ref": "702.92a",
+              "note": "CR 702.92a: Creates a 0/0 black Phyrexian Germ creature token and attaches Batterskull to it atomically (Effect::CreateTokenAndAttachSource). Per ruling (2020-08-07), the attachment occurs before SBAs can cause the 0/0 Germ to die. With Batterskull attached, the Germ gains +4/+4 (becomes effectively 4/4), vigilance, and lifelink from Batterskull's static continuous effect (layer 7c for P/T, layer 6 for abilities)."
+            }
+          ],
+          "note": "CR 608.2: Trigger resolves. CreateTokenAndAttachSource atomically creates the Germ and attaches Batterskull. The Germ's effective toughness is 0 + 4 = 4. No zero-toughness SBA fires."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.3: SBAs checked after trigger resolves. CR 704.5f: The Germ token has base 0 toughness but receives +4 from Batterskull (attached atomically), giving effective toughness 4. Toughness > 0, so the zero-toughness SBA does NOT apply. Both Batterskull and Germ remain on battlefield."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Batterskull and Phyrexian Germ both on p1 battlefield, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Batterskull" },
+                { "card": "Phyrexian Germ" }
+              ]
+            }
+          },
+          "note": "Batterskull (Equipment) and the Phyrexian Germ token are both on p1's battlefield. The Germ is 0/0 base + 4/4 from Batterskull = effectively 4/4 with vigilance and lifelink. The 0/0 base toughness did NOT cause the Germ to die because the Equipment attachment is atomic with token creation (CR 702.92a, ruling 2020-08-07)."
+        }
+      ]
+    }
+  ]
+}

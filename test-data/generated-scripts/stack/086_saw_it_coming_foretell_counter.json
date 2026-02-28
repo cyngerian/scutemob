@@ -1,0 +1,280 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_086",
+    "name": "Saw It Coming — foretell on turn 1, cast for foretell cost on turn 2 to counter Lightning Bolt",
+    "description": "Two-turn scenario demonstrating the Foretell keyword (CR 702.143). Turn 1 (p1's end step): p1 pays {2} and exiles Saw It Coming face-down from hand via foretell's special action (CR 702.143b — no stack). The turn then advances through Cleanup into turn 2 (p2's turn). Turn 2 (p2's precombat main): p2 casts Lightning Bolt targeting p1. p1 responds by casting Saw It Coming from exile for its foretell cost {1}{U} instead of its printed mana cost {1}{U}{U} (CR 702.143a, CR 601.2b). Saw It Coming resolves first (LIFO, CR 405.5), countering Lightning Bolt (CR 701.5a). p1 remains at 40 life. Saw It Coming is exiled after leaving the stack (CR 702.143a). Initiating in the end step allows the turn to advance naturally via priority passing through Cleanup to turn 2 — required because foretold cards cannot be cast on the same turn they were foretold (CR 702.143a: 'after the current turn has ended').",
+    "cr_sections_tested": ["702.143", "702.143a", "702.143b", "118.9", "601.2b", "608.2", "116.2h", "405.5", "701.5a"],
+    "corner_case_ref": null,
+    "tags": ["foretell", "alternative-cost", "counterspell", "exile", "instant", "two-turn", "special-action"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Saw It Coming oracle text: '{1}{U}{U} Instant. Counter target spell. Foretell {1}{U}.' Foretell special action costs {2} generic (CR 702.143a). The same-turn restriction (foretold_turn >= current_turn → error) requires actual turn advancement: script starts in the End step (Step::End) of turn 1 so a single priority_round advances past Cleanup into turn 2. Cleanup auto-advances (Step::Cleanup has no priority). Turn 2: Untap (auto), Upkeep (priority_round), Draw (p2 draws Plains from library, priority_round), PreCombatMain (p2 active). p1 uses Island + Forest to generate {U}{G} and pays foretell cost {1}{U} with {blue:1, green:1} — green satisfies the {1} generic component. Initial state: phase='end' (Step::End), turn 1, p1 active. p1 battlefield: Island + Forest (untapped, for later mana). p2 battlefield: Mountain. p2 library: Plains (so p2 can draw in Draw step without losing). After foretell: Saw It Coming moves to exile, foreteld_turn=1. After priority_round in End step: Cleanup fires → turn advances to 2, p2 active. After two more priority_rounds (Upkeep, Draw): reach p2's precombat_main. p2 taps Mountain → {R}, casts Lightning Bolt targeting p1. p2 passes → p1 gets priority, taps Island → {U}, taps Forest → {G}, casts Saw It Coming for foretell cost {1}{U} (mana_paid: {blue:1, green:1}). LIFO: Saw It Coming on top, resolves first → counters Lightning Bolt (701.5a). Both graveyards: Lightning Bolt to p2's graveyard. Saw It Coming exiled (702.143a). Final: p1 at 40, stack empty, Saw It Coming in exile.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "end",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Saw It Coming", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p2": [
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "end",
+      "step_note": "Turn 1, p1's end step: p1 takes the foretell special action, paying {2} to exile Saw It Coming face-down. Then both players pass priority to advance past Cleanup into turn 2.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Saw It Coming in p1 hand, exile empty, p1 at end step with {2} in pool",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.exile": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Turn 1, p1's end step. Saw It Coming is in p1's hand. p1 has {2} colorless to pay the foretell action cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "foretell_card",
+          "card": "Saw It Coming",
+          "targets": [],
+          "mana_paid": { "generic": 2 },
+          "mana_source": [],
+          "cr_ref": "702.143b",
+          "note": "CR 702.143b: Foretell is a special action — does NOT use the stack. CR 702.143a: p1 pays {2} and exiles Saw It Coming face-down from hand. p1 may look at it. foretold_turn = 1 (current turn number)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After foretell: Saw It Coming exiled (is_foretold=true), p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.exile": { "includes": ["Saw It Coming"] }
+          },
+          "note": "CR 702.143a: Saw It Coming is now in exile face-down as a foretold card. foretold_turn=1. Cannot be cast on this turn."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in the End step with empty stack. Step advances to Cleanup (auto-advances, no priority) then to turn 2 (p2 active). Untap step fires (auto), then Upkeep step grants p2 priority."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Upkeep step (turn 2, p2 active). Step advances to Draw step. Turn-based action: p2 draws Plains from library (CR 504.1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Draw step after p2 draws Plains. Step advances to PreCombatMain (turn 2, p2 active)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Turn 2, p2's precombat main: p2 casts Lightning Bolt targeting p1. p1 responds by casting Saw It Coming from exile for foretell cost {1}{U}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Start of turn 2 precombat main: Saw It Coming still in exile, both players at 40 life",
+          "assertions": {
+            "zones.exile": { "includes": ["Saw It Coming"] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.143a: Saw It Coming persists in exile across turns. foretold_turn=1, current_turn=2, so foretold_turn < current_turn — foretell cast is now legal."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "tap_for_mana",
+          "card": "Mountain",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p2 taps Mountain for {R}. Mana ability — does not use the stack."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "player", "player": "p1", "card": null, "controller": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Lightning Bolt targeting p1 for {R}. Lightning Bolt goes on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Lightning Bolt cast: 1 spell on stack, Saw It Coming still in exile",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.exile": { "includes": ["Saw It Coming"] }
+          },
+          "note": "Lightning Bolt is on the stack targeting p1. After cast, active player (p2) gets priority."
+        },
+        {
+          "type": "priority_pass",
+          "player": "p2",
+          "note": "CR 116.3: p2 passes priority to p1 after casting Lightning Bolt. p1 may now respond."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Island",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Island for {U}. Mana ability — does not use the stack."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Forest",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: p1 taps Forest for {G}. p1 now has {U}{G} in pool — sufficient to pay foretell cost {1}{U} ({G} pays the {1} generic, {U} pays the {U})."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_foretell",
+          "card": "Saw It Coming",
+          "targets": [
+            { "type": "spell", "card": "Lightning Bolt", "player": null, "controller": null }
+          ],
+          "mana_paid": { "blue": 1, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "702.143a",
+          "note": "CR 702.143a + CR 601.2b: p1 casts Saw It Coming from exile for its foretell cost {1}{U} (alternative cost, not {1}{U}{U} mana cost). foretold_turn=1 < current_turn=2 — constraint satisfied. {U} pays the {U} component; {G} pays the {1} generic component. Saw It Coming targets Lightning Bolt on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Saw It Coming cast: 2 spells on stack, Saw It Coming no longer in exile",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.exile": { "excludes": ["Saw It Coming"] }
+          },
+          "note": "Saw It Coming moved from exile to the stack. Stack (top to bottom): Saw It Coming, Lightning Bolt. CR 405.5: LIFO order."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3 + CR 405.5: After p1 casts, active player (p2) gets priority first. Both pass. Saw It Coming (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Saw It Coming",
+          "resolution": [
+            {
+              "effect": "counter_spell",
+              "target": { "type": "spell", "card": "Lightning Bolt" },
+              "amount": null,
+              "card": "Lightning Bolt",
+              "owner": "p2",
+              "cr_ref": "701.5a",
+              "note": "CR 701.5a: Saw It Coming counters Lightning Bolt. Lightning Bolt is removed from the stack without resolving and put into p2's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Saw It Coming resolves; its counter effect executes. CR 702.143a: the foretold spell is exiled after leaving the stack (not put to its owner's graveyard)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Saw It Coming resolves: Lightning Bolt countered (in p2 graveyard), Saw It Coming exiled, stack empty",
+          "assertions": {
+            "zones.stack.count": 0,
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.exile": { "includes": ["Saw It Coming"] },
+            "players.p1.life": 40
+          },
+          "note": "Lightning Bolt never resolved — p1 did not take 3 damage. Saw It Coming is exiled per CR 702.143a (not in p1's graveyard). p1 remains at 40 life."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority on the empty stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p1 at 40 life (Lightning Bolt countered), stack empty, Saw It Coming in exile, Lightning Bolt in p2 graveyard",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "includes": ["Saw It Coming"] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] }
+          },
+          "note": "Full two-turn foretell scenario complete. p1 foretold Saw It Coming on turn 1 (paid {2}), cast it for foretell cost {1}{U} on turn 2 (saved {U} compared to mana cost {1}{U}{U}), and used it to counter p2's Lightning Bolt."
+        }
+      ]
+    }
+  ]
+}

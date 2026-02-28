@@ -41,8 +41,8 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
-    ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
+    ManaColor, ProtectionQuality, SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -278,6 +278,15 @@ impl GameState {
             kicker_times_paid: 0,
             // CR 400.7: evoke status is not preserved across zone changes.
             was_evoked: false,
+            // CR 400.7: bestow status is not preserved across zone changes.
+            is_bestowed: false,
+            // CR 400.7: escape status is not preserved across zone changes.
+            was_escaped: false,
+            // CR 400.7: foretold status is not preserved across zone changes.
+            is_foretold: false,
+            foretold_turn: 0,
+            // CR 400.7: unearth status is not preserved across zone changes.
+            was_unearthed: false,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -350,6 +359,15 @@ impl GameState {
             kicker_times_paid: 0,
             // CR 400.7: evoke status is not preserved across zone changes.
             was_evoked: false,
+            // CR 400.7: bestow status is not preserved across zone changes.
+            is_bestowed: false,
+            // CR 400.7: escape status is not preserved across zone changes.
+            was_escaped: false,
+            // CR 400.7: foretold status is not preserved across zone changes.
+            is_foretold: false,
+            foretold_turn: 0,
+            // CR 400.7: unearth status is not preserved across zone changes.
+            was_unearthed: false,
         };
 
         // Insert at the front (= bottom) of the destination zone.

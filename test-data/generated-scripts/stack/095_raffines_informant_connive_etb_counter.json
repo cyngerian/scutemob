@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_095",
+    "name": "Raffine's Informant ETB connive — nonland discard yields +1/+1 counter",
+    "description": "P1 casts Raffine's Informant ({1}{W}, 2/1 Human Wizard). When it enters the battlefield, its ETB triggered ability fires causing it to connive (CR 701.50a). Connive draws a card then discards a card; if the discarded card is a nonland, the conniving creature gets a +1/+1 counter. P1's library top is Lightning Bolt (nonland). The connive trigger draws Lightning Bolt and P1 discards it. Since Lightning Bolt is a nonland card, Raffine's Informant receives a +1/+1 counter, becoming 3/2. This script verifies the full ETB-trigger-on-stack, connive-resolves, and counter-placement flow.",
+    "cr_sections_tested": ["601.2", "608.2", "116.3", "701.50a", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["stack", "etb-trigger", "connive", "counter", "draw", "discard"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Raffine's Informant is NOT in the Available Cards list so MCP lookup was performed. Oracle text confirmed: 'When this creature enters, it connives.' — a single ETB triggered ability. CR 701.50a: connive = draw a card, discard a card, if nonland discarded put a +1/+1 counter on the conniving permanent. The connive is atomic (per the 2022-04-29 ruling: once the ability begins resolving no player may take actions until done). Initial state: P1 has {1}{W} in pool (representing two pre-tapped lands), Raffine's Informant in hand, Lightning Bolt on top of library, no other cards in hand. The draw during connive pulls Lightning Bolt; P1 then discards it (it is the only card in hand after draw). Lightning Bolt is a noncreature instant (nonland), so Raffine's Informant gets a +1/+1 counter. The creature's base P/T is 2/1, with one +1/+1 counter it becomes 3/2. The connive ETB trigger resolves in one stack_resolve step — no sub-steps for intermediate draw/discard because connive is atomic. After full resolution the stack is empty, Lightning Bolt is in P1's graveyard, and Raffine's Informant is on the battlefield with one +1/+1 counter (asserted via P/T becoming 3/2). HARNESS FAILURE: The engine does not have a CardDefinition for Raffine's Informant (it is not in the Available Cards list). The harness reported that after resolving the creature spell, Raffine's Informant ends up in the graveyard (not the battlefield) and the connive trigger never appears on the stack. This is an engine gap — the card definition must be authored in crates/engine/src/cards/definitions.rs before this script can pass. The script logic is correct per CR 701.50a and the card's oracle text.",
+    "disputes": [
+      {
+        "description": "Harness error: Raffine's Informant has no CardDefinition in the engine. The card is not in the Available Cards list. Without a definition the engine cannot resolve the spell onto the battlefield or fire the connive ETB trigger. Assertion failures: 'zones.battlefield.p1 missing Raffine's Informant' and 'zones.stack.count expected 1 actual 0'. This is an engine gap — a CardDefinition for Raffine's Informant must be added to crates/engine/src/cards/definitions.rs (Connive ETB keyword ability) before this script can be approved.",
+        "cr_ref": "701.50a"
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1, "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Raffine's Informant", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Raffine's Informant; the spell resolves; ETB connive trigger goes on stack; trigger resolves drawing and discarding Lightning Bolt; nonland discard yields +1/+1 counter",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Raffine's Informant in P1 hand, Lightning Bolt on top of P1 library, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.library.p1.count": 1
+          },
+          "note": "Before casting: Raffine's Informant is in hand, Lightning Bolt is the top card of library ready to be drawn during connive."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Raffine's Informant",
+          "targets": [],
+          "mana_paid": { "white": 1, "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Raffine's Informant paying {1}{W} from the mana pool. No targets declared at cast time — connive is an ETB triggered ability, not a mode or target chosen on cast."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Raffine's Informant on stack, P1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Raffine's Informant has moved from hand to stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Raffine's Informant spell resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Raffine's Informant",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "card", "card": "Raffine's Informant", "controller": "p1" },
+              "amount": null,
+              "card": "Raffine's Informant",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Creature spell resolves; Raffine's Informant enters the battlefield under P1's control."
+            }
+          ],
+          "note": "CR 608.2: Raffine's Informant resolves and enters the battlefield, triggering its ETB connive ability."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Raffine's Informant ETB: creature on battlefield, connive trigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Raffine's Informant" }] },
+            "zones.stack.count": 1
+          },
+          "note": "CR 701.50a: The ETB triggered ability 'When this creature enters, it connives' is now on the stack. P1 holds priority."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the connive triggered ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Connive",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.50a",
+              "note": "CR 701.50a: Connive step 1 — P1 draws a card (Lightning Bolt from top of library)."
+            },
+            {
+              "effect": "discard",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": "Lightning Bolt",
+              "owner": "p1",
+              "cr_ref": "701.50a",
+              "note": "CR 701.50a: Connive step 2 — P1 discards a card. P1 discards Lightning Bolt (the only card in hand after drawing)."
+            },
+            {
+              "effect": "add_counter",
+              "target": { "type": "card", "card": "Raffine's Informant", "controller": "p1" },
+              "amount": 1,
+              "card": "Raffine's Informant",
+              "owner": "p1",
+              "cr_ref": "701.50a",
+              "note": "CR 701.50a: Lightning Bolt is a nonland card, so Raffine's Informant receives one +1/+1 counter. Its P/T becomes 3/2."
+            }
+          ],
+          "note": "CR 701.50a: Connive resolves atomically — draw, discard, then counter if nonland discarded. The entire sequence is treated as one resolution step (2022-04-29 ruling: no player may act mid-connive)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: Raffine's Informant on battlefield with +1/+1 counter (3/2), Lightning Bolt in graveyard, library empty, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Raffine's Informant" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.library.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Raffine's Informant is 3/2 (base 2/1 + one +1/+1 counter from connive). Lightning Bolt was drawn then discarded as a nonland, triggering the counter. Library is now empty. No life changes occurred."
+        }
+      ]
+    }
+  ]
+}

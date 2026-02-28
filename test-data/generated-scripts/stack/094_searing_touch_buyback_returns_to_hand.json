@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_094",
+    "name": "Searing Touch with buyback returns to hand",
+    "description": "P1 casts Searing Touch ({R}) with buyback paid ({4} additional), targeting P2. Total cost is {4}{R}. Both players pass priority. Searing Touch resolves, dealing 1 damage to P2 (40 -> 39), and per CR 702.27a the card is placed into P1's hand instead of the graveyard. Asserts: P2 life is 39, Searing Touch is in P1's hand, graveyard is empty, stack is empty.",
+    "cr_sections_tested": ["601.2", "601.2b", "608.2", "120.3", "702.27a"],
+    "corner_case_ref": null,
+    "tags": ["stack", "instant", "buyback", "damage", "return-to-hand"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tests the buyback mechanic end-to-end. Searing Touch oracle text: 'Buyback {4}. Searing Touch deals 1 damage to any target.' Card definition uses AbilityDefinition::Buyback { cost } and Effect::DealDamage targeting any target. CR 702.27a: 'If the buyback cost was paid, put this spell into its owner's hand instead of into that player's graveyard as it resolves.' Total mana cost with buyback: base {R} + additional {4} = {4}{R}. P1 starts with {colorless: 4, red: 1} in their mana pool (pre-tapped lands) to pay the full cost. The cast_spell action includes buyback: true so the harness passes cast_with_buyback: true to the engine Command::CastSpell, which records was_buyback_paid on the stack object. At resolution (resolution.rs), the engine checks was_buyback_paid and routes the card to the owner's hand per CR 702.27a instead of the graveyard. After resolution: P2 goes from 40 to 39 (1 damage per CR 120.3); Searing Touch is in P1's hand (not graveyard) per CR 702.27a; graveyard is empty.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 4, "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Searing Touch", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Searing Touch with buyback paid, targeting P2",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Searing Touch in P1 hand, P2 at 40 life, graveyard empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Searing Touch",
+          "targets": [
+            { "type": "player", "player": "p2", "card": null, "controller": null }
+          ],
+          "mana_paid": { "colorless": 4, "red": 1 },
+          "mana_source": [],
+          "buyback": true,
+          "cr_ref": "601.2",
+          "note": "CR 601.2 + 601.2b: P1 casts Searing Touch with buyback cost {4} paid as an additional cost. Total cost {4}{R} paid from mana pool. P2 is the target. buyback: true tells the harness to set cast_with_buyback on the engine Command."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Searing Touch on stack, P1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Searing Touch is on the stack; buyback flag is set indicating the additional cost was paid."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Searing Touch",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Searing Touch deals 1 damage to target player P2."
+            }
+          ],
+          "note": "CR 608.2 + 702.27a: Spell resolves; 1 damage dealt to P2; because buyback cost was paid, Searing Touch is placed into P1's hand instead of the graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: P2 at 39 life, Searing Touch back in P1 hand, graveyard empty, stack empty",
+          "assertions": {
+            "players.p2.life": 39,
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Searing Touch" }] },
+            "zones.graveyard.p1": { "is_empty": true }
+          },
+          "note": "CR 702.27a: Buyback cost was paid, so Searing Touch returns to P1's hand rather than going to the graveyard. P2 took 1 damage (40 -> 39)."
+        }
+      ]
+    }
+  ]
+}

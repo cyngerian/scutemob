@@ -204,7 +204,9 @@ impl ReplaySession {
                         convoke,
                         improvise,
                         delve,
+                        escape,
                         kicked,
+                        buyback,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -219,7 +221,9 @@ impl ReplaySession {
                                 convoke,
                                 improvise,
                                 delve,
+                                escape,
                                 *kicked,
+                                *buyback,
                                 &current_state,
                                 &player_map,
                             );

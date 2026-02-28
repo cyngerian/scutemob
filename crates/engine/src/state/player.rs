@@ -116,4 +116,9 @@ pub struct PlayerState {
     /// the storm spell this turn, i.e., `spells_cast_this_turn - 1` at trigger time).
     #[serde(default)]
     pub spells_cast_this_turn: u32,
+    /// CR 702.131c: The city's blessing is a designation that has no rules meaning
+    /// other than to act as a marker. Once a player gets the city's blessing, they
+    /// keep it for the rest of the game (never removed). Set by Ascend checks.
+    #[serde(default)]
+    pub has_citys_blessing: bool,
 }

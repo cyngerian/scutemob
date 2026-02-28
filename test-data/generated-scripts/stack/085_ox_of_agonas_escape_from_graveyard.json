@@ -1,0 +1,201 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_085",
+    "name": "Ox of Agonas escape — cast from graveyard, ETB discard and draw three",
+    "description": "p1 has Ox of Agonas in their graveyard along with 8 other distinct cards (Mountain, Forest, Island, Plains, Swamp, Sol Ring, Lightning Bolt, Counterspell). p1 casts Ox of Agonas using its Escape ability — paying {R}{R} and exiling the 8 other graveyard cards as the additional cost. The 8 named cards are exiled at cast time (not at resolution). After both players pass priority, Ox of Agonas resolves: it enters the battlefield as a 5/3 (4/2 base + +1/+1 counter from Escape per CR 702.138c), its ETB trigger fires (discard hand — zero cards — then draw three). p1 ends with Ox of Agonas on the battlefield, 3 cards in hand, and the 8 escape-exiled cards in exile.",
+    "cr_sections_tested": ["702.138", "702.138a", "702.138b", "702.138c", "601.2", "601.2b", "601.2h", "118.9", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["escape", "graveyard", "alternative-cost", "etb-trigger", "draw", "discard", "ox-of-agonas", "creature"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Ox of Agonas oracle text (Scryfall, confirmed via MCP lookup): 'When this creature enters, discard your hand, then draw three cards. Escape — {R}{R}, Exile eight other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.) This creature escapes with a +1/+1 counter on it.' Base P/T: 4/2. Mana cost: {3}{R}{R} (MV=5). Escape cost: {R}{R} + exile 8 other graveyard cards. CR 702.138a: Escape is a static ability — 'You may cast this card from your graveyard by paying [cost] rather than paying its mana cost.' This is an alternative cost (CR 601.2b). CR 702.138c: The +1/+1 counter clause means 'If this permanent escaped, it enters with a +1/+1 counter.' So Ox enters as 5/3 (4/2 base + 1/1 from counter). The 8 exile cards are exiled at cast time as part of paying the cost (analogous to Delve in script 064). CR 601.2h: Additional costs and alternative costs are paid during casting. After casting, Ox moves from graveyard to stack; the 8 named cards move from graveyard to exile. The cast_spell_escape action type mirrors cast_spell_flashback/cast_spell_delve — it finds the card in the graveyard and exiles the 8 named cards at activation time. IMPORTANT: All 8 exile targets must have DISTINCT card names because the engine tracks them by ObjectId assigned per card name — using duplicate names causes InvalidCommand('duplicate card ObjectId in escape_exile_cards'). The 8 exile targets chosen: Mountain, Forest, Island, Plains, Swamp, Sol Ring, Lightning Bolt, Counterspell — all distinct, all verified in Available Cards list. ETB trigger (CR 603.2): When Ox enters the battlefield, the trigger 'When this creature enters, discard your hand, then draw three cards' is placed on the stack. p1 has an empty hand at that point (no cards), so discard does nothing (per Scryfall ruling: 'You draw three cards, even if you discard no cards.') — p1 draws 3 cards. Library has 3 Mountains for the draw to succeed. Initial hand: empty (0 cards). p1 mana pool: {R}{R} exactly matching the escape mana cost. After resolution: Ox on p1 battlefield; 8 escape cards in exile; Ox NOT in graveyard (permanent spells enter the battlefield); p1 hand = 3 (drew 3).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {
+        "p1": [
+          { "card": "Ox of Agonas", "is_commander": false, "owner": null },
+          { "card": "Mountain", "is_commander": false, "owner": null },
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Plains", "is_commander": false, "owner": null },
+          { "card": "Swamp", "is_commander": false, "owner": null },
+          { "card": "Sol Ring", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Counterspell", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Mountain", "is_commander": false, "owner": null },
+          { "card": "Mountain", "is_commander": false, "owner": null },
+          { "card": "Mountain", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Ox of Agonas from the graveyard using Escape — paying {R}{R} and exiling 8 other graveyard cards",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Ox of Agonas and 8 other distinct cards in p1's graveyard, p1 hand empty, stack empty",
+          "assertions": {
+            "zones.graveyard.p1.count": 9,
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Ox of Agonas" },
+                { "card": "Mountain" },
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Sol Ring" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            },
+            "zones.hand.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "is_empty": true }
+          },
+          "note": "9 cards in p1 graveyard: Ox of Agonas + 8 distinct other cards that will be exiled as escape cost. p1 has {R}{R} in pool and an empty hand. Stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_escape",
+          "card": "Ox of Agonas",
+          "escape": ["Mountain", "Forest", "Island", "Plains", "Swamp", "Sol Ring", "Lightning Bolt", "Counterspell"],
+          "targets": [],
+          "mana_paid": { "red": 2 },
+          "mana_source": [],
+          "cr_ref": "702.138a",
+          "note": "CR 702.138a: p1 casts Ox of Agonas from graveyard using its escape ability — paying {R}{R} (alternative cost) instead of {3}{R}{R}. CR 601.2h: Exile of 8 other graveyard cards (Mountain, Forest, Island, Plains, Swamp, Sol Ring, Lightning Bolt, Counterspell) is paid as part of the casting cost. CR 601.2b: Only one alternative cost applied."
+        },
+        {
+          "type": "assert_state",
+          "description": "After escape cast: Ox of Agonas on stack, 8 escape cards now in exile, p1 graveyard empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1.count": 0,
+            "zones.exile": {
+              "includes": [
+                { "card": "Mountain" },
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Sol Ring" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            },
+            "zones.graveyard.p1": { "excludes": ["Ox of Agonas"] }
+          },
+          "note": "CR 702.138a: Ox of Agonas moved from graveyard to stack. The 8 named cards were exiled at cast time as part of paying the escape cost (CR 601.2h). p1's graveyard is now empty."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in succession. Ox of Agonas resolves from top of stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Ox of Agonas",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Ox of Agonas",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Permanent spell resolves; Ox of Agonas enters p1's battlefield. CR 702.138c: Because Ox escaped, it enters with a +1/+1 counter — it is a 5/3 (4/2 base + 1/1 counter)."
+            },
+            {
+              "effect": "etb_trigger",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Ox of Agonas",
+              "owner": "p1",
+              "cr_ref": "603.2",
+              "note": "CR 603.2: 'When this creature enters, discard your hand, then draw three cards' triggers as Ox enters the battlefield. p1 has 0 cards in hand — discard does nothing. Then p1 draws 3 cards from the library (3 Mountains available)."
+            }
+          ],
+          "note": "CR 608.2: Ox of Agonas resolves as a permanent spell — it enters the battlefield. CR 702.138c: It enters with a +1/+1 counter (escaped). CR 702.138b: This permanent 'escaped' because the spell was cast from the graveyard with an escape ability. The ETB trigger fires immediately."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Ox of Agonas on p1 battlefield, p1 drew 3 cards, 8 escape cards in exile, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Ox of Agonas" }]
+            },
+            "zones.hand.p1.count": 3,
+            "zones.graveyard.p1": { "excludes": ["Ox of Agonas"] },
+            "zones.exile": {
+              "includes": [
+                { "card": "Mountain" },
+                { "card": "Forest" },
+                { "card": "Island" },
+                { "card": "Plains" },
+                { "card": "Swamp" },
+                { "card": "Sol Ring" },
+                { "card": "Lightning Bolt" },
+                { "card": "Counterspell" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Ox of Agonas entered the battlefield (5/3 with +1/+1 counter from escape). ETB trigger discarded p1's empty hand (no effect) then drew 3 cards (3 Mountains from library). The 8 escape-exiled cards remain in exile permanently. Ox is NOT in the graveyard — it is on the battlefield as a permanent. p1 life unchanged at 40."
+        }
+      ]
+    }
+  ]
+}

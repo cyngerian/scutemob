@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_layers_081",
+    "name": "Bestow: Boon Satyr as Aura then falls off as creature",
+    "description": "Demonstrates CR 702.103 Bestow in two phases. First, p1 casts Boon Satyr for its bestow cost {3}{G}{G} as an Aura targeting p1's Llanowar Elves; it resolves as a bestowed Aura and grants +4/+2, making the Elves 5/3. Second, p2 uses Doom Blade to destroy the Llanowar Elves. Per CR 702.103f, Boon Satyr (a bestowed Aura) becomes unattached and ceases to be bestowed — it remains on the battlefield as a 4/2 enchantment creature rather than going to the graveyard (an explicit exception to CR 704.5m which would normally destroy an Aura that is not attached).",
+    "cr_sections_tested": ["601.2", "608.2", "702.103a", "702.103b", "702.103f", "303.4", "704.5m", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["bestow", "aura", "enchantment", "continuous-effect", "layers", "type-change"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Boon Satyr oracle text (verified via MCP): {1}{G}{G}, Enchantment Creature — Satyr, Flash, Bestow {3}{G}{G}. Enchanted creature gets +4/+2. P/T 4/2. Bestow cost is {3}{G}{G} (3 generic + 2 green). When cast for bestow cost: becomes an Aura spell with enchant creature (CR 702.103b). Upon resolution it enters battlefield attached to Llanowar Elves and grants +4/+2 as a continuous effect (Elves become 5/3). When Doom Blade destroys Llanowar Elves, the enchanted creature leaves the battlefield. CR 702.103f: 'If a bestowed Aura becomes unattached, it ceases to be bestowed.' This is explicitly an exception to 704.5m (which would put an unattached Aura into its owner's graveyard). Instead, Boon Satyr remains on the battlefield as a 4/2 enchantment creature. Priority flow: p1 is the active player, so p1 holds priority first in the main phase. After Boon Satyr resolves, p1 passes priority; p2 then casts Doom Blade. After Doom Blade resolves, SBAs fire. Mana setup: p1 has {colorless:3, green:2} to pay {3}{G}{G}; p2 has {colorless:1, black:1} to pay {1}{B} for Doom Blade.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 3, "green": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Boon Satyr", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Doom Blade", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Boon Satyr for its bestow cost targeting Llanowar Elves; it resolves as an attached Aura",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Boon Satyr in p1 hand, Llanowar Elves on battlefield, Doom Blade in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.battlefield.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Boon Satyr",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Llanowar Elves", "controller": "p1" }
+          ],
+          "mana_paid": { "colorless": 3, "green": 2 },
+          "mana_source": [],
+          "cr_ref": "702.103a",
+          "note": "CR 702.103a: p1 chooses to cast Boon Satyr for its bestow cost {3}{G}{G} as an alternative cost. CR 702.103b: As it is put on the stack it becomes an Aura spell with enchant creature targeting Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting for bestow: Boon Satyr is on the stack as an Aura spell, hand is empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Boon Satyr is on the stack as a bestowed Aura spell targeting Llanowar Elves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves top object."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Boon Satyr",
+          "resolution": [
+            {
+              "effect": "attach_aura",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "amount": null,
+              "card": "Boon Satyr",
+              "owner": "p1",
+              "cr_ref": "303.4",
+              "note": "CR 303.4: Boon Satyr resolves as an Aura and enters the battlefield attached to Llanowar Elves. As a bestowed Aura it grants +4/+2 to the enchanted creature as a continuous effect."
+            }
+          ],
+          "note": "CR 608.2: Boon Satyr resolves from the stack as a bestowed Aura, entering the battlefield attached to Llanowar Elves. The +4/+2 bonus applies continuously while attached."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Boon Satyr resolves: it is on battlefield as Aura attached to Llanowar Elves; both permanents count",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 2,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Boon Satyr is now on battlefield as a bestowed Aura. Llanowar Elves has +4/+2 continuous effect (1/1 base + 4/2 = 5/3 effective P/T)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 passes priority; p2 casts Doom Blade on Llanowar Elves, causing Boon Satyr to fall off",
+      "actions": [
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "p1 (active player) passes priority after Boon Satyr resolves. Priority passes to p2."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Llanowar Elves", "controller": "p1" }
+          ],
+          "mana_paid": { "colorless": 1, "black": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Doom Blade ({1}{B}) targeting p1's Llanowar Elves. Llanowar Elves is a non-black creature, so it is a legal target."
+        },
+        {
+          "type": "assert_state",
+          "description": "After p2 casts Doom Blade: it is on the stack, p2 hand empty",
+          "assertions": {
+            "zones.hand.p2.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Doom Blade resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Doom Blade destroys Llanowar Elves; it moves from the battlefield to p1's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Doom Blade resolves; Llanowar Elves is destroyed."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "bestow_falls_off",
+              "target": { "card": "Boon Satyr", "controller": "p1" },
+              "cr_ref": "702.103f",
+              "note": "CR 702.103f: Boon Satyr is a bestowed Aura that has become unattached because its enchanted creature (Llanowar Elves) left the battlefield. It ceases to be bestowed. This is an exception to CR 704.5m — rather than going to the graveyard as an unattached Aura, Boon Satyr remains on the battlefield as an enchantment creature."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked after Doom Blade resolves and priority would be received. Boon Satyr's bestow exception (CR 702.103f) prevents CR 704.5m from applying."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Llanowar Elves in p1 graveyard, Doom Blade in p2 graveyard, Boon Satyr remains on battlefield as a 4/2 enchantment creature",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Doom Blade" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Boon Satyr" }] },
+            "zones.battlefield.p1.count": 1
+          },
+          "note": "Boon Satyr (4/2 enchantment creature — Satyr) is on the battlefield under p1's control. It is no longer an Aura. Llanowar Elves is in the graveyard. This demonstrates CR 702.103f: bestow-off keeps the Aura as a creature on the battlefield, overriding CR 704.5m's normal rule that unattached Auras go to the graveyard."
+        }
+      ]
+    }
+  ]
+}

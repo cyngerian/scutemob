@@ -1,0 +1,261 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_092",
+    "name": "Arcbound Worker Modular — ETB counter, dies, transfers counter",
+    "description": "p1 casts Arcbound Worker ({1}), which enters the battlefield with 1 +1/+1 counter from Modular 1, making it a 1/1. p2 then casts Lightning Bolt targeting it for 3 damage. The Worker's toughness is 1, so marking 3 damage is lethal and SBA destroys it. The Modular triggered ability goes on the stack: 'put its +1/+1 counters on target artifact creature.' p1 chooses Solemn Simulacrum as the target. The Modular trigger resolves, moving 1 counter from the Worker to the Simulacrum, making it a 3/3. This script tests CR 702.43a — Modular as both a static ETB counter ability and a triggered death ability.",
+    "cr_sections_tested": ["702.43a", "601.2", "608.2", "120.3", "704.5g", "704.3", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["modular", "counter", "artifact-creature", "etb", "triggered-ability", "death"],
+    "confidence": "low",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.43a: Modular N means (1) 'This permanent enters with N +1/+1 counters on it' (static) and (2) 'When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent' (triggered). Arcbound Worker is 0/0 base, so with 1 counter it becomes 1/1. Lightning Bolt deals 3 damage — 3 >= 1 toughness, so SBA 704.5g destroys it. At death, Modular trigger checks counters on the Worker before it left the battlefield (per the 2006-09-25 ruling: counters counted before leaving). Solemn Simulacrum is a 2/2 artifact creature in the engine — it is the only Available artifact creature card suitable as a counter target. After receiving 1 counter it becomes a 3/3. Priority flow: after Arcbound Worker resolves and enters the battlefield, p1 (active player) gets priority (CR 116.3b). p1 must pass before p2 may cast Lightning Bolt. NOTE: Arcbound Worker is NOT in the engine Available Cards list and has no CardDefinition in crates/engine/src/cards/definitions.rs. The script will fail until the card definition is added and Modular keyword is implemented. Harness validation attempted 2026-02-28 — engine returned missing card (Arcbound Worker not in battlefield after cast) and NotPriorityHolder for p2 cast (fixed by adding priority_pass for p1 before p2 acts). Second retry: first fix applied (priority_pass added). Remaining failure is engine gap: Arcbound Worker definition missing.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Arcbound Worker has no CardDefinition in the engine (not in Available Cards list, not found in crates/engine/src/cards/definitions.rs). The script will fail with a missing-definition error until the card is authored and the Modular keyword (CR 702.43a) is implemented in the engine. Script is correct per CR rules; engine gap must be resolved separately before this script can be approved.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Solemn Simulacrum", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Arcbound Worker", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Arcbound Worker; Modular 1 ETB places 1 +1/+1 counter on it",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Worker in p1 hand, Solemn Simulacrum on p1 battlefield as 2/2, Lightning Bolt in p2 hand",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.battlefield.p1.count": 1
+          },
+          "note": "Solemn Simulacrum (2/2 artifact creature) is present as the Modular counter target. Arcbound Worker awaits casting."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Arcbound Worker",
+          "targets": [],
+          "mana_paid": { "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Arcbound Worker for {1} from the mana pool."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Arcbound Worker resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Arcbound Worker",
+          "resolution": [
+            {
+              "effect": "enters_battlefield_with_counter",
+              "target": { "type": "self", "card": "Arcbound Worker", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.43a",
+              "note": "CR 702.43a: Modular 1 static ability — Arcbound Worker enters with 1 +1/+1 counter, making it a 1/1 (0/0 base + counter)."
+            }
+          ],
+          "note": "CR 608.2: Arcbound Worker enters the battlefield. Modular 1 means it enters with 1 +1/+1 counter."
+        },
+        {
+          "type": "assert_state",
+          "description": "After ETB: Arcbound Worker on p1 battlefield as 1/1 (0/0 base + 1 counter), stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 2,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Arcbound Worker" },
+                { "card": "Solemn Simulacrum" }
+              ]
+            }
+          },
+          "note": "Worker is now a 1/1 artifact creature on p1's battlefield (0/0 base + 1 +1/+1 counter from Modular). Solemn Simulacrum is still present at 2/2."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p2 casts Lightning Bolt targeting Arcbound Worker — lethal damage, Worker dies, Modular trigger fires",
+      "actions": [
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "CR 116.3: p1 (active player) passes priority after Arcbound Worker resolved. p2 may now act."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Arcbound Worker", "controller": "p1" }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Lightning Bolt targeting Arcbound Worker (1/1 due to Modular counter)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Lightning Bolt on the stack targeting the Worker",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "permanent", "card": "Arcbound Worker", "controller": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Arcbound Worker. Worker has toughness 1 (0/0 base + 1 counter = 1/1); 3 >= 1 is lethal."
+            }
+          ],
+          "note": "CR 608.2: Lightning Bolt resolves, marking 3 damage on Arcbound Worker."
+        },
+        {
+          "type": "sba_check",
+          "description": "SBA: Arcbound Worker has lethal damage marked, destroyed; Modular trigger placed on stack",
+          "cr_ref": "704.5g",
+          "note": "CR 704.5g: Arcbound Worker has damage marked (3) >= its toughness (1) — it is destroyed and goes to p1's graveyard. CR 702.43a: Modular 'when this permanent is put into a graveyard from the battlefield' trigger is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After SBA: Worker in p1 graveyard, Modular death trigger on stack",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Arcbound Worker" }] },
+            "zones.battlefield.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "CR 702.43a: Worker dying triggers Modular — 'put its +1/+1 counters on target artifact creature.' Trigger is on the stack. Solemn Simulacrum remains as the only artifact creature on the battlefield."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "choose_option",
+          "card": "Arcbound Worker",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Solemn Simulacrum", "controller": "p1" }
+          ],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "702.43a",
+          "note": "CR 702.43a: p1 chooses Solemn Simulacrum as the target artifact creature to receive the 1 counter from the Modular trigger."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Modular triggered ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Arcbound Worker",
+          "resolution": [
+            {
+              "effect": "put_counters_on_permanent",
+              "target": { "type": "permanent", "card": "Solemn Simulacrum", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.43a",
+              "note": "CR 702.43a: Modular trigger resolves — 1 +1/+1 counter (all counters Worker had before leaving battlefield per 2006-09-25 ruling) moves to Solemn Simulacrum, making it a 3/3."
+            }
+          ],
+          "note": "CR 608.2: Modular triggered ability resolves. Solemn Simulacrum gains 1 +1/+1 counter (2/2 + 1 counter = 3/3)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Worker in p1 graveyard, Simulacrum still on battlefield with +1/+1 counter (3/3), stack empty, Lightning Bolt in p2 graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Arcbound Worker" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Lightning Bolt" }] },
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Solemn Simulacrum" }] }
+          },
+          "note": "Modular successfully transferred 1 +1/+1 counter from the dying Arcbound Worker to Solemn Simulacrum. Simulacrum is now a 3/3 (2/2 base + 1 counter from Modular). Stack is empty."
+        }
+      ]
+    }
+  ]
+}

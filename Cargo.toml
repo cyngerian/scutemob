@@ -5,6 +5,7 @@ members = [
     "crates/network",
     "crates/card-db",
     "crates/card-pipeline",
+    "crates/simulator",
     "tools/scryfall-import",
     "tools/mcp-server",
     "tools/replay-viewer",

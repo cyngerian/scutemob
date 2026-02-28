@@ -14,9 +14,11 @@ use super::combat;
 use super::command::Command;
 use super::commander;
 use super::events::GameEvent;
+use super::foretell;
 use super::lands;
 use super::loop_detection;
 use super::mana;
+use super::miracle;
 use super::priority::{self, PriorityResult};
 use super::replacement;
 use super::resolution;
@@ -76,6 +78,12 @@ pub fn process_command(
             delve_cards,
             kicker_times,
             cast_with_evoke,
+            cast_with_bestow,
+            cast_with_miracle,
+            cast_with_escape,
+            escape_exile_cards,
+            cast_with_foretell,
+            cast_with_buyback,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -90,6 +98,12 @@ pub fn process_command(
                 delve_cards,
                 kicker_times,
                 cast_with_evoke,
+                cast_with_bestow,
+                cast_with_miracle,
+                cast_with_escape,
+                escape_exile_cards,
+                cast_with_foretell,
+                cast_with_buyback,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -232,6 +246,29 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Miracle (CR 702.94) ──────────────────────────────────────────
+        Command::ChooseMiracle {
+            player,
+            card,
+            reveal,
+        } => {
+            // CR 702.94a: Handle the player's miracle reveal choice.
+            // No validate_player_active needed — miracle can trigger on any player's draw,
+            // not just the active player's draw step.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: choosing to reveal a miracle card is a meaningful player choice.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = miracle::handle_choose_miracle(&mut state, player, card, reveal)?;
+            // CR 603.3: Check for triggered abilities arising from miracle reveal.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
         // ── Crew (CR 702.122) ────────────────────────────────────────────
         Command::CrewVehicle {
             player,
@@ -244,6 +281,29 @@ pub fn process_command(
             let mut events =
                 abilities::handle_crew_vehicle(&mut state, player, vehicle, crew_creatures)?;
             // CR 603.3: Check for triggered abilities arising from crewing.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Foretell (CR 702.143) ─────────────────────────────────────────
+        Command::ForetellCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: foretelling is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let events = foretell::handle_foretell_card(&mut state, player, card)?;
+            all_events.extend(events);
+        }
+
+        Command::UnearthCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: unearth is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = abilities::handle_unearth_card(&mut state, player, card)?;
             let new_triggers = abilities::check_triggers(&state, &events);
             for t in new_triggers {
                 state.pending_triggers.push_back(t);

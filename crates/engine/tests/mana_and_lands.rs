@@ -260,6 +260,12 @@ fn test_play_land_stack_nonempty_fails() {
         cast_with_flashback: false,
         kicker_times_paid: 0,
         was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
     });
 
     let result = mtg_engine::process_command(

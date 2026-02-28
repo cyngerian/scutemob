@@ -202,7 +202,9 @@ pub fn translate_player_action(
     convoke_names: &[String],
     improvise_names: &[String],
     delve_names: &[String],
+    escape_names: &[String],
     kicked: bool,
+    buyback: bool,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -244,6 +246,12 @@ pub fn translate_player_action(
                 delve_cards: delve_ids,
                 kicker_times: if kicked { 1 } else { 0 },
                 cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: buyback,
             })
         }
 
@@ -264,6 +272,12 @@ pub fn translate_player_action(
                 delve_cards: vec![],
                 kicker_times: 0,
                 cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
             })
         }
 
@@ -281,6 +295,136 @@ pub fn translate_player_action(
                 delve_cards: vec![],
                 kicker_times: 0,
                 cast_with_evoke: true,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+            })
+        }
+
+        // CR 702.103a: Cast a spell with bestow from the player's hand.
+        // The bestow cost (an alternative cost) is paid instead of the mana cost.
+        "cast_spell_bestow" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: true,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+            })
+        }
+
+        // CR 702.35a: Cast a madness card from exile by paying the madness cost.
+        // The card is located in the caster's exile zone (put there by the discard
+        // replacement effect). Madness is auto-detected from the card's zone + keyword.
+        "cast_spell_madness" => {
+            let card_id = find_in_exile(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+            })
+        }
+
+        // CR 702.94a: Cast a miracle card from hand by paying the miracle cost.
+        // The card is in hand (drawn this turn as first draw). A MiracleTrigger must
+        // be on the stack (the player already chose to reveal via ChooseMiracle).
+        "cast_spell_miracle" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: true,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+            })
+        }
+
+        // CR 702.138a: Cast a spell with escape from the player's graveyard.
+        // The escape cost (mana + exiling other cards) is paid instead of the mana cost.
+        // The action uses the `escape` field: names of other cards to exile from graveyard.
+        "cast_spell_escape" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            // Resolve escape exile card names to ObjectIds in the caster's graveyard.
+            let exile_ids: Vec<crate::state::game_object::ObjectId> = escape_names
+                .iter()
+                .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
+                .collect();
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: true,
+                escape_exile_cards: exile_ids,
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+            })
+        }
+
+        // CR 702.94a: Choose to reveal a miracle card drawn this turn.
+        // Sent in response to a `MiracleRevealChoiceRequired` event.
+        // In scripts, `choose_miracle` always means `reveal: true` (to use miracle).
+        // To decline, simply don't send this action — pass priority instead.
+        "choose_miracle" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::ChooseMiracle {
+                player,
+                card: card_id,
+                reveal: true,
+            })
+        }
+
+        // CR 702.94a: Decline to reveal a miracle card drawn this turn.
+        // Use this if the player drew a miracle card but does not want to cast it.
+        "choose_miracle_decline" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::ChooseMiracle {
+                player,
+                card: card_id,
+                reveal: false,
             })
         }
 
@@ -308,6 +452,16 @@ pub fn translate_player_action(
         "cycle_card" => {
             let card_id = find_in_hand(state, player, card_name?)?;
             Some(Command::CycleCard {
+                player,
+                card: card_id,
+            })
+        }
+
+        // CR 702.84a: Activate an unearth ability from the graveyard.
+        // card_name is the name of the card with unearth in the player's graveyard.
+        "unearth_card" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            Some(Command::UnearthCard {
                 player,
                 card: card_id,
             })
@@ -424,6 +578,41 @@ pub fn translate_player_action(
                 player,
                 vehicle: vehicle_id,
                 crew_creatures: crew_ids,
+            })
+        }
+
+        // CR 702.143a / CR 116.2h: Foretell a card from the player's hand.
+        // The player pays {2} and exiles the named card face-down. Legal any time
+        // the player has priority during their own turn.
+        "foretell_card" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::ForetellCard {
+                player,
+                card: card_id,
+            })
+        }
+
+        // CR 702.143a: Cast a foretold card from exile by paying the foretell cost.
+        // The card must have been foretold on a prior turn (is_foretold == true,
+        // foretold_turn < current turn). Uses cast_with_foretell: true.
+        "cast_spell_foretell" => {
+            let card_id = find_foretold_in_exile(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: true,
+                cast_with_buyback: false,
             })
         }
 
@@ -694,6 +883,26 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 701.50b: Convert "Whenever this creature connives" card-definition triggers
+    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Connived events. Fires even if the creature left the battlefield
+    // (Psychic Pickpocket ruling, 2022-04-29).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenConnives,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::SourceConnives,
+                intervening_if: None,
+                description: "Whenever this creature connives (CR 701.50b)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
     spec
 }
 
@@ -762,6 +971,42 @@ fn find_in_graveyard(
 ) -> Option<crate::state::ObjectId> {
     state.objects.iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == ZoneId::Graveyard(player) {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+fn find_in_exile(
+    state: &GameState,
+    _player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name && obj.zone == ZoneId::Exile {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 702.143a: Find a named foretold card in exile owned by the given player.
+///
+/// Foretell cards are in ZoneId::Exile with is_foretold == true. Unlike general
+/// exile (which is a shared zone), foretold cards are filtered by owner.
+fn find_foretold_in_exile(
+    state: &GameState,
+    player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name
+            && obj.zone == ZoneId::Exile
+            && obj.is_foretold
+            && obj.owner == player
+        {
             Some(id)
         } else {
             None

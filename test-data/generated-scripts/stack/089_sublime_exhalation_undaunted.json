@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_089",
+    "name": "Sublime Exhalation — Undaunted reduces cost in four-player game",
+    "description": "In a 4-player Commander game, P1 casts Sublime Exhalation ({6}{W}) with Undaunted active. CR 702.125a: Undaunted reduces the spell's cost by {1} for each opponent. With 3 opponents (P2, P3, P4), the cost is reduced by {3}, so P1 pays only {3}{W} instead of {6}{W}. Each opponent controls one creature (Llanowar Elves for P2, Bladetusk Boar for P3, Bog Raiders for P4). All opponents pass priority, Sublime Exhalation resolves and destroys all three creatures simultaneously. Tests: (1) Undaunted cost reduction applied at cast time, (2) mass creature destruction across all players, (3) four-player priority round.",
+    "cr_sections_tested": ["702.125a", "702.125b", "601.2", "608.2", "701.7", "700.4", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["undaunted", "cost-reduction", "board-wipe", "destroy-all", "four-player", "multiplayer", "sorcery"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Sublime Exhalation oracle text: 'Undaunted (This spell costs {1} less to cast for each opponent.) / Destroy all creatures.' Base cost {6}{W} = 7 mana total. CR 702.125a: Undaunted reduces cost by {1} per opponent. In a 4-player game P1 has 3 opponents (P2, P3, P4), so discount = 3 x {1} = {3}. Effective cost = {3}{W} = 4 mana (3 generic + 1 white). P1's mana pool is initialized to exactly {white:1, colorless:3} to demonstrate that this (and no more) is sufficient. The card is 'sublime-exhalation' in the engine card registry. Three opponent creatures are placed on the battlefield: Llanowar Elves (P2), Bladetusk Boar (P3), Bog Raiders (P4). P1 controls no creatures. Resolution uses effect 'destroy_all_creatures' listing all three opponent creatures (same pattern as Wrath of God script 008). SBA check follows with empty actions (creatures already moved to graveyard as part of destruction). Final assertions: stack empty, all three opponent battlefields clear, each creature in the owner's graveyard, Sublime Exhalation in P1's graveyard. CR 702.125b: only players still in the game are counted — all 4 players remain throughout. The reduced mana cost (4 instead of 7) is demonstrated by the mana_paid field matching exactly what is in the initial mana pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 5,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1, "colorless": 3 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p3": [
+          { "card": "Bladetusk Boar", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p4": [
+          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Sublime Exhalation", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Sublime Exhalation for its Undaunted-reduced cost {3}{W}. All four players pass priority. Spell resolves and destroys all three opponent creatures.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sublime Exhalation in P1 hand; one creature on each of P2/P3/P4 battlefields; P1 controls no creatures; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p3": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p4": { "includes": [{ "card": "Bog Raiders" }] }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Sublime Exhalation",
+          "targets": [],
+          "mana_paid": { "white": 1, "colorless": 3 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Sublime Exhalation. CR 702.125a: Undaunted reduces cost by {1} per opponent. P1 has 3 opponents (P2, P3, P4) so discount = {3}. Base cost {6}{W} reduced by {3} = effective cost {3}{W}. P1 pays exactly {3}{W} from pool. No targets (spell affects all creatures)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Sublime Exhalation on stack, P1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.125a: Undaunted cost reduction applied at cast time. Spell is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2", "p3", "p4"],
+          "result": "all_pass",
+          "note": "CR 116.3: All four players pass priority in APNAP order. Top of stack (Sublime Exhalation) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sublime Exhalation",
+          "resolution": [
+            {
+              "effect": "destroy_all_creatures",
+              "affected": [
+                { "card": "Llanowar Elves", "controller": "p2" },
+                { "card": "Bladetusk Boar", "controller": "p3" },
+                { "card": "Bog Raiders", "controller": "p4" }
+              ],
+              "cr_ref": "701.7",
+              "note": "CR 701.7: All creatures on the battlefield are destroyed simultaneously. CR 700.4: 'All' means every object matching the description. Three creatures are affected — one controlled by each opponent."
+            }
+          ],
+          "note": "CR 608.2: Sublime Exhalation resolves. Effect destroys all creatures. Card moves to P1's graveyard."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "SBAs checked: destroyed creatures already moved to their owners' graveyards as part of the destruction event."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: stack empty; all three opponent creatures destroyed and in their owners' graveyards; Sublime Exhalation in P1 graveyard; all players still at 40 life",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "excludes": ["Llanowar Elves"] },
+            "zones.battlefield.p3": { "excludes": ["Bladetusk Boar"] },
+            "zones.battlefield.p4": { "excludes": ["Bog Raiders"] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p3": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.graveyard.p4": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Sublime Exhalation" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "players.p3.life": 40,
+            "players.p4.life": 40
+          },
+          "note": "Sublime Exhalation resolved with Undaunted discount of {3} (3 opponents). All opponent creatures destroyed. No life totals changed — destruction is not damage."
+        }
+      ]
+    }
+  ]
+}

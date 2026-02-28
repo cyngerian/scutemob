@@ -1,0 +1,32 @@
+[package]
+name = "mtg-simulator"
+version = "0.1.0"
+edition.workspace = true
+description = "Game simulator, bot framework, and fuzzer for the MTG Commander Rules Engine"
+
+[[bin]]
+name = "mtg-fuzzer"
+path = "src/bin/fuzzer.rs"
+
+[dependencies]
+mtg-engine = { path = "../engine" }
+
+# Randomness
+rand = "0.8"
+
+# Parallelism
+rayon = "1"
+num_cpus = "1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Progress display
+indicatif = "0.17"
+
+# Serialization (crash reports)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+# Tests only

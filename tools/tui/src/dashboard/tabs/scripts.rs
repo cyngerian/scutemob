@@ -103,10 +103,7 @@ fn render_table(f: &mut Frame, area: Rect, app: &mut App) {
                 Cell::from(Span::styled(symbol, sym_style)),
                 Cell::from(Span::styled(e.directory.clone(), dir_style)),
                 Cell::from(Span::styled(e.filename.clone(), name_style)),
-                Cell::from(Span::styled(
-                    format!("{:>3}", e.assertion_count),
-                    chk_style,
-                )),
+                Cell::from(Span::styled(format!("{:>3}", e.assertion_count), chk_style)),
             ])
         })
         .collect();
@@ -182,8 +179,11 @@ fn render_detail(f: &mut Frame, area: Rect, app: &App) {
     };
 
     f.render_widget(
-        Paragraph::new(text)
-            .block(Block::default().borders(Borders::ALL).title(" Description ")),
+        Paragraph::new(text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Description "),
+        ),
         area,
     );
 }

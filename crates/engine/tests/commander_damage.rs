@@ -415,6 +415,11 @@ fn test_commander_damage_survives_zone_change() {
                 goaded_by: im::Vector::new(),
                 kicker_times_paid: 0,
                 was_evoked: false,
+                is_bestowed: false,
+                was_escaped: false,
+                is_foretold: false,
+                foretold_turn: 0,
+                was_unearthed: false,
             },
             ZoneId::Battlefield,
         )

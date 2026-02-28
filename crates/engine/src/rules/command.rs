@@ -103,6 +103,57 @@ pub enum Command {
         /// Ignored for spells without evoke.
         #[serde(default)]
         cast_with_evoke: bool,
+        /// CR 702.103a: If true, cast this spell by paying its bestow cost instead
+        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
+        /// combine with flashback, evoke, or other alternative costs.
+        /// Ignored for spells without bestow.
+        #[serde(default)]
+        cast_with_bestow: bool,
+        /// CR 702.94a: If true, cast this spell by paying its miracle cost instead
+        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
+        /// combine with flashback, evoke, bestow, or madness.
+        ///
+        /// The card must be in the player's hand (not graveyard/exile), must have
+        /// `KeywordAbility::Miracle`, and a `MiracleTrigger` for this card must be
+        /// on the stack (the reveal happened). Timing restrictions are ignored --
+        /// sorceries may be cast at instant speed (CR 702.94a ruling).
+        #[serde(default)]
+        cast_with_miracle: bool,
+        /// CR 702.138a: If true, cast this spell by paying its escape cost
+        /// (mana + exiling cards from graveyard) instead of its mana cost.
+        /// This is an alternative cost (CR 118.9) -- cannot combine with
+        /// flashback, evoke, bestow, madness, miracle, or other alternative costs.
+        ///
+        /// When true, `escape_exile_cards` must contain exactly the number of
+        /// ObjectIds specified by the card's `AbilityDefinition::Escape { exile_count }`.
+        /// Each card must be in the caster's graveyard and must not be the card
+        /// being cast (it says "other cards").
+        #[serde(default)]
+        cast_with_escape: bool,
+        /// CR 702.138a: Cards in the caster's graveyard to exile as part of the
+        /// escape cost. Must be exactly `exile_count` cards (from AbilityDefinition::Escape).
+        /// Each card must be in the caster's graveyard, must not be the card being
+        /// cast (the spell itself), and must not be duplicated.
+        ///
+        /// Empty vec when `cast_with_escape` is false.
+        #[serde(default)]
+        escape_exile_cards: Vec<ObjectId>,
+        /// CR 702.143a: If true, cast this spell by paying its foretell cost instead
+        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
+        /// combine with flashback, evoke, bestow, madness, miracle, escape, or other
+        /// alternative costs.
+        ///
+        /// The card must be in exile with `is_foretold == true` and
+        /// `foretold_turn < current turn number`.
+        #[serde(default)]
+        cast_with_foretell: bool,
+        /// CR 702.27a: If true, pay the buyback additional cost when casting.
+        /// If the buyback cost was paid and the spell resolves, the card returns
+        /// to its owner's hand instead of going to the graveyard.
+        /// This is an additional cost (not alternative) -- can combine with
+        /// flashback, kicker, and other costs.
+        #[serde(default)]
+        cast_with_buyback: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///
@@ -242,6 +293,26 @@ pub enum Command {
         card: Option<ObjectId>,
     },
 
+    // ── Miracle (CR 702.94) ──────────────────────────────────────────────
+    /// Choose whether to reveal a miracle card drawn as the first card this turn (CR 702.94a).
+    ///
+    /// Sent in response to a `MiracleRevealChoiceRequired` event. If `reveal` is `true`,
+    /// the card is revealed and a miracle trigger is placed on the stack. When that
+    /// trigger resolves, the card stays in hand (the player may cast it from hand while
+    /// the trigger is on the stack using `CastSpell` with `cast_with_miracle: true`).
+    /// If `reveal` is `false`, the card stays in hand as a normal draw.
+    ///
+    /// Validation: the card must be in the player's hand with `KeywordAbility::Miracle`,
+    /// and `cards_drawn_this_turn` must be 1 (first draw).
+    ChooseMiracle {
+        player: PlayerId,
+        /// The drawn card in hand. If `reveal` is false, this field is ignored but should
+        /// match the `card_object_id` from the `MiracleRevealChoiceRequired` event.
+        card: ObjectId,
+        /// True = reveal and put miracle trigger on stack. False = decline (normal draw).
+        reveal: bool,
+    },
+
     // ── Crew (CR 702.122) ────────────────────────────────────────────────
     /// Crew a Vehicle by tapping creatures (CR 702.122a).
     ///
@@ -262,4 +333,27 @@ pub enum Command {
         /// be in this list ("other untapped creatures" per CR 702.122a).
         crew_creatures: Vec<ObjectId>,
     },
+
+    // -- Foretell (CR 702.143) -----------------------------------------------
+    /// Foretell a card from hand (CR 702.143a / CR 116.2h).
+    ///
+    /// Special action: pay {2}, exile a card with foretell from your hand face down.
+    /// This does not use the stack. Legal any time you have priority during your turn.
+    /// The card can be cast for its foretell cost on a future turn.
+    ForetellCard { player: PlayerId, card: ObjectId },
+
+    // -- Unearth (CR 702.84) -----------------------------------------------
+    /// Activate a card's unearth ability from the graveyard (CR 702.84a).
+    ///
+    /// The card must be in the player's graveyard with `KeywordAbility::Unearth`.
+    /// The unearth cost is paid, and the unearth ability is placed on the stack.
+    /// When it resolves, the card returns to the battlefield with haste,
+    /// a delayed exile trigger (beginning of next end step), and a replacement
+    /// effect (if it would leave battlefield for non-exile, exile instead).
+    ///
+    /// "Activate only as a sorcery" -- main phase, stack empty, active player.
+    ///
+    /// Unlike `CastSpell`, this is an activated ability, not a spell cast.
+    /// No "cast" triggers fire.
+    UnearthCard { player: PlayerId, card: ObjectId },
 }

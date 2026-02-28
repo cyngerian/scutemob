@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_087",
+    "name": "Dregscape Zombie unearth: returns to battlefield, exiled at end step",
+    "description": "p1 has Dregscape Zombie in their graveyard and {B} in their mana pool. p1 activates Unearth {B}, putting the UnearthAbility on the stack. After both players pass priority, it resolves: Dregscape Zombie returns to the battlefield with haste. Both players then pass priority through BeginningOfCombat, DeclareAttackers, DeclareBlockers, CombatDamage, EndOfCombat, and PostCombatMain to advance to the End step. When the engine enters the End step, end_step_actions fires UnearthTrigger for all was_unearthed permanents. Both players pass priority to resolve it, exiling Dregscape Zombie. Final state: Dregscape Zombie in exile, p1 battlefield empty.",
+    "cr_sections_tested": ["702.84", "702.84a", "702.84b", "702.84c", "704.5g"],
+    "corner_case_ref": null,
+    "tags": ["unearth", "graveyard", "haste", "exile", "delayed-trigger", "zombie"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tests the full Unearth flow per CR 702.84a: activation from graveyard (sorcery-speed), ability resolves returning creature to battlefield with haste, then the delayed end-of-turn trigger exiles it. Dregscape Zombie oracle: {1}{B}, Creature — Zombie 2/1, Unearth {B}. Key harness behavior: StackResolve, SbaCheck, and TurnBasedAction actions are purely informational annotations in the harness — they do NOT drive engine state. Only PriorityPass and PriorityRound submit Commands. The end-step UnearthTrigger is queued by end_step_actions (turn_actions.rs:40-72) which runs when the engine enters Step::End. To reach Step::End from PreCombatMain, both players must pass through: BeginningOfCombat, DeclareAttackers, DeclareBlockers, CombatDamage, EndOfCombat, PostCombatMain, and then End. Steps Untap and Cleanup auto-advance (no priority per CR 502.3 and 514.3). All other steps require player priority passes. The script models 7 priority_round passes (post-resolution, one per step from BeginningOfCombat through PostCombatMain) before the UnearthTrigger fires. After the trigger fires, one more priority_round resolves it via stack resolution. The UnearthTrigger is placed by end_step_actions scanning battlefield for was_unearthed=true objects and queuing them as pending_triggers (is_unearth_trigger=true). Resolution of UnearthTrigger (StackObjectKind::UnearthTrigger) exiles the source object from the battlefield. CR 406.2: exile zone. p1 is active player throughout (same turn). Active player passes priority first in each round.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {},
+      "graveyard": {
+        "p1": [
+          { "card": "Dregscape Zombie", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Unearth on Dregscape Zombie; ability goes on stack, resolves, Zombie enters battlefield",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Dregscape Zombie in p1 graveyard, battlefield empty, stack empty",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Dregscape Zombie" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Dregscape Zombie" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Dregscape Zombie is in the graveyard, awaiting unearth activation"
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "unearth_card",
+          "card": "Dregscape Zombie",
+          "targets": [],
+          "mana_paid": { "black": 1 },
+          "mana_source": [],
+          "cr_ref": "702.84a",
+          "note": "CR 702.84a: p1 activates Unearth {B} on Dregscape Zombie in the graveyard. Sorcery-speed activated ability (main phase, empty stack, active player). Ability goes on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: UnearthAbility on stack (count 1), Dregscape Zombie still in graveyard",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": { "includes": [{ "card": "Dregscape Zombie" }] }
+          },
+          "note": "The unearth activated ability is on the stack. The card itself stays in the graveyard until the ability resolves (CR 400.7 — card is not moved as part of cost)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority with non-empty stack — UnearthAbility resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Dregscape Zombie Unearth",
+          "resolution": [
+            {
+              "effect": "return_to_battlefield",
+              "target": { "type": "card", "card": "Dregscape Zombie", "controller": "p1" },
+              "amount": null,
+              "card": "Dregscape Zombie",
+              "owner": "p1",
+              "cr_ref": "702.84a",
+              "note": "CR 702.84a: Dregscape Zombie returns from graveyard to battlefield under p1's control with haste and was_unearthed=true. Delayed trigger set up for beginning of next end step."
+            }
+          ],
+          "note": "CR 608.2: UnearthAbility resolves. Dregscape Zombie enters the battlefield. NOTE: stack_resolve is informational only — it does not drive engine state. The engine already processed the resolution via the prior priority_round pass."
+        },
+        {
+          "type": "assert_state",
+          "description": "After unearth resolves: Dregscape Zombie on p1 battlefield, no longer in graveyard, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Dregscape Zombie" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Dregscape Zombie" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Dregscape Zombie is now on the battlefield with haste and was_unearthed=true under p1's control"
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PreCombatMain with empty stack — engine advances to BeginningOfCombat step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in BeginningOfCombat with empty stack — engine advances to DeclareAttackers step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in DeclareAttackers (no attackers declared) — engine advances to DeclareBlockers step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in DeclareBlockers — engine advances to CombatDamage step. No combat damage (no attackers)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in CombatDamage with empty stack — engine advances to EndOfCombat step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in EndOfCombat with empty stack — engine advances to PostCombatMain step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PostCombatMain with empty stack — engine advances to End step. On entering End, end_step_actions fires: scans battlefield for was_unearthed permanents, queues UnearthTrigger for Dregscape Zombie, then flushes it onto the stack as a pending trigger."
+        },
+        {
+          "type": "assert_state",
+          "description": "At End step: UnearthTrigger on stack (count 1), Dregscape Zombie still on battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Dregscape Zombie" }] }
+          },
+          "note": "The UnearthTrigger was queued by end_step_actions and flushed to the stack via flush_pending_triggers. Dregscape Zombie is still on the battlefield awaiting the trigger's resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — UnearthTrigger resolves, exiling Dregscape Zombie."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Dregscape Zombie Unearth Trigger",
+          "resolution": [
+            {
+              "effect": "exile",
+              "target": { "type": "card", "card": "Dregscape Zombie", "controller": "p1" },
+              "amount": null,
+              "card": "Dregscape Zombie",
+              "owner": "p1",
+              "cr_ref": "702.84a",
+              "note": "CR 702.84a: Delayed trigger fires — 'Exile it at the beginning of the next end step.' Dregscape Zombie moves from battlefield to exile. CR 406.2: exile zone."
+            }
+          ],
+          "note": "CR 608.2 + 702.84a: UnearthTrigger (StackObjectKind::UnearthTrigger) resolves, exiling Dregscape Zombie. NOTE: stack_resolve is informational only; engine processed this via the prior priority_round."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Dregscape Zombie in exile, p1 battlefield empty, stack empty",
+          "assertions": {
+            "zones.exile": { "includes": [{ "card": "Dregscape Zombie" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Dregscape Zombie" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Dregscape Zombie has been exiled by its own unearth delayed trigger per CR 702.84a. It cannot be returned to the battlefield again via unearth (it is no longer in the graveyard)."
+        }
+      ]
+    }
+  ]
+}

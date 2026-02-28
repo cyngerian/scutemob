@@ -263,6 +263,11 @@ pub enum GameEvent {
         new_grave_id: ObjectId,
     },
 
+    /// CR 702.103f: A bestowed Aura became unattached and reverted to an
+    /// enchantment creature. Unlike normal Auras (AuraFellOff), the permanent
+    /// stays on the battlefield.
+    BestowReverted { object_id: ObjectId },
+
     /// An equipment (or fortification) became unattached because the object it
     /// was attached to is no longer a legal attachment target (CR 704.5n).
     EquipmentUnattached { object_id: ObjectId },
@@ -696,6 +701,19 @@ pub enum GameEvent {
         goading_player: PlayerId,
     },
 
+    // ── Miracle events (CR 702.94) ────────────────────────────────────────
+    /// CR 702.94a: A card with miracle was drawn as the first card this turn.
+    /// The player may choose to reveal it and trigger the miracle ability.
+    ///
+    /// The engine pauses until a `Command::ChooseMiracle` is received.
+    /// `card_object_id` is the drawn card's new ObjectId in hand.
+    /// `miracle_cost` is the miracle alternative cost from the card definition.
+    MiracleRevealChoiceRequired {
+        player: PlayerId,
+        card_object_id: ObjectId,
+        miracle_cost: crate::state::game_object::ManaCost,
+    },
+
     // ── Dredge events (CR 702.52) ─────────────────────────────────────────
     /// One or more dredge cards are available in the player's graveyard and
     /// the player must choose whether to dredge one or draw normally (CR 702.52a).
@@ -719,6 +737,43 @@ pub enum GameEvent {
         /// Number of cards milled as part of the dredge.
         milled: u32,
     },
+
+    // ── Foretell events (CR 702.143) ─────────────────────────────────────
+    /// A card was foretold -- exiled face-down from hand via the foretell special
+    /// action (CR 702.143a / CR 116.2h). The {2} cost was paid.
+    ///
+    /// `new_exile_id` is the ObjectId of the card in the exile zone (new per CR 400.7).
+    /// This event reveals hidden info (the card identity is private to the owner;
+    /// opponents only see that a card was exiled face-down).
+    CardForetold {
+        player: PlayerId,
+        /// The card's ObjectId before exile (now retired).
+        object_id: ObjectId,
+        /// New ObjectId in the exile zone.
+        new_exile_id: ObjectId,
+    },
+
+    // ── Ascend event (CR 702.131) ─────────────────────────────────────────
+    /// CR 702.131: A player gained the city's blessing designation.
+    ///
+    /// Emitted when ascend (on a permanent or resolving spell) determines that
+    /// the player controls 10+ permanents. The city's blessing is permanent --
+    /// once gained, it is never removed (CR 702.131c).
+    CitysBlessingGained { player: PlayerId },
+
+    // ── Connive event (CR 701.50) ─────────────────────────────────────────
+    /// CR 701.50b: A permanent connived. Emitted after the draw/discard/counter
+    /// sequence completes, even if some or all of those actions were impossible.
+    /// Used by "whenever [this creature] connives" triggers.
+    Connived {
+        /// The ObjectId of the conniving permanent (may no longer be on battlefield).
+        object_id: ObjectId,
+        /// The controller who performed the draw/discard.
+        player: PlayerId,
+        /// Number of +1/+1 counters placed (0 if only lands discarded, creature
+        /// left the battlefield, or draw/discard was impossible).
+        counters_placed: u32,
+    },
 }
 
 impl GameEvent {
@@ -741,6 +796,9 @@ impl GameEvent {
             GameEvent::CardDiscarded { .. } => true,
             // Cycling reveals the card's identity to all players (CR 702.29a — discard as cost).
             GameEvent::CardCycled { .. } => true,
+            // CR 702.143a: Foretelling reveals the card's identity to the owner only.
+            // Opponents see that a card was exiled face-down but not its identity.
+            GameEvent::CardForetold { .. } => true,
             // All other events involve only public information.
             _ => false,
         }

@@ -177,6 +177,17 @@ pub enum TriggerEvent {
     /// The controller-match is verified at trigger-collection time in
     /// `rules/abilities.rs`.
     ControllerCastsSpell,
+    /// CR 702.105a: Triggers when this creature attacks a player who has the
+    /// most life or is tied for the most life among all players.
+    /// Only fires for AttackTarget::Player (not planeswalker/battle).
+    /// The "most life" check is done at trigger-collection time in
+    /// `rules/abilities.rs` AttackersDeclared handler.
+    SelfAttacksPlayerWithMostLife,
+    /// CR 701.50b: Triggers when this permanent connives.
+    /// Used by "whenever [this creature] connives" abilities (e.g., Ledger Shredder).
+    /// The conniving-object match is done at trigger-collection time in
+    /// `rules/abilities.rs`.
+    SourceConnives,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -320,4 +331,54 @@ pub struct GameObject {
     /// Reset to false on zone changes (CR 400.7).
     #[serde(default)]
     pub was_evoked: bool,
+    /// CR 702.103b: If true, this permanent is currently bestowed. While bestowed,
+    /// it is an Aura enchantment (NOT a creature) with enchant creature.
+    /// CR 702.103f: When it becomes unattached, it ceases to be bestowed and
+    /// reverts to an enchantment creature -- this is an exception to CR 704.5m
+    /// (normal Auras go to graveyard when unattached; bestowed Auras become creatures).
+    ///
+    /// Set during spell resolution when the permanent enters the battlefield
+    /// as a bestowed Aura. Reset to false when unattached (SBA) or on zone
+    /// changes (CR 400.7).
+    #[serde(default)]
+    pub is_bestowed: bool,
+    /// CR 702.138b: If true, this permanent "escaped" -- it entered the battlefield
+    /// from a spell that was cast from the graveyard using an escape ability.
+    ///
+    /// Used by "escapes with [counter]" (CR 702.138c) and "escapes with [ability]"
+    /// (CR 702.138d) effects at resolution time.
+    ///
+    /// Set during spell resolution when the permanent enters the battlefield.
+    /// Reset to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub was_escaped: bool,
+    /// CR 702.143a: If true, this object in exile was foretold (exiled face-down
+    /// via the foretell special action). Used to determine whether the card can be
+    /// cast from exile for its foretell cost.
+    ///
+    /// Set when the ForetellCard command is processed. Reset to false on zone
+    /// changes (CR 400.7) -- but since foretold cards are already in exile,
+    /// any zone change from exile clears this.
+    #[serde(default)]
+    pub is_foretold: bool,
+    /// CR 702.143a: The turn number when this card was foretold.
+    ///
+    /// The card can only be cast for its foretell cost "after the current turn
+    /// has ended" -- i.e., on any turn where `state.turn.turn_number > foretold_turn`.
+    /// Zero means not foretold. Set alongside `is_foretold`.
+    #[serde(default)]
+    pub foretold_turn: u32,
+    /// CR 702.84a: If true, this permanent was returned to the battlefield via
+    /// an unearth ability. Two effects track this:
+    /// 1. Replacement effect: if this permanent would leave the battlefield for
+    ///    any zone other than exile, it is exiled instead.
+    /// 2. Delayed triggered ability: at the beginning of the next end step,
+    ///    exile this permanent.
+    ///
+    /// These effects are NOT abilities on the creature -- they persist even if
+    /// the creature loses all abilities (e.g., Humility).
+    ///
+    /// Set when the UnearthAbility resolves. Reset on zone changes (CR 400.7).
+    #[serde(default)]
+    pub was_unearthed: bool,
 }

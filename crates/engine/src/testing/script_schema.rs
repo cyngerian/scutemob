@@ -235,6 +235,16 @@ pub enum ScriptAction {
         /// Defaults to false (not kicked).
         #[serde(default)]
         kicked: bool,
+        /// CR 702.138: For `cast_spell_escape`. Names of cards in the caster's graveyard
+        /// to exile as part of the escape cost. Empty for non-escape casts.
+        /// Example: ["Lightning Bolt", "Mountain", "Grizzly Bears"]
+        #[serde(default)]
+        escape: Vec<String>,
+        /// CR 702.27: For `cast_spell` with buyback. If true, the buyback additional
+        /// cost is paid. If the spell resolves, it returns to the owner's hand.
+        /// Defaults to false (buyback not paid).
+        #[serde(default)]
+        buyback: bool,
         cr_ref: Option<String>,
         note: Option<String>,
     },

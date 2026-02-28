@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_082",
+    "name": "Riot — Zhur-Taa Goblin enters with +1/+1 counter (player chooses counter over haste)",
+    "description": "P1 casts Zhur-Taa Goblin ({R}{G}, 2/2, Riot) during precombat main phase. Riot (CR 702.136a) is a static ability that applies a replacement effect as the permanent enters: the controller chooses to have it enter with an additional +1/+1 counter OR to have it gain haste. P1 chooses the +1/+1 counter. Zhur-Taa Goblin enters the battlefield as a 3/3 with one +1/+1 counter on it. This script validates: (1) casting a two-color spell with {R}{G} cost, (2) Riot replacement effect applying at ETB, (3) creature landing on battlefield with +1/+1 counter increasing its effective P/T to 3/3.",
+    "cr_sections_tested": ["601.2", "608.2", "702.136a", "614.1c", "121.1", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["replacement", "etb", "riot", "counter", "cast", "precombat-main"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Zhur-Taa Goblin oracle text (per user spec): Creature — Goblin Berserker, {R}{G}, 2/2, Riot. Riot (CR 702.136a): 'You may have this permanent enter with an additional +1/+1 counter on it. If you don't, it gains haste.' Riot is a STATIC ability, not a triggered ability — it is applied as a replacement effect modifying how the permanent enters the battlefield (CR 614.1c). The controller chooses at ETB time which mode to apply. P1 chooses the +1/+1 counter mode, so the Goblin enters as a 3/3 with one +1/+1 counter. IMPORTANT: Zhur-Taa Goblin is NOT in the engine Available Cards list. This script will fail harness validation until a CardDefinition for Zhur-Taa Goblin is authored with the Riot static ability. Without the CardDefinition, the engine cannot place the card on the battlefield during resolution and the zone assertion will fail. Counter assertion pattern follows script 070 (Undying): assert zones.battlefield.p1 includes the card, with a generation note that the effective P/T is 3/3 due to the +1/+1 counter. The choose_option action models P1 selecting the counter over haste during spell resolution (ETB replacement effect). mana_paid uses red:1 + green:1 for the {R}{G} cost. Initial state has {R} + {G} in p1's mana pool (from pre-tapped lands or mana abilities already resolved). No library entry needed — this script draws no cards. CR 614.1c covers replacement effects that modify how a permanent enters. CR 121.1 covers counter placement. CR 702.136b notes multiple instances work separately — not relevant here (single instance).",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "game-script-generator",
+        "description": "Zhur-Taa Goblin is not in the engine Available Cards list and has no CardDefinition. This script will fail harness validation until Zhur-Taa Goblin is authored with its Riot static ability. Without the CardDefinition, the engine cannot resolve the cast_spell action (InvalidTarget or missing-definition error), and the zone assertion 'zones.battlefield.p1 includes Zhur-Taa Goblin' will fail. The script is CR-correct per oracle text provided by the caller.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 1, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": true },
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": true }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Zhur-Taa Goblin", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Zhur-Taa Goblin from hand, paying {R}{G}. Riot applies as a replacement effect when it enters — P1 chooses +1/+1 counter over haste. Zhur-Taa Goblin resolves onto the battlefield as a 3/3.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Zhur-Taa Goblin in P1 hand; P1 has {R}{G} in mana pool; battlefield has Mountain and Forest (tapped); stack empty; both players at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "P1 has {R}{G} available in the mana pool from previously tapped Mountain and Forest. Zhur-Taa Goblin awaits casting."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Zhur-Taa Goblin",
+          "targets": [],
+          "mana_paid": { "red": 1, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Zhur-Taa Goblin from hand. P1 pays the mana cost {R}{G} — {R} and {G} consumed from the mana pool. No targets required (creature spell). Zhur-Taa Goblin moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Zhur-Taa Goblin on stack, P1 hand empty, mana pool empty, stack count 1",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "CR 601.2: Spell is placed on the stack. Hand is now empty. Mana consumed."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: P1 (active player) gets priority after casting, then passes. P2 passes. Both pass with spell on stack — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Zhur-Taa Goblin",
+          "resolution": [
+            {
+              "effect": "choose_riot_mode",
+              "target": { "type": "permanent", "player": "p1", "card": "Zhur-Taa Goblin", "controller": "p1" },
+              "amount": null,
+              "card": "Zhur-Taa Goblin",
+              "owner": "p1",
+              "cr_ref": "702.136a",
+              "note": "CR 702.136a: Riot is a static ability that applies a replacement effect as Zhur-Taa Goblin enters the battlefield. P1 chooses to have it enter with an additional +1/+1 counter (not haste). This choice is made before the permanent physically enters."
+            },
+            {
+              "effect": "enter_battlefield_with_counter",
+              "target": { "type": "permanent", "player": "p1", "card": "Zhur-Taa Goblin", "controller": "p1" },
+              "amount": 1,
+              "card": "Zhur-Taa Goblin",
+              "owner": "p1",
+              "cr_ref": "614.1c",
+              "note": "CR 614.1c: The Riot replacement effect modifies how Zhur-Taa Goblin enters — it enters with one additional +1/+1 counter. CR 121.1: The +1/+1 counter is placed on the creature as it enters. Effective P/T becomes 3/3 (base 2/2 + 1/+1 counter)."
+            }
+          ],
+          "note": "CR 608.2: Zhur-Taa Goblin resolves, moving from stack to battlefield. Riot (CR 702.136a) applies at ETB: P1 chose +1/+1 counter. Goblin enters as 3/3 with one +1/+1 counter. Requires Zhur-Taa Goblin CardDefinition to execute."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Zhur-Taa Goblin on P1 battlefield as 3/3 (2/2 base + +1/+1 counter from Riot); stack empty; hand empty; both players at 40 life",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Zhur-Taa Goblin" }] },
+            "zones.hand.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.136a + CR 614.1c: Riot replacement effect applied — Zhur-Taa Goblin entered with a +1/+1 counter. Effective P/T is 3/3 (base 2/2 plus +1/+1 counter per CR 121.1). No haste — the counter mode was chosen. P1 and P2 life unchanged (no damage dealt). These assertions will only pass once the Zhur-Taa Goblin CardDefinition is authored with the Riot static ability."
+        }
+      ]
+    }
+  ]
+}

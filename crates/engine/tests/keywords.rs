@@ -15,9 +15,9 @@
 use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     all_cards, calculate_characteristics, check_and_apply_sbas, process_command, AttackTarget,
-    CardRegistry, CardType, Color, Command, Effect, EffectDuration, EffectFilter, EffectLayer,
-    GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, LayerModification, ManaColor,
-    ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target, ZoneId,
+    CardRegistry, CardType, Color, Command, CounterType, Effect, EffectDuration, EffectFilter,
+    EffectLayer, GameEvent, GameStateBuilder, KeywordAbility, LandwalkType, LayerModification,
+    ManaColor, ManaCost, ObjectSpec, PlayerId, Step, SubType, SuperType, Target, ZoneId,
 };
 
 // ── Helper: find object ID by name ───────────────────────────────────────────
@@ -418,6 +418,12 @@ fn test_702_18_shroud_prevents_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -480,6 +486,12 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     );
 
@@ -1111,6 +1123,12 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             delve_cards: vec![],
             kicker_times: 0,
             cast_with_evoke: false,
+            cast_with_bestow: false,
+            cast_with_miracle: false,
+            cast_with_escape: false,
+            escape_exile_cards: vec![],
+            cast_with_foretell: false,
+            cast_with_buyback: false,
         },
     )
     .expect("casting Wrath of God failed");
@@ -1797,5 +1815,785 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
         "Creature must have CantBeBlocked after ApplyContinuousEffect resolves (CR 611.2a); \
          keywords: {:?}",
         chars.keywords
+    );
+}
+
+// ─── CR 702.36: Fear ─────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.36b — A non-artifact, non-black creature cannot block a creature with fear.
+fn test_702_36_fear_blocks_non_matching_creature() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Black]),
+        )
+        .object(ObjectSpec::creature(p2, "White Blocker", 2, 2).with_colors(vec![Color::White]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Fear Attacker");
+    let blocker_id = find_object(&state, "White Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "A non-artifact, non-black creature should not be able to block a fear attacker (CR 702.36b)"
+    );
+}
+
+#[test]
+/// CR 702.36b — Artifact creatures can block a creature with fear regardless of color.
+fn test_702_36_fear_allows_artifact_creature_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Black]),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Artifact Blocker", 1, 1)
+                .with_types(vec![CardType::Artifact, CardType::Creature]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Fear Attacker");
+    let blocker_id = find_object(&state, "Artifact Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "An artifact creature should be able to block a fear attacker (CR 702.36b): {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.36b — Black creatures can block a creature with fear.
+fn test_702_36_fear_allows_black_creature_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Black]),
+        )
+        .object(ObjectSpec::creature(p2, "Black Blocker", 2, 2).with_colors(vec![Color::Black]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Fear Attacker");
+    let blocker_id = find_object(&state, "Black Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "A black creature should be able to block a fear attacker (CR 702.36b): {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.36b — Fear checks the blocker's color, not the attacker's color.
+/// A red creature with fear cannot be blocked by a red creature (unlike intimidate).
+fn test_702_36_fear_attacker_color_irrelevant() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // Red attacker with fear; red blocker — fear ignores shared colors unlike intimidate.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Red Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Red]),
+        )
+        .object(ObjectSpec::creature(p2, "Red Blocker", 2, 2).with_colors(vec![Color::Red]))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Red Fear Attacker");
+    let blocker_id = find_object(&state, "Red Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Fear only allows black or artifact creature blockers — shared color is irrelevant (CR 702.36b)"
+    );
+}
+
+#[test]
+/// CR 702.36b — A colorless non-artifact creature cannot block a fear attacker.
+fn test_702_36_fear_colorless_non_artifact_cannot_block() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Black]),
+        )
+        // Colorless non-artifact creature (e.g., Eldrazi spawn)
+        .object(ObjectSpec::creature(p2, "Colorless Creature", 1, 1))
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Fear Attacker");
+    let blocker_id = find_object(&state, "Colorless Creature");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "A colorless non-artifact creature cannot block a fear attacker (CR 702.36b)"
+    );
+}
+
+#[test]
+/// CR 702.36b — A black artifact creature satisfies both the artifact-creature
+/// and the black-creature exceptions simultaneously and can block a fear attacker.
+fn test_702_36_fear_allows_black_artifact_creature_blocker() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Fear Attacker", 2, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_colors(vec![Color::Black]),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Black Artifact Blocker", 1, 4)
+                .with_types(vec![CardType::Artifact, CardType::Creature])
+                .with_colors(vec![Color::Black]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Fear Attacker");
+    let blocker_id = find_object(&state, "Black Artifact Blocker");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_ok(),
+        "A black artifact creature should be able to block a fear attacker (CR 702.36b): {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 702.36b + CR 702.9a — A creature with both Fear and Flying requires
+/// the blocker to satisfy BOTH restrictions. A black ground creature satisfies
+/// Fear (black) but not Flying (no flying/reach), so the block is illegal.
+fn test_702_36_fear_plus_flying_both_must_be_satisfied() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Flying Fear Creature", 3, 2)
+                .with_keyword(KeywordAbility::Fear)
+                .with_keyword(KeywordAbility::Flying)
+                .with_colors(vec![Color::Black]),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Black Ground Creature", 2, 2).with_colors(vec![Color::Black]),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Flying Fear Creature");
+    let blocker_id = find_object(&state, "Black Ground Creature");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "A ground creature should not block a flying+fear creature even if it is black (CR 702.36b + CR 702.9a)"
+    );
+}
+
+// ── CR 702.80: Wither ─────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.80a, CR 120.3d — Damage dealt to a creature by a source with wither
+/// places -1/-1 counters instead of marking damage.
+/// CR 120.3e — The defending creature has damage_marked == 0.
+fn test_702_80_wither_combat_damage_places_minus_counters() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1's attacker is a 3/6 so it survives 4 damage from the blocker.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Creature", 3, 6).with_keyword(KeywordAbility::Wither),
+        )
+        .object(ObjectSpec::creature(p2, "Big Blocker", 4, 4))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Wither Creature");
+    let blocker_id = find_object(&state, "Big Blocker");
+
+    // Declare attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+
+    // Enter DeclareBlockers.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // p2 blocks with Big Blocker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Advance to combat damage step (fires as TBA on step entry).
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // Defending creature (Big Blocker) should have 3 -1/-1 counters, NOT damage_marked.
+    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let minus_counters = blocker_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 3,
+        "CR 702.80a: Big Blocker should have 3 -1/-1 counters from wither damage"
+    );
+    assert_eq!(
+        blocker_obj.damage_marked, 0,
+        "CR 120.3d: wither damage must NOT mark damage_marked on the creature"
+    );
+
+    // Attacker receives normal damage from blocker (no wither on blocker).
+    let attacker_obj = state.objects.get(&attacker_id).unwrap();
+    assert_eq!(
+        attacker_obj.damage_marked, 4,
+        "Wither Creature should have 4 damage_marked from normal blocker damage"
+    );
+    assert_eq!(
+        attacker_obj
+            .counters
+            .get(&CounterType::MinusOneMinusOne)
+            .copied()
+            .unwrap_or(0),
+        0,
+        "Wither Creature should have no -1/-1 counters (blocker has no wither)"
+    );
+
+    // A CounterAdded event must have been emitted for the -1/-1 counters.
+    let counter_added = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CounterAdded {
+                object_id,
+                counter: CounterType::MinusOneMinusOne,
+                count: 3
+            } if *object_id == blocker_id
+        )
+    });
+    assert!(
+        counter_added,
+        "CR 702.80a: CounterAdded event must be emitted for wither -1/-1 counters"
+    );
+}
+
+#[test]
+/// CR 702.80a, CR 704.5f — Wither damage kills a creature by reducing effective
+/// toughness to 0 via -1/-1 counters, not via lethal damage (CR 704.5g).
+fn test_702_80_wither_combat_kills_creature_via_toughness_sba() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Striker", 3, 3).with_keyword(KeywordAbility::Wither),
+        )
+        .object(ObjectSpec::creature(p2, "Defender Bear", 3, 3))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Wither Striker");
+    let blocker_id = find_object(&state, "Defender Bear");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Advance through combat damage + SBAs (engine runs SBAs after damage).
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // After SBAs: Defender Bear (3/3 with 3 -1/-1 counters = 3/0 → dies via CR 704.5f).
+    let blocker_on_bf = state
+        .objects
+        .values()
+        .any(|obj| obj.characteristics.name == "Defender Bear" && obj.zone == ZoneId::Battlefield);
+    assert!(
+        !blocker_on_bf,
+        "CR 704.5f: Defender Bear should have died (toughness reduced to 0 by wither counters)"
+    );
+
+    let blocker_in_gy = state.objects.values().any(|obj| {
+        obj.characteristics.name == "Defender Bear" && obj.zone == ZoneId::Graveyard(p2)
+    });
+    assert!(
+        blocker_in_gy,
+        "CR 704.5f: Defender Bear should be in p2's graveyard"
+    );
+
+    // Wither Striker also dies (3 damage_marked on a 3/3 = lethal via CR 704.5g).
+    let attacker_on_bf = state
+        .objects
+        .values()
+        .any(|obj| obj.characteristics.name == "Wither Striker" && obj.zone == ZoneId::Battlefield);
+    assert!(
+        !attacker_on_bf,
+        "CR 704.5g: Wither Striker should have died from 3 damage_marked on a 3/3"
+    );
+}
+
+#[test]
+/// CR 702.80a — Wither only affects damage to creatures.
+/// Damage to players is still dealt as life loss (no counters).
+fn test_702_80_wither_does_not_affect_player_damage() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Attacker", 3, 3).with_keyword(KeywordAbility::Wither),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Wither Attacker");
+    let initial_life = state.players[&p2].life_total;
+
+    // Declare attacker targeting p2 directly (no blocker).
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .unwrap();
+    let (state, events) = pass_all(state, &[p1, p2]);
+
+    // p2's life total should have decreased by 3 (wither does not apply to players).
+    assert_eq!(
+        state.players[&p2].life_total,
+        initial_life - 3,
+        "CR 702.80a: wither only affects damage to creatures; player takes normal life loss"
+    );
+
+    // No CounterAdded event should have been emitted.
+    let any_counter_added = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CounterAdded { .. }));
+    assert!(
+        !any_counter_added,
+        "CR 702.80a: no CounterAdded event should be emitted when wither damage goes to a player"
+    );
+}
+
+#[test]
+/// CR 702.80a, CR 702.79a — Persist does NOT trigger when a creature dies with -1/-1
+/// counters. Wither damage places -1/-1 counters, so persist is suppressed.
+fn test_702_80_wither_persist_interaction() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 has a 3/3 wither creature. p2 has a 2/2 with persist.
+    // After combat damage: p2's creature gets 3 -1/-1 counters → effective toughness = -1.
+    // SBA 704.5f kills it. But since it has -1/-1 counters, persist does NOT trigger.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Striker", 3, 3).with_keyword(KeywordAbility::Wither),
+        )
+        .object(
+            ObjectSpec::creature(p2, "Persist Critter", 2, 2).with_keyword(KeywordAbility::Persist),
+        )
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Wither Striker");
+    let blocker_id = find_object(&state, "Persist Critter");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+
+    // Advance through combat damage + SBAs.
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Persist Critter should be in graveyard (died via CR 704.5f).
+    let critter_in_gy = state.objects.values().any(|obj| {
+        obj.characteristics.name == "Persist Critter" && obj.zone == ZoneId::Graveyard(p2)
+    });
+    assert!(
+        critter_in_gy,
+        "CR 704.5f: Persist Critter should be in graveyard (killed by wither counters)"
+    );
+
+    // Persist must NOT have triggered (no trigger on the stack).
+    // CR 702.79a intervening-if: persist checks for no -1/-1 counters at DEATH — the
+    // wither damage placed -1/-1 counters before death, so condition is false.
+    assert_eq!(
+        state.stack_objects.len(),
+        0,
+        "CR 702.79a: persist must NOT trigger when creature died with -1/-1 counters from wither"
+    );
+}
+
+#[test]
+/// CR 702.80d — Multiple instances of wither on the same object are redundant.
+/// Two wither instances still place only (power) -1/-1 counters, not double.
+fn test_702_80_wither_redundant_instances() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 has a 2/2 creature with two Wither keywords. p2 has a 3/3 blocker.
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Double Wither", 2, 2)
+                .with_keyword(KeywordAbility::Wither)
+                .with_keyword(KeywordAbility::Wither),
+        )
+        .object(ObjectSpec::creature(p2, "Sturdy Blocker", 3, 3))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Double Wither");
+    let blocker_id = find_object(&state, "Sturdy Blocker");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    )
+    .unwrap();
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    // Sturdy Blocker should have exactly 2 -1/-1 counters (power 2), not 4.
+    let blocker_obj = state.objects.get(&blocker_id).unwrap();
+    let minus_counters = blocker_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 2,
+        "CR 702.80d: two wither instances are redundant; exactly power(2) -1/-1 counters placed"
+    );
+    assert_eq!(
+        blocker_obj.damage_marked, 0,
+        "CR 702.80d: wither damage must not mark damage_marked regardless of instance count"
+    );
+}
+
+#[test]
+/// CR 702.80c — The wither rules function no matter what zone the source deals damage from.
+/// CR 702.80a — Non-combat damage from a wither source places -1/-1 counters on a creature
+/// instead of marking damage (exercises the DealDamage effect handler path in effects/mod.rs).
+fn test_702_80_wither_noncombat_damage_places_counters() {
+    use mtg_engine::effects::EffectContext;
+    use mtg_engine::{CardEffectTarget, Effect, EffectAmount, SpellTarget, Target};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    // p1 controls a 2/2 wither creature (the damage source).
+    // p2 controls a 3/3 creature (the target — must survive to have counters examined).
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, "Wither Source", 2, 2).with_keyword(KeywordAbility::Wither),
+        )
+        .object(ObjectSpec::creature(p2, "Target Creature", 3, 3))
+        .build()
+        .unwrap();
+
+    let source_id = find_object(&state, "Wither Source");
+    let target_id = find_object(&state, "Target Creature");
+
+    // Build an effect context: p1 controls the effect, source is the wither creature,
+    // declared target index 0 is the target creature.
+    let effect = Effect::DealDamage {
+        target: CardEffectTarget::DeclaredTarget { index: 0 },
+        amount: EffectAmount::Fixed(2),
+    };
+    let mut ctx = EffectContext::new(
+        p1,
+        source_id,
+        vec![SpellTarget {
+            target: Target::Object(target_id),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    );
+
+    let events = mtg_engine::effects::execute_effect(&mut state, &effect, &mut ctx);
+
+    // CR 702.80a: target creature must have 2 -1/-1 counters, NOT damage_marked.
+    let target_obj = state.objects.get(&target_id).unwrap();
+    let minus_counters = target_obj
+        .counters
+        .get(&CounterType::MinusOneMinusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        minus_counters, 2,
+        "CR 702.80a: non-combat damage from wither source must place 2 -1/-1 counters"
+    );
+    assert_eq!(
+        target_obj.damage_marked, 0,
+        "CR 702.80a: wither non-combat damage must NOT mark damage_marked on the creature"
+    );
+
+    // A CounterAdded event must have been emitted for the -1/-1 counters.
+    let counter_added = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CounterAdded {
+                object_id,
+                counter: CounterType::MinusOneMinusOne,
+                count: 2,
+            } if *object_id == target_id
+        )
+    });
+    assert!(
+        counter_added,
+        "CR 702.80a: CounterAdded event must be emitted for non-combat wither counters"
+    );
+
+    // A DamageDealt event must also have been emitted.
+    let damage_dealt = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::DamageDealt {
+                source,
+                amount: 2,
+                ..
+            } if *source == source_id
+        )
+    });
+    assert!(
+        damage_dealt,
+        "CR 702.80a: DamageDealt event must be emitted even when wither places counters"
     );
 }

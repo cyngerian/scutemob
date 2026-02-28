@@ -116,10 +116,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     };
     let status_text = format!(
         " {:<60} Active: {}  Tests: {}  Scripts: {} ",
-        help,
-        app.data.current_state.active_milestone,
-        test_str,
-        app.data.scripts.total,
+        help, app.data.current_state.active_milestone, test_str, app.data.scripts.total,
     );
     f.render_widget(
         ratatui::widgets::Paragraph::new(status_text)

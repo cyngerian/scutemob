@@ -14,7 +14,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::{CardId, PlayerId};
 use crate::state::turn::Step;
-use crate::state::types::{CardType, KeywordAbility, LandwalkType, SuperType};
+use crate::state::types::{CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -472,6 +472,22 @@ pub fn handle_declare_blockers(
             }
         }
 
+        // CR 702.36b: A creature with fear can't be blocked except by artifact creatures
+        // and/or black creatures.
+        if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
+            let blocker_is_artifact_creature =
+                blocker_chars.card_types.contains(&CardType::Artifact)
+                    && blocker_chars.card_types.contains(&CardType::Creature);
+            let blocker_is_black = blocker_chars.colors.contains(&Color::Black);
+            if !blocker_is_artifact_creature && !blocker_is_black {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} cannot block {:?} (attacker has fear; \
+                     blocker is neither an artifact creature nor black)",
+                    blocker_id, attacker_id
+                )));
+            }
+        }
+
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
         if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {
@@ -842,9 +858,9 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     }
 
     // --- Collect application info before mutating state ---
-    // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_controller, commander_info)
+    // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither, source_controller, commander_info)
     // commander_info = Some((attacking_player_id, card_id)) if source is a commander.
-    type DamageAppInfo = (bool, bool, PlayerId, Option<(PlayerId, CardId)>);
+    type DamageAppInfo = (bool, bool, bool, PlayerId, Option<(PlayerId, CardId)>);
     let app_info: Vec<DamageAppInfo> = assignments
         .iter()
         .map(|a| {
@@ -858,6 +874,12 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             let source_lifelink = chars
                 .as_ref()
                 .map(|c| c.keywords.contains(&KeywordAbility::Lifelink))
+                .unwrap_or(false);
+            // CR 702.80a: Damage dealt to a creature by a source with wither places
+            // -1/-1 counters instead of marking damage.
+            let source_wither = chars
+                .as_ref()
+                .map(|c| c.keywords.contains(&KeywordAbility::Wither))
                 .unwrap_or(false);
             let source_controller = obj.map(|o| o.controller).unwrap_or(PlayerId(0));
 
@@ -879,6 +901,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
             (
                 source_deathtouch,
                 source_lifelink,
+                source_wither,
                 source_controller,
                 commander_info,
             )
@@ -913,9 +936,15 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
     // --- Apply damage and collect lifelink gains ---
     // lifelink_gains: controller → total damage dealt by their lifelink sources this step.
     let mut lifelink_gains: im::OrdMap<PlayerId, u32> = im::OrdMap::new();
+    // Collect wither counter events during the damage application loop.
+    // These will be added to the event stream after the loop.
+    let mut wither_counter_events: Vec<GameEvent> = Vec::new();
 
     for (
-        (assignment, (source_deathtouch, source_lifelink, source_controller, commander_info)),
+        (
+            assignment,
+            (source_deathtouch, source_lifelink, source_wither, source_controller, commander_info),
+        ),
         &final_dmg,
     ) in assignments
         .iter()
@@ -929,7 +958,25 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
         match &assignment.target {
             CombatDamageTarget::Creature(obj_id) => {
                 if let Some(obj) = state.objects.get_mut(obj_id) {
-                    obj.damage_marked += final_dmg;
+                    if *source_wither {
+                        // CR 702.80a / CR 120.3d: wither damage to a creature places
+                        // -1/-1 counters instead of marking damage.
+                        let cur = obj
+                            .counters
+                            .get(&CounterType::MinusOneMinusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters
+                            .insert(CounterType::MinusOneMinusOne, cur + final_dmg);
+                        wither_counter_events.push(GameEvent::CounterAdded {
+                            object_id: *obj_id,
+                            counter: CounterType::MinusOneMinusOne,
+                            count: final_dmg,
+                        });
+                    } else {
+                        // CR 120.3e: normal damage marking.
+                        obj.damage_marked += final_dmg;
+                    }
                     if *source_deathtouch {
                         obj.deathtouch_damage = true;
                     }
@@ -988,6 +1035,8 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
 
     // Prevention events fire before CombatDamageDealt (they modify the event as it happens).
     let mut events = prevention_events;
+    // CounterAdded events from wither precede the CombatDamageDealt summary event.
+    events.extend(wither_counter_events);
     events.push(GameEvent::CombatDamageDealt {
         assignments: final_assignments,
     });

@@ -92,6 +92,12 @@ Task tool:
 ```
 
 After the runner completes:
+- **Verification gate** — run `~/.cargo/bin/cargo build -p mtg-engine 2>&1 | tail -5` directly.
+  If it fails, the runner hallucinated its changes. Do NOT advance the phase. Instead:
+  - Report the failure to the user with the compiler error.
+  - Re-invoke the runner with the same prompt plus: "The previous run did not write its changes.
+    Start from scratch — implement all unchecked steps now."
+  - Run the build check again before proceeding.
 - Read `memory/ability-wip.md` to confirm steps 1-4 are checked off
 - Update `phase: review`
 - **Continue immediately to Phase: review** (do not stop and report).
@@ -131,6 +137,8 @@ Task tool:
 ```
 
 After the runner completes:
+- **Verification gate** — run `~/.cargo/bin/cargo build -p mtg-engine 2>&1 | tail -5` directly.
+  If it fails, re-invoke the runner with the fix findings and the build error. Run the check again.
 - Update `phase: card` in `ability-wip.md`
 - Stop and report: implementation summary, review findings, and what was fixed.
 - User runs `/implement-ability` to continue to card phase.
@@ -203,6 +211,10 @@ Task tool:
 
 ## Important Notes
 
+- **Always verify with `cargo build` after impl-runner.** The runner can hallucinate successful
+  changes. Run `~/.cargo/bin/cargo build -p mtg-engine 2>&1 | tail -5` yourself after every
+  implement and fix phase before advancing. A compile failure means the runner's changes were
+  not written — re-invoke with an explicit "start from scratch" prompt.
 - **One ability at a time.** The WIP file tracks a single ability.
 - **Auto-chained phases**: implement → review → fix run in a single invocation without
   stopping. The chain ends after fix (advancing to `card`) so the user can review what

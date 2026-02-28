@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 
 use mtg_engine::{
-    calculate_characteristics, AttackTarget, CombatState, CounterType, GameState, KeywordAbility,
-    ObjectId, PlayerId, StackObjectKind, ZoneId,
+    calculate_characteristics, AffinityTarget, AttackTarget, CombatState, CounterType, GameState,
+    KeywordAbility, ObjectId, PlayerId, StackObjectKind, ZoneId,
 };
 use serde::Serialize;
 
@@ -71,6 +71,8 @@ pub struct PlayerView {
     pub land_plays_remaining: u32,
     pub has_lost: bool,
     pub has_conceded: bool,
+    /// CR 702.131c: the city's blessing is a permanent designation once gained.
+    pub has_citys_blessing: bool,
 }
 
 /// Mana pool state for the UI.
@@ -280,6 +282,7 @@ fn build_players_view(
             land_plays_remaining: player.land_plays_remaining,
             has_lost: player.has_lost,
             has_conceded: player.has_conceded,
+            has_citys_blessing: player.has_citys_blessing,
         };
 
         result.insert(name, view);
@@ -430,6 +433,27 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         }
         StackObjectKind::EvokeSacrificeTrigger { source_object } => {
             ("evoke_sacrifice_trigger", Some(*source_object))
+        }
+        StackObjectKind::MadnessTrigger { source_object, .. } => {
+            ("madness_trigger", Some(*source_object))
+        }
+        StackObjectKind::MiracleTrigger { source_object, .. } => {
+            ("miracle_trigger", Some(*source_object))
+        }
+        StackObjectKind::UnearthAbility { source_object } => {
+            ("unearth_ability", Some(*source_object))
+        }
+        StackObjectKind::UnearthTrigger { source_object } => {
+            ("unearth_trigger", Some(*source_object))
+        }
+        StackObjectKind::ExploitTrigger { source_object } => {
+            ("exploit_trigger", Some(*source_object))
+        }
+        StackObjectKind::ModularTrigger { source_object, .. } => {
+            ("modular_trigger", Some(*source_object))
+        }
+        StackObjectKind::EvolveTrigger { source_object, .. } => {
+            ("evolve_trigger", Some(*source_object))
         }
     }
 }
@@ -609,5 +633,26 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Afterlife(n) => format!("Afterlife {n}"),
         KeywordAbility::Extort => "Extort".to_string(),
         KeywordAbility::Improvise => "Improvise".to_string(),
+        KeywordAbility::Bestow => "Bestow".to_string(),
+        KeywordAbility::Fear => "Fear".to_string(),
+        KeywordAbility::LivingWeapon => "Living Weapon".to_string(),
+        KeywordAbility::Madness => "Madness".to_string(),
+        KeywordAbility::Miracle => "Miracle".to_string(),
+        KeywordAbility::Escape => "Escape".to_string(),
+        KeywordAbility::Foretell => "Foretell".to_string(),
+        KeywordAbility::Unearth => "Unearth".to_string(),
+        KeywordAbility::Affinity(target) => match target {
+            AffinityTarget::Artifacts => "Affinity for artifacts".to_string(),
+            AffinityTarget::BasicLandType(st) => format!("Affinity for {}", st.0),
+        },
+        KeywordAbility::Undaunted => "Undaunted".to_string(),
+        KeywordAbility::Dethrone => "Dethrone".to_string(),
+        KeywordAbility::Riot => "Riot".to_string(),
+        KeywordAbility::Exploit => "Exploit".to_string(),
+        KeywordAbility::Wither => "Wither".to_string(),
+        KeywordAbility::Modular(n) => format!("Modular {n}"),
+        KeywordAbility::Evolve => "Evolve".to_string(),
+        KeywordAbility::Buyback => "Buyback".to_string(),
+        KeywordAbility::Ascend => "Ascend".to_string(),
     }
 }

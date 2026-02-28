@@ -27,7 +27,7 @@ use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::stubs::{PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::KeywordAbility;
+use crate::state::types::{CardType, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -334,6 +334,12 @@ pub fn handle_activate_ability(
         cast_with_flashback: false,
         kicker_times_paid: 0,
         was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -444,13 +450,27 @@ pub fn handle_cycle_card(
         }
     }
 
-    // 6. Discard self as cost (CR 702.29a): move card from hand to graveyard.
+    // 6. Discard self as cost (CR 702.29a): move card from hand to graveyard (or exile if madness).
     // This happens BEFORE the ability goes on the stack.
     // Capture owner before zone move (move_object_to_zone resets controller to owner).
     let owner = state.object(card)?.owner;
-    let (new_grave_id, _) = state.move_object_to_zone(card, ZoneId::Graveyard(owner))?;
 
-    // Emit CardDiscarded (CR 701.8 — discard is always announced).
+    // CR 702.35a: If the card has madness, exile instead of graveyard.
+    let cycle_card_id_opt = state.object(card)?.card_id.clone();
+    let has_madness = state
+        .object(card)?
+        .characteristics
+        .keywords
+        .contains(&KeywordAbility::Madness);
+
+    let discard_destination = if has_madness {
+        ZoneId::Exile
+    } else {
+        ZoneId::Graveyard(owner)
+    };
+    let (new_grave_id, _) = state.move_object_to_zone(card, discard_destination)?;
+
+    // Emit CardDiscarded (CR 701.8 — discard is always announced, even when going to exile).
     events.push(GameEvent::CardDiscarded {
         player,
         object_id: card,
@@ -462,6 +482,46 @@ pub fn handle_cycle_card(
         object_id: card,
         new_id: new_grave_id,
     });
+
+    // CR 702.35a: If madness applied, queue the madness trigger via pending_triggers
+    // so it goes through flush_pending_triggers and properly signals priority granting.
+    if has_madness {
+        let madness_cost = cycle_card_id_opt.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Madness { cost } = a {
+                        Some(cost.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+        state.pending_triggers.push_back(PendingTrigger {
+            source: new_grave_id,
+            ability_index: 0,
+            controller: player,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            is_evoke_sacrifice: false,
+            is_madness_trigger: true,
+            madness_exiled_card: Some(new_grave_id),
+            madness_cost,
+            is_miracle_trigger: false,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            is_unearth_trigger: false,
+            is_exploit_trigger: false,
+            is_modular_trigger: false,
+            modular_counter_count: None,
+            is_evolve_trigger: false,
+            evolve_entering_creature: None,
+        });
+    }
 
     // 7. Push cycling ability onto stack as ActivatedAbility with embedded DrawCards effect.
     // CR 602.2c: The source object (card) is now in the graveyard; source_object records
@@ -485,6 +545,12 @@ pub fn handle_cycle_card(
         cast_with_flashback: false,
         kicker_times_paid: 0,
         was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -516,6 +582,176 @@ fn get_cycling_cost(
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Cycling { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Unearth (CR 702.84)
+// ---------------------------------------------------------------------------
+
+/// Handle an UnearthCard command: validate, pay cost, push unearth ability onto stack.
+///
+/// CR 702.84a: Unearth is an activated ability from the graveyard.
+/// "[Cost]: Return this card from your graveyard to the battlefield. It gains haste.
+/// Exile it at the beginning of the next end step. If it would leave the battlefield,
+/// exile it instead. Activate only as a sorcery."
+pub fn handle_unearth_card(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): activated abilities cannot be used when
+    //    a spell with split second is on the stack.
+    if casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; unearth cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Zone check (CR 702.84a): card must be in player's own graveyard.
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Graveyard(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "UnearthCard: card {:?} is not in Graveyard({:?}); unearth can only be activated from your graveyard (CR 702.84a)",
+                card, player
+            )));
+        }
+    }
+
+    // 4. Keyword check (CR 702.84a): card must have KeywordAbility::Unearth.
+    {
+        let obj = state.object(card)?;
+        if !obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Unearth)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "UnearthCard: card {:?} does not have the Unearth keyword (CR 702.84a)",
+                card
+            )));
+        }
+    }
+
+    // 5. Sorcery speed check (CR 702.84a: "activate only as a sorcery").
+    //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
+    {
+        use crate::state::turn::Step;
+        if state.turn.active_player != player {
+            return Err(GameStateError::InvalidCommand(
+                "UnearthCard: unearth can only be activated during your own turn (CR 702.84a)"
+                    .into(),
+            ));
+        }
+        let step = state.turn.step;
+        if step != Step::PreCombatMain && step != Step::PostCombatMain {
+            return Err(GameStateError::InvalidCommand(
+                "UnearthCard: unearth can only be activated during a main phase (CR 702.84a)"
+                    .into(),
+            ));
+        }
+        if !state.stack_objects.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "UnearthCard: unearth can only be activated with an empty stack (CR 702.84a)"
+                    .into(),
+            ));
+        }
+    }
+
+    // 6. Look up unearth cost from CardRegistry.
+    let card_id_opt = state.object(card)?.card_id.clone();
+    let unearth_cost_opt = get_unearth_cost(&card_id_opt, &state.card_registry.clone());
+    let unearth_cost = match unearth_cost_opt {
+        Some(cost) => cost,
+        None => {
+            return Err(GameStateError::InvalidCommand(
+                "UnearthCard: no unearth cost found in card definition (CR 702.84a)".into(),
+            ));
+        }
+    };
+
+    // 7. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if unearth_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &unearth_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &unearth_cost);
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: unearth_cost.clone(),
+        });
+    }
+
+    // 8. Push the unearth ability onto the stack as UnearthAbility.
+    //    The card stays in the graveyard until the ability resolves (unlike cycling
+    //    where the card is discarded as a cost).
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::UnearthAbility {
+            source_object: card,
+        },
+        targets: Vec::new(),
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 9. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+/// CR 702.84a: Look up the unearth cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Unearth { cost }`, or `None`
+/// if the card has no definition or no unearth ability defined.
+fn get_unearth_cost(
+    card_id: &Option<CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Unearth { cost } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -583,8 +819,226 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             exalted_attacker_id: None,
                             defending_player_id: None,
                             is_evoke_sacrifice: true,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: false,
+                            modular_counter_count: None,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
                         };
                         triggers.push(evoke_trigger);
+                    }
+                }
+
+                // CR 702.110a: If the permanent has Exploit, generate the exploit trigger.
+                // "When this creature enters, you may sacrifice a creature."
+                // Each instance of Exploit in the card definition triggers separately.
+                if let Some(obj) = state.objects.get(object_id) {
+                    if obj
+                        .characteristics
+                        .keywords
+                        .contains(&KeywordAbility::Exploit)
+                    {
+                        // Count exploit instances from card definition for multiple instances.
+                        // OrdSet deduplicates, so check the card definition for exact count.
+                        let exploit_count = obj
+                            .card_id
+                            .as_ref()
+                            .and_then(|cid| state.card_registry.get(cid.clone()))
+                            .map(|def| {
+                                def.abilities
+                                    .iter()
+                                    .filter(|a| {
+                                        matches!(
+                                            a,
+                                            crate::cards::card_definition::AbilityDefinition::Keyword(
+                                                KeywordAbility::Exploit
+                                            )
+                                        )
+                                    })
+                                    .count()
+                            })
+                            .unwrap_or(1)
+                            .max(1);
+
+                        let controller = obj.controller;
+                        for _ in 0..exploit_count {
+                            triggers.push(PendingTrigger {
+                                source: *object_id,
+                                ability_index: 0, // unused for exploit triggers
+                                controller,
+                                triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
+                                entering_object_id: Some(*object_id),
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                is_evoke_sacrifice: false,
+                                is_madness_trigger: false,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                is_miracle_trigger: false,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                is_unearth_trigger: false,
+                                is_exploit_trigger: true,
+                                is_modular_trigger: false,
+                                modular_counter_count: None,
+                                is_evolve_trigger: false,
+                                evolve_entering_creature: None,
+                            });
+                        }
+                    }
+                }
+
+                // CR 702.100a: Evolve — "Whenever a creature you control enters,
+                // if that creature's power is greater than this creature's power
+                // and/or that creature's toughness is greater than this creature's
+                // toughness, put a +1/+1 counter on this creature."
+                //
+                // CR 702.100c: Noncreature permanents cannot trigger evolve.
+                // CR 702.100d: Multiple instances of evolve each trigger separately.
+                // CR 603.4: Intervening-if — P/T comparison is checked at trigger time.
+                {
+                    // First verify the entering permanent is a creature (CR 702.100c).
+                    let entering_is_creature =
+                        crate::rules::layers::calculate_characteristics(state, *object_id)
+                            .or_else(|| {
+                                state
+                                    .objects
+                                    .get(object_id)
+                                    .map(|o| o.characteristics.clone())
+                            })
+                            .map(|chars| chars.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false);
+
+                    if entering_is_creature {
+                        let entering_controller =
+                            state.objects.get(object_id).map(|o| o.controller);
+
+                        if let Some(controller) = entering_controller {
+                            // Get the entering creature's P/T (layer-aware).
+                            let entering_chars =
+                                crate::rules::layers::calculate_characteristics(state, *object_id)
+                                    .or_else(|| {
+                                        state
+                                            .objects
+                                            .get(object_id)
+                                            .map(|o| o.characteristics.clone())
+                                    });
+
+                            let (entering_power, entering_toughness) = entering_chars
+                                .as_ref()
+                                .map(|c| (c.power.unwrap_or(0), c.toughness.unwrap_or(0)))
+                                .unwrap_or((0, 0));
+
+                            // Collect all creatures with evolve controlled by the same player.
+                            // Exclude the entering creature itself (cannot evolve from itself).
+                            let evolve_sources: Vec<ObjectId> = state
+                                .objects
+                                .values()
+                                .filter(|obj| {
+                                    obj.zone == ZoneId::Battlefield
+                                        && obj.controller == controller
+                                        && obj.id != *object_id
+                                        && obj
+                                            .characteristics
+                                            .keywords
+                                            .contains(&KeywordAbility::Evolve)
+                                })
+                                .map(|obj| obj.id)
+                                .collect();
+
+                            for evolve_id in evolve_sources {
+                                // CR 603.4: Intervening-if check at trigger time.
+                                // Get the evolve creature's current P/T (layer-aware).
+                                let evolve_chars = crate::rules::layers::calculate_characteristics(
+                                    state, evolve_id,
+                                )
+                                .or_else(|| {
+                                    state
+                                        .objects
+                                        .get(&evolve_id)
+                                        .map(|o| o.characteristics.clone())
+                                });
+
+                                let (evolve_power, evolve_toughness) = evolve_chars
+                                    .as_ref()
+                                    .map(|c| (c.power.unwrap_or(0), c.toughness.unwrap_or(0)))
+                                    .unwrap_or((0, 0));
+
+                                // CR 702.100a: trigger fires if entering P > evolve P
+                                // OR entering T > evolve T (inclusive or).
+                                if entering_power > evolve_power
+                                    || entering_toughness > evolve_toughness
+                                {
+                                    let evolve_controller = state
+                                        .objects
+                                        .get(&evolve_id)
+                                        .map(|o| o.controller)
+                                        .unwrap_or(controller);
+
+                                    // CR 702.100d: Count evolve instances from card
+                                    // definition — OrdSet deduplicates, so check the
+                                    // card definition for the exact count.
+                                    let evolve_count = state
+                                        .objects
+                                        .get(&evolve_id)
+                                        .and_then(|obj| obj.card_id.as_ref())
+                                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                                        .map(|def| {
+                                            def.abilities
+                                                .iter()
+                                                .filter(|a| {
+                                                    matches!(
+                                                        a,
+                                                        AbilityDefinition::Keyword(
+                                                            KeywordAbility::Evolve
+                                                        )
+                                                    )
+                                                })
+                                                .count()
+                                        })
+                                        .unwrap_or(1)
+                                        .max(1);
+
+                                    for _ in 0..evolve_count {
+                                        triggers.push(PendingTrigger {
+                                            source: evolve_id,
+                                            ability_index: 0, // unused for evolve triggers
+                                            controller: evolve_controller,
+                                            triggering_event: Some(
+                                                TriggerEvent::AnyPermanentEntersBattlefield,
+                                            ),
+                                            entering_object_id: Some(*object_id),
+                                            targeting_stack_id: None,
+                                            triggering_player: None,
+                                            exalted_attacker_id: None,
+                                            defending_player_id: None,
+                                            is_evoke_sacrifice: false,
+                                            is_madness_trigger: false,
+                                            madness_exiled_card: None,
+                                            madness_cost: None,
+                                            is_miracle_trigger: false,
+                                            miracle_revealed_card: None,
+                                            miracle_cost: None,
+                                            is_unearth_trigger: false,
+                                            is_exploit_trigger: false,
+                                            is_modular_trigger: false,
+                                            modular_counter_count: None,
+                                            is_evolve_trigger: true,
+                                            evolve_entering_creature: Some(*object_id),
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -727,6 +1181,43 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     for t in &mut triggers[pre_len..] {
                         t.defending_player_id = defending_player;
                     }
+
+                    // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
+                    // with the most life or tied for most life, put a +1/+1 counter on
+                    // this creature."
+                    // Only triggers when attacking a Player (not planeswalker/battle).
+                    // CR 508.2a: condition checked at declaration time only.
+                    if let crate::state::combat::AttackTarget::Player(def_pid) = attack_target {
+                        // Find the maximum life total among all active (non-eliminated) players.
+                        let defending_life = state
+                            .players
+                            .get(def_pid)
+                            .map(|p| p.life_total)
+                            .unwrap_or(i32::MIN);
+                        let max_life = state
+                            .players
+                            .values()
+                            .filter(|p| !p.has_lost && !p.has_conceded)
+                            .map(|p| p.life_total)
+                            .max()
+                            .unwrap_or(i32::MIN);
+
+                        if defending_life >= max_life {
+                            let pre_len_dethrone = triggers.len();
+                            collect_triggers_for_event(
+                                state,
+                                &mut triggers,
+                                TriggerEvent::SelfAttacksPlayerWithMostLife,
+                                Some(*attacker_id),
+                                None,
+                            );
+                            // Tag dethrone triggers with defending player for consistency
+                            // with other attack triggers (e.g., annihilator).
+                            for t in &mut triggers[pre_len_dethrone..] {
+                                t.defending_player_id = defending_player;
+                            }
+                        }
+                    }
                 }
 
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."
@@ -835,6 +1326,21 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
 
+                        // CR 702.43a: Detect if this is a Modular trigger. Tag it with
+                        // the +1/+1 counter count from last-known information so that
+                        // flush_pending_triggers can create a ModularTrigger stack entry.
+                        let is_modular = trigger_def.description.contains("Modular (CR 702.43a)");
+                        let modular_counter_count = if is_modular {
+                            Some(
+                                pre_death_counters
+                                    .get(&CounterType::PlusOnePlusOne)
+                                    .copied()
+                                    .unwrap_or(0),
+                            )
+                        } else {
+                            None
+                        };
+
                         triggers.push(PendingTrigger {
                             source: *new_grave_id,
                             ability_index: idx,
@@ -850,6 +1356,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             exalted_attacker_id: None,
                             defending_player_id: None,
                             is_evoke_sacrifice: false,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: is_modular,
+                            modular_counter_count,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
                         });
                     }
                 }
@@ -888,6 +1406,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             exalted_attacker_id: None,
                             defending_player_id: None,
                             is_evoke_sacrifice: false,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: false,
+                            modular_counter_count: None,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
                         });
                     }
                 }
@@ -911,6 +1441,58 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(obj_id),
                         None,
                     );
+                }
+            }
+
+            GameEvent::Connived { object_id, .. } => {
+                // CR 701.50b: "Whenever [this creature] connives" triggers fire even if
+                // the creature left the battlefield before the Connived event is processed.
+                // Scryfall ruling (Psychic Pickpocket, 2022-04-29): "If ... that creature
+                // has left the battlefield, the creature still connives. Abilities that
+                // trigger 'when [that creature] connives' will trigger."
+                //
+                // `collect_triggers_for_event` enforces a zone == Battlefield check at
+                // line 1518 and would skip off-battlefield objects. To comply with CR
+                // 701.50b, we bypass the helper and generate the trigger inline,
+                // accepting the object in ANY zone.
+                if let Some(obj) = state.objects.get(object_id) {
+                    for (idx, trigger_def) in
+                        obj.characteristics.triggered_abilities.iter().enumerate()
+                    {
+                        if trigger_def.trigger_on != TriggerEvent::SourceConnives {
+                            continue;
+                        }
+                        // CR 603.4: intervening-if check at trigger time.
+                        if let Some(ref cond) = trigger_def.intervening_if {
+                            if !check_intervening_if(state, cond, obj.controller, None) {
+                                continue;
+                            }
+                        }
+                        triggers.push(PendingTrigger {
+                            source: *object_id,
+                            ability_index: idx,
+                            controller: obj.controller,
+                            triggering_event: Some(TriggerEvent::SourceConnives),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            is_evoke_sacrifice: false,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: false,
+                            modular_counter_count: None,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
+                        });
+                    }
                 }
             }
 
@@ -1001,6 +1583,18 @@ fn collect_triggers_for_event(
                 exalted_attacker_id: None,
                 defending_player_id: None,
                 is_evoke_sacrifice: false,
+                is_madness_trigger: false,
+                madness_exiled_card: None,
+                madness_cost: None,
+                is_miracle_trigger: false,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                is_unearth_trigger: false,
+                is_exploit_trigger: false,
+                is_modular_trigger: false,
+                modular_counter_count: None,
+                is_evolve_trigger: false,
+                evolve_entering_creature: None,
             });
         }
     }
@@ -1104,9 +1698,116 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             let stack_id = state.next_object_id();
             // CR 702.74a: Evoke sacrifice triggers use EvokeSacrificeTrigger kind
             // instead of TriggeredAbility to distinguish them at resolution time.
+            // CR 702.35a: Madness triggers use MadnessTrigger kind to carry
+            // the exiled card ObjectId and madness cost for resolution.
             let kind = if trigger.is_evoke_sacrifice {
                 StackObjectKind::EvokeSacrificeTrigger {
                     source_object: trigger.source,
+                }
+            } else if trigger.is_madness_trigger {
+                StackObjectKind::MadnessTrigger {
+                    source_object: trigger.source,
+                    exiled_card: trigger.madness_exiled_card.unwrap_or(trigger.source),
+                    madness_cost: trigger.madness_cost.clone().unwrap_or_default(),
+                    owner: trigger.controller,
+                }
+            } else if trigger.is_miracle_trigger {
+                // CR 702.94a: Miracle trigger carries the revealed card and cost.
+                StackObjectKind::MiracleTrigger {
+                    source_object: trigger.source,
+                    revealed_card: trigger.miracle_revealed_card.unwrap_or(trigger.source),
+                    miracle_cost: trigger.miracle_cost.clone().unwrap_or_default(),
+                    owner: trigger.controller,
+                }
+            } else if trigger.is_unearth_trigger {
+                // CR 702.84a: Unearth delayed exile trigger -- "Exile [this permanent]
+                // at the beginning of the next end step."
+                StackObjectKind::UnearthTrigger {
+                    source_object: trigger.source,
+                }
+            } else if trigger.is_exploit_trigger {
+                // CR 702.110a: Exploit ETB trigger -- "When this creature enters,
+                // you may sacrifice a creature."
+                StackObjectKind::ExploitTrigger {
+                    source_object: trigger.source,
+                }
+            } else if trigger.is_modular_trigger {
+                // CR 702.43a: Modular dies trigger -- "you may put a +1/+1 counter
+                // on target artifact creature for each +1/+1 counter on this permanent."
+                // Deterministic target selection: first artifact creature on the
+                // battlefield by ObjectId ascending (OrdMap is sorted by key).
+                // CR 603.3d: If no legal artifact creature target exists, the trigger
+                // is not placed on the stack. Use `continue` to skip this trigger.
+                let target_id = state
+                    .objects
+                    .iter()
+                    .find(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.characteristics.card_types.contains(&CardType::Artifact)
+                            && obj.characteristics.card_types.contains(&CardType::Creature)
+                    })
+                    .map(|(id, _)| *id);
+
+                let Some(tid) = target_id else {
+                    // No legal artifact creature target -- skip this trigger (CR 603.3d).
+                    continue;
+                };
+
+                // Override trigger_targets with the selected artifact creature target.
+                // (trigger_targets computed above does not apply to modular triggers.)
+                let modular_targets = vec![SpellTarget {
+                    target: Target::Object(tid),
+                    zone_at_cast: Some(ZoneId::Battlefield),
+                }];
+
+                let counter_count = trigger.modular_counter_count.unwrap_or(0);
+                let stack_id = state.next_object_id();
+                let stack_obj = StackObject {
+                    id: stack_id,
+                    controller: trigger.controller,
+                    kind: StackObjectKind::ModularTrigger {
+                        source_object: trigger.source,
+                        counter_count,
+                    },
+                    targets: modular_targets,
+                    cant_be_countered: false,
+                    is_copy: false,
+                    cast_with_flashback: false,
+                    kicker_times_paid: 0,
+                    was_evoked: false,
+                    was_bestowed: false,
+                    cast_with_madness: false,
+                    cast_with_miracle: false,
+                    was_escaped: false,
+                    cast_with_foretell: false,
+                    was_buyback_paid: false,
+                };
+                state.stack_objects.push_back(stack_obj);
+
+                events.push(GameEvent::AbilityTriggered {
+                    controller: trigger.controller,
+                    source_object_id: trigger.source,
+                    stack_object_id: stack_id,
+                });
+
+                // For trigger doubling: already handled via additional_count loop below,
+                // but modular uses an early-exit path above. We run additional_count
+                // copies too. However, for simplicity and correctness, break out of the
+                // per-duplication loop by skipping the rest. The doubler case is handled
+                // after the if-else chain below -- but since we already pushed the stack
+                // object and emitted the event, we must NOT fall through to the bottom
+                // of the loop. Use a labeled continue to advance to the next trigger.
+                // NOTE: trigger doubling (Panharmonicon) is not applicable to non-ETB
+                // triggers, so additional_count will always be 0 here.
+                continue;
+            } else if trigger.is_evolve_trigger {
+                // CR 702.100a: Evolve ETB trigger — "Whenever a creature you control
+                // enters, if that creature's P > this creature's P and/or that creature's
+                // T > this creature's T, put a +1/+1 counter on this creature."
+                // The resolution handler re-checks the intervening-if (CR 603.4).
+                StackObjectKind::EvolveTrigger {
+                    source_object: trigger.source,
+                    entering_creature: trigger.evolve_entering_creature.unwrap_or(trigger.source),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {
@@ -1124,6 +1825,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 cast_with_flashback: false,
                 kicker_times_paid: 0,
                 was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -1463,6 +2170,12 @@ pub fn handle_crew_vehicle(
         cast_with_flashback: false,
         kicker_times_paid: 0,
         was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 

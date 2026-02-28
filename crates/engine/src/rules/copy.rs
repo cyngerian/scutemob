@@ -176,6 +176,17 @@ pub fn copy_spell_on_stack(
         kicker_times_paid: original.kicker_times_paid,
         // CR 702.74a: Copies are never cast — they cannot be evoked.
         was_evoked: false,
+        // CR 702.103c: Copies of bestowed spells are also bestowed.
+        was_bestowed: original.was_bestowed,
+        // CR 702.35a: Copies are never cast, so cast_with_madness is always false.
+        cast_with_madness: false,
+        // CR 702.94a: Copies are never cast, so cast_with_miracle is always false.
+        cast_with_miracle: false,
+        // CR 702.138b: Copies are never cast, so was_escaped is always false.
+        was_escaped: false,
+        // CR 702.143a: Copies are never cast, so cast_with_foretell is always false.
+        cast_with_foretell: false,
+        was_buyback_paid: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -344,6 +355,12 @@ pub fn resolve_cascade(
                 cast_with_flashback: false,
                 kicker_times_paid: 0,
                 was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 

@@ -1,6 +1,7 @@
 mod dashboard;
 mod docs;
 mod event;
+mod play;
 mod theme;
 mod widgets;
 
@@ -31,6 +32,20 @@ enum Commands {
         /// Jump directly to a file matching this name (partial match)
         file: Option<String>,
     },
+    /// Interactive play — human vs bots in a Commander game
+    Play {
+        /// Number of players (2-6)
+        #[arg(long, default_value = "4")]
+        players: u32,
+
+        /// Bot type: random or heuristic
+        #[arg(long, default_value = "random")]
+        bot: String,
+
+        /// Delay between bot actions in ms (0 for instant)
+        #[arg(long, default_value = "200")]
+        delay: u64,
+    },
     /// Game state stepper — step through a game script interactively
     Stepper {
         /// Path to game script JSON file
@@ -58,6 +73,11 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Dashboard { watch } => dashboard::run(watch),
         Commands::Docs { file } => docs::run(file),
+        Commands::Play {
+            players,
+            bot,
+            delay,
+        } => play::run(players, bot, delay),
         Commands::Stepper { .. } => {
             eprintln!("Stepper not yet implemented (planned for Phase 2)");
             Ok(())

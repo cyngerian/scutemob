@@ -135,6 +135,20 @@ pub enum EnchantTarget {
     CreatureOrPlaneswalker,
 }
 
+/// CR 702.41a: Specifies the quality for affinity cost reduction.
+///
+/// "Affinity for [text]" means "This spell costs {1} less to cast for
+/// each [text] you control." The quality determines which permanents
+/// on the battlefield are counted for the reduction.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum AffinityTarget {
+    /// "Affinity for artifacts" — count artifacts you control (most common).
+    Artifacts,
+    /// "Affinity for [basic land type]" — count lands of that subtype you control.
+    /// Example: "Affinity for Plains" counts all lands with the Plains subtype.
+    BasicLandType(SubType),
+}
+
 /// Keyword abilities (CR 702). Common keywords used in rules processing.
 ///
 /// Note: `Copy` is not derived because `ProtectionFrom(ProtectionQuality)` contains
@@ -336,6 +350,164 @@ pub enum KeywordAbility {
     /// CR 702.126b: Not an additional or alternative cost; applies after total cost determined.
     /// CR 702.126c: Multiple instances are redundant.
     Improvise,
+    /// CR 702.41: Affinity for [quality] — this spell costs {1} less for each
+    /// [quality] you control.
+    ///
+    /// Static ability that functions while the spell is on the stack (CR 702.41a).
+    /// Automatically reduces generic mana in the total cost based on the count
+    /// of qualifying permanents the caster controls. Multiple instances are
+    /// cumulative (CR 702.41b).
+    ///
+    /// Unlike Convoke/Improvise/Delve, Affinity requires no player decisions —
+    /// the engine counts matching permanents automatically.
+    Affinity(AffinityTarget),
+    /// CR 702.125: Undaunted -- "This spell costs {1} less to cast for each
+    /// opponent you have."
+    ///
+    /// Static ability that functions while the spell is on the stack (CR 702.125a).
+    /// Automatically reduces generic mana in the total cost based on the number
+    /// of opponents the caster has. Multiple instances are cumulative (CR 702.125c).
+    /// Players who have left the game are not counted (CR 702.125b).
+    Undaunted,
+    /// CR 702.105: Dethrone -- "Whenever this creature attacks the player with
+    /// the most life or tied for most life, put a +1/+1 counter on this creature."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.105b).
+    Dethrone,
+    /// CR 702.103: Bestow [cost] -- alternative cost; becomes Aura with enchant creature.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The bestow cost itself is stored in `AbilityDefinition::Bestow { cost }`.
+    ///
+    /// When cast bestowed (CR 702.103b): spell becomes an Aura enchantment, gains
+    /// enchant creature, loses creature type. When unattached (CR 702.103f): ceases
+    /// to be bestowed, reverts to enchantment creature.
+    Bestow,
+    /// CR 702.36: Fear -- evasion ability.
+    /// "A creature with fear can't be blocked except by artifact creatures
+    /// and/or black creatures." (CR 702.36b)
+    /// Multiple instances are redundant (CR 702.36c).
+    Fear,
+    /// CR 702.92: Living Weapon -- "When this Equipment enters, create a 0/0
+    /// black Phyrexian Germ creature token, then attach this Equipment to it."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// The trigger fires on SelfEntersBattlefield. The effect creates a Germ
+    /// token and attaches the source Equipment to it atomically.
+    LivingWeapon,
+    /// CR 702.35: Madness [cost] -- when discarded, exile instead of graveyard;
+    /// owner may cast for madness cost from exile.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The madness cost itself is stored in `AbilityDefinition::Madness { cost }`.
+    ///
+    /// Two sub-abilities: (1) static replacement on discard (hand -> exile instead
+    /// of graveyard), (2) triggered ability "when exiled this way, may cast for
+    /// [cost] or put into graveyard."
+    /// Casting ignores timing restrictions (sorceries can be cast at instant speed
+    /// via madness, per CR 702.35 ruling).
+    Madness,
+    /// CR 702.94: Miracle [cost] -- static ability linked to triggered ability.
+    /// "You may reveal this card from your hand as you draw it if it's the first
+    /// card you've drawn this turn. When you reveal this card this way, you may
+    /// cast it by paying [cost] rather than its mana cost."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The miracle cost itself is stored in `AbilityDefinition::Miracle { cost }`.
+    ///
+    /// The card is drawn normally first; then the player may optionally reveal
+    /// it and trigger the miracle ability. Casting ignores timing restrictions
+    /// (sorceries can be cast at instant speed via miracle, per CR 702.94a ruling).
+    Miracle,
+    /// CR 702.138: Escape [cost] -- static ability from graveyard.
+    /// "You may cast this card from your graveyard by paying [cost] rather
+    /// than paying its mana cost."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The escape cost (mana + exile count) is stored in
+    /// `AbilityDefinition::Escape { cost, exile_count }`.
+    ///
+    /// Unlike Flashback, Escape does NOT exile the card on resolution.
+    /// The spell resolves normally (permanent to battlefield, instant/sorcery
+    /// to graveyard). The permanent tracks `was_escaped` for "escapes with"
+    /// abilities (CR 702.138b-d).
+    Escape,
+    /// CR 702.143: Foretell [cost] -- special action from hand; cast from exile for foretell cost.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The foretell cost itself is stored in `AbilityDefinition::Foretell { cost }`.
+    ///
+    /// During the owner's turn, they may pay {2} and exile this card face down
+    /// (special action, CR 116.2h). On a later turn, they may cast it for its
+    /// foretell cost (alternative cost, CR 118.9).
+    Foretell,
+    /// CR 702.84: Unearth [cost] -- activated ability from graveyard.
+    /// "[Cost]: Return this card from your graveyard to the battlefield.
+    /// It gains haste. Exile it at the beginning of the next end step.
+    /// If it would leave the battlefield, exile it instead of putting it
+    /// anywhere else. Activate only as a sorcery."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The unearth cost itself is stored in `AbilityDefinition::Unearth { cost }`.
+    Unearth,
+    /// CR 702.136: Riot -- "You may have this permanent enter with an additional
+    /// +1/+1 counter on it. If you don't, it gains haste."
+    ///
+    /// Replacement effect (CR 614.1c). Applied inline at the ETB site in
+    /// `resolution.rs` (like Escape's counter placement). Each instance
+    /// of Riot on a permanent generates a separate choice (CR 702.136b).
+    ///
+    /// Default: always chooses +1/+1 counter for deterministic testing.
+    /// Future: player-interactive choice via a new Command variant.
+    Riot,
+    /// CR 702.110: Exploit -- "When this creature enters, you may sacrifice a creature."
+    ///
+    /// Triggered ability keyword. When a creature with exploit enters the battlefield,
+    /// the controller may sacrifice a creature (CR 702.110a). A creature with exploit
+    /// "exploits a creature" when the sacrifice happens (CR 702.110b).
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`). No associated cost.
+    /// Each instance triggers separately.
+    Exploit,
+    /// CR 702.80: Wither -- "Damage dealt to a creature by a source with wither isn't
+    /// marked on that creature. Rather, it causes that many -1/-1 counters to be put
+    /// on that creature."
+    ///
+    /// Static ability. Functions from any zone (CR 702.80c). Multiple instances are
+    /// redundant (CR 702.80d). Modifies both combat and non-combat damage to creatures.
+    Wither,
+    /// CR 702.43: Modular N -- "This permanent enters with N +1/+1 counters on it"
+    /// and "When this permanent is put into a graveyard from the battlefield, you may
+    /// put a +1/+1 counter on target artifact creature for each +1/+1 counter on
+    /// this permanent."
+    ///
+    /// Represents both a static ability (ETB counters) and a triggered ability (dies).
+    /// Each instance works separately (CR 702.43b).
+    Modular(u32),
+    /// CR 702.100: Evolve -- "Whenever a creature you control enters, if that creature's
+    /// power is greater than this creature's power and/or that creature's toughness is
+    /// greater than this creature's toughness, put a +1/+1 counter on this creature."
+    ///
+    /// Triggered ability with intervening-if. Each instance triggers separately
+    /// (CR 702.100d). A creature "evolves" when counters are placed this way (CR 702.100b).
+    Evolve,
+    /// CR 702.27: Buyback [cost] -- "You may pay an additional [cost] as you cast this
+    /// spell" and "If the buyback cost was paid, put this spell into its owner's hand
+    /// instead of into that player's graveyard as it resolves."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The buyback cost itself is stored in `AbilityDefinition::Buyback { cost }`.
+    Buyback,
+    /// CR 702.131: Ascend -- "If you control ten or more permanents and you don't have
+    /// the city's blessing, you get the city's blessing for the rest of the game."
+    ///
+    /// On instants/sorceries: spell ability checked on resolution.
+    /// On permanents: static ability checked continuously.
+    /// The city's blessing is a designation with no inherent rules meaning (CR 702.131c).
+    Ascend,
 }
 
 /// All creature subtypes from CR 205.3m.
