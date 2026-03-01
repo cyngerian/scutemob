@@ -19,7 +19,7 @@ use im::OrdMap;
 use crate::state::combat::AttackTarget;
 use crate::state::{ActivatedAbility, ActivationCost, CounterType};
 use crate::testing::script_schema::{
-    ActionTarget, AttackerDeclaration, BlockerDeclaration, InitialState,
+    ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
@@ -235,6 +235,7 @@ pub fn translate_player_action(
     escape_names: &[String],
     kicked: bool,
     buyback: bool,
+    enlist_decls: &[EnlistDeclaration],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -551,9 +552,18 @@ pub fn translate_player_action(
                 };
                 atk_pairs.push((obj_id, target));
             }
+            // CR 702.154a: Resolve enlist declarations to (attacker_id, enlisted_id) pairs.
+            let mut enlist_choices: Vec<(crate::state::ObjectId, crate::state::ObjectId)> =
+                Vec::new();
+            for edecl in enlist_decls {
+                let attacker_id = find_on_battlefield(state, player, &edecl.attacker)?;
+                let enlisted_id = find_on_battlefield_by_name(state, &edecl.enlisted)?;
+                enlist_choices.push((attacker_id, enlisted_id));
+            }
             Some(Command::DeclareAttackers {
                 player,
                 attackers: atk_pairs,
+                enlist_choices,
             })
         }
 

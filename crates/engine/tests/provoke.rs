@@ -87,6 +87,7 @@ fn test_702_39a_provoke_basic_untap_and_forced_block() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -205,6 +206,7 @@ fn test_702_39a_provoke_forces_block_requirement() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -286,6 +288,7 @@ fn test_702_39a_provoke_tapped_creature_untapped() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -350,6 +353,7 @@ fn test_702_39a_provoke_creature_cant_block_flying() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -425,6 +429,7 @@ fn test_702_39b_provoke_multiple_instances_trigger_separately() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -503,6 +508,7 @@ fn test_702_39a_provoke_no_valid_target() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -570,6 +576,7 @@ fn test_702_39a_provoke_multiplayer_correct_defender() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

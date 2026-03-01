@@ -504,6 +504,8 @@ impl HashInto for KeywordAbility {
                 85u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Enlist (discriminant 86) -- CR 702.154
+            KeywordAbility::Enlist => 86u8.hash_into(hasher),
         }
     }
 }
@@ -1148,6 +1150,9 @@ impl HashInto for PendingTrigger {
         self.is_poisonous_trigger.hash_into(hasher);
         self.poisonous_n.hash_into(hasher);
         self.poisonous_target_player.hash_into(hasher);
+        // CR 702.154a: is_enlist_trigger -- enlist attack trigger marker
+        self.is_enlist_trigger.hash_into(hasher);
+        self.enlist_enlisted_creature.hash_into(hasher);
     }
 }
 
@@ -1493,6 +1498,15 @@ impl HashInto for StackObjectKind {
                 target_player.hash_into(hasher);
                 poisonous_n.hash_into(hasher);
             }
+            // EnlistTrigger (discriminant 25) -- CR 702.154a
+            StackObjectKind::EnlistTrigger {
+                source_object,
+                enlisted_creature,
+            } => {
+                25u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                enlisted_creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -1563,6 +1577,12 @@ impl HashInto for CombatState {
         self.defenders_declared.hash_into(hasher);
         // CR 702.39a / CR 509.1c: forced_blocks -- provoke blocking requirements
         self.forced_blocks.hash_into(hasher);
+        // CR 702.154a: enlist_pairings -- enlist cost choices during declare-attackers
+        (self.enlist_pairings.len() as u64).hash_into(hasher);
+        for (a, b) in &self.enlist_pairings {
+            a.hash_into(hasher);
+            b.hash_into(hasher);
+        }
     }
 }
 

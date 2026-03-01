@@ -731,6 +731,18 @@ pub enum KeywordAbility {
     /// CR 120.3g: Only combat damage to a player; does not apply to creatures,
     /// planeswalkers, or non-combat damage.
     Toxic(u32),
+    /// CR 702.154: Enlist -- "As this creature attacks, you may tap up to one
+    /// untapped creature you control that you didn't choose to attack with and
+    /// that either has haste or has been under your control continuously since
+    /// this turn began. When you do, this creature gets +X/+0 until end of turn,
+    /// where X is the tapped creature's power."
+    ///
+    /// Static ability: optional cost to attack (CR 508.1g). Expressed as an
+    /// enlist_choices field on the DeclareAttackers command.
+    /// Triggered ability: linked to the static ability (CR 607.2h). Goes on
+    /// the stack after attackers are declared. Resolves to +X/+0.
+    /// Multiple instances function independently (CR 702.154d).
+    Enlist,
 }
 
 /// All creature subtypes from CR 205.3m.

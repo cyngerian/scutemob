@@ -153,11 +153,16 @@ pub fn process_command(
             events.extend(trigger_events);
             all_events.extend(events);
         }
-        Command::DeclareAttackers { player, attackers } => {
+        Command::DeclareAttackers {
+            player,
+            attackers,
+            enlist_choices,
+        } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let events = combat::handle_declare_attackers(&mut state, player, attackers)?;
+            let events =
+                combat::handle_declare_attackers(&mut state, player, attackers, enlist_choices)?;
             all_events.extend(events);
         }
         Command::DeclareBlockers { player, blockers } => {

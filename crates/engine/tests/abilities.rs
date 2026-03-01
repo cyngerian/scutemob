@@ -1936,6 +1936,7 @@ fn test_attack_trigger_fires_on_declare_attackers() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2046,6 +2047,7 @@ fn test_attack_trigger_via_card_definition_enrich_path() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed for enriched card-def creature");
@@ -2107,6 +2109,7 @@ fn test_attack_trigger_resolves_draws_card() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2200,6 +2203,7 @@ fn test_attack_trigger_does_not_fire_for_non_attacker() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -2267,6 +2271,7 @@ fn test_attack_trigger_multiple_attackers() {
                 (attacker_a_id, AttackTarget::Player(p2)),
                 (attacker_b_id, AttackTarget::Player(p2)),
             ],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers with two attackers should succeed");

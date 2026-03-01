@@ -90,6 +90,7 @@ fn test_702_25_flanking_basic_minus_one_minus_one() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -195,6 +196,7 @@ fn test_702_25_flanking_does_not_trigger_on_flanking_blocker() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -283,6 +285,7 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -400,6 +403,7 @@ fn test_702_25b_flanking_multiple_instances() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -511,6 +515,7 @@ fn test_702_25_flanking_multiple_blockers() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -617,6 +622,7 @@ fn test_702_25_flanking_effect_expires_at_end_of_turn() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -721,6 +727,7 @@ fn test_702_25_flanking_multiplayer() {
                 (attacker_a, AttackTarget::Player(p2)),
                 (attacker_b, AttackTarget::Player(p3)),
             ],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");

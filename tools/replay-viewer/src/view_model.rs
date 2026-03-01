@@ -491,6 +491,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::PoisonousTrigger { source_object, .. } => {
             ("poisonous_trigger", Some(*source_object))
         }
+        StackObjectKind::EnlistTrigger { source_object, .. } => {
+            ("enlist_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -713,5 +716,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Melee => "Melee".to_string(),
         KeywordAbility::Poisonous(n) => format!("Poisonous {n}"),
         KeywordAbility::Toxic(n) => format!("Toxic {n}"),
+        KeywordAbility::Enlist => "Enlist".to_string(),
     }
 }

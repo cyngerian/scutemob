@@ -2017,6 +2017,8 @@ fn execute_effect_inner(
                                         is_poisonous_trigger: false,
                                         poisonous_n: None,
                                         poisonous_target_player: None,
+                                        is_enlist_trigger: false,
+                                        enlist_enlisted_creature: None,
                                     });
                                 }
                             }
@@ -2646,6 +2648,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         is_poisonous_trigger: false,
                         poisonous_n: None,
                         poisonous_target_player: None,
+                        is_enlist_trigger: false,
+                        enlist_enlisted_creature: None,
                     });
                 }
             }

@@ -80,6 +80,7 @@ fn test_702_23a_rampage_blocked_by_two_gets_bonus() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -181,6 +182,7 @@ fn test_702_23a_rampage_blocked_by_one_no_bonus() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -277,6 +279,7 @@ fn test_702_23a_rampage_blocked_by_three_scaled_bonus() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -361,6 +364,7 @@ fn test_702_23c_multiple_rampage_instances() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -475,6 +479,7 @@ fn test_702_23a_rampage_not_blocked_no_trigger() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -561,6 +566,7 @@ fn test_702_23a_rampage_bonus_expires_at_end_of_turn() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -659,6 +665,7 @@ fn test_702_23b_bonus_calculated_at_resolution_time() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -737,6 +744,7 @@ fn test_702_23a_rampage_three_blocked_by_four() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

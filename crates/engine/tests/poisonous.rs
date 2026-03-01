@@ -102,6 +102,7 @@ fn test_702_70a_poisonous_basic_gives_poison_counter() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -225,6 +226,7 @@ fn test_702_70a_poisonous_amount_independent_of_damage() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -301,6 +303,7 @@ fn test_702_70a_poisonous_blocked_no_trigger() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -417,6 +420,7 @@ fn test_702_70b_poisonous_multiple_instances_trigger_separately() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -546,6 +550,7 @@ fn test_702_70a_poisonous_kills_via_sba() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -628,6 +633,7 @@ fn test_702_70a_poisonous_multiplayer_correct_player() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p3))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");

@@ -156,6 +156,7 @@ fn test_six_player_combat_five_defenders() {
         Command::DeclareAttackers {
             player: p(1),
             attackers: attackers_decl,
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers failed");

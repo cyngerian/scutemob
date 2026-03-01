@@ -193,6 +193,9 @@ pub struct ScriptStep {
 ///
 /// Uses `#[serde(tag = "type")]` so JSON objects carry a `"type"` discriminant field
 /// matching the variant names in `snake_case`.
+// PlayerAction is intentionally large — it holds all script action data in a flat
+// struct to avoid nested JSON. Boxing individual fields would break the serde schema.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ScriptAction {
@@ -223,6 +226,11 @@ pub enum ScriptAction {
         /// Example: [{"card": "Llanowar Elves", "blocking": "Grizzly Bears"}]
         #[serde(default)]
         blockers: Vec<BlockerDeclaration>,
+        /// CR 702.154a: For `declare_attackers` with enlist. Each entry specifies an
+        /// attacker with Enlist and the non-attacking creature to tap as the enlist cost.
+        /// Example: [{"attacker": "Coalition Skyknight", "enlisted": "Llanowar Elves"}]
+        #[serde(default)]
+        enlist: Vec<EnlistDeclaration>,
         /// CR 702.51: For `cast_spell` with convoke. Names of untapped creatures on the
         /// battlefield to tap as part of cost payment. Empty for non-convoke casts.
         /// Example: ["Llanowar Elves", "Saproling Token", "Saproling Token"]
@@ -392,6 +400,22 @@ pub struct AttackerDeclaration {
     /// Name of the planeswalker being attacked (on the battlefield).
     /// Mutually exclusive with `target_player`.
     pub target_planeswalker: Option<String>,
+}
+
+/// CR 702.154a: One enlist declaration entry for the `declare_attackers` harness action.
+///
+/// The attacking player may tap a non-attacking creature they control (without summoning
+/// sickness unless it has haste) to give the attacker +X/+0 until end of turn, where X
+/// is the enlisted creature's power.
+///
+/// `attacker` is the name of the attacking creature with Enlist on the battlefield.
+/// `enlisted` is the name of the non-attacking creature being tapped for the enlist cost.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EnlistDeclaration {
+    /// Name of the attacking creature that has the Enlist keyword.
+    pub attacker: String,
+    /// Name of the non-attacking creature to tap as the enlist cost.
+    pub enlisted: String,
 }
 
 /// CR 509.1: One blocker declaration entry for the `declare_blockers` harness action.

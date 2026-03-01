@@ -75,6 +75,7 @@ fn test_702_3_defender_cannot_attack() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(wall_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
 
@@ -116,6 +117,7 @@ fn test_302_6_summoning_sickness_prevents_attack() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
 
@@ -159,6 +161,7 @@ fn test_702_10_haste_bypasses_summoning_sickness() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
 
@@ -228,6 +231,7 @@ fn test_302_6_summoning_sickness_cleared_after_untap() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
     assert!(
@@ -1024,6 +1028,7 @@ fn test_702_15_lifelink_grants_life_on_combat_damage() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(lifelink_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2183,6 +2188,7 @@ fn test_702_80_wither_combat_damage_places_minus_counters() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2279,6 +2285,7 @@ fn test_702_80_wither_combat_kills_creature_via_toughness_sba() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2351,6 +2358,7 @@ fn test_702_80_wither_does_not_affect_player_damage() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2414,6 +2422,7 @@ fn test_702_80_wither_persist_interaction() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2479,6 +2488,7 @@ fn test_702_80_wither_redundant_instances() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2633,6 +2643,7 @@ fn test_702_90_infect_combat_damage_places_minus_counters_on_creature() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2727,6 +2738,7 @@ fn test_702_90_infect_combat_damage_gives_poison_counters_to_player() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -2985,6 +2997,7 @@ fn test_702_90_infect_kills_via_poison_sba() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -3059,6 +3072,7 @@ fn test_702_90_infect_redundant_instances() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -3119,6 +3133,7 @@ fn test_702_90_infect_wither_overlap_creature() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -3269,6 +3284,7 @@ fn test_702_90_infect_commander_damage_still_tracks() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();

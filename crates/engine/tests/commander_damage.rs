@@ -51,6 +51,7 @@ fn run_one_unblocked_combat(
         Command::DeclareAttackers {
             player: attacker_player,
             attackers: vec![(attacker_id, AttackTarget::Player(defending_player))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -252,6 +253,7 @@ fn test_commander_damage_from_copy_does_not_count() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(copy_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -493,6 +495,7 @@ fn test_combat_damage_no_declare_blockers_command() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(elf_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();

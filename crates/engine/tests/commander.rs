@@ -1982,6 +1982,7 @@ fn run_unblocked_attack(
         Command::DeclareAttackers {
             player: attacker_player,
             attackers: vec![(attacker_obj, AttackTarget::Player(defending_player))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();

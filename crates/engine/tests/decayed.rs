@@ -153,6 +153,7 @@ fn test_702_147_decayed_creature_can_attack() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
 
@@ -203,6 +204,7 @@ fn test_702_147_decayed_flag_set_on_attack() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -251,6 +253,7 @@ fn test_702_147_decayed_creature_sacrificed_at_eoc() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -324,6 +327,7 @@ fn test_702_147_decayed_sacrifice_persists_after_losing_keyword() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -429,6 +433,7 @@ fn test_702_147_decayed_creature_not_sacrificed_if_not_attacking() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers with empty list should succeed");
@@ -531,6 +536,7 @@ fn test_702_147_decayed_no_haste() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     );
 

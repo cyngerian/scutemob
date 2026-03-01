@@ -105,6 +105,7 @@ fn test_702_164_toxic_basic_combat_damage_gives_poison() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -209,6 +210,7 @@ fn test_702_164_toxic_damage_to_creature_no_poison() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -317,6 +319,7 @@ fn test_702_164_toxic_multiple_instances_cumulative() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -404,6 +407,7 @@ fn test_702_164_toxic_zero_damage_no_poison() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -483,6 +487,7 @@ fn test_702_164_toxic_with_infect() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -583,6 +588,7 @@ fn test_702_164_toxic_with_lifelink() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -671,6 +677,7 @@ fn test_702_164_toxic_kills_via_poison_sba() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -756,6 +763,7 @@ fn test_702_164_toxic_multiplayer_correct_player() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p3))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");

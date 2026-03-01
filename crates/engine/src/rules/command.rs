@@ -191,6 +191,22 @@ pub enum Command {
         player: PlayerId,
         /// (attacker ObjectId, attack target) pairs.
         attackers: Vec<(ObjectId, AttackTarget)>,
+        /// CR 702.154a / CR 508.1g: Optional enlist cost payments.
+        ///
+        /// Each entry is (enlisting_attacker_id, enlisted_creature_id).
+        /// The enlisted creature will be tapped as a cost during the
+        /// declare-attackers step. The attacker must have Enlist; the
+        /// enlisted creature must be untapped, non-attacking, controlled
+        /// by the player, a creature, and not have summoning sickness
+        /// (or have haste).
+        ///
+        /// Empty vec for no enlist choices. At most one entry per Enlist
+        /// keyword instance on a given attacker. A creature can only be
+        /// enlisted once across all attackers (ruling 2022-09-09).
+        ///
+        /// Validated in handle_declare_attackers.
+        #[serde(default)]
+        enlist_choices: Vec<(ObjectId, ObjectId)>,
     },
 
     /// Declare blocking creatures (CR 509.1).

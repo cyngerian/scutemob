@@ -529,6 +529,30 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.154a: Enlist -- "As this creature attacks, you may tap up to
+                // one untapped creature [...]. When you do, this creature gets +X/+0
+                // until end of turn, where X is the tapped creature's power."
+                // The static ability (optional cost) is handled in combat.rs via the
+                // enlist_choices field on DeclareAttackers. The triggered ability is
+                // handled by creating an EnlistTrigger StackObjectKind at trigger-
+                // collection time in abilities.rs.
+                // builder.rs generates a placeholder TriggeredAbilityDef so
+                // ability_index is valid. The effect is None because resolution is
+                // custom (EnlistTrigger reads the enlisted creature's power).
+                // CR 702.154d: Each Enlist instance generates one placeholder.
+                if matches!(kw, KeywordAbility::Enlist) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: "Enlist (CR 702.154a): As this creature attacks, you may \
+                                      tap an untapped non-attacking creature you control. When \
+                                      you do, this creature gets +X/+0 until end of turn, where \
+                                      X is the tapped creature's power."
+                            .to_string(),
+                        effect: None, // Custom resolution via EnlistTrigger
+                    });
+                }
+
                 // CR 702.70a: Poisonous N -- trigger dispatch is handled manually in
                 // abilities.rs CombatDamageDealt handler (same as Ingest / Renown).
                 // No TriggeredAbilityDef is registered here to avoid double-triggering:

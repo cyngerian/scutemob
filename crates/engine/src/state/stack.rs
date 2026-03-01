@@ -556,4 +556,28 @@ pub enum StackObjectKind {
         target_player: crate::state::player::PlayerId,
         poisonous_n: u32,
     },
+    /// CR 702.154a: Enlist triggered ability on the stack.
+    ///
+    /// "When you [tap a creature for enlist], this creature gets +X/+0 until
+    /// end of turn, where X is the tapped creature's power."
+    ///
+    /// `source_object` is the attacking creature with Enlist.
+    /// `enlisted_creature` is the creature that was tapped to pay the
+    /// enlist cost.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the source (enlisting) creature is still on the battlefield.
+    /// 2. Read the enlisted creature's power via calculate_characteristics
+    ///    (if still on battlefield) or raw characteristics (if departed).
+    /// 3. If the source creature is alive and power != 0, register a
+    ///    ContinuousEffect with ModifyPower(X) in Layer 7c (PtModify)
+    ///    targeting SingleObject(source_object) with UntilEndOfTurn duration.
+    /// 4. If the source left the battlefield, do nothing (CR 400.7).
+    ///
+    /// CR 702.154d: Multiple instances each create their own EnlistTrigger
+    /// with different `enlisted_creature` values.
+    EnlistTrigger {
+        source_object: ObjectId,
+        enlisted_creature: ObjectId,
+    },
 }

@@ -7,7 +7,7 @@
 //! - Combat damage (CR 510): simultaneous damage, trample, deathtouch, first/double strike
 //! - Commander damage tracking (CR 903.10a)
 
-use im::OrdSet;
+use im::{OrdMap, OrdSet};
 
 use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
@@ -35,6 +35,7 @@ pub fn handle_declare_attackers(
     state: &mut GameState,
     player: PlayerId,
     attackers: Vec<(ObjectId, AttackTarget)>,
+    enlist_choices: Vec<(ObjectId, ObjectId)>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Must be in the DeclareAttackers step.
     if state.turn.step != Step::DeclareAttackers {
@@ -259,6 +260,123 @@ pub fn handle_declare_attackers(
         }
     }
 
+    // ---- CR 702.154a / CR 508.1g: Validate enlist choices ----
+    //
+    // Each (enlisting_attacker_id, enlisted_creature_id) must satisfy:
+    //  1. The attacker is in the declared_attacker_ids set.
+    //  2. The attacker has the Enlist keyword (layer-aware check).
+    //  3. The enlisted creature is on the battlefield, controlled by the player.
+    //  4. The enlisted creature is NOT in the declared_attacker_ids set.
+    //  5. The enlisted creature is untapped.
+    //  6. The enlisted creature is a creature (layer-aware check).
+    //  7. The enlisted creature does not have summoning sickness (or has haste).
+    //  8. Each enlisted creature appears at most once across ALL enlist choices
+    //     (ruling 2022-09-09: "a single creature can't be tapped for more than
+    //     one enlist ability").
+    //  9. For a given attacker, the number of enlist choices must not exceed
+    //     the number of Enlist keyword instances on that attacker (CR 702.154d).
+    // 10. The enlisted creature is not the same as the attacker (CR 702.154c).
+    {
+        let mut enlisted_ids_used: Vec<ObjectId> = Vec::new();
+        let mut enlist_used_per_attacker: OrdMap<ObjectId, u32> = OrdMap::new();
+
+        for (attacker_id, enlisted_id) in &enlist_choices {
+            // Check 10: cannot enlist itself (CR 702.154c).
+            if attacker_id == enlisted_id {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: creature {:?} cannot enlist itself (CR 702.154c)",
+                    attacker_id
+                )));
+            }
+
+            // Check 1: attacker is declared.
+            if !declared_attacker_ids.contains(attacker_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: creature {:?} is not a declared attacker",
+                    attacker_id
+                )));
+            }
+
+            // Check 2: attacker has Enlist keyword + check 9: instance count.
+            let attacker_chars = calculate_characteristics(state, *attacker_id)
+                .ok_or(GameStateError::ObjectNotFound(*attacker_id))?;
+            let enlist_count = attacker_chars
+                .keywords
+                .iter()
+                .filter(|kw| matches!(kw, KeywordAbility::Enlist))
+                .count() as u32;
+            if enlist_count == 0 {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: attacker {:?} does not have the Enlist keyword",
+                    attacker_id
+                )));
+            }
+            let used = enlist_used_per_attacker.entry(*attacker_id).or_insert(0);
+            *used += 1;
+            if *used > enlist_count {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: attacker {:?} has {} Enlist instance(s) but {} choices were made",
+                    attacker_id, enlist_count, *used
+                )));
+            }
+
+            // Check 4: enlisted creature is not attacking.
+            if declared_attacker_ids.contains(enlisted_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: creature {:?} is an attacker and cannot be enlisted",
+                    enlisted_id
+                )));
+            }
+
+            // Check 3: on battlefield, controlled by player.
+            let enlisted_obj = state.object(*enlisted_id)?;
+            if enlisted_obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::ObjectNotOnBattlefield(*enlisted_id));
+            }
+            if enlisted_obj.controller != player {
+                return Err(GameStateError::NotController {
+                    player,
+                    object_id: *enlisted_id,
+                });
+            }
+
+            // Check 5: untapped.
+            if enlisted_obj.status.tapped {
+                return Err(GameStateError::PermanentAlreadyTapped(*enlisted_id));
+            }
+
+            // Check 6: is a creature.
+            let enlisted_chars = calculate_characteristics(state, *enlisted_id)
+                .ok_or(GameStateError::ObjectNotFound(*enlisted_id))?;
+            if !enlisted_chars.card_types.contains(&CardType::Creature) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: object {:?} is not a creature",
+                    enlisted_id
+                )));
+            }
+
+            // Check 7: no summoning sickness (or has haste).
+            let has_haste = enlisted_chars.keywords.contains(&KeywordAbility::Haste);
+            let enlisted_obj_for_sickness = state.object(*enlisted_id)?;
+            if enlisted_obj_for_sickness.has_summoning_sickness && !has_haste {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: creature {:?} has summoning sickness and no haste (CR 702.154a)",
+                    enlisted_id
+                )));
+            }
+
+            // Check 8: not already enlisted by another attacker.
+            if enlisted_ids_used.contains(enlisted_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Enlist: creature {:?} is already enlisted by another attacker \
+                     (ruling 2022-09-09)",
+                    enlisted_id
+                )));
+            }
+            enlisted_ids_used.push(*enlisted_id);
+        }
+    }
+
     let mut events = Vec::new();
 
     // Tap non-Vigilance attackers (CR 508.1f).
@@ -275,11 +393,28 @@ pub fn handle_declare_attackers(
         }
     }
 
+    // CR 702.154a / CR 508.1j: Tap enlisted creatures as part of the
+    // attack cost payment.
+    for (_, enlisted_id) in &enlist_choices {
+        if let Some(obj) = state.objects.get_mut(enlisted_id) {
+            obj.status.tapped = true;
+        }
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: *enlisted_id,
+        });
+    }
+
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {
             combat.attackers.insert(*attacker_id, target.clone());
         }
+    }
+
+    // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.
+    if let Some(combat) = state.combat.as_mut() {
+        combat.enlist_pairings = enlist_choices.clone();
     }
 
     // CR 702.147a: Tag creatures with decayed for EOC sacrifice.

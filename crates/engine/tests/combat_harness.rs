@@ -163,6 +163,7 @@ fn test_harness_declare_attackers_basic() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     );
@@ -175,7 +176,9 @@ fn test_harness_declare_attackers_basic() {
 
     // Verify it's the right variant and contains the correct attacker/target.
     match &cmd {
-        Command::DeclareAttackers { player, attackers } => {
+        Command::DeclareAttackers {
+            player, attackers, ..
+        } => {
             assert_eq!(*player, p1, "command player should be p1");
             assert_eq!(attackers.len(), 1, "one attacker declared");
             assert!(
@@ -226,6 +229,7 @@ fn test_harness_declare_attackers_empty() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     );
@@ -251,6 +255,7 @@ fn test_harness_declare_attackers_empty() {
     let cmd_empty = Command::DeclareAttackers {
         player: p1,
         attackers: vec![],
+        enlist_choices: vec![],
     };
     let (state_after, _) =
         process_command(state, cmd_empty).expect("Empty DeclareAttackers should succeed");
@@ -291,6 +296,7 @@ fn test_harness_declare_blockers_basic() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -327,6 +333,7 @@ fn test_harness_declare_blockers_basic() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     );
@@ -369,6 +376,7 @@ fn test_harness_declare_blockers_empty() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -398,6 +406,7 @@ fn test_harness_declare_blockers_empty() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     );
@@ -453,6 +462,7 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     )
@@ -480,6 +490,7 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     )
@@ -531,6 +542,7 @@ fn test_harness_declare_attackers_default_target() {
         &[],
         false,
         false,
+        &[],
         &state,
         &players,
     );

@@ -1375,6 +1375,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
+                                is_enlist_trigger: false,
+                                enlist_enlisted_creature: None,
                             });
                     }
                 }
@@ -2001,6 +2003,69 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+        // CR 702.154a: Enlist trigger resolves -- the enlisting creature gets
+        // +X/+0 until end of turn, where X is the tapped creature's power.
+        //
+        // The +X/+0 is a continuous effect in Layer 7c (PtModify) with
+        // UntilEndOfTurn duration. If the source (enlisting) creature has
+        // left the battlefield by resolution time (CR 400.7), the trigger
+        // does nothing.
+        //
+        // Power of the enlisted creature: use calculate_characteristics if
+        // the creature is still on the battlefield or in any zone. If the
+        // object no longer exists at all, use 0.
+        StackObjectKind::EnlistTrigger {
+            source_object,
+            enlisted_creature,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source (enlisting) creature is still on the battlefield.
+            let source_alive = state
+                .objects
+                .get(&source_object)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if source_alive {
+                // Read the enlisted creature's power (layer-aware).
+                // calculate_characteristics works regardless of zone.
+                let enlisted_power =
+                    crate::rules::layers::calculate_characteristics(state, enlisted_creature)
+                        .and_then(|c| c.power)
+                        .unwrap_or(0);
+
+                if enlisted_power != 0 {
+                    // Register the +X/+0 continuous effect.
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    let effect = crate::state::continuous_effect::ContinuousEffect {
+                        id: crate::state::continuous_effect::EffectId(eff_id),
+                        source: None, // trigger-based effect, not from a permanent
+                        timestamp: ts,
+                        layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                        duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                            source_object,
+                        ),
+                        modification:
+                            crate::state::continuous_effect::LayerModification::ModifyPower(
+                                enlisted_power,
+                            ),
+                        is_cda: false,
+                    };
+                    state.continuous_effects.push_back(effect);
+                }
+                // If enlisted_power == 0, still resolve successfully (no buff applied).
+            }
+            // If source left the battlefield, do nothing (CR 400.7).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -2114,7 +2179,8 @@ pub fn counter_stack_object(
         | StackObjectKind::ProvokeTrigger { .. }
         | StackObjectKind::RenownTrigger { .. }
         | StackObjectKind::MeleeTrigger { .. }
-        | StackObjectKind::PoisonousTrigger { .. } => {
+        | StackObjectKind::PoisonousTrigger { .. }
+        | StackObjectKind::EnlistTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

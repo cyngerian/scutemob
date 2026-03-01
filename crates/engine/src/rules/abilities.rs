@@ -544,6 +544,8 @@ pub fn handle_cycle_card(
             is_poisonous_trigger: false,
             poisonous_n: None,
             poisonous_target_player: None,
+            is_enlist_trigger: false,
+            enlist_enlisted_creature: None,
         });
     }
 
@@ -881,6 +883,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -964,6 +968,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
+                                is_enlist_trigger: false,
+                                enlist_enlisted_creature: None,
                             });
                         }
                     }
@@ -1036,6 +1042,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         });
                     }
                 }
@@ -1110,6 +1118,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
+                                is_enlist_trigger: false,
+                                enlist_enlisted_creature: None,
                             });
                         }
                     }
@@ -1274,6 +1284,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             is_poisonous_trigger: false,
                                             poisonous_n: None,
                                             poisonous_target_player: None,
+                                            is_enlist_trigger: false,
+                                            enlist_enlisted_creature: None,
                                         });
                                     }
                                 }
@@ -1509,6 +1521,61 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
 
+                    // CR 702.154a: Enlist trigger post-processing.
+                    // Each enlist pairing from combat.enlist_pairings for this attacker
+                    // should match one "Enlist"-prefixed placeholder TriggeredAbilityDef.
+                    // - If a pairing exists, tag the trigger with is_enlist_trigger=true
+                    //   and the enlisted creature's ObjectId.
+                    // - If no pairing exists for a given Enlist placeholder trigger,
+                    //   REMOVE it (the player chose not to use that Enlist instance).
+                    {
+                        let enlist_pairings_for_attacker: Vec<ObjectId> = state
+                            .combat
+                            .as_ref()
+                            .map(|c| {
+                                c.enlist_pairings
+                                    .iter()
+                                    .filter(|(aid, _)| aid == attacker_id)
+                                    .map(|(_, eid)| *eid)
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        // Collect indices of Enlist placeholder triggers from this batch.
+                        let mut enlist_trigger_indices: Vec<usize> = Vec::new();
+                        for (i, t) in triggers[pre_len..].iter().enumerate() {
+                            if let Some(obj) = state.objects.get(&t.source) {
+                                if let Some(ta) =
+                                    obj.characteristics.triggered_abilities.get(t.ability_index)
+                                {
+                                    if ta.description.starts_with("Enlist") {
+                                        enlist_trigger_indices.push(pre_len + i);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Match pairings to placeholder triggers.
+                        // Tag matched triggers; mark unmatched for removal.
+                        let mut indices_to_remove: Vec<usize> = Vec::new();
+                        let mut pairing_iter = enlist_pairings_for_attacker.iter();
+                        for &idx in &enlist_trigger_indices {
+                            if let Some(&enlisted_id) = pairing_iter.next() {
+                                triggers[idx].is_enlist_trigger = true;
+                                triggers[idx].enlist_enlisted_creature = Some(enlisted_id);
+                            } else {
+                                // No pairing for this Enlist instance -- mark for removal.
+                                indices_to_remove.push(idx);
+                            }
+                        }
+
+                        // Remove unmatched Enlist placeholder triggers (reverse order to
+                        // preserve indices).
+                        for &idx in indices_to_remove.iter().rev() {
+                            triggers.remove(idx);
+                        }
+                    }
+
                     // CR 702.105a: Dethrone -- "Whenever this creature attacks the player
                     // with the most life or tied for most life, put a +1/+1 counter on
                     // this creature."
@@ -1738,6 +1805,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         });
                     }
                 }
@@ -1931,6 +2000,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         });
                     }
                 }
@@ -2003,6 +2074,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         });
                     }
                 }
@@ -2119,6 +2192,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
+                            is_enlist_trigger: false,
+                            enlist_enlisted_creature: None,
                         });
                     }
                 }
@@ -2234,6 +2309,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         is_poisonous_trigger: false,
                                         poisonous_n: None,
                                         poisonous_target_player: None,
+                                        is_enlist_trigger: false,
+                                        enlist_enlisted_creature: None,
                                     });
                                 }
                             }
@@ -2328,6 +2405,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         is_poisonous_trigger: false,
                                         poisonous_n: None,
                                         poisonous_target_player: None,
+                                        is_enlist_trigger: false,
+                                        enlist_enlisted_creature: None,
                                     });
                                 }
                             }
@@ -2425,6 +2504,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         is_poisonous_trigger: true,
                                         poisonous_n: Some(n),
                                         poisonous_target_player: Some(damaged_player),
+                                        is_enlist_trigger: false,
+                                        enlist_enlisted_creature: None,
                                     });
                                 }
                             }
@@ -2553,6 +2634,8 @@ fn collect_triggers_for_event(
                 is_poisonous_trigger: false,
                 poisonous_n: None,
                 poisonous_target_player: None,
+                is_enlist_trigger: false,
+                enlist_enlisted_creature: None,
             });
         }
     }
@@ -2896,6 +2979,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         .poisonous_target_player
                         .unwrap_or(trigger.controller),
                     poisonous_n: trigger.poisonous_n.unwrap_or(1),
+                }
+            } else if trigger.is_enlist_trigger {
+                // CR 702.154a: Enlist trigger -- "this creature gets +X/+0 until
+                // end of turn, where X is the tapped creature's power."
+                // `enlist_enlisted_creature` carries the tapped creature's ObjectId.
+                StackObjectKind::EnlistTrigger {
+                    source_object: trigger.source,
+                    enlisted_creature: trigger.enlist_enlisted_creature.unwrap_or(trigger.source),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

@@ -98,6 +98,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::PoisonousTrigger { source_object, .. } => {
                     ("Poisonous: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::EnlistTrigger { source_object, .. } => {
+                    ("Enlist: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

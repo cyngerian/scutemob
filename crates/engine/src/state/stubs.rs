@@ -323,6 +323,20 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_poisonous_trigger` is true.
     #[serde(default)]
     pub poisonous_target_player: Option<PlayerId>,
+    /// CR 702.154a: If true, this pending trigger is an Enlist trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::EnlistTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `enlist_enlisted_creature` carries the ObjectId of the creature that
+    /// was tapped as the enlist cost.
+    #[serde(default)]
+    pub is_enlist_trigger: bool,
+    /// CR 702.154a: The ObjectId of the creature tapped for the enlist cost.
+    ///
+    /// Only meaningful when `is_enlist_trigger` is true. Used at resolution
+    /// time to read the enlisted creature's power for the +X/+0 bonus.
+    #[serde(default)]
+    pub enlist_enlisted_creature: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

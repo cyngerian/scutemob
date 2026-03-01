@@ -207,6 +207,7 @@ impl ReplaySession {
                         escape,
                         kicked,
                         buyback,
+                        enlist,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -224,6 +225,7 @@ impl ReplaySession {
                                 escape,
                                 *kicked,
                                 *buyback,
+                                enlist,
                                 &current_state,
                                 &player_map,
                             );

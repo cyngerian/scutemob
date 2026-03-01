@@ -62,6 +62,12 @@ pub struct CombatState {
     ///
     /// Cleared naturally when `CombatState` is dropped at end of combat.
     pub forced_blocks: OrdMap<ObjectId, ObjectId>,
+    /// CR 702.154a: Enlist pairings made during declare-attackers.
+    ///
+    /// Each entry is (enlisting_attacker_id, enlisted_creature_id).
+    /// Used by abilities.rs to fire EnlistTrigger for each pairing.
+    /// Cleared naturally when CombatState is dropped at end of combat.
+    pub enlist_pairings: Vec<(ObjectId, ObjectId)>,
 }
 
 impl CombatState {
@@ -75,6 +81,7 @@ impl CombatState {
             first_strike_damage_resolved: false,
             defenders_declared: OrdSet::new(),
             forced_blocks: OrdMap::new(),
+            enlist_pairings: Vec::new(),
         }
     }
 

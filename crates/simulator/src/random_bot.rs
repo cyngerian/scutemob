@@ -41,7 +41,11 @@ impl Bot for RandomBot {
         if let Some(LegalAction::DeclareAttackers { eligible, targets }) = attack_action {
             if !eligible.is_empty() && self.rng.gen_bool(0.8) {
                 let attackers = self.choose_attackers(state, eligible, targets);
-                return Command::DeclareAttackers { player, attackers };
+                return Command::DeclareAttackers {
+                    player,
+                    attackers,
+                    enlist_choices: Vec::new(),
+                };
             }
         }
 
@@ -170,6 +174,7 @@ pub(crate) fn action_to_command(
                 return Command::DeclareAttackers {
                     player,
                     attackers: Vec::new(),
+                    enlist_choices: Vec::new(),
                 };
             }
             let count = rng.gen_range(0..=eligible.len());
@@ -183,7 +188,11 @@ pub(crate) fn action_to_command(
                     (id, target)
                 })
                 .collect();
-            Command::DeclareAttackers { player, attackers }
+            Command::DeclareAttackers {
+                player,
+                attackers,
+                enlist_choices: Vec::new(),
+            }
         }
         LegalAction::DeclareBlockers {
             eligible,

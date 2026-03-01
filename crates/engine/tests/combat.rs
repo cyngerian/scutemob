@@ -60,6 +60,7 @@ fn test_510_unblocked_attacker_deals_damage_to_player() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -141,6 +142,7 @@ fn test_509_blocked_attacker_no_player_damage() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -219,6 +221,7 @@ fn test_510_mutual_combat_damage_both_die() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -295,6 +298,7 @@ fn test_702_7_first_strike_kills_blocker_before_regular_damage() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -375,6 +379,7 @@ fn test_702_4_double_strike_deals_in_both_steps() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -485,6 +490,7 @@ fn test_702_19_trample_excess_to_player() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -574,6 +580,7 @@ fn test_702_deathtouch_with_trample() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -665,6 +672,7 @@ fn test_509_2_multiple_blockers_damage_order() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -783,6 +791,7 @@ fn test_603_self_attacks_trigger_fires() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -840,6 +849,7 @@ fn test_903_10a_commander_damage_tracked() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -915,6 +925,7 @@ fn test_506_multiplayer_simultaneous_attacks() {
                 (att1_id, AttackTarget::Player(p2)),
                 (att2_id, AttackTarget::Player(p3)),
             ],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -978,6 +989,7 @@ fn test_508_attack_self_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Player(p1))],
+            enlist_choices: vec![],
         },
     );
     assert!(
@@ -1013,6 +1025,7 @@ fn test_508_attack_nonexistent_player_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Player(PlayerId(99)))],
+            enlist_choices: vec![],
         },
     );
     assert!(
@@ -1055,6 +1068,7 @@ fn test_508_attack_own_planeswalker_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Planeswalker(pw_id))],
+            enlist_choices: vec![],
         },
     );
     assert!(
@@ -1097,6 +1111,7 @@ fn test_508_attack_opponent_planeswalker_accepted() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(bear_id, AttackTarget::Planeswalker(pw_id))],
+            enlist_choices: vec![],
         },
     );
     assert!(
@@ -1153,6 +1168,7 @@ fn test_509_duplicate_blocker_rejected() {
                 (attacker1_id, AttackTarget::Player(p2)),
                 (attacker2_id, AttackTarget::Player(p2)),
             ],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1219,6 +1235,7 @@ fn test_509_incomplete_blocker_order_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1299,6 +1316,7 @@ fn test_509_cross_player_block_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1356,6 +1374,7 @@ fn test_509_redeclare_blockers_rejected() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers should succeed");
@@ -1447,6 +1466,7 @@ fn test_cc20_first_strike_blocks_double_strike() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .unwrap();
@@ -1581,6 +1601,7 @@ fn test_510_3a_combat_damage_trigger_fires_on_unblocked_attacker() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -1677,6 +1698,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_on_blocked_creature() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -1764,6 +1786,7 @@ fn test_510_3a_combat_damage_trigger_does_not_fire_when_damage_is_zero() {
         Command::DeclareAttackers {
             player: p1,
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -1856,6 +1879,7 @@ fn test_510_3a_combat_damage_trigger_multiplayer_separate_targets() {
                 (att_a_id, AttackTarget::Player(p2)),
                 (att_b_id, AttackTarget::Player(p3)),
             ],
+            enlist_choices: vec![],
         },
     )
     .expect("declare attackers failed");
