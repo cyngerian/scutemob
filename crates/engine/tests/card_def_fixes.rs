@@ -119,6 +119,7 @@ fn test_read_the_bones_scry_then_draw() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -299,6 +300,7 @@ fn test_path_to_exile_optional_search() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -797,6 +799,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .expect("casting Rest in Peace failed");

@@ -81,6 +81,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -159,6 +160,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -225,6 +227,7 @@ fn test_608_3a_creature_enters_battlefield() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -310,6 +313,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -375,6 +379,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -461,6 +466,7 @@ fn test_608_1_lifo_resolves_top_first() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -488,6 +494,7 @@ fn test_608_1_lifo_resolves_top_first() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -604,6 +611,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -692,6 +700,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -769,6 +778,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();

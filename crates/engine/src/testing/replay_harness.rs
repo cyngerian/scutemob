@@ -296,6 +296,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -326,6 +327,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -353,6 +355,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -380,6 +383,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -408,6 +412,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -436,6 +441,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -469,6 +475,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -726,6 +733,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -754,6 +762,7 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -785,6 +794,7 @@ pub fn translate_player_action(
                 retrace_discard_land: Some(land_id),
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             })
         }
 
@@ -816,6 +826,36 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 cast_with_jump_start: true,
                 jump_start_discard: Some(discard_id),
+                cast_with_aftermath: false,
+            })
+        }
+
+        // CR 702.127a: Cast the aftermath half of a split card from the player's graveyard.
+        // The aftermath half's mana cost is paid (alternative cost) and the card is exiled
+        // when it leaves the stack. The card must have AbilityDefinition::Aftermath.
+        "cast_spell_aftermath" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+                cast_with_overload: false,
+                retrace_discard_land: None,
+                cast_with_jump_start: false,
+                jump_start_discard: None,
+                cast_with_aftermath: true,
             })
         }
 
@@ -835,6 +875,7 @@ pub fn translate_player_action(
 pub fn card_name_to_id(name: &str) -> CardId {
     let id = name
         .to_lowercase()
+        .replace(" // ", "-") // split card names: "Cut // Ribbons" → "cut-ribbons"
         .replace(' ', "-")
         .replace(['\'', ','], "")
         .replace("--", "-"); // avoid double-dashes from punctuation

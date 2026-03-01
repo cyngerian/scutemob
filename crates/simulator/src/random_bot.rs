@@ -153,6 +153,7 @@ pub(crate) fn action_to_command(
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
         LegalAction::TapForMana {
             source,

@@ -433,6 +433,7 @@ fn test_702_18_shroud_prevents_targeting() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -505,6 +506,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1147,6 +1149,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .expect("casting Wrath of God failed");

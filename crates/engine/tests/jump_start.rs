@@ -271,6 +271,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -397,6 +398,7 @@ fn test_jump_start_exile_on_resolution() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -516,6 +518,7 @@ fn test_jump_start_exile_on_counter() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -560,6 +563,7 @@ fn test_jump_start_exile_on_counter() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -663,6 +667,7 @@ fn test_jump_start_sorcery_timing() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 
@@ -742,6 +747,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 
@@ -834,6 +840,7 @@ fn test_jump_start_pays_normal_mana_cost() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 
@@ -922,6 +929,7 @@ fn test_jump_start_discard_required() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: None, // No discard card provided — should fail
+            cast_with_aftermath: false,
         },
     );
 
@@ -1008,6 +1016,7 @@ fn test_jump_start_discard_must_be_in_hand() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 
@@ -1100,6 +1109,7 @@ fn test_jump_start_discard_any_card() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 
@@ -1186,6 +1196,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             retrace_discard_land: None,
             cast_with_jump_start: false, // Normal cast — not jump-start
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1289,6 +1300,7 @@ fn test_jump_start_flag_set_on_stack() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1377,6 +1389,7 @@ fn test_jump_start_insufficient_mana_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: true,
             jump_start_discard: Some(discard_id),
+            cast_with_aftermath: false,
         },
     );
 

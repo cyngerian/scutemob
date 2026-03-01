@@ -490,6 +490,7 @@ fn test_miracle_cast_for_miracle_cost() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -598,6 +599,7 @@ fn test_miracle_sorcery_ignores_timing() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -775,6 +777,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_suspended: false,
         was_overloaded: false,
         cast_with_jump_start: false,
+        cast_with_aftermath: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -805,6 +808,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
     assert!(

@@ -1,0 +1,232 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_128",
+    "name": "Aftermath — Cut // Ribbons: Cut from hand, Ribbons from graveyard exiled",
+    "description": "Demonstrates the Aftermath keyword (CR 702.127a) using Cut // Ribbons. P1 first casts Cut (the non-aftermath half, {1}{R}) from hand targeting P2's Wall of Omens. Cut resolves, applying a -2/-2 continuous effect (Wall of Omens becomes -2/2, surviving). Cut // Ribbons moves to P1's graveyard. P1 then casts Ribbons (the aftermath half, {3}{B}{B} with X approximated as 3) from the graveyard using the 'cast_spell_aftermath' action type. Ribbons resolves: P2 (the sole opponent) loses 3 life (40 → 37). Because Ribbons was cast via Aftermath, the card is exiled instead of going to any other zone when it leaves the stack (CR 702.127a). Final state: Cut // Ribbons is in exile (not in P1's graveyard), P2 is at 37 life, Wall of Omens remains on the battlefield with -2/-2 applied (net stats: -2/2).",
+    "cr_sections_tested": [
+      "702.127a",
+      "601.2",
+      "608.2",
+      "120.3",
+      "613.4c",
+      "116.3",
+      "406.2",
+      "701.10a",
+      "118.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "aftermath",
+      "split-card",
+      "graveyard-cast",
+      "exile",
+      "cut-ribbons",
+      "lose-life",
+      "p-t-modification",
+      "sorcery"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Cut // Ribbons oracle text (MCP verified): Cut {1}{R} — Target creature gets -2/-2 until end of turn. Ribbons {X}{B}{B} — Aftermath. Each opponent loses X life. Card definition at crates/engine/src/cards/defs/cut_ribbons.rs: AbilityDefinition::Keyword(Aftermath) + AbilityDefinition::Spell (Cut half, targets: TargetCreature, Effect::ApplyContinuousEffect with LayerModification::ModifyBoth(-2), EffectDuration::UntilEndOfTurn) + AbilityDefinition::Aftermath { name: 'Ribbons', cost: ManaCost{generic:3,black:2}, Effect::ForEach { over: EachOpponent, effect: LoseLife{EachOpponent,Fixed(3)} } }. X is approximated as 3 (total cost {3}{B}{B}) per the card def comment. CR 702.127a: Aftermath has three static abilities: (1) may cast this half from graveyard, (2) can't cast from any other zone, (3) if cast from graveyard, exile it instead of putting it anywhere else when it leaves the stack. Wall of Omens chosen as target (0/4 Defender) because -2/-2 reduces it to (-2)/2 — toughness stays positive (2 > 0), so zero-toughness SBA (CR 704.5f) does NOT fire. This keeps the Cut resolution clean. Initial mana: colorless:4 (1 generic for Cut + 3 generic for Ribbons) + red:1 (for Cut) + black:2 (for Ribbons). This pre-loads all mana for both casts. Key distinction from Retrace (702.81a) and Jump-Start (702.133a): Aftermath's exile clause applies to the split card as a whole after the aftermath half resolves. Scryfall ruling 2017-04-18: 'A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it is countered, or it leaves the stack in some other way.' This is CR 702.127a's third clause. Action type cast_spell_aftermath (analogous to cast_spell_retrace for Retrace and cast_spell_jump_start for Jump-Start). LoseLife effect: CR 118.2. HARNESS BUG: Validation fails at step 1 (second step, 0-indexed) action 0 (cast_spell_aftermath) with InvalidCommand('aftermath: card has Aftermath keyword but no AbilityDefinition::Aftermath defined'). Root cause: replay_harness.rs card_name_to_id('Cut // Ribbons') produces 'cut-//-ribbons' (spaces → dashes, no // stripping). The registry key is 'cut-ribbons' (from cid() in cut_ribbons.rs). When casting.rs calls get_aftermath_cost(&card_id, &registry) with card_id = 'cut-//-ribbons', the registry lookup fails (None), triggering the error. Fix: enrich_spec_from_def() should also set spec.card_id = def.card_id when the definition is found by name, OR card_name_to_id() should strip '//' for split card names. The script logic is correct per CR 702.127a.",
+    "disputes": [
+      {
+        "step_index": 1,
+        "action_index": 0,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness error: cast_spell_aftermath for 'Cut // Ribbons' fails with InvalidCommand('aftermath: card has Aftermath keyword but no AbilityDefinition::Aftermath defined'). Root cause is a harness infrastructure bug: replay_harness.rs card_name_to_id('Cut // Ribbons') produces 'cut-//-ribbons' (the space→dash conversion leaves the '//' intact), but the CardRegistry key is 'cut-ribbons' (from cid(\"cut-ribbons\") in the card definition). When casting.rs calls get_aftermath_cost(&card_id, &state.card_registry) with card_id 'cut-//-ribbons', the registry.get() lookup returns None, triggering the validation error at line 699-703 of casting.rs. The script logic is correct per CR 702.127a. Fix required in replay_harness.rs: either (1) have enrich_spec_from_def() set spec.card_id = def.card_id.clone() when the definition is successfully found by display name, so the object carries the correct registry key; or (2) extend card_name_to_id() to strip '//' and surrounding spaces from split card names (e.g. 'Cut // Ribbons' -> 'cut-ribbons').",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 4, "red": 1, "black": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Wall of Omens", "is_commander": false, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Cut // Ribbons", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Cut (the non-aftermath half of Cut // Ribbons, {1}{R}) from hand targeting P2's Wall of Omens. Both players pass priority. Cut resolves: Wall of Omens gets -2/-2 until end of turn (0/4 → -2/2, toughness remains positive). Cut // Ribbons moves to P1's graveyard.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Cut // Ribbons in P1 hand (count 1); Wall of Omens on P2 battlefield; P1 has {4}{R}{B}{B} in mana pool; P2 at 40 life; stack empty; exile empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Cut // Ribbons" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "is_empty": true }
+          },
+          "note": "Cut // Ribbons is in P1's hand — eligible to cast the Cut half normally (non-aftermath half). Wall of Omens (0/4 Defender) is on P2's battlefield — a valid creature target for Cut. P1 has all mana needed pre-loaded in pool."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Cut // Ribbons",
+          "targets": [
+            { "type": "permanent", "card": "Wall of Omens", "controller": "p2", "player": null }
+          ],
+          "mana_paid": { "colorless": 1, "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Cut (the non-aftermath half of Cut // Ribbons) from hand. Mana cost {1}{R} paid from pool. Target: Wall of Omens controlled by P2. The card moves from P1's hand to the stack. CR 702.127a: Only the Cut half's characteristics are considered while this spell is on the stack — the Ribbons half is ignored."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Cut: Cut // Ribbons on stack (count 1); P1 hand is empty (count 0); card no longer in hand",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": { "excludes": [{ "card": "Cut // Ribbons" }] }
+          },
+          "note": "CR 601.2: Casting moves Cut // Ribbons from P1's hand to the stack. Hand count drops from 1 to 0. Card is not yet in the graveyard."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in succession — the top of the stack (Cut half of Cut // Ribbons) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cut // Ribbons",
+          "resolution": [
+            {
+              "effect": "apply_continuous_effect",
+              "target": { "type": "permanent", "card": "Wall of Omens", "controller": "p2" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "613.4c",
+              "note": "CR 613.4c: Cut applies a power/toughness modifying effect in layer 7c. Wall of Omens (0/4) gets -2/-2 until end of turn, resulting in net stats of -2/2. Toughness remains 2 (positive) — no zero-toughness SBA (CR 704.5f) fires."
+            }
+          ],
+          "note": "CR 608.2: Cut resolves; the -2/-2 effect is applied to Wall of Omens. Cut // Ribbons moves to P1's graveyard as a resolved sorcery. The Aftermath ability now becomes active from the graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Cut resolves: Cut // Ribbons in P1 graveyard (not exile); Wall of Omens still on P2 battlefield with -2/-2 applied; stack empty; P2 life unchanged at 40",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Cut // Ribbons" }] },
+            "zones.exile": { "is_empty": true },
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] },
+            "players.p2.life": 40
+          },
+          "note": "Cut // Ribbons moved to P1's graveyard after Cut resolved. The card is NOT exiled yet; exile only applies when Ribbons (the aftermath half) is cast from the graveyard. Wall of Omens remains on the battlefield with -2/-2 continuous effect until end of turn. CR 702.127a: Now that the card is in the graveyard, the Aftermath ability enables casting Ribbons."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Ribbons (the aftermath half of Cut // Ribbons, {3}{B}{B} with X=3) from P1's graveyard using the Aftermath ability. Both players pass priority. Ribbons resolves: each opponent (P2) loses 3 life. Per CR 702.127a, Cut // Ribbons is then exiled — NOT placed in the graveyard.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_aftermath",
+          "card": "Cut // Ribbons",
+          "targets": [],
+          "mana_paid": { "colorless": 3, "black": 2 },
+          "mana_source": [],
+          "cr_ref": "702.127a",
+          "note": "CR 702.127a: P1 casts Ribbons (the aftermath half of Cut // Ribbons) from the graveyard using Aftermath. Aftermath's first clause: 'You may cast this half of this split card from your graveyard.' Aftermath's second clause: 'This half can't be cast from any other zone.' Mana cost {3}{B}{B} (X approximated as 3 per card definition) paid from pool: colorless:3 + black:2. Ribbons targets no permanents — its effect applies to all opponents. Cut // Ribbons moves from P1's graveyard to the stack. CR 702.127a third clause will exile the card when it leaves the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Ribbons (aftermath): Cut // Ribbons on stack (count 1); card no longer in P1 graveyard",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": { "excludes": [{ "card": "Cut // Ribbons" }] }
+          },
+          "note": "CR 702.127a: Casting Ribbons from the graveyard moves Cut // Ribbons to the stack. The card is no longer in the graveyard. The exile replacement effect fires when the spell leaves the stack (after resolution)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the top of the stack (Ribbons half of Cut // Ribbons) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cut // Ribbons",
+          "resolution": [
+            {
+              "effect": "lose_life",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: Ribbons causes each opponent to lose 3 life (X=3 per card definition approximation). P2 is the sole opponent — P2's life total decreases from 40 to 37."
+            }
+          ],
+          "note": "CR 608.2: Ribbons resolves; ForEach-EachOpponent applies LoseLife(3) to P2. CR 702.127a third clause: Cut // Ribbons is placed in exile, NOT in P1's graveyard. This is the core Aftermath correctness property."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Cut // Ribbons is in exile (NOT in P1 graveyard); P2 at 37 life (lost 3); stack empty; Wall of Omens still on P2 battlefield",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "includes": ["Cut // Ribbons"] },
+            "zones.graveyard.p1": { "excludes": ["Cut // Ribbons"] },
+            "players.p2.life": 37,
+            "players.p1.life": 40,
+            "zones.battlefield.p2": { "includes": [{ "card": "Wall of Omens" }] }
+          },
+          "note": "CR 702.127a: Cut // Ribbons is in exile after Ribbons resolved. P2 lost 3 life (40 → 37) from Ribbons' effect. P1 life unchanged at 40. Wall of Omens remains on the battlefield with -2/-2 until end of turn. Scryfall ruling 2017-04-18: 'A spell with aftermath cast from a graveyard will always be exiled afterward, whether it resolves, it is countered, or it leaves the stack in some other way.'"
+        }
+      ]
+    }
+  ]
+}

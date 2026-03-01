@@ -177,6 +177,7 @@ fn test_extort_basic_drain_on_spell_cast() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -299,6 +300,7 @@ fn test_extort_triggers_on_creature_spell() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -385,6 +387,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -482,6 +485,7 @@ fn test_extort_multiple_instances_trigger_separately() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -607,6 +611,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -697,6 +702,7 @@ fn test_extort_resolves_before_triggering_spell() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -802,6 +808,7 @@ fn test_extort_multiplayer_4_player_drain() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();

@@ -276,6 +276,33 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::CommanderNinjutsu)` for
     /// quick presence-checking.
     CommanderNinjutsu { cost: ManaCost },
+    /// CR 702.127: Aftermath. The second half of a split card. Can only be cast
+    /// from the graveyard. When it leaves the stack after being cast from graveyard,
+    /// it is exiled instead of going anywhere else.
+    ///
+    /// The aftermath half is a complete spell: it has its own name, mana cost,
+    /// card type(s), spell effect, and targets. The card definition's top-level
+    /// fields (name, mana_cost, types) describe the first (hand-castable) half.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Aftermath)` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// At cast time from graveyard, the engine uses the aftermath half's mana_cost
+    /// as the spell cost (alternative cost per CR 118.9). The aftermath half's
+    /// effect is resolved instead of the card's first-half Spell effect.
+    Aftermath {
+        /// Name of the aftermath half (e.g., "Ribbons" for "Cut // Ribbons").
+        name: String,
+        /// Mana cost of the aftermath half (paid when casting from graveyard).
+        cost: ManaCost,
+        /// Card type of the aftermath half (Sorcery, Instant, etc.).
+        card_type: CardType,
+        /// The spell effect of the aftermath half.
+        effect: Effect,
+        /// Target requirements for the aftermath half's spell.
+        targets: Vec<TargetRequirement>,
+    },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

@@ -514,6 +514,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Retrace => 89u8.hash_into(hasher),
             // Jump-Start (discriminant 90) -- CR 702.133
             KeywordAbility::JumpStart => 90u8.hash_into(hasher),
+            // Aftermath (discriminant 91) -- CR 702.127
+            KeywordAbility::Aftermath => 91u8.hash_into(hasher),
         }
     }
 }
@@ -1587,6 +1589,8 @@ impl HashInto for StackObject {
         self.was_overloaded.hash_into(hasher);
         // Jump-Start (CR 702.133a) — exiled instead of graveyard when cast_with_jump_start
         self.cast_with_jump_start.hash_into(hasher);
+        // Aftermath (CR 702.127a) — aftermath half cast from graveyard; uses aftermath effect
+        self.cast_with_aftermath.hash_into(hasher);
     }
 }
 
@@ -3079,6 +3083,21 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::CommanderNinjutsu { cost } => {
                 23u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Aftermath (discriminant 24) -- CR 702.127
+            AbilityDefinition::Aftermath {
+                name,
+                cost,
+                card_type,
+                effect,
+                targets,
+            } => {
+                24u8.hash_into(hasher);
+                name.hash_into(hasher);
+                cost.hash_into(hasher);
+                card_type.hash_into(hasher);
+                effect.hash_into(hasher);
+                targets.hash_into(hasher);
             }
         }
     }

@@ -154,18 +154,33 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             {
                 if let Some(cid) = card_id.clone() {
                     if let Some(def) = registry.get(cid) {
-                        // Find the Spell ability variant.
-                        let spell_effect = def.abilities.iter().find_map(|a| {
-                            if let crate::cards::card_definition::AbilityDefinition::Spell {
-                                effect,
-                                ..
-                            } = a
-                            {
-                                Some(effect.clone())
-                            } else {
-                                None
-                            }
-                        });
+                        // CR 702.127a + CR 709.3b: If the aftermath half was cast, use the
+                        // aftermath effect instead of the first-half Spell effect.
+                        let spell_effect = if stack_obj.cast_with_aftermath {
+                            def.abilities.iter().find_map(|a| {
+                                if let crate::cards::card_definition::AbilityDefinition::Aftermath {
+                                    effect,
+                                    ..
+                                } = a
+                                {
+                                    Some(effect.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        } else {
+                            def.abilities.iter().find_map(|a| {
+                                if let crate::cards::card_definition::AbilityDefinition::Spell {
+                                    effect,
+                                    ..
+                                } = a
+                                {
+                                    Some(effect.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        };
                         if let Some(effect) = spell_effect {
                             // CR 608.2b: Partial fizzle — filter out illegal targets before
                             // executing effects. Illegal targets are simply skipped; they are
@@ -1460,6 +1475,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_overloaded: false,
                             // CR 702.133a: suspend casts are not jump-start casts.
                             cast_with_jump_start: false,
+                            // CR 702.127a: suspend casts are not aftermath casts.
+                            cast_with_aftermath: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 

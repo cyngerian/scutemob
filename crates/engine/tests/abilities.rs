@@ -541,6 +541,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -620,6 +621,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -702,6 +704,7 @@ fn test_triggered_ability_apnap_ordering() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -788,6 +791,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -857,6 +861,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -928,6 +933,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1839,6 +1845,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

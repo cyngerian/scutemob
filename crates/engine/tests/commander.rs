@@ -137,6 +137,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -237,6 +238,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -326,6 +328,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -413,6 +416,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -479,6 +483,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -540,6 +545,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1055,6 +1061,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1140,6 +1147,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1961,6 +1969,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         was_suspended: false,
         was_overloaded: false,
         cast_with_jump_start: false,
+        cast_with_aftermath: false,
     });
 
     assert_eq!(
@@ -2267,6 +2276,7 @@ fn test_full_four_player_commander_game() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();

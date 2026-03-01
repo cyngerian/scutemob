@@ -178,6 +178,7 @@ fn test_split_second_blocks_casting_spells() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -216,6 +217,7 @@ fn test_split_second_blocks_casting_spells() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -299,6 +301,7 @@ fn test_split_second_blocks_activated_abilities() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -395,6 +398,7 @@ fn test_split_second_blocks_cycling() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -484,6 +488,7 @@ fn test_split_second_allows_mana_abilities() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -580,6 +585,7 @@ fn test_split_second_allows_pass_priority() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -663,6 +669,7 @@ fn test_split_second_blocks_caster_too() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -694,6 +701,7 @@ fn test_split_second_blocks_caster_too() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -777,6 +785,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -822,6 +831,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -899,6 +909,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

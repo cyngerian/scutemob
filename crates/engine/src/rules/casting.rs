@@ -69,6 +69,7 @@ pub fn handle_cast_spell(
     retrace_discard_land: Option<ObjectId>,
     cast_with_jump_start: bool,
     jump_start_discard: Option<ObjectId>,
+    cast_with_aftermath: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -102,6 +103,7 @@ pub fn handle_cast_spell(
         base_mana_cost,
         casting_with_retrace,
         casting_with_jump_start,
+        casting_with_aftermath,
     ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
@@ -226,6 +228,35 @@ pub fn handle_cast_spell(
             ));
         }
 
+        // CR 702.127a: Aftermath — allowed if cast_with_aftermath is true, card has the Aftermath
+        // keyword, and the card is in the caster's graveyard.
+        let casting_with_aftermath = cast_with_aftermath
+            && casting_from_graveyard
+            && card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Aftermath);
+
+        // CR 702.127a: If cast_with_aftermath: true but card doesn't have the keyword, reject.
+        if cast_with_aftermath
+            && !card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Aftermath)
+        {
+            return Err(GameStateError::InvalidCommand(
+                "aftermath: card does not have the Aftermath keyword (CR 702.127a)".into(),
+            ));
+        }
+
+        // CR 702.127a: Aftermath second half CANNOT be cast from any zone other than graveyard.
+        if cast_with_aftermath && !casting_from_graveyard {
+            return Err(GameStateError::InvalidCommand(
+                "aftermath: the aftermath half can only be cast from your graveyard (CR 702.127a)"
+                    .into(),
+            ));
+        }
+
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
@@ -235,7 +266,8 @@ pub fn handle_cast_spell(
             && !cast_with_foretell
             && !casting_with_retrace
             && !casting_with_jump_start
-        // CR 702.133a: Jump-start allows graveyard cast
+            && !casting_with_aftermath
+        // CR 702.127a: Aftermath allows graveyard cast
         {
             return Err(GameStateError::InvalidCommand(
                 "card is not in your hand".into(),
@@ -251,6 +283,7 @@ pub fn handle_cast_spell(
             card_obj.characteristics.mana_cost.clone(),
             casting_with_retrace,
             casting_with_jump_start,
+            casting_with_aftermath,
         )
     };
 
@@ -314,6 +347,17 @@ pub fn handle_cast_spell(
             ));
         }
     }
+
+    // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
+    // card_type for timing validation instead of the first half's card types.
+    // The first half's type may differ (e.g., Cut is Sorcery, Ribbons might be Instant).
+    // Recalculate is_instant_speed for aftermath casts.
+    let is_instant_speed = if casting_with_aftermath {
+        let aftermath_type = get_aftermath_card_type(&card_id, &state.card_registry);
+        aftermath_type == Some(CardType::Instant) || chars.keywords.contains(&KeywordAbility::Flash)
+    } else {
+        is_instant_speed
+    };
 
     // CR 702.74a / CR 702.34a / CR 903.8: Determine the cost to pay.
     // - Evoke: pay the evoke cost (alternative cost, CR 118.9) instead of mana cost.
@@ -598,6 +642,68 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1h: Validate aftermath mutual exclusion (CR 702.127a / CR 118.9a).
+    // Aftermath is an alternative cost -- cannot combine with other alternative costs.
+    // Note: aftermath and jump-start are both compatible with each other per CR 118.8 / 118.9a
+    // (jump-start is an additional cost, not alternative), but we reject the combination here
+    // since aftermath cards don't have jump-start, and this guards against misuse.
+    if casting_with_aftermath {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with bestow (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with madness (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with miracle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with escape (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with foretell (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine aftermath with overload (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        // Validate the aftermath ability definition exists.
+        if get_aftermath_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "aftermath: card has Aftermath keyword but no AbilityDefinition::Aftermath defined"
+                    .into(),
+            ));
+        }
+    }
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
@@ -659,6 +765,17 @@ pub fn handle_cast_spell(
         if cost.is_none() {
             return Err(GameStateError::InvalidCommand(
                 "card has Overload keyword but no overload cost defined".into(),
+            ));
+        }
+        cost
+    } else if casting_with_aftermath {
+        // CR 702.127a: Pay the aftermath half's mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // The aftermath half's cost is stored in AbilityDefinition::Aftermath { cost, .. }.
+        let cost = get_aftermath_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Aftermath keyword but no aftermath cost defined".into(),
             ));
         }
         cost
@@ -855,24 +972,37 @@ pub fn handle_cast_spell(
     }
 
     // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
+    // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
+    // target requirements instead of the first half's Spell targets.
     let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) = {
         let registry = state.card_registry.clone();
         card_id
             .clone()
             .and_then(|cid| registry.get(cid))
             .and_then(|def| {
-                def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Spell {
-                        targets,
-                        cant_be_countered,
-                        ..
-                    } = a
-                    {
-                        Some((targets.clone(), *cant_be_countered))
-                    } else {
-                        None
-                    }
-                })
+                if casting_with_aftermath {
+                    // Find the Aftermath ability's targets.
+                    def.abilities.iter().find_map(|a| {
+                        if let AbilityDefinition::Aftermath { targets, .. } = a {
+                            Some((targets.clone(), false))
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    def.abilities.iter().find_map(|a| {
+                        if let AbilityDefinition::Spell {
+                            targets,
+                            cant_be_countered,
+                            ..
+                        } = a
+                        {
+                            Some((targets.clone(), *cant_be_countered))
+                        } else {
+                            None
+                        }
+                    })
+                }
             })
             .unwrap_or_default()
     };
@@ -1200,7 +1330,9 @@ pub fn handle_cast_spell(
         targets: spell_targets,
         cant_be_countered,
         is_copy: false,
-        cast_with_flashback: casting_with_flashback,
+        // CR 702.34a / CR 702.127a: Set exile-on-departure flag for flashback or aftermath casts.
+        // Both flashback and aftermath exile the card when it leaves the stack for any reason.
+        cast_with_flashback: casting_with_flashback || casting_with_aftermath,
         kicker_times_paid,
         // CR 702.74a: Record whether this spell was cast by paying its evoke cost.
         was_evoked: casting_with_evoke,
@@ -1222,6 +1354,8 @@ pub fn handle_cast_spell(
         was_overloaded: casting_with_overload,
         // CR 702.133a: Record whether this spell was cast via jump-start from graveyard.
         cast_with_jump_start: casting_with_jump_start,
+        // CR 702.127a: Record whether this spell was cast as the aftermath half from graveyard.
+        cast_with_aftermath: casting_with_aftermath,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1328,6 +1462,7 @@ pub fn handle_cast_spell(
             was_suspended: false,
             was_overloaded: false,
             cast_with_jump_start: false,
+            cast_with_aftermath: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1372,6 +1507,7 @@ pub fn handle_cast_spell(
             was_suspended: false,
             was_overloaded: false,
             cast_with_jump_start: false,
+            cast_with_aftermath: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1583,6 +1719,51 @@ fn get_foretell_cost(
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Foretell { cost } = a {
                     Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.127a / CR 118.9: Look up the aftermath cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Aftermath { cost, .. }`, or `None`
+/// if the card has no definition or no aftermath ability defined.
+fn get_aftermath_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Aftermath { cost, .. } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.127a + CR 709.3a: Look up the aftermath half's card type.
+///
+/// When casting the aftermath half, its card_type is used for timing validation
+/// (instant vs sorcery speed) instead of the first half's card types.
+///
+/// Returns `Some(CardType)` from `AbilityDefinition::Aftermath { card_type, .. }`,
+/// or `None` if the card has no aftermath ability definition.
+fn get_aftermath_card_type(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<CardType> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Aftermath { card_type, .. } = a {
+                    Some(*card_type)
                 } else {
                     None
                 }

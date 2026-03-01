@@ -97,6 +97,7 @@ pub fn process_command(
             retrace_discard_land,
             cast_with_jump_start,
             jump_start_discard,
+            cast_with_aftermath,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -121,6 +122,7 @@ pub fn process_command(
                 retrace_discard_land,
                 cast_with_jump_start,
                 jump_start_discard,
+                cast_with_aftermath,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).

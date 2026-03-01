@@ -182,6 +182,7 @@ fn test_bestow_cast_as_aura_basic() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -373,6 +374,7 @@ fn test_bestow_cast_normally_as_creature() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -518,6 +520,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -764,6 +767,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             },
         );
         assert!(
@@ -836,6 +840,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 retrace_discard_land: None,
                 cast_with_jump_start: false,
                 jump_start_discard: None,
+                cast_with_aftermath: false,
             },
         );
         assert!(
@@ -926,6 +931,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
     assert!(
@@ -1031,6 +1037,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
     assert!(
@@ -1100,6 +1107,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
     assert!(

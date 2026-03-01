@@ -193,6 +193,8 @@ pub fn copy_spell_on_stack(
         was_overloaded: false,
         // CR 702.133a: Copies are never cast, so cast_with_jump_start is always false.
         cast_with_jump_start: false,
+        // CR 702.127a: Copies are never cast, so cast_with_aftermath is always false.
+        cast_with_aftermath: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -371,6 +373,8 @@ pub fn resolve_cascade(
                 was_overloaded: false,
                 // CR 702.133a: cascade free-cast spells are not jump-start casts.
                 cast_with_jump_start: false,
+                // CR 702.127a: cascade free-cast spells are not aftermath casts.
+                cast_with_aftermath: false,
             };
             state.stack_objects.push_back(stack_obj);
 

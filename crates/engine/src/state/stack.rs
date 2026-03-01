@@ -139,6 +139,16 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub cast_with_jump_start: bool,
+    /// CR 702.127a: If true, this spell was cast as the aftermath half of a split
+    /// card from the graveyard. At resolution, the aftermath half's effect is used
+    /// instead of the first half's Spell effect.
+    ///
+    /// The exile-on-stack-departure behavior is handled by `cast_with_flashback`
+    /// being set to true (same mechanism as Flashback and Jump-start).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_with_aftermath: bool,
 }
 
 /// The kind of object on the stack.

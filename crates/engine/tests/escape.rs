@@ -337,6 +337,7 @@ fn test_escape_basic_cast_from_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -469,6 +470,7 @@ fn test_escape_exile_cost_events() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -566,6 +568,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -671,6 +674,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -771,6 +775,7 @@ fn test_escape_with_counter() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -869,6 +874,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -980,6 +986,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1066,6 +1073,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1157,6 +1165,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1244,6 +1253,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1343,6 +1353,7 @@ fn test_escape_requires_card_in_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1432,6 +1443,7 @@ fn test_escape_mana_value_unchanged() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1551,6 +1563,7 @@ fn test_escape_auto_detected_from_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1648,6 +1661,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1759,6 +1773,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap();
@@ -1881,6 +1896,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 

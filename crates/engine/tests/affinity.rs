@@ -128,6 +128,7 @@ fn cast_spell(
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
 }
@@ -549,6 +550,7 @@ fn test_affinity_combined_with_improvise() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .expect(

@@ -428,6 +428,7 @@ fn test_foretell_cannot_cast_same_turn() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -534,6 +535,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -906,6 +908,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1006,6 +1009,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1105,6 +1109,7 @@ fn test_foretell_sorcery_timing_restriction() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1204,6 +1209,7 @@ fn test_foretell_instant_timing() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1429,6 +1435,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -1557,6 +1564,7 @@ fn test_foretell_requires_is_foretold_flag() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 

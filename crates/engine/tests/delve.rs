@@ -194,6 +194,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with delve failed: {:?}", e));
@@ -307,6 +308,7 @@ fn test_delve_partial_reduction() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("Partial delve cast failed: {:?}", e));
@@ -398,6 +400,7 @@ fn test_delve_object_exiled_events() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("Delve cast failed: {:?}", e));
@@ -496,6 +499,7 @@ fn test_delve_reject_no_keyword() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -574,6 +578,7 @@ fn test_delve_reject_too_many_cards() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -638,6 +643,7 @@ fn test_delve_reject_card_not_in_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -702,6 +708,7 @@ fn test_delve_reject_opponents_graveyard() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -766,6 +773,7 @@ fn test_delve_reject_duplicate_cards() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     );
 
@@ -839,6 +847,7 @@ fn test_delve_zero_cards_normal_cast() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of delve spell failed: {:?}", e));
@@ -967,6 +976,7 @@ fn test_delve_with_commander_tax() {
             retrace_discard_land: None,
             cast_with_jump_start: false,
             jump_start_discard: None,
+            cast_with_aftermath: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander delve cast failed: {:?}", e));

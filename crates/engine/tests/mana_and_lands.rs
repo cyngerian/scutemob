@@ -269,6 +269,7 @@ fn test_play_land_stack_nonempty_fails() {
         was_suspended: false,
         was_overloaded: false,
         cast_with_jump_start: false,
+        cast_with_aftermath: false,
     });
 
     let result = mtg_engine::process_command(

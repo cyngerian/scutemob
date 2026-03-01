@@ -188,6 +188,15 @@ pub enum Command {
         /// which is in the graveyard). Required when `cast_with_jump_start` is true.
         #[serde(default)]
         jump_start_discard: Option<ObjectId>,
+        /// CR 702.127a: If true, cast the aftermath half of this split card from
+        /// the graveyard. The aftermath half's mana cost is paid instead of the
+        /// card's first-half mana cost. The aftermath half's spell effect is used
+        /// at resolution. The card is exiled when it leaves the stack.
+        ///
+        /// The card must be in the caster's graveyard and must have the
+        /// Aftermath keyword. This is an alternative cost (CR 118.9).
+        #[serde(default)]
+        cast_with_aftermath: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

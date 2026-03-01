@@ -780,6 +780,17 @@ pub enum KeywordAbility {
     /// No `AbilityDefinition::JumpStart` is needed because there is no per-card cost --
     /// jump-start always uses the card's printed mana cost.
     JumpStart,
+    /// CR 702.127: Aftermath -- the second half of a split card can only be cast from
+    /// the graveyard. Represents three static abilities:
+    /// (a) You may cast this half from your graveyard.
+    /// (b) This half can't be cast from any zone other than a graveyard.
+    /// (c) If cast from a graveyard, exile it instead of putting it anywhere else when
+    ///     it leaves the stack.
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// The aftermath half's spell data (name, cost, card_type, effect, targets) is stored
+    /// in `AbilityDefinition::Aftermath`.
+    Aftermath,
 }
 
 /// All creature subtypes from CR 205.3m.

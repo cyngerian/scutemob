@@ -112,6 +112,7 @@ fn make_partner_with_trigger_stack_obj(
         was_suspended: false,
         was_overloaded: false,
         cast_with_jump_start: false,
+        cast_with_aftermath: false,
     }
 }
 
