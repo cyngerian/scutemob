@@ -1230,6 +1230,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.116a: "exile the tokens at end of combat"
                     // Tagged here so end_combat() in turn_actions.rs can find them.
                     myriad_exile_at_eoc: true,
+                    decayed_sacrifice_at_eoc: false,
                     is_suspended: false,
                     exiled_by_hideaway: None,
                 };
@@ -1359,6 +1360,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 hideaway_count: None,
                                 is_partner_with_trigger: false,
                                 partner_with_name: None,
+                                is_ingest_trigger: false,
+                                ingest_target_player: None,
                             });
                     }
                 }
@@ -1627,6 +1630,45 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.115a: Ingest trigger resolves -- exile the top card of the
+        // damaged player's library.
+        //
+        // Ruling 2015-08-25: "If the player has no cards in their library when
+        // the ingest ability resolves, nothing happens."
+        //
+        // The exile is face-up (ruling 2015-08-25: "The card exiled by the
+        // ingest ability is exiled face up."). The engine's default exile
+        // behavior is face-up, so no special handling needed.
+        StackObjectKind::IngestTrigger {
+            source_object: _,
+            target_player,
+        } => {
+            let controller = stack_obj.controller;
+            let lib_id = ZoneId::Library(target_player);
+
+            // Check if the target player has cards in their library.
+            let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
+
+            if let Some(card_id) = top_card {
+                // Exile the top card (CR 702.115a).
+                if let Ok((new_exile_id, _old_obj)) =
+                    state.move_object_to_zone(card_id, ZoneId::Exile)
+                {
+                    events.push(GameEvent::ObjectExiled {
+                        player: controller,
+                        object_id: card_id,
+                        new_exile_id,
+                    });
+                }
+            }
+            // If library is empty, do nothing (ruling 2015-08-25).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1733,7 +1775,8 @@ pub fn counter_stack_object(
         | StackObjectKind::SuspendCounterTrigger { .. }
         | StackObjectKind::SuspendCastTrigger { .. }
         | StackObjectKind::HideawayTrigger { .. }
-        | StackObjectKind::PartnerWithTrigger { .. } => {
+        | StackObjectKind::PartnerWithTrigger { .. }
+        | StackObjectKind::IngestTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

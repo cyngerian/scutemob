@@ -83,7 +83,7 @@ Clear existing pipeline state before starting P4 work.
 | 0.4 | Adapt | P3 | — | Low | If no +1/+1 counters → put N counters |
 | 0.5 | Partner With | P3 | 702.124 | Medium | ETB search for specific partner |
 
-- [ ] Batch 0 complete
+- [x] Batch 0 complete
 
 ---
 
@@ -104,7 +104,7 @@ variant, add blocking restriction check, add test.
 **Infrastructure reused**: `combat.rs` blocking checks, `EndOfCombat` trigger (Myriad),
 combat damage trigger (existing).
 
-- [ ] Batch 1 complete
+- [x] Batch 1 complete
 
 ---
 

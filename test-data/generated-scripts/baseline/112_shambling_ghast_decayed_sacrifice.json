@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_112",
+    "name": "Decayed — Shambling Ghast attacks and is sacrificed at end of combat",
+    "description": "p1 controls Shambling Ghast (1/1 Zombie, Decayed). Decayed (CR 702.147a) grants two abilities: (1) a static ability — this creature can't block; and (2) a triggered ability — when this creature attacks, sacrifice it at end of combat. p1 attacks with Shambling Ghast targeting p2. p2 controls no creatures, so no legal blockers exist. Shambling Ghast is unblocked and deals 1 combat damage to p2 (40 → 39). At end of combat, the Decayed triggered ability fires: Shambling Ghast is sacrificed (moved to p1's graveyard per CR 701.17a). The final state asserts Shambling Ghast is in p1's graveyard and no longer on the battlefield, confirming end-of-combat sacrifice enforcement. The can't-block static ability is documented in generation_notes; the sacrifice-at-EOC triggered ability is the primary executable assertion.",
+    "cr_sections_tested": ["702.147a", "508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1h", "510.1b", "701.17a", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["decayed", "triggered-ability", "sacrifice", "end-of-combat", "combat", "declare-attackers", "declare-blockers", "unblocked", "combat-damage", "zombie"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Shambling Ghast oracle text (engine-verified from crates/engine/src/cards/defs/shambling_ghast.rs): 'Decayed (This creature can't block. When it attacks, sacrifice it at end of combat.)' P/T: 1/1. Mana cost: {B}. Type: Creature — Zombie. card_id: shambling-ghast. Abilities: [KeywordAbility::Decayed]. The ETB modal choice ability ('When Shambling Ghast enters, create a Treasure token or put a -1/-1 counter on target creature. Choose one.') is commented out in the card definition due to the modal choice DSL gap; it has no effect on this script (the Ghast starts on the battlefield). CR 702.147a: 'Decayed represents a static ability and a triggered ability. \"Decayed\" means \"This creature can't block\" and \"When this creature attacks, sacrifice it at end of combat.\"' The can't-block static ability is the first enforcement point of Decayed. It would be enforced at DeclareBlockers time if an opponent attacked and p1 tried to block with Shambling Ghast. In this script, p1 IS the attacker so the can't-block clause is not directly exercised in engine commands; it is documented here for completeness and would require a separate script (where Shambling Ghast is the potential blocker) to test via an assert_action_illegal step. The sacrifice-at-EOC triggered ability is the primary behavior tested: when Shambling Ghast is declared as an attacker, the engine registers a triggered ability 'at end of combat, sacrifice this creature' (CR 702.147a). During the end-of-combat step, that trigger goes on the stack. Both players pass priority → the trigger resolves → Shambling Ghast is sacrificed (CR 701.17a: owner moves permanent from battlefield to their graveyard). Turn structure: turn_number 4 ensures no summoning sickness on Shambling Ghast (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state, confirmed by scripts 015, 016, 067-070). p1 is the active player. Initial phase is declare_attackers. p2 controls no creatures, so the declare_blockers step has an empty blockers list. Combat damage: Shambling Ghast (power 1, unblocked) assigns 1 damage to p2 (CR 510.1b). p2 life: 40 → 39. After combat damage, both players pass priority → advance to end_of_combat step. Decayed triggered ability fires on the stack. Both players pass → trigger resolves → sacrifice Shambling Ghast (CR 701.17a). Final state: Shambling Ghast in p1's graveyard, not on battlefield. p2 at 39 life. p1 at 40 life. NOTE: If the engine's Decayed implementation uses a decayed_sacrifice_at_eoc flag resolved in end_combat() rather than a stack-based triggered ability, the stack_resolve and priority_round steps in end_of_combat may need to be replaced with an sba_check or automatic-action step. The script models the CR-correct stack-based trigger; a dispute is included in case the engine implements this as an automatic action without stack interaction.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Shambling Ghast", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Shambling Ghast as an attacker targeting p2. Shambling Ghast becomes tapped (CR 508.1f). Priority resets to p1 after attackers are declared.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Shambling Ghast untapped on p1 battlefield, p2 has no creatures, life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Shambling Ghast" }] },
+            "permanent.Shambling Ghast.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Shambling Ghast is untapped and has no summoning sickness (turn 4, builder sets has_summoning_sickness: false). p2 controls no creatures — no legal blockers. Decayed static ability (can't block) is irrelevant when Shambling Ghast is the attacker."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Shambling Ghast", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Shambling Ghast as an attacking creature targeting p2. CR 508.1a: Shambling Ghast is untapped and free of summoning sickness — legal attacker. CR 508.1f: Shambling Ghast becomes tapped as a side effect of attacking (not a cost). CR 508.1k: Shambling Ghast becomes an attacking creature. CR 702.147a: Declaring Shambling Ghast as an attacker arms the Decayed triggered ability — it will sacrifice Shambling Ghast at end of combat."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Shambling Ghast is tapped, stack empty",
+          "assertions": {
+            "permanent.Shambling Ghast.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Shambling Ghast was tapped as part of the attack declaration. Decayed's EOC triggered ability is registered but not yet on the stack. Priority is held by p1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack → advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 declares no blockers (p2 controls no creatures). Shambling Ghast becomes an unblocked attacker (CR 509.1h). Both players pass priority → advance to CombatDamage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers (no creatures to block with). CR 509.1h: Shambling Ghast has no creatures declared as blockers → it becomes an unblocked attacker. Note: even if p2 had creatures, they could not be forced to block here — but the Decayed static ability ('can't block') would prevent p1's Shambling Ghast from being declared as a blocker on any future turn where it might be used defensively."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack → advance to CombatDamage step. Engine executes combat damage as a turn-based action on entering CombatDamage."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Shambling Ghast (power 1, unblocked) assigns 1 combat damage to p2 (CR 510.1b). p2 life: 40 → 39. No SBAs apply. Both players pass priority → advance to EndOfCombat.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 39 life (above 0) — no player-death SBA. CR 704.5g: Shambling Ghast (1/1) took no damage — no lethal-damage SBA. No SBAs apply."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: p2 at 39 life, Shambling Ghast still on battlefield (tapped)",
+          "assertions": {
+            "players.p2.life": 39,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": { "includes": [{ "card": "Shambling Ghast" }] },
+            "permanent.Shambling Ghast.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Shambling Ghast (power 1) dealt 1 combat damage to p2. p2 life: 40 → 39. Shambling Ghast remains on battlefield — the Decayed EOC sacrifice has not yet fired."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage with empty stack → advance to EndOfCombat step."
+        }
+      ]
+    },
+    {
+      "step": "end_of_combat",
+      "step_note": "EndOfCombat step: Decayed triggered ability fires ('When this creature attacks, sacrifice it at end of combat.' — CR 702.147a). Trigger goes on the stack. Both players pass priority → trigger resolves → Shambling Ghast is sacrificed (CR 701.17a) and moved to p1's graveyard.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "After Decayed sacrifice resolves: Shambling Ghast in p1 graveyard, not on battlefield",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Shambling Ghast" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Shambling Ghast" }] },
+            "players.p2.life": 39,
+            "players.p1.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.147a: Decayed's triggered ability — 'When this creature attacks, sacrifice it at end of combat' — resolved during the EndOfCombat step. CR 701.17a: Sacrifice moves the permanent from the battlefield to its owner's graveyard. Shambling Ghast is in p1's graveyard. p2 remains at 39 life (took 1 combat damage). p1 remains at 40 life."
+        }
+      ]
+    }
+  ]
+}

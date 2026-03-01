@@ -1,0 +1,257 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_113",
+    "name": "Ingest — Mist Intruder combat damage trigger exiles top of opponent's library",
+    "description": "p1 controls Mist Intruder ({1}{U}, 1/2, Devoid + Flying + Ingest). p2 controls Llanowar Elves (1/1, no flying) and has 3 cards in library. On p1's turn (turn 4, no summoning sickness), p1 attacks with Mist Intruder targeting p2. p2 cannot block with Llanowar Elves because Mist Intruder has Flying and Llanowar Elves lacks Flying or Reach (CR 702.9b). p2 declares no blockers. Mist Intruder is unblocked and deals 1 combat damage to p2 (p2 life: 40 → 39, CR 510.1b). Ingest triggers (CR 702.115a): 'Whenever this creature deals combat damage to a player, that player exiles the top card of their library.' The trigger fires, goes on the stack, and resolves: p2 exiles the top card of their library. Expected result: p2 at 39 life, p2 library count 3 → 2, exile zone has exactly 1 card.",
+    "cr_sections_tested": [
+      "702.115a",
+      "702.115b",
+      "702.9b",
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "509.1",
+      "509.1b",
+      "509.1h",
+      "510.1b",
+      "510.3a",
+      "603.2",
+      "603.3",
+      "603.3a",
+      "608.2",
+      "406.2",
+      "701.10a"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ingest",
+      "combat-damage-trigger",
+      "whenever-deals-combat-damage",
+      "exile",
+      "library",
+      "devoid",
+      "flying",
+      "combat",
+      "declare-attackers",
+      "declare-blockers",
+      "unblocked",
+      "eldrazi"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Mist Intruder oracle text (engine-verified from crates/engine/src/cards/defs/mist_intruder.rs): 'Devoid (This card has no color.) Flying Ingest (Whenever this creature deals combat damage to a player, that player exiles the top card of their library.)' Type: Creature — Eldrazi Drone. P/T: 1/2. Mana cost: {1}{U}. Abilities: KeywordAbility::Devoid, KeywordAbility::Flying, KeywordAbility::Ingest. CR 702.115a: Ingest is a triggered ability — 'Whenever this creature deals combat damage to a player, that player exiles the top card of their library.' CR 702.9b (Flying): 'A creature with flying can't be blocked, except by creatures with flying and/or reach.' Llanowar Elves has no flying or reach and therefore cannot legally block Mist Intruder. p2 is forced to declare no blockers. CR 509.1h: Mist Intruder has no blocking creatures declared — it becomes an unblocked attacker. CR 510.1b: Unblocked Mist Intruder (power 1) assigns all 1 damage to p2. p2 life: 40 → 39. CR 510.3a: Any abilities that triggered on damage being dealt are put onto the stack before the active player gets priority. Mist Intruder's Ingest trigger fires. CR 603.2: 'Whenever this creature deals combat damage to a player' is the trigger condition — it occurred when Mist Intruder dealt 1 combat damage to p2. CR 603.3: The triggered ability is placed on the stack the next time a player would receive priority (after combat damage, per CR 510.3). CR 603.3a: Controlled by p1 (controller of Mist Intruder when it triggered). Resolution effect: p2 exiles the top card of their library (CR 406.2, 701.10a). p2 has 3 cards in library — after resolution, library count is 2 and exile zone has 1 card. CR 702.115b: Multiple instances of Ingest each trigger separately — not relevant here (only one instance). Script uses turn_number: 4 so Mist Intruder has no summoning sickness (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state). Initial phase is 'declare_attackers' per the pattern in scripts 015, 106, 111. Harness observation: The real declare_attackers and declare_blockers commands ARE supported (as of script 015). The combat damage trigger (Ingest) fires after combat damage — similar to Scroll Thief's combat damage trigger (script 013). As with script 013, the harness does not execute combat damage triggers as real engine commands in translate_player_action; therefore the trigger placement and resolution are documented as informational steps (trigger_placed, stack_resolve). The final assert_state reflects harness-visible state (p2 life updated by combat damage, but exile zone and library count unchanged from engine perspective for trigger). A disputes entry captures this limitation. p2 library contains 3 Islands to provide cards for the trigger to exile.",
+    "disputes": [
+      {
+        "step_index": 2,
+        "action_index": 4,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The harness does not support combat damage triggers as executable engine commands (translate_player_action does not map them to any Command). Therefore the Ingest trigger ('Whenever this creature deals combat damage to a player, that player exiles the top card of their library') and its resolution (p2 exiles top card of library) cannot be asserted by the replay harness. All trigger steps in this script are informational (trigger_placed, stack_resolve). Expected CR outcome — p2 library count 2 (decreased by 1), exile zone has 1 card — is documented in generation_notes and step notes. This is consistent with script 013 (Scroll Thief combat damage trigger) which also uses documentary trigger steps without engine-enforced assertions.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Mist Intruder", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p2": [
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Mist Intruder as an attacker targeting p2. Mist Intruder becomes tapped (CR 508.1f). Mist Intruder has Flying (CR 702.9b) — only creatures with flying or reach may block it.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Mist Intruder (1/2, Flying, Ingest, Devoid) untapped on p1 battlefield; Llanowar Elves (1/1, no flying, no reach) untapped on p2 battlefield; p2 library has 3 cards; exile zone empty; life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Mist Intruder" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Mist Intruder.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.library.p2.count": 3,
+            "zones.exile": { "is_empty": true },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Mist Intruder is untapped and free of summoning sickness (turn_number: 4, builder sets has_summoning_sickness: false). Llanowar Elves has no flying or reach — it cannot legally block Mist Intruder (CR 702.9b). p2 library has 3 Islands available for the Ingest trigger to exile."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Mist Intruder", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Mist Intruder as an attacking creature targeting p2. CR 508.1a: Mist Intruder is untapped and free of summoning sickness — legal attacker. CR 508.1f: Mist Intruder becomes tapped as a side effect of attacking (not a cost). CR 508.1k: Mist Intruder becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Mist Intruder is tapped, stack empty",
+          "assertions": {
+            "permanent.Mist Intruder.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Mist Intruder was tapped as part of the attack declaration. No attack triggers fire (Ingest triggers on combat damage, not on attacking). Priority is held by p1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to DeclareBlockers step. p1 receives priority as active player in DeclareBlockers."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 cannot block Mist Intruder with Llanowar Elves because Mist Intruder has Flying and Llanowar Elves has no flying or reach (CR 702.9b). p2 declares no blockers. Mist Intruder becomes an unblocked attacker (CR 509.1h). Both players pass priority — advance to CombatDamage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers. CR 702.9b: Flying — 'A creature with flying can't be blocked, except by creatures with flying and/or reach.' Llanowar Elves has no flying and no reach keyword, so it cannot legally be declared as a blocker for Mist Intruder. CR 509.1b: Any blocker declared in violation of a restriction is illegal; p2 correctly declares an empty blocker list. CR 509.1h: Mist Intruder has no blocking creatures declared — it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Mist Intruder (power 1, unblocked, Flying) assigns 1 combat damage to p2 (CR 510.1b). p2 life: 40 → 39. Ingest triggers (CR 702.115a, CR 510.3a): the trigger is placed on the stack. Both players pass priority. Trigger resolves: p2 exiles the top card of their library. p2 library count: 3 → 2. Exile zone: 0 → 1 card.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 39 life (above 0) — no player-death SBA. CR 704.5g: Mist Intruder (1/2) took no damage (unblocked) — no lethal-damage SBA. CR 704.5g: Llanowar Elves (1/1) took no damage (was not a blocker) — no SBA. No SBAs apply."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Mist Intruder (power 1, unblocked) assigns 1 combat damage to p2 (CR 510.1b). p2 life: 40 → 39.",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: An unblocked creature assigns its combat damage to the player it is attacking. Mist Intruder (power 1) assigns all 1 damage to p2. CR 510.2: Combat damage is dealt simultaneously. p2 life: 40 → 39."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Mist Intruder's Ingest trigger fires: 'Whenever this creature deals combat damage to a player, that player exiles the top card of their library.' (CR 702.115a, CR 510.3a, CR 603.2)",
+          "cr_ref": "702.115a",
+          "note": "CR 702.115a: Ingest is a triggered ability — 'Whenever this creature deals combat damage to a player, that player exiles the top card of their library.' The trigger condition is met: Mist Intruder dealt 1 combat damage to p2 (a player). CR 510.3a: Any abilities that triggered on damage being dealt are put onto the stack before the active player gets priority. CR 603.2: The trigger event — this creature dealing combat damage to a player — has occurred."
+        },
+        {
+          "type": "trigger_placed",
+          "source": "Mist Intruder",
+          "controller": "p1",
+          "trigger_condition": "whenever_deals_combat_damage_to_player",
+          "targets": [],
+          "ordering_context": null,
+          "apnap_position": null,
+          "cr_ref": "603.3",
+          "note": "CR 603.3: The triggered ability is placed on the stack as a non-card object the next time a player would receive priority (after combat damage is dealt, per CR 510.3). CR 603.3a: The ability is controlled by p1 (controller of Mist Intruder when it triggered). The trigger's effect targets p2 implicitly — 'that player' refers to the player who was dealt combat damage (p2)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Mist Intruder Ingest trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Mist Intruder Ingest trigger",
+          "resolution": [
+            {
+              "effect": "exile_top_of_library",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.10a",
+              "note": "CR 702.115a: Ingest resolution — p2 (the player dealt combat damage) exiles the top card of their library. CR 701.10a: To exile means to put into the exile zone. CR 406.2: Cards in the exile zone are public unless face-down. p2 library count: 3 → 2. Exile zone: 0 → 1 card (one Island)."
+            }
+          ],
+          "note": "CR 608.2: Mist Intruder's Ingest triggered ability resolves. Effect: p2 exiles the top card of their library (CR 702.115a). The top card of p2's library (Island) is put into the exile zone (CR 701.10a, CR 406.2). p2 library count decreases from 3 to 2."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-combat state as visible to harness: p2 life updated to 39 from combat damage; Mist Intruder still on p1 battlefield (tapped); Llanowar Elves still on p2 battlefield; library and exile counts reflect harness-visible state",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 39,
+            "zones.battlefield.p1": { "includes": [{ "card": "Mist Intruder" }] },
+            "permanent.Mist Intruder.tapped": true,
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Mist Intruder (power 1) dealt 1 combat damage to p2. p2 life: 40 → 39. Mist Intruder remains on p1 battlefield (tapped from attacking, took no damage). Llanowar Elves remains on p2 battlefield (was not a blocker, took no damage). The Ingest trigger (CR 702.115a) is documented in informational steps — expected CR outcome: p2 library count 2, exile zone has 1 card. See dispute entry for harness limitation on combat damage triggers."
+        }
+      ]
+    }
+  ]
+}

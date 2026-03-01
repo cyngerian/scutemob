@@ -136,6 +136,8 @@ pub fn handle_choose_miracle(
         hideaway_count: None,
         is_partner_with_trigger: false,
         partner_with_name: None,
+        is_ingest_trigger: false,
+        ingest_target_player: None,
     });
 
     Ok(vec![])

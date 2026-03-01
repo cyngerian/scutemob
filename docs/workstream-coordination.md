@@ -270,8 +270,8 @@ Track progress across sessions by checking these off:
 - [x] Committed
 
 #### Phase 1: Full Ability Coverage (see `docs/ability-batch-plan.md` for per-ability tracking)
-- [ ] Batch 0: P3 stragglers (Hideaway close, Overload, Bolster, Adapt, Partner With)
-- [ ] Batch 1: Evasion & simple keywords (Shadow, Horsemanship, Skulk, Devoid, Decayed, Ingest)
+- [x] Batch 0: P3 stragglers (Hideaway close, Overload, Bolster, Adapt, Partner With)
+- [x] Batch 1: Evasion & simple keywords (Shadow, Horsemanship, Skulk, Devoid, Decayed, Ingest)
 - [ ] Batch 2: Combat triggers — blocking (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training)
 - [ ] Batch 3: Combat modifiers & Ninjutsu (Melee, Enlist, Poisonous, Toxic, Ninjutsu)
 - [ ] Batch 4: Alt-cast graveyard (Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore)

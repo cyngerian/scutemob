@@ -227,6 +227,19 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_partner_with_trigger` is true.
     #[serde(default)]
     pub partner_with_name: Option<String>,
+    /// CR 702.115a: If true, this pending trigger is an Ingest trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::IngestTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.
+    /// The `ingest_target_player` carries the damaged player's ID so the
+    /// resolution knows whose library to exile from.
+    #[serde(default)]
+    pub is_ingest_trigger: bool,
+    /// CR 702.115a: The player dealt combat damage (whose library top card is exiled).
+    ///
+    /// Only meaningful when `is_ingest_trigger` is true.
+    #[serde(default)]
+    pub ingest_target_player: Option<PlayerId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

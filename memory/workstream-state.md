@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | Batch 0 complete; Batch 1 next (Shadow, Horsemanship, Skulk, Devoid, Decayed, Ingest) |
+| W1: Abilities | Batch 1: Evasion & Simple Keywords | ACTIVE | 2026-02-28 | Horsemanship, Skulk, Devoid, Decayed, Ingest (Shadow done in B0) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

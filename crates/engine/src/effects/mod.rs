@@ -2003,6 +2003,8 @@ fn execute_effect_inner(
                                         hideaway_count: None,
                                         is_partner_with_trigger: false,
                                         partner_with_name: None,
+                                        is_ingest_trigger: false,
+                                        ingest_target_player: None,
                                     });
                                 }
                             }
@@ -2458,6 +2460,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         foretold_turn: 0,
         was_unearthed: false,
         myriad_exile_at_eoc: false,
+        decayed_sacrifice_at_eoc: false,
         is_suspended: false,
         exiled_by_hideaway: None,
     }
@@ -2616,6 +2619,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         hideaway_count: None,
                         is_partner_with_trigger: false,
                         partner_with_name: None,
+                        is_ingest_trigger: false,
+                        ingest_target_player: None,
                     });
                 }
             }

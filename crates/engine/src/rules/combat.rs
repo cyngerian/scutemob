@@ -282,6 +282,23 @@ pub fn handle_declare_attackers(
         }
     }
 
+    // CR 702.147a: Tag creatures with decayed for EOC sacrifice.
+    // "When this creature attacks, sacrifice it at end of combat."
+    // Must be tagged here (when state is mutable) rather than in check_triggers
+    // (which receives &GameState). The tag persists even if decayed is removed
+    // later (ruling 2021-09-24: "Once a creature with decayed attacks, it will be
+    // sacrificed at end of combat, even if it no longer has decayed at that time.").
+    for (attacker_id, _) in &attackers {
+        let has_decayed = calculate_characteristics(state, *attacker_id)
+            .map(|c| c.keywords.contains(&KeywordAbility::Decayed))
+            .unwrap_or(false);
+        if has_decayed {
+            if let Some(obj) = state.objects.get_mut(attacker_id) {
+                obj.decayed_sacrifice_at_eoc = true;
+            }
+        }
+    }
+
     events.push(GameEvent::AttackersDeclared {
         attacking_player: player,
         attackers: attackers.clone(),
@@ -372,6 +389,14 @@ pub fn handle_declare_blockers(
         if !blocker_chars.card_types.contains(&CardType::Creature) {
             return Err(GameStateError::InvalidCommand(format!(
                 "Object {:?} is not a creature",
+                blocker_id
+            )));
+        }
+
+        // CR 702.147a: A creature with decayed can't block.
+        if blocker_chars.keywords.contains(&KeywordAbility::Decayed) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} has decayed and cannot block (CR 702.147a)",
                 blocker_id
             )));
         }
@@ -498,6 +523,39 @@ pub fn handle_declare_blockers(
                 "Object {:?} cannot block {:?} (shadow mismatch: attacker shadow={}, blocker shadow={})",
                 blocker_id, attacker_id, attacker_has_shadow, blocker_has_shadow
             )));
+        }
+
+        // CR 702.31b: Horsemanship is a unidirectional evasion ability.
+        // A creature with horsemanship can't be blocked by creatures without horsemanship.
+        // Unlike Shadow, a creature with horsemanship CAN block creatures without horsemanship.
+        if attacker_chars
+            .keywords
+            .contains(&KeywordAbility::Horsemanship)
+            && !blocker_chars
+                .keywords
+                .contains(&KeywordAbility::Horsemanship)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (attacker has horsemanship; \
+                 blocker does not have horsemanship)",
+                blocker_id, attacker_id
+            )));
+        }
+
+        // CR 702.118b: Skulk -- a creature with skulk can't be blocked by creatures
+        // with greater power. Unlike Shadow, this is one-directional: it only restricts
+        // what can block the skulk creature, not what the skulk creature can block.
+        // Equal power IS allowed to block (strictly greater than, not greater-or-equal).
+        if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
+            let attacker_power = attacker_chars.power.unwrap_or(0);
+            let blocker_power = blocker_chars.power.unwrap_or(0);
+            if blocker_power > attacker_power {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Object {:?} cannot block {:?} (attacker has skulk with power {}; \
+                     blocker has greater power {})",
+                    blocker_id, attacker_id, attacker_power, blocker_power
+                )));
+            }
         }
 
         // CR 702.16f: protection from blocking. A creature with protection from a quality

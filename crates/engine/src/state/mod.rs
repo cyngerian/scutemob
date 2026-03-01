@@ -289,6 +289,8 @@ impl GameState {
             was_unearthed: false,
             // CR 400.7: myriad token exile flag is not preserved across zone changes.
             myriad_exile_at_eoc: false,
+            // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
+            decayed_sacrifice_at_eoc: false,
             // CR 400.7: suspend status is not preserved across zone changes.
             is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
@@ -376,6 +378,8 @@ impl GameState {
             was_unearthed: false,
             // CR 400.7: myriad token exile flag is not preserved across zone changes.
             myriad_exile_at_eoc: false,
+            // CR 400.7: decayed sacrifice flag is not preserved across zone changes.
+            decayed_sacrifice_at_eoc: false,
             // CR 400.7: suspend status is not preserved across zone changes.
             is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.

@@ -396,6 +396,16 @@ pub struct GameObject {
     /// `end_combat()` in turn_actions.rs. Reset on zone changes (CR 400.7).
     #[serde(default)]
     pub myriad_exile_at_eoc: bool,
+    /// CR 702.147a: If true, this creature attacked with decayed and must be
+    /// sacrificed at end of combat. Set in `handle_declare_attackers` in combat.rs
+    /// when an attacker has the Decayed keyword.
+    ///
+    /// Ruling 2021-09-24: "Once a creature with decayed attacks, it will be
+    /// sacrificed at end of combat, even if it no longer has decayed at that time."
+    /// This flag ensures the sacrifice happens even if decayed is removed after
+    /// the attack declaration.
+    #[serde(default)]
+    pub decayed_sacrifice_at_eoc: bool,
     /// CR 702.62b: If true, this object in exile was suspended (exiled via the
     /// suspend special action from hand with time counters). Used to identify
     /// suspended cards for the upkeep counter-removal trigger.

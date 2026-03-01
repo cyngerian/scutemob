@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Overload validated; CR 702.96 confirmed; state/types.rs:599, card_definition.rs:255-263+821, stack.rs:127-134, effects/mod.rs:66-69+2759-2760, casting.rs:485-529+591-597+737-743+974-975, command.rs:157-166, resolution.rs:179-186, replay_harness.rs:668-689; Vandalblast card def; 11 unit tests in overload.rs; game script baseline/108 approved; P3 validated 35->36, total validated 92->93)
+> Last audited: 2026-03-01 (Ingest validated; CR 702.115 confirmed; state/types.rs:629-638, stubs.rs:230-242, stack.rs:407-427, abilities.rs:1757-1840+2218-2226, resolution.rs:1634-1671; Mist Intruder card def; 6 unit tests in ingest.rs; game script baseline/113 approved; P4 validated 5->6, total validated 97->98)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 1         | 0        | 0       | 87   | 12  |
-| **Total**| **199**| **93**   | **2**    | **0**   | **92**| **12** |
+| P4       | 100   | 6         | 0        | 0       | 82   | 12  |
+| **Total**| **199**| **98**   | **2**    | **0**   | **87**| **12** |
 
 ---
 
@@ -73,8 +73,8 @@ Additional evasion and blocking-restriction keywords beyond the evergreen set.
 | Intimidate | 702.13 | P1 | `validated` | `state/types.rs:114`, `rules/combat.rs:453-474` | Bladetusk Boar | `combat/009` | — | CR 702.13b blocking restriction enforced (artifact creature OR shared color); 7 unit tests in `tests/keywords.rs:632`; game script `pending_review` (6/6 assertions pass) |
 | Fear | 702.36 | P3 | `validated` | `state/types.rs:385`, `rules/combat.rs:475-489` | Severed Legion | `combat/080` | — | CR 702.36b blocking restriction enforced (artifact creature OR black creature); 7 unit tests in `tests/keywords.rs:1818`; game script approved |
 | Shadow | 702.28 | P4 | `validated` | `state/types.rs:572`, `state/hash.rs:450`, `rules/combat.rs:491-502` | Dauthi Slayer | `combat/106` | — | CR 702.28b bidirectional blocking restriction enforced (shadow mismatch = illegal block); 7 unit tests in `tests/shadow.rs`; game script approved |
-| Horsemanship | 702.30 | P4 | `none` | — | — | — | — | Can only be blocked by horsemanship (Portal Three Kingdoms) |
-| Skulk | 702.120 | P4 | `none` | — | — | — | — | Can't be blocked by creatures with greater power |
+| Horsemanship | 702.31 | P4 | `validated` | `state/types.rs:600-604`, `state/hash.rs:459-460`, `rules/combat.rs:503-514` | Shu Cavalry | `combat/109` | — | CR 702.31b unidirectional evasion: attacker with horsemanship can't be blocked by creatures without horsemanship; 7 unit tests in `tests/horsemanship.rs`; game script approved |
+| Skulk | 702.118 | P4 | `validated` | `state/types.rs:605-608`, `state/hash.rs:461-462`, `rules/combat.rs:520-533` | Furtive Homunculus | `combat/110` | — | CR 702.118b one-directional power-based evasion: blocker_power > attacker_power is illegal (strictly greater than, not >=; equal power CAN block); skulk creature can block anything; 7 unit tests in `tests/skulk.rs`; game script approved |
 | Landwalk | 702.14 | P1 | `validated` | `state/types.rs:60-77,133-137`, `rules/combat.rs:484-509` | Bog Raiders | `combat/010` | — | LandwalkType enum (BasicType + Nonbasic variants); KeywordAbility::Landwalk; blocking restriction enforced via calculate_characteristics (handles Blood Moon etc.); 7 unit tests in `tests/keywords.rs:1137-1480`; game script `pending_review` (8/8 assertions pass) |
 | CantBeBlocked | 509.1b | P1 | `validated` | `state/types.rs:172`, `state/hash.rs:309`, `rules/combat.rs:441-451`, `cards/definitions.rs:400-437,1386-1395` | Rogue's Passage, Whispersilk Cloak | `combat/014` | — | KeywordAbility::CantBeBlocked enum; blocking restriction enforced in handle_declare_blockers; Rogue's Passage grants via activated ability (UntilEndOfTurn continuous effect, layer 6); Whispersilk Cloak grants via static continuous effect (WhileSourceOnBattlefield); 5 unit tests in `tests/keywords.rs:1510-1784`; 1 card-def test in `tests/card_def_fixes.rs:572`; game script pending_review (4 assertions pass) |
 
@@ -202,7 +202,7 @@ Keywords triggered by creatures entering, leaving, or dying.
 | Devour | 702.82 | P4 | `none` | — | — | — | — | ETB: sacrifice creatures for +1/+1 counters |
 | Tribute | 702.107 | P4 | `none` | — | — | — | — | Opponent chooses: +1/+1 counters or ability triggers |
 | Fabricate | 702.123 | P4 | `none` | — | — | — | — | ETB: choose +1/+1 counters or create Servo tokens |
-| Decayed | 702.145 | P4 | `none` | — | — | — | — | Can't block; sacrifice at end of combat when it attacks |
+| Decayed | 702.147 | P4 | `validated` | state/types.rs:616-628, state/game_object.rs:399-408, rules/combat.rs:285-300+396-401, rules/turn_actions.rs:606-632 | Shambling Ghast | decayed.rs (8 tests) | baseline/112 | Can't block; sacrifice at end of combat when it attacks. Flag-on-object pattern (like Myriad); persists even if keyword removed (ruling 2021-09-24). |
 | Training | 702.150 | P4 | `none` | — | — | — | — | Attacks with greater-power creature → +1/+1 counter |
 | Backup | 702.160 | P4 | `none` | — | — | — | — | ETB: put +1/+1 counters on target creature, it gains abilities |
 
@@ -283,8 +283,8 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Cipher | 702.99 | P4 | `none` | — | — | — | — | Encode spell on creature; cast copy on combat damage |
 | Bloodthirst | 702.54 | P4 | `none` | — | — | — | — | ETB with +1/+1 counters if opponent was dealt damage |
 | Bloodrush | — | P4 | `none` | — | — | — | — | Ability word; discard to pump attacking creature |
-| Devoid | 702.114 | P4 | `none` | — | — | — | — | Colorless regardless of mana cost |
-| Ingest | 702.115 | P4 | `none` | — | — | — | — | Combat damage to player → exile top card of library |
+| Devoid | 702.114 | P4 | `validated` | state/types.rs:609-615, state/hash.rs:463-464, rules/layers.rs:74-83 | Forerunner of Slaughter | baseline/111 | CR 702.114a fully enforced; CDA in Layer 5 (ColorChange) clears colors; functions in all zones (CR 604.3); 8 unit tests in devoid.rs; script approved | Colorless regardless of mana cost |
+| Ingest | 702.115 | P4 | `validated` | state/types.rs:629-638, state/stubs.rs:230-242, state/stack.rs:407-427, state/hash.rs:467-468+1090-1092+1373-1374, rules/abilities.rs:1757-1840+2218-2226, rules/resolution.rs:1634-1671 | Mist Intruder | baseline/113 | CR 702.115a+b fully enforced; triggered ability on combat damage to player; multiple instances trigger separately (702.115b); empty library is safe no-op; face-up exile (default); 6 unit tests in ingest.rs; TUI stack_view.rs:80-81 + view_model.rs:473-474,687 | Combat damage to player → exile top card of library |
 | Wither | 702.80 | P3 | `validated` | state/types.rs:481, state/hash.rs:422, rules/combat.rs:863-1006, effects/mod.rs:206-241 | Boggart Ram-Gang | combat/091 | CR 702.80a fully enforced; combat + non-combat damage to creatures places -1/-1 counters instead of marking damage; 6 unit tests in keywords.rs; script pending_review | Damage dealt as -1/-1 counters |
 | Infect | 702.90 | P3 | `validated` | state/types.rs:511-520, state/hash.rs:433-444, rules/events.rs:357-374, rules/combat.rs:863-1073, effects/mod.rs:143-275 | Glistener Elf | combat/092 | CR 702.90 fully enforced; creature damage as -1/-1 counters (reusing Wither path); player damage as poison counters; 9 unit tests in tests/keywords.rs; poison SBA (704.5c) was pre-existing |
 | Poisonous | 702.70 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters |
@@ -517,3 +517,17 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Adapt (CR 701.46) — validated 2026-02-28 (script baseline/105, Sharktocrab, 6 unit tests in adapt.rs).
 
 **Resolved**: Overload (CR 702.96) — validated 2026-02-28 (script baseline/108, Vandalblast, 11 unit tests in overload.rs).
+
+### P4 Gaps (niche / historical)
+
+**Resolved**: Shadow (CR 702.28) — validated 2026-02-28 (script combat/106, Dauthi Slayer, 7 unit tests in shadow.rs).
+
+**Resolved**: Horsemanship (CR 702.31) — validated 2026-02-28 (script combat/109, Shu Cavalry, 7 unit tests in horsemanship.rs).
+
+**Resolved**: Skulk (CR 702.118) — validated 2026-02-28 (script combat/110, Furtive Homunculus, 7 unit tests in skulk.rs).
+
+**Resolved**: Devoid (CR 702.114) — validated 2026-02-28 (script baseline/111, Forerunner of Slaughter, 8 unit tests in devoid.rs).
+
+**Resolved**: Decayed (CR 702.147) — validated 2026-02-28 (script baseline/112, Shambling Ghast, 8 unit tests in decayed.rs).
+
+**Resolved**: Ingest (CR 702.115) — validated 2026-03-01 (script baseline/113, Mist Intruder, 6 unit tests in ingest.rs).

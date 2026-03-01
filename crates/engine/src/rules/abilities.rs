@@ -530,6 +530,8 @@ pub fn handle_cycle_card(
             hideaway_count: None,
             is_partner_with_trigger: false,
             partner_with_name: None,
+            is_ingest_trigger: false,
+            ingest_target_player: None,
         });
     }
 
@@ -853,6 +855,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             hideaway_count: None,
                             is_partner_with_trigger: false,
                             partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -922,6 +926,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 hideaway_count: None,
                                 is_partner_with_trigger: false,
                                 partner_with_name: None,
+                                is_ingest_trigger: false,
+                                ingest_target_player: None,
                             });
                         }
                     }
@@ -980,6 +986,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             hideaway_count: Some(n),
                             is_partner_with_trigger: false,
                             partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
                         });
                     }
                 }
@@ -1040,6 +1048,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 hideaway_count: None,
                                 is_partner_with_trigger: true,
                                 partner_with_name: Some(name),
+                                is_ingest_trigger: false,
+                                ingest_target_player: None,
                             });
                         }
                     }
@@ -1190,6 +1200,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             hideaway_count: None,
                                             is_partner_with_trigger: false,
                                             partner_with_name: None,
+                                            is_ingest_trigger: false,
+                                            ingest_target_player: None,
                                         });
                                     }
                                 }
@@ -1552,6 +1564,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             hideaway_count: None,
                             is_partner_with_trigger: false,
                             partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
                         });
                     }
                 }
@@ -1610,6 +1624,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             hideaway_count: None,
                             is_partner_with_trigger: false,
                             partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
                         });
                     }
                 }
@@ -1712,6 +1728,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             hideaway_count: None,
                             is_partner_with_trigger: false,
                             partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
                         });
                     }
                 }
@@ -1735,6 +1753,91 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             Some(assignment.source),
                             None,
                         );
+
+                        // CR 702.115a: Ingest -- "Whenever this creature deals combat
+                        // damage to a player, that player exiles the top card of
+                        // their library."
+                        // CR 702.115b: Multiple instances trigger separately.
+                        if let Some(obj) = state.objects.get(&assignment.source) {
+                            if obj.zone == ZoneId::Battlefield
+                                && obj
+                                    .characteristics
+                                    .keywords
+                                    .contains(&KeywordAbility::Ingest)
+                            {
+                                // Already guaranteed by the `if matches!(..., Player(_))`
+                                // guard above — use `let...else` instead of unreachable!().
+                                let CombatDamageTarget::Player(damaged_player) =
+                                    &assignment.target
+                                else {
+                                    continue;
+                                };
+                                let damaged_player = *damaged_player;
+
+                                // Count ingest instances from card definition for
+                                // CR 702.115b: multiple instances trigger separately.
+                                let ingest_count = obj
+                                    .card_id
+                                    .as_ref()
+                                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                                    .map(|def| {
+                                        def.abilities
+                                            .iter()
+                                            .filter(|a| {
+                                                matches!(
+                                                    a,
+                                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                                        KeywordAbility::Ingest
+                                                    )
+                                                )
+                                            })
+                                            .count()
+                                    })
+                                    .unwrap_or(1)
+                                    .max(1);
+
+                                let controller = obj.controller;
+                                let source_id = obj.id;
+                                for _ in 0..ingest_count {
+                                    triggers.push(PendingTrigger {
+                                        source: source_id,
+                                        ability_index: 0, // unused for ingest triggers
+                                        controller,
+                                        triggering_event: Some(
+                                            TriggerEvent::SelfDealsCombatDamageToPlayer,
+                                        ),
+                                        entering_object_id: None,
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        is_evoke_sacrifice: false,
+                                        is_madness_trigger: false,
+                                        madness_exiled_card: None,
+                                        madness_cost: None,
+                                        is_miracle_trigger: false,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        is_unearth_trigger: false,
+                                        is_exploit_trigger: false,
+                                        is_modular_trigger: false,
+                                        modular_counter_count: None,
+                                        is_evolve_trigger: false,
+                                        evolve_entering_creature: None,
+                                        is_myriad_trigger: false,
+                                        is_suspend_counter_trigger: false,
+                                        is_suspend_cast_trigger: false,
+                                        suspend_card_id: None,
+                                        is_hideaway_trigger: false,
+                                        hideaway_count: None,
+                                        is_partner_with_trigger: false,
+                                        partner_with_name: None,
+                                        is_ingest_trigger: true,
+                                        ingest_target_player: Some(damaged_player),
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1845,6 +1948,8 @@ fn collect_triggers_for_event(
                 hideaway_count: None,
                 is_partner_with_trigger: false,
                 partner_with_name: None,
+                is_ingest_trigger: false,
+                ingest_target_player: None,
             });
         }
     }
@@ -2109,6 +2214,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
                     target_player: trigger.controller,
+                }
+            } else if trigger.is_ingest_trigger {
+                // CR 702.115a: Ingest combat damage trigger — "Whenever this creature
+                // deals combat damage to a player, that player exiles the top card of
+                // their library."
+                // `ingest_target_player` carries the damaged player's ID.
+                StackObjectKind::IngestTrigger {
+                    source_object: trigger.source,
+                    target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

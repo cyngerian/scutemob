@@ -404,4 +404,25 @@ pub enum StackObjectKind {
         partner_name: String,
         target_player: crate::state::player::PlayerId,
     },
+    /// CR 702.115a: Ingest triggered ability on the stack.
+    ///
+    /// "Whenever this creature deals combat damage to a player, that player
+    /// exiles the top card of their library."
+    ///
+    /// `source_object` is the creature with ingest on the battlefield.
+    /// `target_player` is the player who was dealt combat damage (whose library
+    /// will be exiled from).
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the target player has cards in their library.
+    /// 2. If yes, exile the top card face-up.
+    /// 3. If no, do nothing (ruling 2015-08-25).
+    ///
+    /// CR 603.10: The source creature must be on the battlefield when the trigger
+    /// fires, but does NOT need to be on the battlefield at resolution time
+    /// (the trigger is already on the stack).
+    IngestTrigger {
+        source_object: ObjectId,
+        target_player: crate::state::player::PlayerId,
+    },
 }

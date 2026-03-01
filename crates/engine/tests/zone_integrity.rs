@@ -195,6 +195,7 @@ fn test_add_object_to_state() {
         foretold_turn: 0,
         was_unearthed: false,
         myriad_exile_at_eoc: false,
+        decayed_sacrifice_at_eoc: false,
         is_suspended: false,
         exiled_by_hideaway: None,
     };

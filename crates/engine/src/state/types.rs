@@ -597,6 +597,45 @@ pub enum KeywordAbility {
     /// objects instead of one target. Implements CR 702.96a/b via conditional
     /// effect dispatch (like Kicker), not literal text replacement.
     Overload,
+    /// CR 702.31: Horsemanship -- evasion ability (unidirectional).
+    /// "A creature with horsemanship can't be blocked by creatures without horsemanship.
+    /// A creature with horsemanship can block a creature with or without horsemanship."
+    /// CR 702.31c: Multiple instances are redundant (auto-deduped by OrdSet).
+    Horsemanship,
+    /// CR 702.118: Skulk -- evasion ability (one-directional, power-based).
+    /// "A creature with skulk can't be blocked by creatures with greater power."
+    /// CR 702.118c: Multiple instances are redundant (auto-deduped by OrdSet).
+    Skulk,
+    /// CR 702.114: Devoid -- "This object is colorless."
+    ///
+    /// Characteristic-defining ability (CDA). Applied as a color-change in Layer 5
+    /// (ColorChange) before non-CDA effects (CR 613.3). Functions in all zones
+    /// (CR 604.3). Clears the object's colors set, making it colorless regardless
+    /// of its mana cost (CR 202.2).
+    Devoid,
+    /// CR 702.147: Decayed -- static ability + triggered ability.
+    /// "This creature can't block" (static) and "When this creature attacks,
+    /// sacrifice it at end of combat" (triggered).
+    ///
+    /// The blocking restriction is enforced in `rules/combat.rs`.
+    /// The EOC sacrifice uses a tag-on-object pattern (like Myriad):
+    /// `decayed_sacrifice_at_eoc` is set on the creature when it attacks,
+    /// and `end_combat()` in `turn_actions.rs` sacrifices all tagged creatures.
+    ///
+    /// Ruling 2021-09-24: "Once a creature with decayed attacks, it will be
+    /// sacrificed at end of combat, even if it no longer has decayed at that time."
+    /// CR 702.147a: Multiple instances are redundant.
+    Decayed,
+    /// CR 702.115: Ingest -- triggered ability.
+    /// "Whenever this creature deals combat damage to a player, that player
+    /// exiles the top card of their library."
+    /// CR 702.115b: Multiple instances trigger separately.
+    ///
+    /// Ruling 2015-08-25: "The card exiled by the ingest ability is exiled
+    /// face up." (engine default is face-up; no special handling needed)
+    /// Ruling 2015-08-25: "If the player has no cards in their library when
+    /// the ingest ability resolves, nothing happens."
+    Ingest,
 }
 
 /// All creature subtypes from CR 205.3m.

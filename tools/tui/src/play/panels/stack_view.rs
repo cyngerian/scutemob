@@ -77,6 +77,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::PartnerWithTrigger { source_object, .. } => {
                     ("Partner with: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::IngestTrigger { source_object, .. } => {
+                    ("Ingest: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

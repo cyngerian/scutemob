@@ -95,6 +95,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             hideaway_count: None,
             is_partner_with_trigger: false,
             partner_with_name: None,
+            is_ingest_trigger: false,
+            ingest_target_player: None,
         });
     }
 
@@ -150,6 +152,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             hideaway_count: None,
             is_partner_with_trigger: false,
             partner_with_name: None,
+            is_ingest_trigger: false,
+            ingest_target_player: None,
         });
     }
 
@@ -426,6 +430,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         hideaway_count: None,
                         is_partner_with_trigger: false,
                         partner_with_name: None,
+                        is_ingest_trigger: false,
+                        ingest_target_player: None,
                     });
                 }
             }
@@ -600,6 +606,104 @@ fn end_combat(state: &mut GameState) -> Vec<GameEvent> {
                 object_id: token_id,
                 new_exile_id,
             });
+        }
+    }
+
+    // CR 702.147a: Sacrifice all creatures that attacked with decayed.
+    // Creatures are tagged with `decayed_sacrifice_at_eoc = true` in
+    // `handle_declare_attackers` in combat.rs when they attack.
+    //
+    // Ruling 2021-09-24: "Once a creature with decayed attacks, it will be
+    // sacrificed at end of combat, even if it no longer has decayed at that time."
+    //
+    // CR 701.17a: Sacrifice is NOT destruction — indestructible does not prevent it.
+    //
+    // TODO(M10+): Per CR 702.147a / CR 603.7, the EOC sacrifice is technically a
+    // delayed triggered ability ("sacrifice it at end of combat"). The current TBA
+    // implementation sacrifices with no interaction window (can't Stifle the
+    // sacrifice). Same caveat as Myriad's EOC exile. Refactor when delayed trigger
+    // infrastructure is expanded.
+    let decayed_sacrifice_ids: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == crate::state::zone::ZoneId::Battlefield && obj.decayed_sacrifice_at_eoc
+        })
+        .map(|obj| obj.id)
+        .collect();
+
+    for obj_id in decayed_sacrifice_ids {
+        let (owner, controller, pre_death_counters) = match state.objects.get(&obj_id) {
+            Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
+            None => continue,
+        };
+
+        // CR 614: Check replacement effects before moving to graveyard.
+        let action = crate::rules::replacement::check_zone_change_replacement(
+            state,
+            obj_id,
+            crate::state::zone::ZoneType::Battlefield,
+            crate::state::zone::ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            crate::rules::replacement::ZoneChangeAction::Redirect {
+                to,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _old)) = state.move_object_to_zone(obj_id, to) {
+                    match to {
+                        crate::state::zone::ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: controller,
+                                object_id: obj_id,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        crate::state::zone::ZoneId::Command(_) => {
+                            // Commander redirected to command zone — no CreatureDied.
+                        }
+                        _ => {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: obj_id,
+                                new_grave_id: new_id,
+                                controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                if let Ok((new_id, _old)) =
+                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: obj_id,
+                        new_grave_id: new_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
+                // Multiple replacements — in the absence of full choice infrastructure
+                // for TBA context, fall back to Proceed (graveyard).
+                if let Ok((new_id, _old)) =
+                    state.move_object_to_zone(obj_id, crate::state::zone::ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: obj_id,
+                        new_grave_id: new_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
         }
     }
 

@@ -456,6 +456,16 @@ impl HashInto for KeywordAbility {
             }
             // Overload (discriminant 70) -- CR 702.96
             KeywordAbility::Overload => 70u8.hash_into(hasher),
+            // Horsemanship (discriminant 71) -- CR 702.31
+            KeywordAbility::Horsemanship => 71u8.hash_into(hasher),
+            // Skulk (discriminant 72) -- CR 702.118
+            KeywordAbility::Skulk => 72u8.hash_into(hasher),
+            // Devoid (discriminant 73) -- CR 702.114
+            KeywordAbility::Devoid => 73u8.hash_into(hasher),
+            // Decayed (discriminant 74) -- CR 702.147
+            KeywordAbility::Decayed => 74u8.hash_into(hasher),
+            // Ingest (discriminant 75) -- CR 702.115
+            KeywordAbility::Ingest => 75u8.hash_into(hasher),
         }
     }
 }
@@ -615,6 +625,8 @@ impl HashInto for GameObject {
         self.was_unearthed.hash_into(hasher);
         // Myriad (CR 702.116a) — token copy must be exiled at end of combat
         self.myriad_exile_at_eoc.hash_into(hasher);
+        // Decayed (CR 702.147a) — creature must be sacrificed at end of combat
+        self.decayed_sacrifice_at_eoc.hash_into(hasher);
         // Suspend (CR 702.62b) — card was exiled from hand via suspend special action
         self.is_suspended.hash_into(hasher);
         // Hideaway (CR 702.75a / CR 607.2a) — card was exiled face-down by a Hideaway trigger
@@ -1075,6 +1087,9 @@ impl HashInto for PendingTrigger {
         // CR 702.124j: is_partner_with_trigger -- partner with ETB trigger marker
         self.is_partner_with_trigger.hash_into(hasher);
         self.partner_with_name.hash_into(hasher);
+        // CR 702.115a: is_ingest_trigger -- ingest combat damage trigger marker
+        self.is_ingest_trigger.hash_into(hasher);
+        self.ingest_target_player.hash_into(hasher);
     }
 }
 
@@ -1353,6 +1368,15 @@ impl HashInto for StackObjectKind {
                 17u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 partner_name.hash_into(hasher);
+                target_player.hash_into(hasher);
+            }
+            // IngestTrigger (discriminant 18) -- CR 702.115a
+            StackObjectKind::IngestTrigger {
+                source_object,
+                target_player,
+            } => {
+                18u8.hash_into(hasher);
+                source_object.hash_into(hasher);
                 target_player.hash_into(hasher);
             }
         }

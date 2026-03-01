@@ -421,6 +421,7 @@ fn test_commander_damage_survives_zone_change() {
                 foretold_turn: 0,
                 was_unearthed: false,
                 myriad_exile_at_eoc: false,
+                decayed_sacrifice_at_eoc: false,
                 is_suspended: false,
                 exiled_by_hideaway: None,
             },

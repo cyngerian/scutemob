@@ -71,6 +71,17 @@ pub fn calculate_characteristics(
             }
         }
 
+        // CR 702.114a + CR 613.3: Devoid is a characteristic-defining ability that makes
+        // the object colorless in Layer 5 (ColorChange), before any non-CDA Layer 5 effects.
+        // CDAs apply first within each layer (CR 613.3), so this runs before gathering
+        // layer_effects. A subsequent SetColors/AddColors effect (e.g., Painter's Servant)
+        // will correctly override the Devoid colorlessness because it runs after the CDA
+        // within Layer 5.
+        // CR 604.3: Functions in all zones, not just the battlefield.
+        if layer == EffectLayer::ColorChange && chars.keywords.contains(&KeywordAbility::Devoid) {
+            chars.colors = OrdSet::new();
+        }
+
         // Gather effects for this layer that apply to this object.
         // The filter is evaluated against `chars` as modified by earlier layers —
         // this is correct because type changes from layer 4 affect whether "AllCreatures"

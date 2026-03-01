@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_109",
+    "name": "Horsemanship — Shu Cavalry is unblockable by non-horsemanship creature",
+    "description": "p1 controls Shu Cavalry (2/2, Horsemanship). p2 controls Llanowar Elves (1/1, no horsemanship). p1 attacks with Shu Cavalry. Under CR 702.31b, a creature with horsemanship can't be blocked except by creatures with horsemanship. Llanowar Elves has no horsemanship keyword and therefore cannot legally block Shu Cavalry — any attempt to declare it as a blocker would return InvalidCommand from the engine. p2 correctly declares no blockers. Shu Cavalry is an unblocked attacker and deals 2 combat damage to p2, reducing p2's life from 40 to 38. A turn_based_action step documents that a second Shu Cavalry (with horsemanship) WOULD be a legal blocker under CR 702.31b, demonstrating the bidirectional nature of the restriction. This script follows the executable declare_attackers + declare_blockers harness pattern established in scripts 106 (Shadow) and 080 (Fear).",
+    "cr_sections_tested": ["702.31b", "508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1b", "509.1h", "510.1b"],
+    "corner_case_ref": null,
+    "tags": ["horsemanship", "combat", "evasion", "blocking-restriction", "declare-attackers", "declare-blockers", "unblocked", "combat-damage"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.31b: 'A creature with horsemanship can't be blocked except by creatures with horsemanship.' Only one card in the engine card registry has Horsemanship: Shu Cavalry ({2}{W}, Creature — Human Soldier, 2/2, keyword KeywordAbility::Horsemanship, confirmed in crates/engine/src/cards/defs/shu_cavalry.rs). The negative case (non-horsemanship creature cannot block) is the primary executable test: p2's Llanowar Elves (1/1 Elf Druid, no abilities, no horsemanship keyword) cannot legally block Shu Cavalry. The positive case (horsemanship creature CAN block) is documented as a turn_based_action referencing a hypothetical second Shu Cavalry — we avoid placing two Shu Cavalry copies on the battlefield because the harness's find_on_battlefield_by_name function returns the lowest-ObjectId match when names are duplicated (see harness comment at line 1186-1190 of replay_harness.rs: 'Use unique card names in test scripts to avoid ambiguity'). Using two Shu Cavalries would cause the blocker declaration to resolve the wrong attacker ObjectId and fail. Script uses the shadow-evasion pattern from script 106: declare_attackers is executed, declare_blockers with empty list is executed, priority_round advances to CombatDamage. CombatDamage result: Shu Cavalry (power 2, unblocked) assigns 2 damage to p2 (CR 510.1b). p2 life: 40 - 2 = 38. Llanowar Elves takes no damage (was not a blocker). No SBA 704.5g (no creature received damage). CR 704.5a: p2 at 38 life (above 0) — no player-death SBA. The script uses turn_number: 4 to ensure no summoning sickness on Shu Cavalry (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state, consistent with scripts 106, 080, 016, etc.). Initial phase is 'declare_attackers' per the established executable combat script pattern.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Shu Cavalry", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Shu Cavalry (2/2, Horsemanship) as an attacker targeting p2. CR 508.1f: Shu Cavalry becomes tapped. Priority resets to p1 after attackers declared.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Shu Cavalry (2/2, Horsemanship) untapped on p1 battlefield; Llanowar Elves (1/1, no horsemanship) untapped on p2 battlefield; life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Shu Cavalry" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Shu Cavalry is untapped and free of summoning sickness (turn_number: 4, builder sets has_summoning_sickness: false). Llanowar Elves is a 1/1 Elf Druid with no keyword abilities — it cannot legally block Shu Cavalry per CR 702.31b."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Shu Cavalry", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Shu Cavalry as an attacking creature targeting p2. CR 508.1a: Shu Cavalry is untapped and free of summoning sickness — legal attacker. CR 508.1f: Shu Cavalry becomes tapped as a side effect of attacking. CR 508.1k: Shu Cavalry becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: stack empty (Shu Cavalry has Horsemanship only, no attack trigger)",
+          "assertions": {
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Shu Cavalry has only the Horsemanship keyword — no attack trigger, so the stack remains empty after declaring attackers."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "Horsemanship blocking restriction (CR 702.31b). Llanowar Elves CANNOT block Shu Cavalry (no horsemanship). p2 declares no blockers. Shu Cavalry is an unblocked attacker (CR 509.1h). The positive case — a creature WITH horsemanship (e.g., a second Shu Cavalry) CAN legally block — is documented as a turn_based_action.",
+      "actions": [
+        {
+          "type": "turn_based_action",
+          "description": "ILLEGAL BLOCK — Llanowar Elves (1/1, no horsemanship) cannot block Shu Cavalry (Horsemanship)",
+          "cr_ref": "702.31b",
+          "note": "CR 702.31b: 'A creature with horsemanship can't be blocked except by creatures with horsemanship.' Llanowar Elves is a 1/1 Elf Druid with no keyword abilities — it does not have Horsemanship. Attempting declare_blockers with Llanowar Elves blocking Shu Cavalry would return InvalidCommand from the engine (combat.rs restriction check: attacker has KeywordAbility::Horsemanship, blocker lacks it, per CR 509.1b). Documented as turn_based_action (not executed) to avoid harness failure. This is the negative case demonstrating the horsemanship blocking restriction."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "LEGAL BLOCK (documented only) — A creature with Horsemanship (e.g., a second Shu Cavalry) CAN block the attacking Shu Cavalry",
+          "cr_ref": "702.31b",
+          "note": "CR 702.31b: Horsemanship is a bidirectional restriction — a creature with horsemanship can block OR be blocked only by other creatures with horsemanship. If p2 controlled a second Shu Cavalry (also with KeywordAbility::Horsemanship), it could legally be declared as a blocker. The engine would pass the restriction check: attacker has Horsemanship AND blocker has Horsemanship. This positive case is documented here but not executed because two Shu Cavalry copies on the battlefield create duplicate-name ambiguity in the harness's find_on_battlefield_by_name resolver."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers. CR 702.31b: Horsemanship — 'A creature with horsemanship can't be blocked except by creatures with horsemanship.' Llanowar Elves has no horsemanship keyword and therefore cannot legally be declared as a blocker for Shu Cavalry. CR 509.1b: Any blocker declared in violation of a restriction is illegal; p2 correctly declares an empty blocker list. CR 509.1h: Shu Cavalry has no blocking creatures declared — it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Shu Cavalry (power 2, unblocked) assigns 2 combat damage to p2 (CR 510.1b). p2 life: 40 → 38. No creature damage SBAs apply.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 38 life (above 0) — no player-death SBA. CR 704.5g: Shu Cavalry (2/2) took no damage (unblocked) — no lethal-damage SBA. CR 704.5g: Llanowar Elves (1/1) took no damage (was not a blocker) — no SBA. No SBAs apply."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty — advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: p2 at 38 life (lost 2 from unblocked Shu Cavalry), p1 at 40 life, Shu Cavalry still on p1 battlefield (tapped), Llanowar Elves still on p2 battlefield (took no damage)",
+          "assertions": {
+            "players.p2.life": 38,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": { "includes": [{ "card": "Shu Cavalry" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Shu Cavalry (power 2) dealt 2 combat damage to p2. p2 life: 40 → 38. Shu Cavalry remains on p1 battlefield (tapped from attacking, took no damage). Llanowar Elves remains on p2 battlefield (was not declared as a blocker, took no damage). CR 702.31b: Horsemanship blocking restriction enforced — the non-horsemanship Llanowar Elves could not block the horsemanship Shu Cavalry."
+        }
+      ]
+    }
+  ]
+}
