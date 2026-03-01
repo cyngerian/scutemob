@@ -703,5 +703,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Provoke => "Provoke".to_string(),
         KeywordAbility::Afflict(n) => format!("Afflict {n}"),
         KeywordAbility::Renown(n) => format!("Renown {n}"),
+        KeywordAbility::Training => "Training".to_string(),
     }
 }

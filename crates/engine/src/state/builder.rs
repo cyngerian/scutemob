@@ -486,6 +486,30 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.149a: Training -- "Whenever this creature and at least one
+                // other creature with power greater than this creature's power attack,
+                // put a +1/+1 counter on this creature."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.149b).
+                // The trigger uses SelfAttacksWithGreaterPowerAlly, a dedicated event
+                // that is only dispatched in abilities.rs when a co-attacker with
+                // strictly greater power exists. This avoids unconditional firing on
+                // all attacks.
+                if matches!(kw, KeywordAbility::Training) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacksWithGreaterPowerAlly,
+                        intervening_if: None,
+                        description: "Training (CR 702.149a): Whenever this creature and at \
+                                      least one other creature with greater power attack, put \
+                                      a +1/+1 counter on this creature."
+                            .to_string(),
+                        effect: Some(Effect::AddCounter {
+                            target: EffectTarget::Source,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: 1,
+                        }),
+                    });
+                }
+
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."

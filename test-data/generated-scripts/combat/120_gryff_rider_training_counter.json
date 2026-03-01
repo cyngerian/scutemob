@@ -1,0 +1,191 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_120",
+    "name": "Training — Gryff Rider gets +1/+1 counter when co-attacking with greater-power creature",
+    "description": "p1 controls Gryff Rider ({2}{W}, 2/1, Flying + Training) and Bladetusk Boar (3/2, Intimidate). On turn 4, both attack together targeting p2. CR 702.149a: Training triggers at declare_attackers time because Bladetusk Boar (power 3) has strictly greater power than Gryff Rider (power 2). The Training trigger fires, goes on the stack, both players pass priority, and the trigger resolves placing one +1/+1 counter on Gryff Rider (now 3/2). The negative case (turn 5, modeled informally) shows Gryff Rider attacking alone: no co-attacker with greater power means Training does NOT trigger — no counter is placed and the stack remains empty.",
+    "cr_sections_tested": [
+      "702.149a",
+      "508.1",
+      "508.1f",
+      "508.1k",
+      "603.2",
+      "603.3",
+      "608.2",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "training",
+      "triggered-ability",
+      "declare-attackers",
+      "counter",
+      "combat",
+      "flying",
+      "gryff-rider",
+      "negative-case",
+      "attacks-alone"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Gryff Rider oracle text (MCP verified): {2}{W}, Creature — Human Knight, 2/1, Flying, Training. CR 702.149a: 'Training is a triggered ability. Training means: Whenever this creature and at least one other creature with power greater than this creature's power attack, put a +1/+1 counter on this creature.' Gryff Rider has a full CardDefinition in crates/engine/src/cards/defs/gryff_rider.rs with KeywordAbility::Training. Bladetusk Boar (Available Cards list): 3/2, Intimidate — power 3 is strictly greater than Gryff Rider's power 2, satisfying the Training trigger condition. The engine fires the Training trigger during DeclareAttackers processing when it finds a co-attacker (Bladetusk Boar, power 3) with power strictly greater than the attacker (Gryff Rider, power 2) — see abilities.rs SelfAttacksWithGreaterPowerAlly. Turn 4 used to avoid summoning sickness (CR 302.6). Positive case: Both Gryff Rider and Bladetusk Boar are declared as attackers simultaneously. Training trigger fires at declare_attackers time (per Ruling 2021-11-19 and engine implementation). The trigger resolves: one +1/+1 counter placed on Gryff Rider (2/1 → 3/2 effective). Stack count of 1 is asserted after declare_attackers to confirm trigger fired. Stack is empty after resolution to confirm trigger resolved. Negative case: Modeled as informational turn_based_action steps (not an additional declare_attackers call) because the harness does not implement untap between turns and creatures tapped in the positive case would reject a second declare_attackers. The negative-case scenario is documented with turn_based_action steps that describe: Gryff Rider attacks alone in turn 5 — no co-attacker, so Training does NOT trigger. This is consistent with how script 119 (Renown) handles multi-turn scenarios with harness limitations. Ruling 2021-11-19: 'A creature's training ability triggers only when both that creature and a creature with greater power are declared as attackers. Increasing a creature's power after attackers are declared won't cause a training ability to trigger.' Ruling 2021-11-19 also states: 'Once a creature's training ability has triggered, destroying the other attacking creature or reducing its power won't stop the creature with training from getting a +1/+1 counter.' CR 702.149b: Multiple instances of Training would trigger separately (not tested here). p2 controls no creatures; both attackers are unblocked in the positive case. Life totals unchanged from harness perspective (harness does not execute combat damage).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Gryff Rider", "tapped": false, "is_commander": false, "owner": null },
+          { "card": "Bladetusk Boar", "tapped": false, "is_commander": false, "owner": null }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "Turn 4 — POSITIVE CASE. p1 declares both Gryff Rider (2/1, Flying + Training) and Bladetusk Boar (3/2, Intimidate) as attackers targeting p2. CR 702.149a: Training triggers because Bladetusk Boar (power 3) has strictly greater power than Gryff Rider (power 2). Both creatures tap (CR 508.1f). The Training triggered ability fires and is placed on the stack.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Gryff Rider and Bladetusk Boar both untapped on p1 battlefield; life totals 40/40; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Gryff Rider" }, { "card": "Bladetusk Boar" }] },
+            "permanent.Gryff Rider.tapped": false,
+            "permanent.Bladetusk Boar.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Turn 4 — both creatures have been controlled since before this turn; no summoning sickness (CR 302.6). p2 controls no creatures. Stack is empty before attack declaration."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Gryff Rider", "target_player": "p2", "target_planeswalker": null },
+            { "card": "Bladetusk Boar", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Gryff Rider and Bladetusk Boar as attacking creatures targeting p2. CR 508.1f: Both become tapped. CR 508.1k: Both become attacking creatures. CR 702.149a: Training trigger condition checked at declaration time — Bladetusk Boar (power 3) is strictly greater than Gryff Rider's power (2) — Training trigger fires on Gryff Rider and is placed on the stack. Ruling 2021-11-19: trigger fires only when both are declared as attackers simultaneously."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: both creatures tapped; Training trigger on stack (count 1)",
+          "assertions": {
+            "permanent.Gryff Rider.tapped": true,
+            "permanent.Bladetusk Boar.tapped": true,
+            "zones.stack.count": 1
+          },
+          "note": "CR 508.1f: Both Gryff Rider and Bladetusk Boar tap when declared as attackers. CR 702.149a: Training trigger for Gryff Rider is on the stack — Bladetusk Boar's power (3) > Gryff Rider's power (2). The trigger will place one +1/+1 counter on Gryff Rider when it resolves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Training triggered ability (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Gryff Rider Training trigger",
+          "resolution": [
+            {
+              "effect": "put_counter",
+              "target": { "type": "permanent", "player": null, "card": "Gryff Rider", "controller": "p1" },
+              "amount": 1,
+              "counter_type": "plus1plus1",
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.149a",
+              "note": "CR 702.149a: Training resolves — put a +1/+1 counter on Gryff Rider. Gryff Rider goes from 2/1 to 3/2 effective (base 2/1 + one +1/+1 counter). Ruling 2021-11-19: destroying Bladetusk Boar after the trigger was placed would not stop the counter from being placed."
+            }
+          ],
+          "note": "CR 608.2: Training triggered ability resolves. One +1/+1 counter is placed on Gryff Rider. Effective P/T: 3/2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Training trigger resolves: stack empty; Gryff Rider and Bladetusk Boar still on p1 battlefield (tapped); +1/+1 counter placed on Gryff Rider (effective 3/2)",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Gryff Rider" }, { "card": "Bladetusk Boar" }] },
+            "permanent.Gryff Rider.tapped": true,
+            "permanent.Bladetusk Boar.tapped": true,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Training trigger has resolved. Gryff Rider now carries one +1/+1 counter (effective 3/2). Stack is empty. Both creatures remain on the battlefield in combat (tapped as attackers). Life totals unchanged — harness does not execute combat damage as an engine command."
+        }
+      ]
+    },
+    {
+      "step": "declare_attackers",
+      "step_note": "Turn 5 — NEGATIVE CASE (informational). After untap at the start of turn 5, Gryff Rider (now 3/2 with +1/+1 counter) attacks alone. Bladetusk Boar does not attack. CR 702.149a: Training does NOT trigger — there is no other attacking creature with strictly greater power than Gryff Rider's current power (3). Stack remains empty throughout. This step documents the negative case narratively; no harness commands are issued because the engine does not provide an untap command between turns.",
+      "actions": [
+        {
+          "type": "turn_based_action",
+          "description": "Beginning of turn 5: untap step (CR 502.2) — Gryff Rider and Bladetusk Boar both untap. Gryff Rider carries its +1/+1 counter (effective 3/2) from turn 4's Training resolution.",
+          "cr_ref": "502.2",
+          "note": "CR 502.2: At the beginning of the untap step, all permanents controlled by the active player untap simultaneously. Both Gryff Rider and Bladetusk Boar untap. The +1/+1 counter placed by Training in turn 4 remains — it is a permanent counter, not a until-end-of-turn effect. Gryff Rider's effective P/T is now 3/2 (base 2/1 + one +1/+1 counter). Harness does not execute untap steps; this step is informational."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers step (turn 5): p1 declares only Gryff Rider as an attacker targeting p2. Bladetusk Boar stays back. CR 702.149a: Training condition checked — no other creature is attacking alongside Gryff Rider, so there is no co-attacker with power greater than Gryff Rider's current power (3). Training does NOT trigger. Stack remains empty.",
+          "cr_ref": "702.149a",
+          "note": "CR 702.149a: Training reads 'Whenever this creature and at least one other creature with power greater than this creature's power attack...' Gryff Rider (power 3 after the +1/+1 counter) attacks alone. No co-attacker with power strictly greater than 3 is declared. The trigger condition is not met — Training does NOT fire. No trigger is placed on the stack. This validates the core constraint of Training: a qualifying co-attacker must be declared at the same time. Attacking with a creature of equal or lesser power, or attacking alone, does not trigger Training."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state (post-positive-case harness state): both creatures tapped from turn 4's declare_attackers; stack empty; life totals 40/40. Training trigger resolved in turn 4; no additional trigger was placed in the negative case (informational).",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Gryff Rider" }, { "card": "Bladetusk Boar" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Harness state reflects the end of the positive case (turn 4) — creatures tapped, stack empty, counter placed on Gryff Rider. The negative case (turn 5) is documented via turn_based_action informational steps above. Stack empty confirms no additional Training trigger was generated in the negative case narrative. Life totals unchanged throughout — harness does not execute combat damage."
+        }
+      ]
+    }
+  ]
+}

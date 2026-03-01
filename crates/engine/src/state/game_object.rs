@@ -203,6 +203,12 @@ pub enum TriggerEvent {
     /// `rules/abilities.rs` when processing `BlockersDeclared` events.
     /// Triggers once per attacker regardless of how many creatures block it (CR 509.3c).
     SelfBecomesBlocked,
+    /// CR 702.149a: Triggers when this creature attacks alongside at least one
+    /// other attacking creature with strictly greater power.
+    /// The power comparison is done at trigger-collection time in
+    /// `rules/abilities.rs` AttackersDeclared handler.
+    /// Used by the Training keyword.
+    SelfAttacksWithGreaterPowerAlly,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

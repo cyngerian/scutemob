@@ -490,6 +490,8 @@ impl HashInto for KeywordAbility {
                 81u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Training (discriminant 82) -- CR 702.149
+            KeywordAbility::Training => 82u8.hash_into(hasher),
         }
     }
 }
@@ -1184,6 +1186,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::ControllerProliferates => 17u8.hash_into(hasher),
             // CR 509.1h / CR 702.45a: SelfBecomesBlocked trigger — discriminant 18
             TriggerEvent::SelfBecomesBlocked => 18u8.hash_into(hasher),
+            // CR 702.149a: Training "attacks with greater power ally" trigger — discriminant 19
+            TriggerEvent::SelfAttacksWithGreaterPowerAlly => 19u8.hash_into(hasher),
         }
     }
 }

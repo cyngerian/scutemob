@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Renown validated; CR 702.112 confirmed; types.rs:683-692, game_object.rs:437-444, hash.rs:488-492+658-659+1449-1456, stack.rs:492-513, stubs.rs:287-298, abilities.rs:2137-2178+2664-2673, resolution.rs:1842-1874; Topan Freeblade card def; 7 unit tests in renown.rs; game script combat/119; P4 validated 11->12, total validated 103->104)
+> Last audited: 2026-03-01 (Training validated; CR 702.149 confirmed (was incorrectly listed as 702.150); types.rs:693-700, game_object.rs:206-211, builder.rs:489-511, hash.rs:493-494+1189-1190, abilities.rs:1508-1550; Gryff Rider card def; 7 unit tests in training.rs; game script combat/120; P4 validated 12->13, total validated 104->105)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 12        | 0        | 0       | 76   | 12  |
-| **Total**| **199**| **104**  | **2**    | **0**   | **81**| **12** |
+| P4       | 100   | 13        | 0        | 0       | 75   | 12  |
+| **Total**| **199**| **105**  | **2**    | **0**   | **80**| **12** |
 
 ---
 
@@ -203,7 +203,7 @@ Keywords triggered by creatures entering, leaving, or dying.
 | Tribute | 702.107 | P4 | `none` | — | — | — | — | Opponent chooses: +1/+1 counters or ability triggers |
 | Fabricate | 702.123 | P4 | `none` | — | — | — | — | ETB: choose +1/+1 counters or create Servo tokens |
 | Decayed | 702.147 | P4 | `validated` | state/types.rs:616-628, state/game_object.rs:399-408, rules/combat.rs:285-300+396-401, rules/turn_actions.rs:606-632 | Shambling Ghast | decayed.rs (8 tests) | baseline/112 | Can't block; sacrifice at end of combat when it attacks. Flag-on-object pattern (like Myriad); persists even if keyword removed (ruling 2021-09-24). |
-| Training | 702.150 | P4 | `none` | — | — | — | — | Attacks with greater-power creature → +1/+1 counter |
+| Training | 702.149 | P4 | `validated` | state/types.rs:693-700 (KeywordAbility::Training, discriminant 82), state/game_object.rs:206-211 (TriggerEvent::SelfAttacksWithGreaterPowerAlly, discriminant 19), state/builder.rs:489-511 (TriggeredAbilityDef auto-generation), state/hash.rs:493-494+1189-1190, rules/abilities.rs:1508-1550 (AttackersDeclared dispatch: layer-aware power comparison, SelfAttacksWithGreaterPowerAlly event) | Gryff Rider | training.rs (7 tests) | combat/120 | CR 702.149a+b fully enforced; triggered ability auto-generated from keyword in builder.rs; AttackersDeclared handler checks strictly-greater power among co-attackers (layer-aware); multiple instances trigger separately (CR 702.149b); 7 unit tests cover basic trigger, attacking alone (negative), equal power (negative), lower power (negative), multiple instances, two training creatures, 4-player multiplayer; game script approved |
 | Backup | 702.160 | P4 | `none` | — | — | — | — | ETB: put +1/+1 counters on target creature, it gains abilities |
 
 ---
@@ -541,3 +541,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Afflict (CR 702.130) — validated 2026-03-01 (script combat/118, Khenra Eternal, 6 unit tests in afflict.rs).
 
 **Resolved**: Renown (CR 702.112) — validated 2026-03-01 (script combat/119, Topan Freeblade, 7 unit tests in renown.rs).
+
+**Resolved**: Training (CR 702.149) — validated 2026-03-01 (script combat/120, Gryff Rider, 7 unit tests in training.rs).

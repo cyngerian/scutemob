@@ -1504,6 +1504,50 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             }
                         }
                     }
+
+                    // CR 702.149a: Training -- "Whenever this creature and at least one
+                    // other creature with power greater than this creature's power attack,
+                    // put a +1/+1 counter on this creature."
+                    // The condition is: among ALL attackers declared in this batch, at
+                    // least one other creature has strictly greater power than this creature.
+                    // CR 508.2a: condition checked at declaration time only.
+                    // Ruling 2021-11-19: "triggers only when both that creature and a
+                    // creature with greater power are declared as attackers."
+                    {
+                        // Get the power of the current attacker (layer-aware).
+                        let attacker_power =
+                            crate::rules::layers::calculate_characteristics(state, *attacker_id)
+                                .and_then(|c| c.power)
+                                .unwrap_or(0);
+
+                        // Check if any OTHER attacker in this batch has strictly greater power.
+                        let has_greater_power_ally = attackers.iter().any(|(other_id, _)| {
+                            *other_id != *attacker_id && {
+                                let other_power = crate::rules::layers::calculate_characteristics(
+                                    state, *other_id,
+                                )
+                                .and_then(|c| c.power)
+                                .unwrap_or(0);
+                                other_power > attacker_power
+                            }
+                        });
+
+                        if has_greater_power_ally {
+                            let pre_len_training = triggers.len();
+                            collect_triggers_for_event(
+                                state,
+                                &mut triggers,
+                                TriggerEvent::SelfAttacksWithGreaterPowerAlly,
+                                Some(*attacker_id),
+                                None,
+                            );
+                            // Tag training triggers with defending player for consistency
+                            // with other attack triggers.
+                            for t in &mut triggers[pre_len_training..] {
+                                t.defending_player_id = defending_player;
+                            }
+                        }
+                    }
                 }
 
                 // CR 702.83a/b: Exalted — "Whenever a creature you control attacks alone."

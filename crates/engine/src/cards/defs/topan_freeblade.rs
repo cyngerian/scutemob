@@ -14,6 +14,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             AbilityDefinition::Keyword(KeywordAbility::Renown(1)),
         ],
-        ..Default::default()
     }
 }

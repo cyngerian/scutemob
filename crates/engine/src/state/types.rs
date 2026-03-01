@@ -690,6 +690,14 @@ pub enum KeywordAbility {
     /// Implemented via custom `StackObjectKind::RenownTrigger` with intervening-if
     /// checked at both trigger time and resolution time (CR 603.4).
     Renown(u32),
+    /// CR 702.149: Training -- "Whenever this creature and at least one other creature
+    /// with power greater than this creature's power attack, put a +1/+1 counter on
+    /// this creature."
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// Multiple instances each trigger separately (CR 702.149b).
+    Training,
 }
 
 /// All creature subtypes from CR 205.3m.
