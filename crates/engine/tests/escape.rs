@@ -333,6 +333,7 @@ fn test_escape_basic_cast_from_graveyard() {
             escape_exile_cards: vec![fodder_a_id, fodder_b_id, fodder_c_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -461,6 +462,7 @@ fn test_escape_exile_cost_events() {
             escape_exile_cards: vec![c1_id, c2_id, c3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -554,6 +556,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
             escape_exile_cards: vec![f1_id, f2_id, f3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -655,6 +658,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
             escape_exile_cards: vec![x1_id, x2_id, x3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -751,6 +755,7 @@ fn test_escape_with_counter() {
             escape_exile_cards: chaff_ids,
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -845,6 +850,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -952,6 +958,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
             escape_exile_cards: vec![o1_id, o2_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1034,6 +1041,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
             escape_exile_cards: vec![d1_id, d1_id, d1_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1121,6 +1129,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             escape_exile_cards: vec![hand_id, gy1_id, gy2_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1204,6 +1213,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             escape_exile_cards: vec![z1_id, z2_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1299,6 +1309,7 @@ fn test_escape_requires_card_in_graveyard() {
             escape_exile_cards: vec![h1_id, h2_id, h3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1384,6 +1395,7 @@ fn test_escape_mana_value_unchanged() {
             escape_exile_cards: vec![m1_id, m2_id, m3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1499,6 +1511,7 @@ fn test_escape_auto_detected_from_graveyard() {
             escape_exile_cards: vec![a1_id, a2_id, a3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1592,6 +1605,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             escape_exile_cards: vec![r1_id, r2_id, r3_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1699,6 +1713,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             escape_exile_cards: vec![fodder_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1817,6 +1832,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             escape_exile_cards: vec![p1_c1_id, p2_card_id],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 

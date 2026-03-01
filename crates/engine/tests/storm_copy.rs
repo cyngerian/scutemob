@@ -139,6 +139,7 @@ fn test_storm_creates_copies() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -256,6 +257,7 @@ fn test_storm_copies_resolve_independently() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -383,6 +385,7 @@ fn test_storm_count_resets_each_turn() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -482,6 +485,7 @@ fn test_spell_copy_is_not_cast() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

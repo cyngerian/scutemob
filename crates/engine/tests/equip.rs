@@ -344,6 +344,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

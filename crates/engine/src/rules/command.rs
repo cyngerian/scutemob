@@ -154,6 +154,16 @@ pub enum Command {
         /// flashback, kicker, and other costs.
         #[serde(default)]
         cast_with_buyback: bool,
+        /// CR 702.96a: If true, cast this spell by paying its overload cost instead
+        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
+        /// combine with flashback, evoke, bestow, madness, miracle, escape, foretell,
+        /// or other alternative costs.
+        ///
+        /// When true, the spell has no targets (do NOT pass any in `targets`).
+        /// The spell's effect will use the overloaded branch (affecting all valid
+        /// objects instead of a single target).
+        #[serde(default)]
+        cast_with_overload: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

@@ -83,6 +83,7 @@ fn cast_and_resolve(
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -824,6 +825,7 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1154,6 +1156,7 @@ fn test_evolve_multiplayer_only_same_controller() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .expect("P2 CastSpell should succeed");

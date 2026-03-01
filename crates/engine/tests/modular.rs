@@ -194,6 +194,7 @@ fn test_modular_etb_counters() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -291,6 +292,7 @@ fn test_modular_etb_counters_n() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -684,6 +686,7 @@ fn test_modular_multiple_instances_etb() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -763,6 +766,7 @@ fn test_modular_0_0_base_stats_survives_etb() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

@@ -25,8 +25,8 @@ use std::collections::HashMap;
 use rand::SeedableRng;
 
 use crate::cards::card_definition::{
-    Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget, TargetFilter,
-    ZoneTarget,
+    Condition, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget, TargetController,
+    TargetFilter, ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{Characteristics, GameObject, ObjectId, ObjectStatus};
@@ -63,6 +63,10 @@ pub struct EffectContext {
     /// 0 = not kicked. Used by `Condition::WasKicked`. Set from `StackObject.kicker_times_paid`
     /// at spell resolution, or from `GameObject.kicker_times_paid` for ETB triggers.
     pub kicker_times_paid: u32,
+    /// CR 702.96a: If true, this spell was cast with its overload cost paid.
+    /// Used by `Condition::WasOverloaded`. Set from `StackObject.was_overloaded`
+    /// at spell resolution.
+    pub was_overloaded: bool,
 }
 
 impl EffectContext {
@@ -74,6 +78,7 @@ impl EffectContext {
             targets,
             target_remaps: HashMap::new(),
             kicker_times_paid: 0,
+            was_overloaded: false,
         }
     }
 
@@ -90,6 +95,7 @@ impl EffectContext {
             targets,
             target_remaps: HashMap::new(),
             kicker_times_paid,
+            was_overloaded: false,
         }
     }
 
@@ -1332,6 +1338,7 @@ fn execute_effect_inner(
                             }],
                             target_remaps: HashMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
+                            was_overloaded: ctx.was_overloaded,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1349,6 +1356,7 @@ fn execute_effect_inner(
                             }],
                             target_remaps: HashMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
+                            was_overloaded: ctx.was_overloaded,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2748,6 +2756,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .unwrap_or(true),
         // CR 702.33d: "if this spell was kicked" — true when kicker_times_paid > 0.
         Condition::WasKicked => ctx.kicker_times_paid > 0,
+        // CR 702.96a: "if this spell's overload cost was paid" — true when overloaded.
+        Condition::WasOverloaded => ctx.was_overloaded,
     }
 }
 
@@ -2784,11 +2794,23 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             })
             .map(|(&id, _)| id)
             .collect(),
+        // CR 702.96a: TargetFilter.controller is applied here to enforce "you don't control"
+        // constraints from overload cards and similar effects.
         ForEachTarget::EachPermanentMatching(filter) => state
             .objects
             .iter()
             .filter(|(_, obj)| {
-                obj.zone == ZoneId::Battlefield && matches_filter(&obj.characteristics, filter)
+                if obj.zone != ZoneId::Battlefield {
+                    return false;
+                }
+                if !matches_filter(&obj.characteristics, filter) {
+                    return false;
+                }
+                match filter.controller {
+                    TargetController::Any => true,
+                    TargetController::You => obj.controller == ctx.controller,
+                    TargetController::Opponent => obj.controller != ctx.controller,
+                }
             })
             .map(|(&id, _)| id)
             .collect(),

@@ -124,6 +124,7 @@ fn cast_spell(
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
 }
@@ -541,6 +542,7 @@ fn test_affinity_combined_with_improvise() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .expect(

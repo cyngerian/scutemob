@@ -176,12 +176,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .collect();
                             // CR 702.33d: Pass kicker status to the effect context so
                             // Condition::WasKicked can be checked during resolution.
+                            // CR 702.96a: Pass overload status so Condition::WasOverloaded works.
                             let mut ctx = EffectContext::new_with_kicker(
                                 controller,
                                 source_object,
                                 legal_targets,
                                 stack_obj.kicker_times_paid,
                             );
+                            ctx.was_overloaded = stack_obj.was_overloaded;
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -1429,6 +1431,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.62a: mark this spell as cast via suspend
                             // so resolution.rs can clear summoning sickness on ETB.
                             was_suspended: true,
+                            // CR 702.96a: suspend casts cannot be overloaded.
+                            was_overloaded: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 

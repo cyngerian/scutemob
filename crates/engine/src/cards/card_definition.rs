@@ -252,6 +252,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Suspend)` for quick
     /// presence-checking without scanning all abilities.
     Suspend { cost: ManaCost, time_counters: u32 },
+    /// CR 702.96: Overload [cost]. The card may be cast by paying this cost instead
+    /// of its mana cost (alternative cost, CR 118.9). When overloaded, the spell's
+    /// text replaces all instances of "target" with "each" -- modeled as conditional
+    /// effect dispatch via `Condition::WasOverloaded`.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Overload)` for quick
+    /// presence-checking without scanning all abilities.
+    Overload { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -804,6 +813,12 @@ pub enum Condition {
     /// `EffectContext` (for spells) or on the `GameObject` (for ETB triggers on
     /// permanents that entered kicked).
     WasKicked,
+    /// CR 702.96a: "if this spell's overload cost was paid" — true when
+    /// `was_overloaded` is set on the EffectContext or StackObject.
+    ///
+    /// Checked at resolution time. Used in card definitions to branch between
+    /// single-target and all-matching-permanents effects (analogous to WasKicked).
+    WasOverloaded,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

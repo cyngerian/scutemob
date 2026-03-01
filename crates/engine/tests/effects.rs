@@ -195,6 +195,7 @@ fn test_effect_deal_damage_to_player() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -279,6 +280,7 @@ fn test_effect_deal_damage_to_creature() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -366,6 +368,7 @@ fn test_effect_exile_and_gain_life() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -470,6 +473,7 @@ fn test_effect_draw_cards() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1024,6 +1028,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1153,6 +1158,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1261,6 +1267,7 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1370,6 +1377,7 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1506,6 +1514,7 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1608,6 +1617,7 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1734,6 +1744,7 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

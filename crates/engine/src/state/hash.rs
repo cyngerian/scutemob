@@ -454,6 +454,8 @@ impl HashInto for KeywordAbility {
                 69u8.hash_into(hasher);
                 name.hash_into(hasher);
             }
+            // Overload (discriminant 70) -- CR 702.96
+            KeywordAbility::Overload => 70u8.hash_into(hasher),
         }
     }
 }
@@ -1408,6 +1410,8 @@ impl HashInto for StackObject {
         self.was_buyback_paid.hash_into(hasher);
         // Suspend (CR 702.62a) — spell was cast via suspend cast trigger from exile
         self.was_suspended.hash_into(hasher);
+        // Overload (CR 702.96a) — spell was cast with overload cost
+        self.was_overloaded.hash_into(hasher);
     }
 }
 
@@ -2455,6 +2459,8 @@ impl HashInto for Condition {
                 8u8.hash_into(hasher);
                 counter.hash_into(hasher);
             }
+            // Overload condition (discriminant 9) — CR 702.96a
+            Condition::WasOverloaded => 9u8.hash_into(hasher),
         }
     }
 }
@@ -2875,6 +2881,11 @@ impl HashInto for AbilityDefinition {
                 20u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 time_counters.hash_into(hasher);
+            }
+            // Overload (discriminant 21) -- CR 702.96
+            AbilityDefinition::Overload { cost } => {
+                21u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

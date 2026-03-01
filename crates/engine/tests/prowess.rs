@@ -210,6 +210,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -325,6 +326,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -407,6 +409,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -487,6 +490,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -568,6 +572,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -662,6 +667,7 @@ fn test_prowess_until_end_of_turn_expires() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -770,6 +776,7 @@ fn test_prowess_multiple_spells_stack() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -809,6 +816,7 @@ fn test_prowess_multiple_spells_stack() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -906,6 +914,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

@@ -145,6 +145,7 @@ pub(crate) fn action_to_command(
             escape_exile_cards: Vec::new(),
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
         LegalAction::TapForMana {
             source,

@@ -449,6 +449,7 @@ fn test_madness_cast_from_exile() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -546,6 +547,7 @@ fn test_madness_sorcery_ignores_timing() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -677,6 +679,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -752,6 +755,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -906,6 +910,7 @@ fn test_madness_mana_value_unchanged() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -1033,6 +1038,7 @@ fn test_madness_effect_discard_goes_to_exile() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

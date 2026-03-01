@@ -201,6 +201,7 @@ fn test_ward_basic_counter_on_targeting() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -330,6 +331,7 @@ fn test_ward_does_not_trigger_for_controller() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -424,6 +426,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -615,6 +618,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -783,6 +787,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -880,6 +885,7 @@ fn test_ward_multiplayer_opponent_check() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

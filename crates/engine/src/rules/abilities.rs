@@ -341,6 +341,7 @@ pub fn handle_activate_ability(
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -561,6 +562,7 @@ pub fn handle_cycle_card(
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -733,6 +735,7 @@ pub fn handle_unearth_card(
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2029,6 +2032,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     cast_with_foretell: false,
                     was_buyback_paid: false,
                     was_suspended: false,
+                    was_overloaded: false,
                 };
                 state.stack_objects.push_back(stack_obj);
 
@@ -2129,6 +2133,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 cast_with_foretell: false,
                 was_buyback_paid: false,
                 was_suspended: false,
+                was_overloaded: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -2480,6 +2485,7 @@ pub fn handle_crew_vehicle(
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     };
     state.stack_objects.push_back(stack_obj);
 

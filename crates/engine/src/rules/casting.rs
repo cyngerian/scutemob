@@ -65,6 +65,7 @@ pub fn handle_cast_spell(
     escape_exile_cards: Vec<ObjectId>,
     cast_with_foretell: bool,
     cast_with_buyback: bool,
+    cast_with_overload: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -481,6 +482,58 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1g: Validate overload (CR 702.96a / CR 118.9a).
+    // Overload is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_overload = if cast_with_overload {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with madness (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with miracle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine overload with foretell (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if get_overload_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have overload".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
@@ -532,6 +585,16 @@ pub fn handle_cast_spell(
         if cost.is_none() {
             return Err(GameStateError::InvalidCommand(
                 "card has Foretell keyword but no foretell cost defined".into(),
+            ));
+        }
+        cost
+    } else if casting_with_overload {
+        // CR 702.96a: Pay overload cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let cost = get_overload_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Overload keyword but no overload cost defined".into(),
             ));
         }
         cost
@@ -669,6 +732,20 @@ pub fn handle_cast_spell(
                 })
             })
             .unwrap_or_default()
+    };
+
+    // CR 702.96b: When overloaded, the spell has no targets.
+    // Override requirements to empty so validate_targets doesn't require targets.
+    let requirements = if casting_with_overload {
+        // CR 702.96b: Overloaded spells have no targets.
+        if !targets.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "overloaded spells have no targets (CR 702.96b)".into(),
+            ));
+        }
+        vec![]
+    } else {
+        requirements
     };
 
     // CR 601.2c: Validate and record targets at cast time.
@@ -894,6 +971,8 @@ pub fn handle_cast_spell(
         was_buyback_paid,
         // CR 702.62a: Not cast via suspend in the normal casting path.
         was_suspended: false,
+        // CR 702.96a: Record whether this spell was cast by paying its overload cost.
+        was_overloaded: casting_with_overload,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -998,6 +1077,7 @@ pub fn handle_cast_spell(
             cast_with_foretell: false,
             was_buyback_paid: false,
             was_suspended: false,
+            was_overloaded: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1040,6 +1120,7 @@ pub fn handle_cast_spell(
             cast_with_foretell: false,
             was_buyback_paid: false,
             was_suspended: false,
+            was_overloaded: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1250,6 +1331,27 @@ fn get_foretell_cost(
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Foretell { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.96a: Look up the overload cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Overload { cost }`, or `None`
+/// if the card has no definition or no overload ability defined.
+fn get_overload_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Overload { cost } = a {
                     Some(cost.clone())
                 } else {
                     None

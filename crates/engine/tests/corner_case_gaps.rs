@@ -87,6 +87,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

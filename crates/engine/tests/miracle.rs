@@ -486,6 +486,7 @@ fn test_miracle_cast_for_miracle_cost() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -590,6 +591,7 @@ fn test_miracle_sorcery_ignores_timing() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -765,6 +767,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -791,6 +794,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
     assert!(

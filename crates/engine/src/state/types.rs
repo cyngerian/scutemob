@@ -588,6 +588,15 @@ pub enum KeywordAbility {
     /// and a creature without shadow can't be blocked by creatures with shadow."
     /// CR 702.28c: Multiple instances are redundant (auto-deduped by OrdSet).
     Shadow,
+    /// CR 702.96: Overload [cost] -- alternative cost; replaces "target" with "each".
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The overload cost itself is stored in `AbilityDefinition::Overload { cost }`.
+    ///
+    /// When cast with overload: the spell has no targets and affects all valid
+    /// objects instead of one target. Implements CR 702.96a/b via conditional
+    /// effect dispatch (like Kicker), not literal text replacement.
+    Overload,
 }
 
 /// All creature subtypes from CR 205.3m.

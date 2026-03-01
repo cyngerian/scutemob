@@ -828,6 +828,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();

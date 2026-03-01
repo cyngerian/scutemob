@@ -115,6 +115,7 @@ fn test_read_the_bones_scry_then_draw() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -291,6 +292,7 @@ fn test_path_to_exile_optional_search() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .unwrap();
@@ -785,6 +787,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             escape_exile_cards: vec![],
             cast_with_foretell: false,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     )
     .expect("casting Rest in Peace failed");

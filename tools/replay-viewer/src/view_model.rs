@@ -676,5 +676,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Adapt(n) => format!("Adapt {n}"),
         KeywordAbility::Shadow => "Shadow".to_string(),
         KeywordAbility::PartnerWith(name) => format!("Partner with {name}"),
+        KeywordAbility::Overload => "Overload".to_string(),
     }
 }

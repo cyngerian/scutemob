@@ -110,6 +110,7 @@ fn make_partner_with_trigger_stack_obj(
         cast_with_foretell: false,
         was_buyback_paid: false,
         was_suspended: false,
+        was_overloaded: false,
     }
 }
 

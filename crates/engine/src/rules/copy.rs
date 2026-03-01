@@ -189,6 +189,8 @@ pub fn copy_spell_on_stack(
         was_buyback_paid: false,
         // CR 702.62a: Copies are never cast via suspend.
         was_suspended: false,
+        // CR 702.96a: Copies are never cast, so was_overloaded is always false.
+        was_overloaded: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -364,6 +366,7 @@ pub fn resolve_cascade(
                 cast_with_foretell: false,
                 was_buyback_paid: false,
                 was_suspended: false,
+                was_overloaded: false,
             };
             state.stack_objects.push_back(stack_obj);
 

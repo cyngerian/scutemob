@@ -424,6 +424,7 @@ fn test_foretell_cannot_cast_same_turn() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -526,6 +527,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -894,6 +896,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -990,6 +993,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1085,6 +1089,7 @@ fn test_foretell_sorcery_timing_restriction() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1180,6 +1185,7 @@ fn test_foretell_instant_timing() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1401,6 +1407,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             escape_exile_cards: vec![],
             cast_with_foretell: false, // NOT requesting foretell cast
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 
@@ -1525,6 +1532,7 @@ fn test_foretell_requires_is_foretold_flag() {
             escape_exile_cards: vec![],
             cast_with_foretell: true,
             cast_with_buyback: false,
+            cast_with_overload: false,
         },
     );
 

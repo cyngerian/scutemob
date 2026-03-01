@@ -1,0 +1,243 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_108",
+    "name": "Vandalblast — normal cast then overloaded cast",
+    "description": "Tests both modes of Vandalblast. Scenario 1 (normal): p1 casts Vandalblast for {R} targeting p2's Sol Ring. Sol Ring is destroyed; p1's Mind Stone survives. Scenario 2 (overload): p1 casts Vandalblast with overload for {4}{R} (cast_spell_overload). ALL artifacts p1 doesn't control are destroyed — p2's Arcane Signet and p2's Thought Vessel are both destroyed. P1's Mind Stone survives because overloaded Vandalblast reads 'destroy each artifact you don't control' (CR 702.96b: no targets when overloaded; CR 702.96c: 'target' replaced by 'each'). This demonstrates the defining property of Overload: the caster's own permanents are exempt.",
+    "cr_sections_tested": ["601.2", "608.2", "701.7a", "702.96a", "702.96b", "702.96c"],
+    "corner_case_ref": null,
+    "tags": ["overload", "sorcery", "artifact-destruction", "vandalblast", "mass-removal", "alternate-cost"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Vandalblast oracle text: '{R}, Sorcery — Destroy target artifact you don't control. Overload {4}{R} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of \"target\" with \"each\".)'. Card definition (vandalblast.rs): mana_cost {R}, AbilityDefinition::Overload { cost: ManaCost { generic: 4, red: 1 } }, AbilityDefinition::Spell with Effect::Conditional { condition: Condition::WasOverloaded, if_true: ForEach over EachPermanentMatching(Artifact, Opponent), if_false: DestroyPermanent(DeclaredTarget{0}) }. Normal cast: single target, destroys one artifact not controlled by caster. Overload cast: no targets (CR 702.96b), text becomes 'destroy each artifact you don't control' (CR 702.96c). CR 702.96a: overload cost {4}{R} replaces the base mana cost {R}. Scenario 1: p1 controls Mind Stone (survives), p2 controls Sol Ring (destroyed). Scenario 2: p1 still controls Mind Stone (survives); p2 now controls Arcane Signet and Thought Vessel (both destroyed). Mana pool pre-loaded for both casts: scenario 1 needs {R}, scenario 2 needs {4}{R}, total = red:2 + colorless:4. Both scenarios share the same initial state; mana is consumed sequentially across script steps. Key assertion: p1's Mind Stone remains on battlefield in both scenarios, confirming the 'you don't control' restriction.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 2, "colorless": 4 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Mind Stone", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Arcane Signet", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Thought Vessel", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Vandalblast", "is_commander": false, "owner": null },
+          { "card": "Vandalblast", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Scenario 1: p1 casts Vandalblast normally for {R} targeting p2's Sol Ring",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 has Mind Stone; p2 has Sol Ring, Arcane Signet, Thought Vessel; p1 has 2x Vandalblast in hand",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Mind Stone" }]
+            },
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Sol Ring" },
+                { "card": "Arcane Signet" },
+                { "card": "Thought Vessel" }
+              ]
+            },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Vandalblast",
+          "targets": [
+            { "type": "permanent", "card": "Sol Ring", "controller": "p2", "player": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Vandalblast normally for {R}, targeting p2's Sol Ring (an artifact p1 doesn't control)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After normal cast: Vandalblast on stack, p1 hand down to 1",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 1
+          },
+          "note": "Vandalblast moved from hand to stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Vandalblast resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Vandalblast",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Sol Ring", "controller": "p2" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Sol Ring is destroyed and moves to p2's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Vandalblast resolves. Normal mode destroys the single targeted artifact (Sol Ring). Mind Stone is unaffected."
+        },
+        {
+          "type": "assert_state",
+          "description": "After normal Vandalblast: Sol Ring gone, p1's Mind Stone survives, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Vandalblast" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Sol Ring" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Mind Stone" }] },
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Arcane Signet" },
+                { "card": "Thought Vessel" }
+              ],
+              "excludes": ["Sol Ring"]
+            }
+          },
+          "note": "Normal Vandalblast destroyed only Sol Ring (its single target). P1's Mind Stone survived — the 'you don't control' condition prevented p1 from targeting their own artifacts."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Scenario 2: p1 casts Vandalblast with overload for {4}{R} — destroys ALL artifacts p1 doesn't control",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Before overloaded cast: p1 has 1 Vandalblast in hand, Mind Stone on battlefield; p2 has Arcane Signet and Thought Vessel",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Mind Stone" }] },
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Arcane Signet" },
+                { "card": "Thought Vessel" }
+              ]
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_overload",
+          "card": "Vandalblast",
+          "targets": [],
+          "mana_paid": { "red": 1, "colorless": 4 },
+          "mana_source": [],
+          "cr_ref": "702.96a",
+          "note": "CR 702.96a: p1 pays the overload cost {4}{R} instead of the base cost {R}. CR 702.96b: the spell has no targets — it affects each artifact p1 doesn't control. Total mana paid: {4}{R}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After overloaded cast: Vandalblast on stack, p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Overloaded Vandalblast is on the stack. No targets were declared (CR 702.96b)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — overloaded Vandalblast resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Vandalblast",
+          "resolution": [
+            {
+              "effect": "destroy_all_matching",
+              "filter": "artifacts you don't control",
+              "affected": [
+                { "card": "Arcane Signet", "controller": "p2" },
+                { "card": "Thought Vessel", "controller": "p2" }
+              ],
+              "not_affected": [
+                { "card": "Mind Stone", "controller": "p1" }
+              ],
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.96c",
+              "note": "CR 702.96c: Overload's text-changing effect replaced 'target' with 'each', so the spell reads 'destroy each artifact you don't control.' CR 702.96b: The spell had no targets. P1's Mind Stone is NOT destroyed because it is controlled by p1. Both of p2's artifacts (Arcane Signet, Thought Vessel) are destroyed simultaneously."
+            }
+          ],
+          "note": "CR 608.2: Overloaded Vandalblast resolves. The text-changing effect (CR 702.96c) makes it hit every artifact p1 doesn't control simultaneously."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p2's artifacts destroyed, p1's Mind Stone survives, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Vandalblast" }] },
+            "zones.graveyard.p2": {
+              "includes": [
+                { "card": "Arcane Signet" },
+                { "card": "Thought Vessel" }
+              ]
+            },
+            "zones.battlefield.p1": { "includes": [{ "card": "Mind Stone" }] },
+            "zones.battlefield.p2.count": 0
+          },
+          "note": "Overloaded Vandalblast destroyed all of p2's artifacts (Arcane Signet and Thought Vessel). P1's Mind Stone survived — it is controlled by p1, the caster, so the 'you don't control' restriction exempts it (CR 702.96b + 702.96c)."
+        }
+      ]
+    }
+  ]
+}

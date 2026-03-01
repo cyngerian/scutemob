@@ -124,6 +124,14 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_suspended: bool,
+    /// CR 702.96a: If true, this spell was cast by paying its overload cost
+    /// (an alternative cost). At resolution, the spell's effect uses the
+    /// "each" (all-matching) branch instead of the "target" (single-target)
+    /// branch. The spell has no targets and cannot fizzle.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_overloaded: bool,
 }
 
 /// The kind of object on the stack.

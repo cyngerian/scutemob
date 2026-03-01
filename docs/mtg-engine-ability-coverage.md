@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Partner With validated; CR 702.124j confirmed; state/types.rs:213, state/stack.rs:394, rules/abilities.rs, rules/resolution.rs:1572, rules/commander.rs:487-540; Pir + Toothy card defs; 10 unit tests in partner_with.rs; game script baseline/107 approved; P3 validated 34->35, total validated 91->92)
+> Last audited: 2026-02-28 (Overload validated; CR 702.96 confirmed; state/types.rs:599, card_definition.rs:255-263+821, stack.rs:127-134, effects/mod.rs:66-69+2759-2760, casting.rs:485-529+591-597+737-743+974-975, command.rs:157-166, resolution.rs:179-186, replay_harness.rs:668-689; Vandalblast card def; 11 unit tests in overload.rs; game script baseline/108 approved; P3 validated 35->36, total validated 92->93)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 35        | 0        | 0       | 5    | 0   |
+| P3       | 40    | 36        | 0        | 0       | 4    | 0   |
 | P4       | 100   | 1         | 0        | 0       | 87   | 12  |
-| **Total**| **199**| **92**   | **2**    | **0**   | **93**| **12** |
+| **Total**| **199**| **93**   | **2**    | **0**   | **92**| **12** |
 
 ---
 
@@ -148,7 +148,7 @@ Keywords that modify how spells are cast, copied, or resolved.
 | Storm | 702.40 | P1 | `validated` | `rules/casting.rs`, `rules/copy.rs` | Grapeshot (etc.) | `stack/` scripts | — | Copy for each prior spell this turn |
 | Cascade | 702.85 | P1 | `validated` | `rules/casting.rs`, `rules/copy.rs` | Bloodbraid Elf (etc.) | `stack/` scripts | — | Exile until nonland with lesser MV, cast free |
 | Kicker | 702.33 | P2 | `validated` | `state/types.rs:244`, `cards/card_definition.rs:152-166`, `effects/mod.rs:60-91,1744-1745`, `state/stack.rs:58`, `state/game_object.rs:269`, `rules/command.rs:88`, `rules/casting.rs:169-205,393,549-568`, `rules/resolution.rs:149-156,187`, `testing/script_schema.rs:228-232`, `testing/replay_harness.rs:204,238` | Burst Lightning, Torch Slinger | `stack/065` | — | KeywordAbility::Kicker enum + AbilityDefinition::Kicker { cost, is_multikicker }; Condition::WasKicked; kicker_times_paid on StackObject + GameObject; kicker_times on CastSpell; get_kicker_cost + validation/payment in casting.rs; kicker propagation to EffectContext in resolution.rs; harness kicked:bool support; 10 unit tests in `tests/kicker.rs`; game script pending_review (assertions pass) |
-| Overload | 702.96 | P3 | `none` | — | — | — | — | Replace "target" with "each" |
+| Overload | 702.96 | P3 | `validated` | `state/types.rs:599`, `cards/card_definition.rs:255-263,821`, `state/stack.rs:127-134`, `effects/mod.rs:66-69,2759-2760`, `rules/command.rs:157-166`, `rules/casting.rs:485-529,591-597,737-743,974-975`, `rules/resolution.rs:179-186`, `testing/replay_harness.rs:668-689` | Vandalblast | `baseline/108` | — | KeywordAbility::Overload enum + AbilityDefinition::Overload { cost }; Condition::WasOverloaded; cast_with_overload on CastSpell command; was_overloaded on StackObject + EffectContext; overload cost payment as alternative cost (CR 118.9); no-targets enforcement (CR 702.96b); alternative cost mutual exclusion (flashback/evoke/bestow/madness/miracle/escape/foretell); commander tax stacking; harness cast_spell_overload action; 11 unit tests in `tests/overload.rs`; game script baseline/108 approved |
 | Replicate | 702.56 | P4 | `none` | — | — | — | — | Pay replicate cost N times → N copies |
 | Splice | 702.47 | P4 | `none` | — | — | — | — | Reveal from hand, add text to another spell |
 | Entwine | 702.42 | P4 | `none` | — | — | — | — | Pay entwine cost to choose all modes |
@@ -515,3 +515,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Bolster (CR 701.39) — validated 2026-02-28 (script baseline/104, Cached Defenses, 8 unit tests in bolster.rs).
 
 **Resolved**: Adapt (CR 701.46) — validated 2026-02-28 (script baseline/105, Sharktocrab, 6 unit tests in adapt.rs).
+
+**Resolved**: Overload (CR 702.96) — validated 2026-02-28 (script baseline/108, Vandalblast, 11 unit tests in overload.rs).

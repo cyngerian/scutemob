@@ -282,6 +282,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: buyback,
+                cast_with_overload: false,
             })
         }
 
@@ -308,6 +309,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -331,6 +333,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -354,6 +357,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -378,6 +382,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -402,6 +407,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -431,6 +437,7 @@ pub fn translate_player_action(
                 escape_exile_cards: exile_ids,
                 cast_with_foretell: false,
                 cast_with_buyback: false,
+                cast_with_overload: false,
             })
         }
 
@@ -654,6 +661,32 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 cast_with_foretell: true,
                 cast_with_buyback: false,
+                cast_with_overload: false,
+            })
+        }
+
+        // CR 702.96a: Cast a spell with overload from the player's hand.
+        // The overload cost (an alternative cost) is paid instead of the mana cost.
+        // The spell has no targets -- it affects all valid objects.
+        "cast_spell_overload" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            // CR 702.96b: Overloaded spells have no targets.
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: vec![],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+                cast_with_overload: true,
             })
         }
 

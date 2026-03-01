@@ -105,6 +105,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         escape_exile_cards: Vec::new(),
                         cast_with_foretell: false,
                         cast_with_buyback: false,
+                        cast_with_overload: false,
                     };
                     app.execute_command(cmd)?;
                 } else {
