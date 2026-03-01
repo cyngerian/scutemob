@@ -1,0 +1,225 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_118",
+    "name": "Afflict 1 — Khenra Eternal life loss when blocked, blocker survives",
+    "description": "p1 controls Khenra Eternal (2/2, Afflict 1). p2 controls Alela, Cunning Conqueror (2/4, Flying, Deathtouch). p1 attacks with Khenra Eternal targeting p2. p2 blocks with Alela. CR 702.130a: Afflict triggers when Khenra Eternal becomes blocked — 'defending player loses 1 life.' The trigger goes on the stack during the declare blockers step; both players pass priority; the trigger resolves and p2 loses 1 life (not damage — life loss is not damage, CR 118.2). p2 goes from 40 to 39. Then both players pass priority in the declare blockers step and advance to combat damage. In combat damage (CR 510.1): Khenra Eternal (power 2) deals 2 damage to Alela; Alela (power 2) deals 2 damage to Khenra Eternal. SBA 704.5g: Khenra Eternal has toughness 2 and received 2 damage — lethal — destroyed. Alela has toughness 4 and received 2 damage — not lethal — survives. Final: p2 at 39 life (Afflict life loss only; Khenra was blocked, so no player damage from Khenra, CR 510.1c), Khenra Eternal in p1 graveyard, Alela still on p2 battlefield.",
+    "cr_sections_tested": ["702.130a", "118.2", "508.1", "508.1f", "509.1", "509.1a", "509.1g", "509.1h", "510.1", "510.2", "704.5g", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["combat", "afflict", "triggered-ability", "life-loss", "not-damage", "declare-blockers", "sba", "creature-dies"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Khenra Eternal oracle text (engine def verified): Creature — Zombie Jackal Warrior, {1}{B}, 2/2, Afflict 1. Afflict implemented as TriggeredAbilityDef with TriggerEvent::SelfBecomesBlocked, Effect::LoseLife { player: DeclaredTarget{0}, amount: Fixed(1) } (builder.rs:769). CR 702.130a: 'Afflict N means: Whenever this creature becomes blocked, defending player loses N life.' The trigger fires at declare blockers when Khenra Eternal 'becomes blocked' (CR 509.1h). Life loss (CR 118.2) is NOT damage — this is a critical distinction from Afflict vs. a damage-dealing ability. p2 life goes 40 → 39 from Afflict resolution, BEFORE combat damage is dealt. Alela, Cunning Conqueror chosen as blocker (engine def verified: 2/4, Flying, Deathtouch, Legendary): power 2 is lethal to Khenra Eternal (2 damage = Khenra toughness 2), toughness 4 survives Khenra's 2 damage. No exact 3/3 exists in the engine's available card defs; Alela's 2/4 fulfills the same mechanical requirements. Alela's 'opponent-casts' triggered ability (creates Faerie Rogue token) does NOT fire — no spells are cast during combat. Alela's Flying is irrelevant (Flying restricts what can block Alela, not what Alela can block — here Alela is the blocker). Alela's Deathtouch means any nonzero damage from Alela would be lethal to Khenra regardless, but Alela's full power 2 equals Khenra's toughness 2 anyway, so the result is the same. Turn 4 used to avoid summoning sickness on Khenra Eternal (CR 302.6). Assertion notes: players.p2.life = 39 after Afflict resolves (lost 1 life from trigger, not from damage — if Afflict dealt damage instead, damage-prevention effects could stop it; life loss cannot be prevented, it can only be replaced). After combat damage SBAs: zones.graveyard.p1 includes Khenra Eternal (SBA 704.5g); zones.battlefield.p2 includes Alela, Cunning Conqueror (not lethal); players.p2.life = 39 (no additional life change from combat damage — blocked attacker assigns damage to blocker only, CR 510.1c).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Khenra Eternal", "tapped": false, "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Alela, Cunning Conqueror", "tapped": false, "is_commander": false, "owner": null }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Khenra Eternal as an attacker targeting p2. CR 508.1f: Khenra Eternal becomes tapped. Afflict does NOT trigger at this point — CR 702.130a triggers when the creature 'becomes blocked', which happens at declare blockers (CR 509.1h). Priority resets to p1.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Khenra Eternal untapped on p1 battlefield; Alela untapped on p2 battlefield; life totals 40/40; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Khenra Eternal" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Alela, Cunning Conqueror" }] },
+            "permanent.Khenra Eternal.tapped": false,
+            "permanent.Alela, Cunning Conqueror.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Turn 4 — no summoning sickness (CR 302.6). Khenra Eternal (2/2, Afflict 1) is a legal attacker. Alela, Cunning Conqueror (2/4, Flying, Deathtouch) can legally block non-flying creatures."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Khenra Eternal", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Khenra Eternal as an attacking creature targeting p2. CR 508.1f: Khenra Eternal becomes tapped. CR 508.1k: Khenra Eternal becomes an attacking creature. Afflict 1 does NOT trigger here — CR 702.130a triggers on 'becomes blocked', not on 'becomes an attacker'."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Khenra Eternal tapped, Alela untapped, stack empty",
+          "assertions": {
+            "permanent.Khenra Eternal.tapped": true,
+            "permanent.Alela, Cunning Conqueror.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Khenra Eternal tapped as part of attack declaration. No triggers fire — Afflict triggers only when the creature becomes blocked, not when it attacks."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 declares Alela as a blocker for Khenra Eternal. CR 509.1h: Khenra Eternal becomes a blocked creature. CR 702.130a: Afflict 1 triggers — 'Whenever this creature becomes blocked, defending player loses 1 life.' Trigger goes on the stack. Both players pass; trigger resolves: p2 loses 1 life (40 → 39). Life loss is not damage (CR 118.2).",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [
+            { "card": "Alela, Cunning Conqueror", "blocking": "Khenra Eternal" }
+          ],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares Alela, Cunning Conqueror as a blocker for Khenra Eternal. CR 509.1a: Alela is untapped — legal blocker. CR 509.1g: Alela becomes a blocking creature. CR 509.1h: Khenra Eternal 'becomes blocked' — the Afflict 1 triggered ability fires (CR 702.130a), placing one trigger on the stack: 'Defending player (p2) loses 1 life.'"
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_blockers: Afflict trigger on the stack (count 1), both creatures still on battlefield, p2 life still 40 (trigger not yet resolved)",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Khenra Eternal" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Alela, Cunning Conqueror" }] },
+            "zones.stack.count": 1,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.130a: Afflict 1 trigger is on the stack. p2 has not yet lost any life — the trigger must resolve before the life loss occurs. Stack count is 1 (the Afflict triggered ability)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Afflict trigger (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Khenra Eternal",
+          "resolution": [
+            {
+              "effect": "lose_life",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: Afflict 1 trigger resolves — p2 loses 1 life. Life loss is not damage and cannot be prevented by damage-prevention effects. p2 life: 40 → 39."
+            }
+          ],
+          "note": "CR 608.2: Afflict triggered ability resolves. CR 702.130a: defending player (p2) loses 1 life. CR 118.2: life loss decreases p2's life total from 40 to 39. This life loss occurs before combat damage is dealt."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Afflict trigger resolves: p2 at 39 life, stack empty, both creatures still on battlefield",
+          "assertions": {
+            "players.p2.life": 39,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Khenra Eternal" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Alela, Cunning Conqueror" }] }
+          },
+          "note": "Afflict 1 resolved: p2 lost 1 life (40 → 39) before combat damage. This is life loss, not damage — damage-prevention effects cannot stop it. Both creatures remain on the battlefield; combat damage has not yet been dealt."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action: Khenra Eternal (power 2, blocked) assigns 2 to Alela; Alela (power 2) assigns 2 to Khenra Eternal. Damage is simultaneous (CR 510.2). SBA 704.5g: Khenra Eternal (toughness 2, received 2 damage) — lethal — destroyed. Alela (toughness 4, received 2 damage) — not lethal — survives."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "Combat damage turn-based action (CR 510.1): Khenra Eternal (power 2, blocked) assigns 2 damage to Alela; Alela (power 2) assigns 2 damage to Khenra Eternal. Damage is simultaneous (CR 510.2). SBA 704.5g: Khenra Eternal has toughness 2 and 2 damage marked — lethal — destroyed. Alela has toughness 4 and 2 damage marked — not lethal — survives. p2 takes no player damage from Khenra Eternal (blocked attacker assigns damage to the blocker, CR 510.1c). p2's life total remains 39 (already reduced by Afflict).",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Khenra Eternal has toughness 2 and 2 damage marked (from Alela's power 2) — 2 >= 2 — lethal damage — destroyed",
+              "object": "Khenra Eternal",
+              "controller": "p1",
+              "result": "moved to p1 graveyard",
+              "cr_ref": "704.5g"
+            }
+          ],
+          "note": "CR 704.5g: Khenra Eternal's toughness is 2 and it has 2 damage marked — lethal damage — it is destroyed and moves to p1's graveyard. Alela has toughness 4 and only 2 damage marked — not lethal — Alela survives and remains on p2's battlefield. SBAs are applied as a batch (CR 704.3). Note: Alela has Deathtouch, but Deathtouch applies to damage Alela deals to other creatures; it does not affect the SBA calculation for Khenra Eternal's lethal damage here (Alela's 2 damage to Khenra = toughness 2, which is already lethal without Deathtouch)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after combat damage resolves and SBAs have been applied. Stack is empty — advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p2 at 39 life (lost 1 from Afflict; no player damage from blocked Khenra), Khenra Eternal in p1 graveyard, Alela, Cunning Conqueror still on p2 battlefield",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 39,
+            "zones.graveyard.p1": { "includes": [{ "card": "Khenra Eternal" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Khenra Eternal" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Alela, Cunning Conqueror" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.130a: p2 lost exactly 1 life from Afflict (trigger resolved before combat damage). CR 510.1c: Khenra Eternal was blocked — it assigned all 2 damage to Alela, not to p2. p2's life total is 39 (only the Afflict life loss, not damage). CR 704.5g: Khenra Eternal (toughness 2, 2 damage) was destroyed by SBA — moved to p1's graveyard. Alela, Cunning Conqueror (toughness 4, 2 damage marked) — 2 < 4 — not lethal — remains on p2's battlefield."
+        }
+      ]
+    }
+  ]
+}

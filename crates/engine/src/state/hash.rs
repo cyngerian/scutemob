@@ -480,6 +480,11 @@ impl HashInto for KeywordAbility {
             }
             // Provoke (discriminant 79) -- CR 702.39
             KeywordAbility::Provoke => 79u8.hash_into(hasher),
+            // Afflict (discriminant 80) -- CR 702.130
+            KeywordAbility::Afflict(n) => {
+                80u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }

@@ -671,6 +671,15 @@ pub enum KeywordAbility {
     /// forced-block requirement to `CombatState::forced_blocks` (enforced in
     /// `handle_declare_blockers` per CR 509.1c).
     Provoke,
+    /// CR 702.130: Afflict N -- triggered ability.
+    /// "Whenever this creature becomes blocked, defending player loses N life."
+    /// CR 702.130b: Multiple instances trigger separately.
+    ///
+    /// Implemented as a triggered ability. builder.rs auto-generates a
+    /// TriggeredAbilityDef from this keyword at object-construction time.
+    /// The trigger fires on SelfBecomesBlocked events; the defending player
+    /// is resolved at flush time via PendingTrigger.defending_player_id.
+    Afflict(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

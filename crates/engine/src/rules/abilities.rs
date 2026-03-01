@@ -1527,7 +1527,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
-            GameEvent::BlockersDeclared { blockers, .. } => {
+            GameEvent::BlockersDeclared {
+                blockers,
+                defending_player,
+            } => {
                 // SelfBlocks: fires on each creature that is blocking (CR 603.5).
                 for (blocker_id, _) in blockers {
                     collect_triggers_for_event(
@@ -1685,6 +1688,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 }
                             }
                         }
+                    }
+
+                    // CR 509.3c / CR 702.130a: Tag all SelfBecomesBlocked triggers with
+                    // the defending player so flush_pending_triggers sets Target::Player at
+                    // index 0. This enables PlayerTarget::DeclaredTarget { index: 0 } in
+                    // Afflict's LoseLife effect to resolve to the correct defending player
+                    // in multiplayer games (CR 508.5). Bushido and Rampage target the
+                    // source object rather than a player, so tagging defending_player_id
+                    // has no effect on them (flush_pending_triggers only uses it for the
+                    // LoseLife path via DeclaredTarget; Bushido/Rampage use Source/custom).
+                    for t in &mut triggers[pre_len..] {
+                        t.defending_player_id = Some(*defending_player);
                     }
                 }
             }

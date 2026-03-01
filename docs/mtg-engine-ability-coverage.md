@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Provoke validated; CR 702.39 confirmed; types.rs:660-673, state/stack.rs:478-491, state/combat.rs:58-64, state/builder.rs:745-761, rules/abilities.rs:1409-1452+2311-2530, rules/resolution.rs:1788-1830, rules/combat.rs:630-797; Goblin Grappler card def; 7 unit tests in provoke.rs; game script combat/117; P4 validated 9->10, total validated 101->102)
+> Last audited: 2026-03-01 (Afflict validated; CR 702.130 confirmed; types.rs:674-682, hash.rs:483-486, builder.rs:764-782, abilities.rs:1693-1703; Khenra Eternal card def; 6 unit tests in afflict.rs; game script combat/118; P4 validated 10->11, total validated 102->103)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 10        | 0        | 0       | 78   | 12  |
-| **Total**| **199**| **102**  | **2**    | **0**   | **83**| **12** |
+| P4       | 100   | 11        | 0        | 0       | 77   | 12  |
+| **Total**| **199**| **103**  | **2**    | **0**   | **82**| **12** |
 
 ---
 
@@ -181,7 +181,7 @@ Keywords that modify combat or trigger during combat.
 | Rampage | 702.23 | P4 | `validated` | `state/types.rs:649-659`, `state/stack.rs:448-468`, `state/stubs.rs:256-268`, `state/hash.rs:476-477+1108-1110+1411-1418`, `state/builder.rs:724-743`, `rules/abilities.rs:1596-1616+2425-2431`, `rules/resolution.rs:1723-1743` | Wolverine Pack | `rampage.rs` (8 tests) | `combat/116` | KeywordAbility::Rampage(u32) enum; StackObjectKind::RampageTrigger with source_object+rampage_n; builder generates TriggeredAbilityDef(SelfBecomesBlocked) per Rampage instance; abilities.rs tags is_rampage_trigger+rampage_n on PendingTrigger at BlockersDeclared; resolution.rs computes bonus=(blocker_count-1)*N as +N/+N until EOT; CR 702.23c multiple instances trigger separately; 8 unit tests (blocked-by-2, blocked-by-1-no-bonus, blocked-by-3-scaled, multiple-instances, not-blocked, bonus-expires-EOT, bonus-at-resolution, rampage-3-by-4); card def wolverine_pack.rs; game script combat/116 |
 | Banding | 702.22 | P4 | `n/a` | — | — | — | — | Extremely complex, rarely used; intentionally deferred |
 | Renown | 702.112 | P4 | `none` | — | — | — | — | Put +1/+1 counters on first combat damage to player |
-| Afflict | 702.130 | P4 | `none` | — | — | — | — | Defending player loses N life when this is blocked |
+| Afflict | 702.130 | P4 | `validated` | `state/types.rs:674-682`, `state/hash.rs:483-486`, `state/builder.rs:764-782`, `rules/abilities.rs:1693-1703` | Khenra Eternal | `combat/118` | — | KeywordAbility::Afflict(u32) enum (discriminant 80); TriggeredAbilityDef via builder.rs using SelfBecomesBlocked + LoseLife with DeclaredTarget; defending_player_id tagging in abilities.rs BlockersDeclared handler (CR 508.5 multiplayer); 6 unit tests in `tests/afflict.rs` (basic life loss, not-blocked-no-trigger, multiple-blockers-single-trigger, multiple-instances-trigger-separately, multiplayer-correct-defending-player, life-loss-not-damage); card def khenra_eternal.rs; game script combat/118 |
 
 ---
 
@@ -537,3 +537,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Rampage (CR 702.23) — validated 2026-03-01 (script combat/116, Wolverine Pack, 8 unit tests in rampage.rs).
 
 **Resolved**: Provoke (CR 702.39) — validated 2026-03-01 (script combat/117, Goblin Grappler, 7 unit tests in provoke.rs).
+
+**Resolved**: Afflict (CR 702.130) — validated 2026-03-01 (script combat/118, Khenra Eternal, 6 unit tests in afflict.rs).

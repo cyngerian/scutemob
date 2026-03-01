@@ -760,6 +760,26 @@ impl GameStateBuilder {
                         effect: None, // Handled by ProvokeTrigger resolution
                     });
                 }
+
+                // CR 702.130a: Afflict N -- "Whenever this creature becomes blocked,
+                // defending player loses N life."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.130b).
+                // The effect targets the defending player (DeclaredTarget { index: 0 }),
+                // which is resolved at flush time via PendingTrigger.defending_player_id.
+                if let KeywordAbility::Afflict(n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfBecomesBlocked,
+                        intervening_if: None,
+                        description: format!(
+                            "Afflict {n} (CR 702.130a): Whenever this creature becomes blocked, \
+                             defending player loses {n} life."
+                        ),
+                        effect: Some(Effect::LoseLife {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(*n as i32),
+                        }),
+                    });
+                }
             }
 
             let characteristics = Characteristics {

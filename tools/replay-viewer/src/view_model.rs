@@ -698,5 +698,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Bushido(n) => format!("Bushido {n}"),
         KeywordAbility::Rampage(n) => format!("Rampage {n}"),
         KeywordAbility::Provoke => "Provoke".to_string(),
+        KeywordAbility::Afflict(n) => format!("Afflict {n}"),
     }
 }
