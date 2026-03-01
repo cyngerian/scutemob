@@ -617,4 +617,17 @@ pub enum StackObjectKind {
         attack_target: crate::state::combat::AttackTarget,
         from_command_zone: bool,
     },
+    /// CR 702.128a: Embalm activated ability on the stack.
+    ///
+    /// When this ability resolves: create a token that's a copy of the source card,
+    /// except it's white, has no mana cost, and is a Zombie in addition to its
+    /// other types (CR 702.128a).
+    ///
+    /// `source_card_id` is the CardId (registry key) of the card that was exiled as cost.
+    /// The original card was exiled during activation (cost payment), so no ObjectId is
+    /// available at resolution time (CR 400.7). The token's characteristics come from
+    /// the CardDefinition in the registry.
+    EmbalmAbility {
+        source_card_id: Option<crate::state::player::CardId>,
+    },
 }

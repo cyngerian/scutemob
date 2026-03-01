@@ -497,6 +497,10 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::NinjutsuAbility { source_object, .. } => {
             ("ninjutsu_ability", Some(*source_object))
         }
+        StackObjectKind::EmbalmAbility { .. } => {
+            // No source_object -- card was already exiled as cost (CR 702.128a, CR 400.7).
+            ("embalm_ability", None)
+        }
     }
 }
 
@@ -725,5 +729,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Retrace => "Retrace".to_string(),
         KeywordAbility::JumpStart => "Jump-Start".to_string(),
         KeywordAbility::Aftermath => "Aftermath".to_string(),
+        KeywordAbility::Embalm => "Embalm".to_string(),
     }
 }

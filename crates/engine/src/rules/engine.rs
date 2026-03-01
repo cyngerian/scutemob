@@ -346,6 +346,21 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Embalm (CR 702.128) ──────────────────────────────────────────────
+        Command::EmbalmCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: embalm is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = abilities::handle_embalm_card(&mut state, player, card)?;
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
         Command::ActivateNinjutsu {
             player,
             ninja_card,

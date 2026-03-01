@@ -429,6 +429,18 @@ pub enum Command {
     /// No "cast" triggers fire.
     UnearthCard { player: PlayerId, card: ObjectId },
 
+    // -- Embalm (CR 702.128) ------------------------------------------------
+    /// Activate a card's embalm ability from the graveyard (CR 702.128a).
+    ///
+    /// The card must be in the player's graveyard with `KeywordAbility::Embalm`.
+    /// The embalm cost is paid, the card is exiled (as part of the cost), and
+    /// the embalm ability is placed on the stack. When it resolves, a token copy
+    /// of the card is created (white, no mana cost, Zombie added to types).
+    ///
+    /// Unlike Unearth, the card is exiled as part of the activation cost, NOT
+    /// when the ability resolves.
+    EmbalmCard { player: PlayerId, card: ObjectId },
+
     // -- Ninjutsu (CR 702.49) -----------------------------------------------
     /// Activate a card's ninjutsu ability from hand (or command zone for
     /// commander ninjutsu).

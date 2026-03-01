@@ -276,6 +276,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::CommanderNinjutsu)` for
     /// quick presence-checking.
     CommanderNinjutsu { cost: ManaCost },
+    /// CR 702.128: Embalm [cost]. The card's embalm ability can be activated from
+    /// its owner's graveyard by paying this cost plus exiling the card. When the
+    /// ability resolves, create a token copy of the card that is white, has no
+    /// mana cost, and is a Zombie in addition to its other types.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Embalm)` for quick
+    /// presence-checking without scanning all abilities.
+    Embalm { cost: ManaCost },
     /// CR 702.127: Aftermath. The second half of a split card. Can only be cast
     /// from the graveyard. When it leaves the stack after being cast from graveyard,
     /// it is exiled instead of going anywhere else.

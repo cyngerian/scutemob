@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_129",
+    "name": "Embalm Sacred Cat — exile from graveyard, create Zombie Cat token",
+    "description": "p1 has Sacred Cat in the graveyard with {W} mana available. p1 activates embalm on Sacred Cat (paying {W} and exiling the card as cost). The card is immediately exiled as part of paying the cost — before the ability is placed on the stack (per CR 702.128a and the 2017-07-14 ruling). After both players pass priority, the embalm ability resolves, creating a 1/1 white Zombie Cat token with Lifelink on p1's battlefield. Final state: Sacred Cat in exile (not graveyard), token on p1 battlefield with is_token=true.",
+    "cr_sections_tested": ["702.128", "702.128a", "702.128b", "602.2", "602.2c", "608.2", "111.1", "111.5", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["embalm", "graveyard", "token", "zombie", "cat", "lifelink", "exile-as-cost"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Sacred Cat oracle text (confirmed via MCP lookup): {W}, Creature — Cat 1/1, Lifelink, Embalm {W}. CR 702.128a: 'Embalm [cost]' means '[Cost], Exile this card from your graveyard: Create a token that's a copy of this card, except it's white, it has no mana cost, and it's a Zombie in addition to its other types. Activate only as a sorcery.' The embalm cost includes both the mana cost ({W}) AND exiling the card itself from the graveyard. This exile is paid as a cost (CR 602.2c: activated ability costs are paid at activation time, before the ability is placed on the stack). Therefore, immediately after the embalm_card action: Sacred Cat is in exile (not in the graveyard), and the EmbalmbAbility is on the stack. This is confirmed by the 2017-07-14 Scryfall ruling: 'Once you've activated an embalm ability, the card is immediately exiled. Opponents can't try to stop the ability by exiling the card with an effect such as that of Crook of Condemnation.' The resulting token is a 1/1 white Zombie Cat with Lifelink and no mana cost. CR 702.128b: A token is 'embalmed' if it's created by a resolving embalm ability. CR 111.1 + 111.5: Tokens are created on the battlefield. The token copies the original printed card except: (a) it's white instead of any other colors, (b) it has no mana cost, (c) it's a Zombie in addition to its other types (making it a Zombie Cat). It retains Lifelink from the original card. Sacred Cat is NOT an Available Cards list card; it was verified via MCP lookup_card. action type 'embalm_card' is the engine-specific action type as specified by the caller. p1 mana pool: {white: 1} to pay the {W} mana component of the embalm cost. The card is in the graveyard at initial state. After the embalm_card action, assertions confirm Sacred Cat is in exile (not graveyard). After resolution, assertions confirm a token named 'Sacred Cat' is on p1's battlefield.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {},
+      "graveyard": {
+        "p1": [
+          { "card": "Sacred Cat", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Embalm on Sacred Cat — card is immediately exiled as cost, ability goes on stack, resolves into a Zombie Cat token",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sacred Cat in p1 graveyard, battlefield empty, stack empty, p1 has {W} in pool",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Sacred Cat" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Sacred Cat" }] },
+            "zones.exile": { "is_empty": true },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Sacred Cat is in the graveyard awaiting embalm activation. p1 has {W} in pool to pay the embalm cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "embalm_card",
+          "card": "Sacred Cat",
+          "targets": [],
+          "mana_paid": { "white": 1 },
+          "mana_source": [],
+          "cr_ref": "702.128a",
+          "note": "CR 702.128a: p1 activates Embalm {W} on Sacred Cat in the graveyard. Cost includes {W} mana and exiling Sacred Cat from the graveyard. CR 602.2c: The exile cost is paid at activation time — Sacred Cat immediately moves to exile before the ability is placed on the stack. Activate only as a sorcery (precombat main, empty stack, active player — legal)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After embalm activation: Sacred Cat is in exile (cost paid), EmbalmbAbility on stack (count 1), graveyard empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.exile": { "includes": [{ "card": "Sacred Cat" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Sacred Cat" }] }
+          },
+          "note": "CR 602.2c: Sacred Cat was exiled as part of paying the activation cost — it is already in exile, not the graveyard. The embalm activated ability is on the stack. Per the 2017-07-14 ruling: opponents cannot exile the card to stop the ability because it is already exiled."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in succession — EmbalmbAbility resolves from top of stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sacred Cat Embalm",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": "Sacred Cat",
+              "owner": "p1",
+              "cr_ref": "702.128a",
+              "note": "CR 702.128a: EmbalmbAbility resolves — create a token that is a copy of Sacred Cat except it's white, has no mana cost, and is a Zombie in addition to its other types (Cat). The token is a 1/1 white Zombie Cat with Lifelink. CR 111.1 + 111.5: token enters p1's battlefield. CR 702.128b: This token is 'embalmed'."
+            }
+          ],
+          "note": "CR 608.2: EmbalmbAbility resolves. A 1/1 white Zombie Cat token with Lifelink is created on p1's battlefield. NOTE: stack_resolve is informational only — the engine already processed resolution via the prior priority_round pass."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Sacred Cat token on p1 battlefield (is_token=true), original Sacred Cat in exile, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Sacred Cat", "is_token": true }]
+            },
+            "zones.exile": { "includes": [{ "card": "Sacred Cat" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Sacred Cat" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.128a: A 1/1 white Zombie Cat token with Lifelink (embalmed copy of Sacred Cat) is on p1's battlefield. The original Sacred Cat card is in exile — exiled as cost at activation time, not at resolution. The graveyard is empty. Life totals unchanged."
+        }
+      ]
+    }
+  ]
+}

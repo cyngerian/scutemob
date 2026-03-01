@@ -1051,6 +1051,198 @@ fn get_ninjutsu_cost(
 }
 
 // ---------------------------------------------------------------------------
+// Embalm (CR 702.128)
+// ---------------------------------------------------------------------------
+
+/// Handle an EmbalmCard command: validate, pay cost, exile card, push embalm ability
+/// onto the stack.
+///
+/// CR 702.128a: Embalm is an activated ability from the graveyard.
+/// "[Cost], Exile this card from your graveyard: Create a token that's a copy of
+/// this card, except it's white, it has no mana cost, and it's a Zombie in addition
+/// to its other types. Activate only as a sorcery."
+///
+/// KEY DIFFERENCE FROM UNEARTH: the card is exiled as part of the activation cost
+/// (before the ability goes on the stack), not when the ability resolves.
+pub fn handle_embalm_card(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): activated abilities cannot be used when
+    //    a spell with split second is on the stack.
+    if casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; embalm cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Zone check (CR 702.128a): card must be in player's own graveyard.
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Graveyard(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "EmbalmCard: card {:?} is not in Graveyard({:?}); embalm can only be activated from your graveyard (CR 702.128a)",
+                card, player
+            )));
+        }
+    }
+
+    // 4. Keyword check (CR 702.128a): card must have KeywordAbility::Embalm.
+    {
+        let obj = state.object(card)?;
+        if !obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Embalm)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "EmbalmCard: card {:?} does not have the Embalm keyword (CR 702.128a)",
+                card
+            )));
+        }
+    }
+
+    // 5. Sorcery speed check (CR 702.128a: "activate only as a sorcery").
+    //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
+    {
+        use crate::state::turn::Step;
+        if state.turn.active_player != player {
+            return Err(GameStateError::InvalidCommand(
+                "EmbalmCard: embalm can only be activated during your own turn (CR 702.128a)"
+                    .into(),
+            ));
+        }
+        let step = state.turn.step;
+        if step != Step::PreCombatMain && step != Step::PostCombatMain {
+            return Err(GameStateError::InvalidCommand(
+                "EmbalmCard: embalm can only be activated during a main phase (CR 702.128a)".into(),
+            ));
+        }
+        if !state.stack_objects.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "EmbalmCard: embalm can only be activated with an empty stack (CR 702.128a)".into(),
+            ));
+        }
+    }
+
+    // 6. Look up embalm cost from CardRegistry.
+    let card_id_opt = state.object(card)?.card_id.clone();
+    let embalm_cost_opt = get_embalm_cost(&card_id_opt, &state.card_registry.clone());
+    let embalm_cost = match embalm_cost_opt {
+        Some(cost) => cost,
+        None => {
+            return Err(GameStateError::InvalidCommand(
+                "EmbalmCard: no embalm cost found in card definition (CR 702.128a)".into(),
+            ));
+        }
+    };
+
+    // 7. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if embalm_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &embalm_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &embalm_cost);
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: embalm_cost.clone(),
+        });
+    }
+
+    // 8. Capture the card_id BEFORE exiling (object identity is reset on zone change,
+    //    CR 400.7 -- but card_id is the registry key and survives the move).
+    //    We need it for EmbalmAbility so resolution can find the CardDefinition.
+    let source_card_id = state.object(card)?.card_id.clone();
+
+    // 9. Exile the card from graveyard as cost payment (CR 702.128a: "[Cost], Exile
+    //    this card from your graveyard"). CRITICAL DIFFERENCE FROM UNEARTH:
+    //    the card is exiled immediately as part of cost payment, not at resolution.
+    //    Ruling 2017-07-14: "Once you've activated an embalm ability, the card is
+    //    immediately exiled. Opponents can't try to stop the ability by exiling the
+    //    card with an effect."
+    let (exile_id, _old) = state.move_object_to_zone(card, ZoneId::Exile)?;
+    events.push(GameEvent::ObjectExiled {
+        player,
+        object_id: card,
+        new_exile_id: exile_id,
+    });
+
+    // 10. Push the embalm ability onto the stack as EmbalmAbility.
+    //     We store source_card_id (the registry key) instead of the ObjectId
+    //     because the card's ObjectId is now dead (zone change, CR 400.7).
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::EmbalmAbility { source_card_id },
+        targets: Vec::new(),
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 11. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+/// CR 702.128a: Look up the embalm cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Embalm { cost }`, or `None`
+/// if the card has no definition or no embalm ability defined.
+fn get_embalm_cost(
+    card_id: &Option<CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Embalm { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Trigger checking
 // ---------------------------------------------------------------------------
 

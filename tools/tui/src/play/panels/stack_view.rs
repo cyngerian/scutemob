@@ -104,6 +104,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::NinjutsuAbility { source_object, .. } => {
                     ("Ninjutsu: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::EmbalmAbility { .. } => {
+                    // No source_object -- card was already exiled as cost (CR 702.128a).
+                    ("Embalm: ".to_string(), None)
+                }
             };
 
             let (name, name_color) = source_id

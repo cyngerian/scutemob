@@ -516,6 +516,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::JumpStart => 90u8.hash_into(hasher),
             // Aftermath (discriminant 91) -- CR 702.127
             KeywordAbility::Aftermath => 91u8.hash_into(hasher),
+            // Embalm (discriminant 92) -- CR 702.128
+            KeywordAbility::Embalm => 92u8.hash_into(hasher),
         }
     }
 }
@@ -1529,6 +1531,11 @@ impl HashInto for StackObjectKind {
                 ninja_card.hash_into(hasher);
                 attack_target.hash_into(hasher);
                 from_command_zone.hash_into(hasher);
+            }
+            // EmbalmAbility (discriminant 27) -- CR 702.128a
+            StackObjectKind::EmbalmAbility { source_card_id } => {
+                27u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
             }
         }
     }
@@ -3098,6 +3105,11 @@ impl HashInto for AbilityDefinition {
                 card_type.hash_into(hasher);
                 effect.hash_into(hasher);
                 targets.hash_into(hasher);
+            }
+            // Embalm (discriminant 25) -- CR 702.128
+            AbilityDefinition::Embalm { cost } => {
+                25u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }
