@@ -101,6 +101,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::EnlistTrigger { source_object, .. } => {
                     ("Enlist: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::NinjutsuAbility { source_object, .. } => {
+                    ("Ninjutsu: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

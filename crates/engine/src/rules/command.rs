@@ -395,4 +395,26 @@ pub enum Command {
     /// Unlike `CastSpell`, this is an activated ability, not a spell cast.
     /// No "cast" triggers fire.
     UnearthCard { player: PlayerId, card: ObjectId },
+
+    // -- Ninjutsu (CR 702.49) -----------------------------------------------
+    /// Activate a card's ninjutsu ability from hand (or command zone for
+    /// commander ninjutsu).
+    ///
+    /// CR 702.49a: The player pays the ninjutsu cost, returns an unblocked
+    /// attacking creature they control to its owner's hand, and the ninjutsu
+    /// card is put onto the battlefield tapped and attacking the same target.
+    ///
+    /// This is an activated ability, NOT a spell cast. No "cast" triggers fire.
+    /// Commander ninjutsu (CR 702.49d) bypasses commander tax entirely.
+    ///
+    /// The ability goes on the stack. The attacker is returned to hand as a
+    /// cost (immediately). The ninja enters the battlefield when the ability
+    /// resolves.
+    ActivateNinjutsu {
+        player: PlayerId,
+        /// The card with ninjutsu in the player's hand (or command zone).
+        ninja_card: ObjectId,
+        /// The unblocked attacking creature to return to its owner's hand.
+        attacker_to_return: ObjectId,
+    },
 }

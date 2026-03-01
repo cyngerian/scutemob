@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Enlist validated; CR 702.154 confirmed — was incorrectly listed as 702.155; KeywordAbility::Enlist disc 86, StackObjectKind::EnlistTrigger disc 25; 10-check validation in combat.rs + linked trigger in abilities.rs + resolution in resolution.rs; 8 unit tests in tests/enlist.rs; Coalition Skyknight card def at defs/coalition_skyknight.rs; game script combat/124; P4 validated 16->17, total validated 108->109)
+> Last audited: 2026-03-01 (Ninjutsu + Commander Ninjutsu validated; KeywordAbility::Ninjutsu disc 87, KeywordAbility::CommanderNinjutsu disc 88; AbilityDefinition::Ninjutsu/CommanderNinjutsu; Command::ActivateNinjutsu; StackObjectKind::NinjutsuAbility disc 26; handle_ninjutsu() in abilities.rs + resolve_ninjutsu() in resolution.rs; 12 unit tests in tests/ninjutsu.rs; Ninja of the Deep Hours card def at defs/ninja_of_the_deep_hours.rs; game script combat/125; Commander Ninjutsu row added to Section 4; P4 validated 17->19, total validated 109->111)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 17        | 0        | 0       | 71   | 12  |
-| **Total**| **199**| **109**  | **2**    | **0**   | **76**| **12** |
+| P4       | 101   | 19        | 0        | 0       | 70   | 12  |
+| **Total**| **200**| **111**  | **2**    | **0**   | **75**| **12** |
 
 ---
 
@@ -113,7 +113,8 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 | Unearth | 702.84 | P3 | `validated` | `rules/abilities.rs`, `rules/turn_actions.rs`, `rules/replacement.rs`, `rules/resolution.rs`, `state/types.rs`, `state/stack.rs`, `cards/card_definition.rs` | Dregscape Zombie | `stack/087` | — | Full flow: activate from graveyard (sorcery speed), return to battlefield w/ haste, exile at end step delayed trigger, zone-change replacement (leave BF -> exile). 12 unit tests in `unearth.rs` |
 | Embalm | 702.128 | P4 | `none` | — | — | — | — | Create token copy from graveyard, white, no mana cost |
 | Eternalize | 702.129 | P4 | `none` | — | — | — | — | Create 4/4 token copy from graveyard, black |
-| Ninjutsu | 702.49 | P4 | `none` | — | — | — | — | Swap unblocked attacker for creature in hand |
+| Ninjutsu | 702.49 | P4 | `validated` | `state/types.rs:753` (KeywordAbility::Ninjutsu disc 87), `state/hash.rs:509-510`, `cards/card_definition.rs:271` (AbilityDefinition::Ninjutsu{cost}), `rules/command.rs:413` (Command::ActivateNinjutsu), `rules/abilities.rs:804` (handle_ninjutsu: 14-check validation), `rules/resolution.rs:2081` (resolve_ninjutsu: full ETB site + combat registration), `state/stack.rs:597` (StackObjectKind::NinjutsuAbility disc 26), `testing/replay_harness.rs:525` | Ninja of the Deep Hours (`defs/ninja_of_the_deep_hours.rs`) | `combat/125` | — | CR 702.49a-c fully enforced; activated from hand during DeclareBlockers; pay cost + return unblocked attacker to owner's hand; ninja enters tapped and attacking same target; not declared as attacker (no attack triggers); split second blocks activation; blocked attacker rejected; owner-not-controller return (multiplayer); 12 unit tests in `tests/ninjutsu.rs`; game script pending_review |
+| Commander Ninjutsu | 702.49d | P4 | `validated` | `state/types.rs:761` (KeywordAbility::CommanderNinjutsu disc 88), `state/hash.rs:511-512`, `cards/card_definition.rs:278` (AbilityDefinition::CommanderNinjutsu{cost}), `rules/abilities.rs:858-888` (command zone detection + keyword check) | — (test-only card in `tests/ninjutsu.rs`) | — | Ninjutsu | CR 702.49d variant; also functions from command zone; no commander tax increment; shares ActivateNinjutsu command + NinjutsuAbility resolution with Ninjutsu; 1 dedicated unit test (test_commander_ninjutsu_from_command_zone) in `tests/ninjutsu.rs` |
 | Plot | 702.170 | P4 | `none` | — | — | — | — | Exile from hand, cast for free on a later turn |
 | Blitz | 702.152 | P4 | `none` | — | — | — | — | Alternative cost, gains haste + "draw when dies" + sacrifice at end |
 | Dash | 702.109 | P4 | `none` | — | — | — | — | Alternative cost, gains haste, return to hand at end |
@@ -551,3 +552,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Toxic (CR 702.164) — validated 2026-03-01 (script combat/123, Pestilent Syphoner, 8 unit tests in toxic.rs). Static ability enforced inline in combat.rs (no StackObjectKind variant). CR number corrected from 702.156 to 702.164.
 
 **Resolved**: Enlist (CR 702.154) — validated 2026-03-01 (script combat/124, Coalition Skyknight, 8 unit tests in enlist.rs). CR number corrected from 702.155 to 702.154. Static ability (optional attack cost) + linked triggered ability; 10-check validation in combat.rs; EnlistTrigger StackObjectKind with resolution reading enlisted creature's power for +X/+0 UntilEndOfTurn.
+
+**Resolved**: Ninjutsu (CR 702.49) + Commander Ninjutsu (CR 702.49d) — validated 2026-03-01 (script combat/125, Ninja of the Deep Hours, 12 unit tests in ninjutsu.rs). Activated ability from hand (or command zone for Commander Ninjutsu); Command::ActivateNinjutsu + NinjutsuAbility StackObjectKind; handle_ninjutsu() 14-check validation + resolve_ninjutsu() full ETB site pattern with combat registration; no commander tax for Commander Ninjutsu.

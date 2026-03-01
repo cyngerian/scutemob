@@ -261,6 +261,21 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Overload)` for quick
     /// presence-checking without scanning all abilities.
     Overload { cost: ManaCost },
+    /// CR 702.49: Ninjutsu [cost]. Activated from hand: pay cost, return an
+    /// unblocked attacker to its owner's hand, put this card onto battlefield
+    /// tapped and attacking the same target.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Ninjutsu)` for quick
+    /// presence-checking without scanning all abilities.
+    Ninjutsu { cost: ManaCost },
+    /// CR 702.49d: Commander Ninjutsu [cost]. Same as ninjutsu but can also
+    /// be activated from the command zone. Bypasses commander tax entirely.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::CommanderNinjutsu)` for
+    /// quick presence-checking.
+    CommanderNinjutsu { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

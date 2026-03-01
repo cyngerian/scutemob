@@ -743,6 +743,22 @@ pub enum KeywordAbility {
     /// the stack after attackers are declared. Resolves to +X/+0.
     /// Multiple instances function independently (CR 702.154d).
     Enlist,
+    /// CR 702.49: Ninjutsu -- activated ability from hand.
+    /// "Pay [cost], Reveal this card from your hand, Return an unblocked
+    /// attacking creature you control to its owner's hand: Put this card onto
+    /// the battlefield from your hand tapped and attacking."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The ninjutsu cost is stored in `AbilityDefinition::Ninjutsu { cost }`.
+    Ninjutsu,
+    /// CR 702.49d: Commander Ninjutsu -- variant that also works from the
+    /// command zone. "Pay [cost], Reveal this card from your hand or from the
+    /// command zone, Return an unblocked attacking creature you control to its
+    /// owner's hand: Put this card onto the battlefield tapped and attacking."
+    ///
+    /// Bypasses commander tax entirely (it is an activated ability, not a
+    /// spell cast). See ruling 2020-11-10.
+    CommanderNinjutsu,
 }
 
 /// All creature subtypes from CR 205.3m.

@@ -580,4 +580,24 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         enlisted_creature: ObjectId,
     },
+    /// CR 702.49a: Ninjutsu activated ability on the stack.
+    ///
+    /// When this ability resolves: put the ninja card from hand (or command
+    /// zone) onto the battlefield tapped and attacking the captured
+    /// `attack_target`.
+    ///
+    /// `source_object` / `ninja_card` are the ObjectId of the card in
+    /// hand/command zone (same value; `source_object` follows the convention
+    /// used by other `StackObjectKind` variants).
+    /// `attack_target` is the attack target inherited from the returned attacker.
+    /// `from_command_zone` indicates commander ninjutsu (CR 702.49d).
+    ///
+    /// If the ninja card is no longer in hand/command zone at resolution
+    /// time, the ability does nothing (CR 400.7 -- object left the expected zone).
+    NinjutsuAbility {
+        source_object: ObjectId,
+        ninja_card: ObjectId,
+        attack_target: crate::state::combat::AttackTarget,
+        from_command_zone: bool,
+    },
 }

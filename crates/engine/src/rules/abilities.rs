@@ -792,6 +792,257 @@ fn get_unearth_cost(
 }
 
 // ---------------------------------------------------------------------------
+// Ninjutsu (CR 702.49)
+// ---------------------------------------------------------------------------
+
+/// Handle an ActivateNinjutsu command: validate, pay cost, return attacker to
+/// hand as a cost, then push ninjutsu ability onto the stack.
+///
+/// CR 702.49a: Ninjutsu is an activated ability from hand.
+/// CR 702.49c: May only be activated when an unblocked attacker exists.
+/// CR 702.49d: Commander ninjutsu also functions from the command zone.
+pub fn handle_ninjutsu(
+    state: &mut GameState,
+    player: PlayerId,
+    ninja_card: ObjectId,
+    attacker_to_return: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): activated abilities cannot be used when
+    //    a spell with split second is on the stack.
+    if casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; ninjutsu cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Combat phase + step check (CR 702.49c): must be in combat phase,
+    //    at DeclareBlockers or later (not DeclareAttackers or BeginningOfCombat --
+    //    before blockers are declared, creatures are neither blocked nor unblocked).
+    {
+        use crate::state::turn::Step;
+        let step = state.turn.step;
+        let valid_step = matches!(
+            step,
+            Step::DeclareBlockers
+                | Step::FirstStrikeDamage
+                | Step::CombatDamage
+                | Step::EndOfCombat
+        );
+        if !valid_step {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateNinjutsu: ninjutsu can only be activated during DeclareBlockers, \
+                 FirstStrikeDamage, CombatDamage, or EndOfCombat steps (CR 702.49c); \
+                 current step is {:?}",
+                step
+            )));
+        }
+    }
+
+    // 4. Combat state must exist (safety check).
+    if state.combat.is_none() {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateNinjutsu: no active combat state (CR 702.49c)".into(),
+        ));
+    }
+
+    // 5. Zone check (CR 702.49a/d): ninja card must be in player's hand, OR,
+    //    if it has CommanderNinjutsu, in the command zone ZoneId::Command(player).
+    //    CRITICAL: ZoneId::Command(player), NOT ZoneId::CommandZone.
+    let ninja_zone = {
+        let obj = state.object(ninja_card)?;
+        obj.zone
+    };
+    let has_commander_ninjutsu = state
+        .object(ninja_card)?
+        .characteristics
+        .keywords
+        .contains(&KeywordAbility::CommanderNinjutsu);
+    let in_hand = ninja_zone == ZoneId::Hand(player);
+    let in_command_zone = has_commander_ninjutsu && ninja_zone == ZoneId::Command(player);
+    if !in_hand && !in_command_zone {
+        return Err(GameStateError::InvalidCommand(format!(
+            "ActivateNinjutsu: ninja card {:?} is not in hand or command zone (CR 702.49a/d)",
+            ninja_card
+        )));
+    }
+    let from_command_zone = in_command_zone;
+
+    // 6. Keyword check (CR 702.49a/d): card must have Ninjutsu or CommanderNinjutsu.
+    {
+        let obj = state.object(ninja_card)?;
+        let has_ninjutsu = obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Ninjutsu);
+        if !has_ninjutsu && !has_commander_ninjutsu {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateNinjutsu: card {:?} does not have Ninjutsu or CommanderNinjutsu keyword \
+                 (CR 702.49a)",
+                ninja_card
+            )));
+        }
+    }
+
+    // 7. Attacker validation (CR 702.49c): attacker must be on battlefield,
+    //    controlled by player, in combat.attackers, and unblocked.
+    {
+        let obj = state.object(attacker_to_return)?;
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "ActivateNinjutsu: attacker is not on the battlefield".into(),
+            ));
+        }
+        if obj.controller != player {
+            return Err(GameStateError::InvalidCommand(
+                "ActivateNinjutsu: attacker is not controlled by the activating player".into(),
+            ));
+        }
+    }
+    let combat = state.combat.as_ref().ok_or_else(|| {
+        GameStateError::InvalidCommand("ActivateNinjutsu: no active combat state".into())
+    })?;
+    if !combat.attackers.contains_key(&attacker_to_return) {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateNinjutsu: attacker is not an attacking creature (CR 702.49c)".into(),
+        ));
+    }
+    if combat.is_blocked(attacker_to_return) {
+        return Err(GameStateError::InvalidCommand(
+            "ActivateNinjutsu: attacker is blocked; ninjutsu requires an unblocked attacker \
+             (CR 702.49c)"
+                .into(),
+        ));
+    }
+
+    // 8. Capture attack target BEFORE returning the attacker (CR 702.49c):
+    //    the ninja inherits the attack target of the returned creature.
+    let attack_target = state
+        .combat
+        .as_ref()
+        .and_then(|c| c.attackers.get(&attacker_to_return).cloned())
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "ActivateNinjutsu: could not retrieve attack target from combat state".into(),
+            )
+        })?;
+
+    // 9. Cost lookup: find AbilityDefinition::Ninjutsu or ::CommanderNinjutsu.
+    let card_id_opt = state.object(ninja_card)?.card_id.clone();
+    let ninjutsu_cost_opt = get_ninjutsu_cost(&card_id_opt, &state.card_registry.clone());
+    let ninjutsu_cost = match ninjutsu_cost_opt {
+        Some(cost) => cost,
+        None => {
+            return Err(GameStateError::InvalidCommand(
+                "ActivateNinjutsu: no ninjutsu cost found in card definition (CR 702.49a)".into(),
+            ));
+        }
+    };
+
+    // 10. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if ninjutsu_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &ninjutsu_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &ninjutsu_cost);
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: ninjutsu_cost.clone(),
+        });
+    }
+
+    // 11. Return attacker to its OWNER's hand (cost, CR 702.49a).
+    //     "Return an unblocked attacking creature you control to its owner's hand."
+    //     NOT the controller's hand -- in multiplayer theft, the attacker goes
+    //     to the original owner's hand.
+    let attacker_owner = state.object(attacker_to_return)?.owner;
+    let (new_hand_id, _old) =
+        state.move_object_to_zone(attacker_to_return, ZoneId::Hand(attacker_owner))?;
+    // Remove attacker from combat.attackers: move_object_to_zone doesn't touch
+    // CombatState, so the old ObjectId is now stale (CR 400.7) and must be removed.
+    if let Some(combat) = state.combat.as_mut() {
+        combat.attackers.remove(&attacker_to_return);
+    }
+    events.push(GameEvent::ObjectReturnedToHand {
+        player: attacker_owner,
+        object_id: attacker_to_return,
+        new_hand_id,
+    });
+
+    // 12. Push ninjutsu ability onto stack as NinjutsuAbility.
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::NinjutsuAbility {
+            source_object: ninja_card,
+            ninja_card,
+            attack_target: attack_target.clone(),
+            from_command_zone,
+        },
+        targets: Vec::new(),
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 13. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: ninja_card,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+/// CR 702.49a: Look up the ninjutsu cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Ninjutsu { cost }` or
+/// `AbilityDefinition::CommanderNinjutsu { cost }`, or `None` if the card has
+/// no definition or no ninjutsu ability defined.
+fn get_ninjutsu_cost(
+    card_id: &Option<CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| match a {
+                AbilityDefinition::Ninjutsu { cost }
+                | AbilityDefinition::CommanderNinjutsu { cost } => Some(cost.clone()),
+                _ => None,
+            })
+        })
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Trigger checking
 // ---------------------------------------------------------------------------
 

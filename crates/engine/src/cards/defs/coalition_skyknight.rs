@@ -14,6 +14,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Enlist),
         ],
-        ..Default::default()
     }
 }

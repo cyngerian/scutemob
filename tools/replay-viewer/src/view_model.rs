@@ -494,6 +494,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::EnlistTrigger { source_object, .. } => {
             ("enlist_trigger", Some(*source_object))
         }
+        StackObjectKind::NinjutsuAbility { source_object, .. } => {
+            ("ninjutsu_ability", Some(*source_object))
+        }
     }
 }
 
@@ -717,5 +720,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Poisonous(n) => format!("Poisonous {n}"),
         KeywordAbility::Toxic(n) => format!("Toxic {n}"),
         KeywordAbility::Enlist => "Enlist".to_string(),
+        KeywordAbility::Ninjutsu => "Ninjutsu".to_string(),
+        KeywordAbility::CommanderNinjutsu => "Commander Ninjutsu".to_string(),
     }
 }

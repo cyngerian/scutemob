@@ -261,6 +261,11 @@ pub enum ScriptAction {
         /// Defaults to false (buyback not paid).
         #[serde(default)]
         buyback: bool,
+        /// CR 702.49a: For `activate_ninjutsu`. Name of the unblocked attacking
+        /// creature to return to its owner's hand as part of the ninjutsu cost.
+        /// Example: "Eager Construct"
+        #[serde(default)]
+        attacker_name: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

@@ -147,6 +147,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     kicked,
                     buyback,
                     enlist,
+                    attacker_name,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -165,6 +166,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             *kicked,
                             *buyback,
                             enlist,
+                            attacker_name.as_deref(),
                             &state,
                             &players,
                         );

@@ -337,6 +337,25 @@ pub fn process_command(
             events.extend(trigger_events);
             all_events.extend(events);
         }
+
+        Command::ActivateNinjutsu {
+            player,
+            ninja_card,
+            attacker_to_return,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: ninjutsu is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                abilities::handle_ninjutsu(&mut state, player, ninja_card, attacker_to_return)?;
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history

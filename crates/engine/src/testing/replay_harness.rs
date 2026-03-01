@@ -236,6 +236,9 @@ pub fn translate_player_action(
     kicked: bool,
     buyback: bool,
     enlist_decls: &[EnlistDeclaration],
+    // CR 702.49a: For `activate_ninjutsu`, the name of the unblocked attacking
+    // creature to return to its owner's hand. `None` for all other action types.
+    attacker_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -502,6 +505,27 @@ pub fn translate_player_action(
             Some(Command::UnearthCard {
                 player,
                 card: card_id,
+            })
+        }
+
+        // CR 702.49a: Activate ninjutsu from hand (or command zone for commander
+        // ninjutsu, CR 702.49d). `card_name` is the ninja card; `attacker_name` is
+        // the unblocked attacking creature to return to its owner's hand.
+        // JSON action shape: { "action_type": "activate_ninjutsu",
+        //   "player": "p1", "card_name": "Ninja of the Deep Hours",
+        //   "attacker_name": "Eager Construct", "mana_payment": { ... } }
+        "activate_ninjutsu" => {
+            let ninja_name = card_name?;
+            let ninja_id = find_in_hand(state, player, ninja_name).or_else(|| {
+                // Commander ninjutsu (CR 702.49d): also search the command zone.
+                find_in_command_zone(state, player, ninja_name)
+            })?;
+            let atk_name = attacker_name?;
+            let attacker_id = find_on_battlefield(state, player, atk_name)?;
+            Some(Command::ActivateNinjutsu {
+                player,
+                ninja_card: ninja_id,
+                attacker_to_return: attacker_id,
             })
         }
 
@@ -1113,6 +1137,21 @@ fn resolve_targets(
 fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> Option<crate::state::ObjectId> {
     state.objects.iter().find_map(|(&id, obj)| {
         if obj.characteristics.name == name && obj.zone == ZoneId::Hand(player) {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 702.49d: Find a named card in a player's command zone (for commander ninjutsu).
+fn find_in_command_zone(
+    state: &GameState,
+    player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name && obj.zone == ZoneId::Command(player) {
             Some(id)
         } else {
             None

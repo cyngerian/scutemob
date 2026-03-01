@@ -2066,6 +2066,140 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.49a: Ninjutsu activated ability resolves -- put the ninja card from
+        // hand (or command zone for commander ninjutsu, CR 702.49d) onto the battlefield
+        // tapped and attacking the inherited attack target.
+        //
+        // CR 702.49c: "The creature with ninjutsu is put onto the battlefield unblocked.
+        // It will be attacking the same player, planeswalker, or battle as the creature
+        // that was returned to its owner's hand."
+        //
+        // Ruling 2021-03-19: "The Ninja isn't put onto the battlefield until the
+        // ability resolves. If it leaves your hand before then, it won't enter
+        // the battlefield at all." (CR 400.7)
+        StackObjectKind::NinjutsuAbility {
+            source_object: _,
+            ninja_card,
+            attack_target,
+            from_command_zone,
+        } => {
+            let controller = stack_obj.controller;
+
+            // 1. Check if ninja card is still in the expected zone (CR 400.7).
+            //    Hand for regular ninjutsu; command zone for commander ninjutsu.
+            //    CRITICAL: ZoneId::Command(player), NOT ZoneId::CommandZone.
+            let expected_zone = if from_command_zone {
+                ZoneId::Command(controller)
+            } else {
+                ZoneId::Hand(controller)
+            };
+            let still_in_zone = state
+                .objects
+                .get(&ninja_card)
+                .map(|obj| obj.zone == expected_zone)
+                .unwrap_or(false);
+
+            if still_in_zone {
+                // 2. Check attack target is still valid (CR 508.4a).
+                //    If invalid, creature enters battlefield but is not attacking.
+                let target_valid = match &attack_target {
+                    crate::state::combat::AttackTarget::Player(pid) => state
+                        .players
+                        .get(pid)
+                        .map(|p| !p.has_lost && !p.has_conceded)
+                        .unwrap_or(false),
+                    crate::state::combat::AttackTarget::Planeswalker(oid) => state
+                        .objects
+                        .get(oid)
+                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .unwrap_or(false),
+                };
+
+                let combat_active = state.combat.is_some();
+
+                // 3. Move ninja from hand/command zone to battlefield (CR 702.49a).
+                let (new_id, _old) = state.move_object_to_zone(ninja_card, ZoneId::Battlefield)?;
+
+                // 4. Set controller and tapped status.
+                let card_id = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    obj.controller = controller;
+                    // CR 702.49a: "Put this card onto the battlefield from your hand
+                    // tapped and attacking."
+                    obj.status.tapped = true;
+                }
+
+                // 5. Register in combat state as attacking the same target.
+                //    CR 702.49c: "attacking the same player, planeswalker, or battle"
+                //    CR 702.49c: "put onto the battlefield unblocked"
+                //    Only if target is valid AND combat is still active.
+                //
+                //    CR 508.4: "Such creatures are 'attacking' but, for the purposes
+                //    of trigger events and effects, they never 'attacked.'"
+                //    (AttackersDeclared is NOT emitted -- SelfAttacks triggers don't fire.)
+                if target_valid && combat_active {
+                    if let Some(combat) = state.combat.as_mut() {
+                        combat.attackers.insert(new_id, attack_target.clone());
+                    }
+                }
+                // If target_valid is false (CR 508.4a), ninja enters tapped but is NOT
+                // registered as an attacking creature.
+
+                // 6. Apply self ETB replacements + global ETB replacements.
+                //    Follow the full ETB site pattern (gotchas-infra.md).
+                let registry = state.card_registry.clone();
+                let self_evts = super::replacement::apply_self_etb_from_definition(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(self_evts);
+                let etb_evts =
+                    super::replacement::apply_etb_replacements(state, new_id, controller);
+                events.extend(etb_evts);
+
+                // 7. Register replacement abilities and static continuous effects.
+                super::replacement::register_permanent_replacement_abilities(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                super::replacement::register_static_continuous_effects(
+                    state,
+                    new_id,
+                    card_id.as_ref(),
+                    &registry,
+                );
+
+                // 8. Emit PermanentEnteredBattlefield.
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: new_id,
+                });
+
+                // 9. Fire WhenEntersBattlefield triggered effects from card definition.
+                //    CR 603.2: ETB triggers on the ninja's own definition must fire.
+                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    state,
+                    new_id,
+                    controller,
+                    card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(etb_trigger_evts);
+            }
+            // If ninja left the expected zone, ability does nothing (CR 400.7).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -2180,7 +2314,8 @@ pub fn counter_stack_object(
         | StackObjectKind::RenownTrigger { .. }
         | StackObjectKind::MeleeTrigger { .. }
         | StackObjectKind::PoisonousTrigger { .. }
-        | StackObjectKind::EnlistTrigger { .. } => {
+        | StackObjectKind::EnlistTrigger { .. }
+        | StackObjectKind::NinjutsuAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

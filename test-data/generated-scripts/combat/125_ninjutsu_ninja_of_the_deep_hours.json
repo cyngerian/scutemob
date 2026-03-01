@@ -1,0 +1,333 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_125",
+    "name": "Ninjutsu — Ninja of the Deep Hours enters tapped and attacking, draw trigger fires",
+    "description": "P1 controls Bog Raiders (2/2 Swampwalk), an untapped Island, and an untapped Mountain on the battlefield, and holds Ninja of the Deep Hours in hand. P1 declares Bog Raiders as an attacking creature targeting P2. P2 has no creatures and declares no blockers. Bog Raiders is unblocked. P1 taps Island for {U} and Mountain for {R} to add {R}{U} to the mana pool, then activates Ninjutsu {1}{U} on Ninja of the Deep Hours: returns Bog Raiders to P1's hand and pays {1}{U} ({R} covers the generic {1}, {U} covers the blue). The Ninjutsu ability goes on the stack (CR 702.49b: card is revealed from hand while ability is on stack). Both players pass priority; the ability resolves: Bog Raiders moves to P1's hand and Ninja of the Deep Hours is put onto the battlefield tapped and attacking P2 (CR 702.49c: inherits the same attack target as the returned creature). Both players pass priority with an empty stack, advancing to CombatDamage. Ninja of the Deep Hours (2/2) deals 2 combat damage to P2 (40 to 38). The combat-damage triggered ability 'Whenever this creature deals combat damage to a player, you may draw a card' fires. After both players pass priority the draw trigger resolves and P1 draws 1 card.",
+    "cr_sections_tested": [
+      "702.49a",
+      "702.49b",
+      "702.49c",
+      "508.1",
+      "508.1f",
+      "508.1k",
+      "509.1",
+      "509.1h",
+      "510.1",
+      "510.1b",
+      "603.2",
+      "603.3",
+      "608.2",
+      "605.3",
+      "120.3",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ninjutsu",
+      "combat",
+      "declare-attackers",
+      "declare-blockers",
+      "activated-ability",
+      "enter-battlefield",
+      "attack-inheritance",
+      "triggered-ability",
+      "draw",
+      "ninja-of-the-deep-hours",
+      "bog-raiders"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Ninja of the Deep Hours oracle text (MCP verified + engine def confirmed at crates/engine/src/cards/defs/ninja_of_the_deep_hours.rs): {3}{U}, Human Ninja, 2/2. Ninjutsu {1}{U}. Triggered: Whenever this creature deals combat damage to a player, you may draw a card. AbilityDefinition::Ninjutsu { cost: ManaCost { generic: 1, blue: 1 } } and TriggerCondition::WhenDealsCombatDamageToPlayer => DrawCards(1). Bog Raiders: {1}{B}, Creature — Zombie, 2/2, Swampwalk. Available in engine Available Cards list. Used as the unblocked attacker returned to hand via Ninjutsu. Initial state: declare_attackers step (turn 4, no summoning sickness per CR 302.6), P1 controls Bog Raiders (untapped), Island (untapped), Mountain (untapped). P1 holds Ninja of the Deep Hours in hand. Two distinct lands used (Island + Mountain) rather than two Islands — the harness resolves 'tap_for_mana Island' by finding the first matching permanent by name; tapping Island twice would re-match the already-tapped Island and trigger PermanentAlreadyTapped. Island produces {U} (pays the blue requirement); Mountain produces {R} (satisfies the generic {1}). mana_paid = { blue: 1, red: 1 }. Initial mana_pool empty: the engine clears mana between steps, so placing mana in the initial pool would be cleared when transitioning from declare_attackers to declare_blockers. CR 702.49a: Ninjutsu functions only while the card is in hand; activated during declare_blockers step (Scryfall ruling 2021-03-19). CR 702.49b: Ninja remains revealed while ability is on stack. CR 702.49c: Ninja inherits attack target (P2) from Bog Raiders. Script uses action='activate_ninjutsu' in PlayerAction type with separate 'attacker_name' field (script_schema.rs lines 264-268). Library includes Island so draw trigger does not silently fail. The Ninja entering via Ninjutsu is not a cast and does not trigger 'whenever a creature attacks' (ruling 2021-03-19). P2 final life: 38.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Bog Raiders", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Island", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Mountain", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Ninja of the Deep Hours", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "P1 declares Bog Raiders as an attacking creature targeting P2. Bog Raiders becomes tapped (CR 508.1f). Both players pass priority to advance to the declare_blockers step.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Bog Raiders, Island, Mountain all untapped on P1 battlefield; Ninja of the Deep Hours in P1 hand; P2 controls no creatures; life totals 40/40; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }, { "card": "Island" }, { "card": "Mountain" }] },
+            "permanent.Bog Raiders.tapped": false,
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Bog Raiders (2/2 Swampwalk) is untapped and has no summoning sickness (turn 4, placed via builder). Island and Mountain are untapped — P1 will tap them during declare_blockers to pay Ninjutsu cost {1}{U}. P2 controls no creatures."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Bog Raiders", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: P1 declares Bog Raiders as an attacking creature targeting P2. CR 508.1a: Bog Raiders is untapped and free of summoning sickness — legal attacker. CR 508.1f: Bog Raiders becomes tapped as a side effect of attacking. CR 508.1k: Bog Raiders becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Bog Raiders tapped (attacking P2); Island and Mountain still untapped; stack empty",
+          "assertions": {
+            "permanent.Bog Raiders.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Bog Raiders tapped as part of the attack declaration. Island and Mountain remain untapped for Ninjutsu cost payment in the declare_blockers step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to declare_blockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "P2 declares no blockers (P2 controls no creatures). Bog Raiders is unblocked (CR 509.1h). P1 taps Island for {U} and Mountain for {R} (CR 605.3), then activates Ninjutsu: pays {1}{U} ({R} for generic, {U} for blue), reveals Ninja (CR 702.49b), returns Bog Raiders to hand. Ninjutsu ability goes on the stack. Both players pass; ability resolves: Ninja enters battlefield tapped and attacking P2 (CR 702.49c).",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: P2 declares no blockers — P2 controls no creatures. CR 509.1h: Bog Raiders has no creatures declared as blockers; it becomes an unblocked attacker."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_blockers: Bog Raiders on battlefield (unblocked); Ninja in P1 hand; Island and Mountain untapped; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }, { "card": "Island" }, { "card": "Mountain" }] },
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "P2 passed with no blockers. Bog Raiders is unblocked (CR 509.1h). P1 holds priority and may activate mana abilities and then Ninjutsu (Scryfall ruling 2021-03-19: Ninjutsu can be activated during declare_blockers step)."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Island",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: Mana abilities don't use the stack and resolve immediately. P1 taps Island to add {U} to the mana pool."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "tap_for_mana",
+          "card": "Mountain",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "605.3",
+          "note": "CR 605.3: P1 taps Mountain to add {R} to the mana pool. P1 now has {U}{R}: {U} pays the blue {U} of Ninjutsu cost; {R} satisfies the generic {1}."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ninjutsu",
+          "card": "Ninja of the Deep Hours",
+          "attacker_name": "Bog Raiders",
+          "targets": [],
+          "mana_paid": { "blue": 1, "red": 1 },
+          "mana_source": [],
+          "cr_ref": "702.49a",
+          "note": "CR 702.49a: Ninjutsu cost {1}{U} paid as {R}{U} — {R} from Mountain satisfies generic {1}, {U} from Island satisfies the blue {U}. Return Bog Raiders (unblocked attacker P1 controls) to P1's hand. Reveal Ninja of the Deep Hours (CR 702.49b). The Ninjutsu ability is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Ninjutsu activation: Bog Raiders returned to P1's hand; Ninjutsu ability on stack (count 1); Bog Raiders no longer on P1 battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Bog Raiders" }] }
+          },
+          "note": "CR 702.49a: Returning Bog Raiders to hand is part of the activation cost — it happens before the ability is placed on the stack. Bog Raiders is now in P1's hand. The Ninjutsu ability is on the stack (count 1). Ninja of the Deep Hours is revealed (CR 702.49b) and remains in P1's hand until the ability resolves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Ninjutsu ability (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Ninja of the Deep Hours Ninjutsu ability",
+          "resolution": [
+            {
+              "effect": "put_onto_battlefield_tapped_attacking",
+              "target": { "type": "permanent", "player": null, "card": "Ninja of the Deep Hours", "controller": "p1" },
+              "attacking": "p2",
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.49c",
+              "note": "CR 702.49c: Ninja of the Deep Hours is put onto the battlefield from P1's hand tapped and attacking P2. It inherits the attack target (P2) from Bog Raiders."
+            }
+          ],
+          "note": "CR 608.2: Ninjutsu ability resolves. CR 702.49a: Ninja of the Deep Hours is put onto the battlefield from P1's hand tapped and attacking. CR 702.49c: The Ninja inherits the attack target (P2). The Ninja was never declared as an attacker and does not trigger 'whenever a creature attacks' abilities."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Ninjutsu resolves: Ninja of the Deep Hours on P1 battlefield tapped (attacking P2); Bog Raiders in P1 hand; stack empty; life totals unchanged",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Ninja of the Deep Hours" }] },
+            "permanent.Ninja of the Deep Hours.tapped": true,
+            "zones.hand.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.49c: Ninja of the Deep Hours is on the battlefield tapped and attacking P2. Bog Raiders is in P1's hand (returned as Ninjutsu cost). Stack is empty. No combat damage has been dealt yet."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to combat_damage step."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Ninja of the Deep Hours (2/2, unblocked) assigns 2 combat damage to P2 (CR 510.1b). P2 life: 40 to 38. The triggered ability 'Whenever this creature deals combat damage to a player, you may draw a card' fires (CR 603.2). P1 draws 1 card when the trigger resolves.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: P2 has 40 life — no player-death SBA. CR 704.5g: Ninja of the Deep Hours (2/2) took no damage — no lethal-damage SBA. No SBAs apply."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "assign_damage",
+          "card": "Ninja of the Deep Hours",
+          "targets": [
+            { "type": "player", "player": "p2", "card": null, "controller": null }
+          ],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "510.1",
+          "note": "CR 510.1: P1 assigns all 2 points of combat damage from Ninja of the Deep Hours (power 2) to P2 — the creature is unblocked (CR 510.1b). CR 120.3: P2 loses 2 life."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: P2 at 38 life; draw trigger on the stack (count 1)",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 38,
+            "zones.stack.count": 1
+          },
+          "note": "CR 510.1b: Ninja of the Deep Hours (power 2, unblocked) dealt 2 combat damage to P2. P2 life: 40 to 38. CR 603.2: Triggered ability 'Whenever this creature deals combat damage to a player, you may draw a card' fires and is placed on the stack (count 1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the draw trigger (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Ninja of the Deep Hours combat damage trigger",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: The triggered ability resolves — P1 draws 1 card from their library (Island)."
+            }
+          ],
+          "note": "CR 608.2: Draw trigger resolves. P1 draws 1 card (Island from library). P1 hand now contains Bog Raiders and Island (count 2)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: P2 at 38 life; P1 hand count 2 (Bog Raiders + drawn Island); Ninja of the Deep Hours tapped on P1 battlefield; stack empty",
+          "assertions": {
+            "players.p2.life": 38,
+            "players.p1.life": 40,
+            "zones.hand.p1.count": 2,
+            "zones.hand.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Ninja of the Deep Hours" }] },
+            "permanent.Ninja of the Deep Hours.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Ninja of the Deep Hours (2/2) dealt 2 combat damage to P2 (life 40 to 38). Draw trigger resolved: P1 drew Island from library. P1 hand: [Bog Raiders, Island] = 2 cards. Ninja of the Deep Hours remains on battlefield tapped. Stack is empty."
+        }
+      ]
+    }
+  ]
+}

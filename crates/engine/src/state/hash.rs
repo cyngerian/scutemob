@@ -506,6 +506,10 @@ impl HashInto for KeywordAbility {
             }
             // Enlist (discriminant 86) -- CR 702.154
             KeywordAbility::Enlist => 86u8.hash_into(hasher),
+            // Ninjutsu (discriminant 87) -- CR 702.49
+            KeywordAbility::Ninjutsu => 87u8.hash_into(hasher),
+            // Commander Ninjutsu (discriminant 88) -- CR 702.49d
+            KeywordAbility::CommanderNinjutsu => 88u8.hash_into(hasher),
         }
     }
 }
@@ -1506,6 +1510,19 @@ impl HashInto for StackObjectKind {
                 25u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 enlisted_creature.hash_into(hasher);
+            }
+            // NinjutsuAbility (discriminant 26) -- CR 702.49a
+            StackObjectKind::NinjutsuAbility {
+                source_object,
+                ninja_card,
+                attack_target,
+                from_command_zone,
+            } => {
+                26u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                ninja_card.hash_into(hasher);
+                attack_target.hash_into(hasher);
+                from_command_zone.hash_into(hasher);
             }
         }
     }
@@ -3045,6 +3062,16 @@ impl HashInto for AbilityDefinition {
             // Overload (discriminant 21) -- CR 702.96
             AbilityDefinition::Overload { cost } => {
                 21u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Ninjutsu (discriminant 22) -- CR 702.49
+            AbilityDefinition::Ninjutsu { cost } => {
+                22u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // CommanderNinjutsu (discriminant 23) -- CR 702.49d
+            AbilityDefinition::CommanderNinjutsu { cost } => {
+                23u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }
