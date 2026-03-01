@@ -494,6 +494,11 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Training => 82u8.hash_into(hasher),
             // Melee (discriminant 83) -- CR 702.121
             KeywordAbility::Melee => 83u8.hash_into(hasher),
+            // Poisonous (discriminant 84) -- CR 702.70
+            KeywordAbility::Poisonous(n) => {
+                84u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1134,6 +1139,10 @@ impl HashInto for PendingTrigger {
         self.renown_n.hash_into(hasher);
         // CR 702.121a: is_melee_trigger -- melee attack trigger marker
         self.is_melee_trigger.hash_into(hasher);
+        // CR 702.70a: is_poisonous_trigger -- poisonous combat damage trigger marker
+        self.is_poisonous_trigger.hash_into(hasher);
+        self.poisonous_n.hash_into(hasher);
+        self.poisonous_target_player.hash_into(hasher);
     }
 }
 
@@ -1467,6 +1476,17 @@ impl HashInto for StackObjectKind {
             StackObjectKind::MeleeTrigger { source_object } => {
                 23u8.hash_into(hasher);
                 source_object.hash_into(hasher);
+            }
+            // PoisonousTrigger (discriminant 24) -- CR 702.70a
+            StackObjectKind::PoisonousTrigger {
+                source_object,
+                target_player,
+                poisonous_n,
+            } => {
+                24u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target_player.hash_into(hasher);
+                poisonous_n.hash_into(hasher);
             }
         }
     }

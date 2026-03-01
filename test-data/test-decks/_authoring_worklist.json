@@ -1,10 +1,10 @@
 {
-  "generated": "2026-02-28T23:31:39.443771+00:00",
+  "generated": "2026-02-28T23:49:56.972935+00:00",
   "summary": {
     "total_cards": 1174,
-    "authored": 59,
-    "ready": 947,
-    "blocked": 148,
+    "authored": 66,
+    "ready": 941,
+    "blocked": 147,
     "deferred": 20,
     "unknown": 0
   },
@@ -102,6 +102,17 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Skullclamp",
+      "appears_in_decks": 7,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [
+        "Equip"
+      ],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Swiftfoot Boots",
       "appears_in_decks": 7,
       "types": [
@@ -189,6 +200,15 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Worldly Tutor",
+      "appears_in_decks": 5,
+      "types": [
+        "Instant"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Anguished Unmaking",
       "appears_in_decks": 4,
       "types": [
@@ -234,6 +254,24 @@
       "keyword_statuses": {}
     },
     {
+      "name": "Mana Confluence",
+      "appears_in_decks": 4,
+      "types": [
+        "Land"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Phyrexian Altar",
+      "appears_in_decks": 4,
+      "types": [
+        "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
       "name": "Zulaport Cutthroat",
       "appears_in_decks": 4,
       "types": [
@@ -256,6 +294,24 @@
       "appears_in_decks": 3,
       "types": [
         "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Demonic Tutor",
+      "appears_in_decks": 3,
+      "types": [
+        "Sorcery"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Impact Tremors",
+      "appears_in_decks": 3,
+      "types": [
+        "Enchantment"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -310,6 +366,15 @@
       "appears_in_decks": 3,
       "types": [
         "Artifact"
+      ],
+      "keywords": [],
+      "keyword_statuses": {}
+    },
+    {
+      "name": "Vampiric Tutor",
+      "appears_in_decks": 3,
+      "types": [
+        "Instant"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -577,19 +642,6 @@
   ],
   "ready": [
     {
-      "name": "Skullclamp",
-      "appears_in_decks": 7,
-      "types": [
-        "Artifact"
-      ],
-      "keywords": [
-        "Equip"
-      ],
-      "keyword_statuses": {
-        "Equip": "validated (P1)"
-      }
-    },
-    {
       "name": "Cavern of Souls",
       "appears_in_decks": 5,
       "types": [
@@ -612,15 +664,6 @@
       "appears_in_decks": 5,
       "types": [
         "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Worldly Tutor",
-      "appears_in_decks": 5,
-      "types": [
-        "Instant"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -666,24 +709,6 @@
       "appears_in_decks": 4,
       "types": [
         "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Mana Confluence",
-      "appears_in_decks": 4,
-      "types": [
-        "Land"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Phyrexian Altar",
-      "appears_in_decks": 4,
-      "types": [
-        "Artifact"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -800,15 +825,6 @@
       "keyword_statuses": {}
     },
     {
-      "name": "Demonic Tutor",
-      "appears_in_decks": 3,
-      "types": [
-        "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
       "name": "Diabolic Intent",
       "appears_in_decks": 3,
       "types": [
@@ -858,15 +874,6 @@
       "appears_in_decks": 3,
       "types": [
         "Creature"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Impact Tremors",
-      "appears_in_decks": 3,
-      "types": [
-        "Enchantment"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -1076,15 +1083,6 @@
       "appears_in_decks": 3,
       "types": [
         "Sorcery"
-      ],
-      "keywords": [],
-      "keyword_statuses": {}
-    },
-    {
-      "name": "Vampiric Tutor",
-      "appears_in_decks": 3,
-      "types": [
-        "Instant"
       ],
       "keywords": [],
       "keyword_statuses": {}
@@ -5998,6 +5996,19 @@
       ],
       "keywords": [],
       "keyword_statuses": {}
+    },
+    {
+      "name": "Incubation Druid",
+      "appears_in_decks": 1,
+      "types": [
+        "Creature"
+      ],
+      "keywords": [
+        "Adapt"
+      ],
+      "keyword_statuses": {
+        "Adapt": "validated (P3)"
+      }
     },
     {
       "name": "Indatha Triome",
@@ -12003,22 +12014,6 @@
       },
       "blocking_keywords": [
         "Encore"
-      ]
-    },
-    {
-      "name": "Incubation Druid",
-      "appears_in_decks": 1,
-      "types": [
-        "Creature"
-      ],
-      "keywords": [
-        "Adapt"
-      ],
-      "keyword_statuses": {
-        "Adapt": "none (P3)"
-      },
-      "blocking_keywords": [
-        "Adapt"
       ]
     },
     {

@@ -1,22 +1,22 @@
-# Ability WIP: Melee
+# Ability WIP: Poisonous
 
-ability: Melee
-cr: 702.121
+ability: Poisonous
+cr: 702.70
 priority: P4
 started: 2026-03-01
 phase: closed
-plan_file: memory/abilities/ability-plan-melee.md
+plan_file: memory/abilities/ability-plan-poisonous.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:700 + hash.rs:494 (disc 83) + view_model.rs:706
-- [x] 2. Rule enforcement — stack.rs:514 (MeleeTrigger) + stubs.rs:299 (is_melee_trigger) + builder.rs:512 (auto-generate SelfAttacks trigger) + hash.rs:1462 (disc 23) + tui/stack_view.rs:94 + view_model.rs:485
-- [x] 3. Trigger wiring — abilities.rs:1477 (tag melee triggers) + abilities.rs:2732 (flush MeleeTrigger) + resolution.rs:1997 (counter catch-all) + resolution.rs:1886 (MeleeTrigger resolution)
-- [x] 4. Unit tests — crates/engine/tests/melee.rs (7 tests, all passing)
-- [x] 5. Card definition — crates/engine/src/cards/defs/wings_of_the_guard.rs
-- [x] 6. Game script — test-data/generated-scripts/combat/121_wings_of_the_guard_melee_4_player.json
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 14/88, 106 total validated, CR corrected to 702.121)
+- [x] 1. Enum variant — types.rs:701, hash.rs:497-501, view_model.rs:711, builder.rs:532-545
+- [x] 2. Rule enforcement — stubs.rs:307-330, hash.rs:1142-1145, abilities.rs/effects/mod.rs/turn_actions.rs/resolution.rs/miracle.rs (all PendingTrigger sites)
+- [x] 3. Trigger wiring — stack.rs:534-558, hash.rs:1471-1480, abilities.rs (dispatch+flush), resolution.rs (resolution+counter arm), view_model.rs:490-492, stack_view.rs:98-100
+- [x] 4. Unit tests — crates/engine/tests/poisonous.rs (6 tests, all passing)
+- [x] 5. Card definition — crates/engine/src/cards/defs/poisonous_viper.rs (test card: {2}{B}, 2/2 Snake, Poisonous 1)
+- [x] 6. Game script — test-data/generated-scripts/combat/122_poisonous_viper_gives_poison_counter.json
+- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 15/88, 107 total validated)
 
 ## Review
-findings: 3 LOW (no HIGH/MEDIUM)
+findings: 2 LOW (no HIGH/MEDIUM)
 verdict: clean
-review_file: memory/abilities/ability-review-melee.md
+review_file: memory/abilities/ability-review-poisonous.md

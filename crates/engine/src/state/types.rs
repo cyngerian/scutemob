@@ -709,6 +709,17 @@ pub enum KeywordAbility {
     /// 2016-08-23: "You determine the size of the bonus as the melee ability
     /// resolves"). The trigger fires on `TriggerEvent::SelfAttacks`.
     Melee,
+    /// CR 702.70: Poisonous N -- triggered ability.
+    /// "Whenever this creature deals combat damage to a player, that player gets N
+    /// poison counters."
+    /// CR 702.70b: Multiple instances trigger separately.
+    ///
+    /// Unlike Infect (replacement effect converting damage to poison counters),
+    /// Poisonous is a triggered ability that adds poison counters IN ADDITION to
+    /// the normal combat damage. The N value is fixed, not based on damage dealt.
+    /// Reuses existing poison counter infrastructure (PlayerState.poison_counters,
+    /// PoisonCountersGiven event, 10-poison SBA CR 704.5c).
+    Poisonous(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

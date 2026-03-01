@@ -105,6 +105,10 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             provoke_target_creature: None,
             is_renown_trigger: false,
             renown_n: None,
+            is_melee_trigger: false,
+            is_poisonous_trigger: false,
+            poisonous_n: None,
+            poisonous_target_player: None,
         });
     }
 
@@ -170,6 +174,10 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             provoke_target_creature: None,
             is_renown_trigger: false,
             renown_n: None,
+            is_melee_trigger: false,
+            is_poisonous_trigger: false,
+            poisonous_n: None,
+            poisonous_target_player: None,
         });
     }
 
@@ -456,6 +464,10 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         provoke_target_creature: None,
                         is_renown_trigger: false,
                         renown_n: None,
+                        is_melee_trigger: false,
+                        is_poisonous_trigger: false,
+                        poisonous_n: None,
+                        poisonous_target_player: None,
                     });
                 }
             }

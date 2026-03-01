@@ -531,4 +531,29 @@ pub enum StackObjectKind {
     /// `state.combat.attackers` retains all declared attackers even if they
     /// leave the battlefield, so the count is stable.
     MeleeTrigger { source_object: ObjectId },
+    /// CR 702.70a: Poisonous N triggered ability on the stack.
+    ///
+    /// "Whenever this creature deals combat damage to a player, that player
+    /// gets N poison counters."
+    ///
+    /// `source_object` is the creature with poisonous on the battlefield.
+    /// `target_player` is the player who was dealt combat damage (who receives
+    /// the poison counters).
+    /// `poisonous_n` is the number of poison counters to give.
+    ///
+    /// When this trigger resolves:
+    /// 1. Give `target_player` exactly `poisonous_n` poison counters.
+    /// 2. Emit `PoisonCountersGiven` event (reusing the existing Infect event).
+    ///
+    /// CR 702.70b: Multiple instances trigger separately (each creates its own
+    /// trigger with its own N value).
+    ///
+    /// CR 603.10: The source creature does NOT need to be on the battlefield
+    /// at resolution time (the trigger is already on the stack). The poison
+    /// counters are given regardless of the source's current state.
+    PoisonousTrigger {
+        source_object: ObjectId,
+        target_player: crate::state::player::PlayerId,
+        poisonous_n: u32,
+    },
 }

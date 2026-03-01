@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | Batch 0+1+2 complete; Batch 3 next (Ninjutsu, Bushido+, Exalted, etc.) |
+| W1: Abilities | Batch 3: Combat Modifiers & Ninjutsu | ACTIVE | 2026-03-01 | Melee, Enlist, Poisonous, Toxic, Ninjutsu |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

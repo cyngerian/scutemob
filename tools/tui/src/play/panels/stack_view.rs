@@ -95,6 +95,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::MeleeTrigger { source_object, .. } => {
                     ("Melee: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::PoisonousTrigger { source_object, .. } => {
+                    ("Poisonous: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

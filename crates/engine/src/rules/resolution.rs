@@ -1372,6 +1372,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 is_renown_trigger: false,
                                 renown_n: None,
                                 is_melee_trigger: false,
+                                is_poisonous_trigger: false,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
                             });
                     }
                 }
@@ -1960,6 +1963,44 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.70a: Poisonous trigger resolves -- give the damaged player
+        // N poison counters.
+        //
+        // CR 603.10: The source creature does NOT need to be on the battlefield
+        // at resolution time (the trigger is already on the stack).
+        // The poison counters are given regardless of the source's current state.
+        //
+        // Ruling (Virulent Sliver 2021-03-19): "Poisonous 1 causes the player to
+        // get just one poison counter when a Sliver deals combat damage to them,
+        // no matter how much damage that Sliver dealt." The N value is fixed.
+        StackObjectKind::PoisonousTrigger {
+            source_object,
+            target_player,
+            poisonous_n,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Give target_player exactly poisonous_n poison counters.
+            if let Some(player) = state.players.get_mut(&target_player) {
+                player.poison_counters += poisonous_n;
+            }
+
+            // Reuse the existing PoisonCountersGiven event from Infect infrastructure.
+            // The event semantics are identical: a player received poison counters from
+            // a source object. The origin (Poisonous trigger vs. Infect damage
+            // replacement) is transparent to downstream consumers.
+            events.push(GameEvent::PoisonCountersGiven {
+                player: target_player,
+                amount: poisonous_n,
+                source: source_object,
+            });
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -2072,7 +2113,8 @@ pub fn counter_stack_object(
         | StackObjectKind::RampageTrigger { .. }
         | StackObjectKind::ProvokeTrigger { .. }
         | StackObjectKind::RenownTrigger { .. }
-        | StackObjectKind::MeleeTrigger { .. } => {
+        | StackObjectKind::MeleeTrigger { .. }
+        | StackObjectKind::PoisonousTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

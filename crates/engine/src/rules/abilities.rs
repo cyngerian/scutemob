@@ -541,6 +541,9 @@ pub fn handle_cycle_card(
             is_renown_trigger: false,
             renown_n: None,
             is_melee_trigger: false,
+            is_poisonous_trigger: false,
+            poisonous_n: None,
+            poisonous_target_player: None,
         });
     }
 
@@ -875,6 +878,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -955,6 +961,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 is_renown_trigger: false,
                                 renown_n: None,
                                 is_melee_trigger: false,
+                                is_poisonous_trigger: false,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
                             });
                         }
                     }
@@ -1024,6 +1033,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         });
                     }
                 }
@@ -1095,6 +1107,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 is_renown_trigger: false,
                                 renown_n: None,
                                 is_melee_trigger: false,
+                                is_poisonous_trigger: false,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
                             });
                         }
                     }
@@ -1256,6 +1271,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             is_renown_trigger: false,
                                             renown_n: None,
                                             is_melee_trigger: false,
+                                            is_poisonous_trigger: false,
+                                            poisonous_n: None,
+                                            poisonous_target_player: None,
                                         });
                                     }
                                 }
@@ -1717,6 +1735,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         });
                     }
                 }
@@ -1907,6 +1928,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         });
                     }
                 }
@@ -1976,6 +2000,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         });
                     }
                 }
@@ -2089,6 +2116,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             is_renown_trigger: false,
                             renown_n: None,
                             is_melee_trigger: false,
+                            is_poisonous_trigger: false,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
                         });
                     }
                 }
@@ -2201,6 +2231,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         is_renown_trigger: false,
                                         renown_n: None,
                                         is_melee_trigger: false,
+                                        is_poisonous_trigger: false,
+                                        poisonous_n: None,
+                                        poisonous_target_player: None,
                                     });
                                 }
                             }
@@ -2292,6 +2325,106 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         is_renown_trigger: true,
                                         renown_n: Some(n),
                                         is_melee_trigger: false,
+                                        is_poisonous_trigger: false,
+                                        poisonous_n: None,
+                                        poisonous_target_player: None,
+                                    });
+                                }
+                            }
+                        }
+
+                        // CR 702.70a: Poisonous N -- "Whenever this creature deals combat
+                        // damage to a player, that player gets N poison counters."
+                        // CR 702.70b: Multiple instances trigger separately.
+                        if let Some(obj) = state.objects.get(&assignment.source) {
+                            if obj.zone == ZoneId::Battlefield {
+                                // Already guaranteed by the outer `if matches!(..., Player(_))`
+                                // guard -- use `let...else` for safety.
+                                let CombatDamageTarget::Player(damaged_player) = &assignment.target
+                                else {
+                                    continue;
+                                };
+                                let damaged_player = *damaged_player;
+
+                                // Collect Poisonous N values from card definition.
+                                // CR 702.70b: Each keyword instance triggers separately.
+                                let poisonous_values: Vec<u32> = obj
+                                    .card_id
+                                    .as_ref()
+                                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                                    .map(|def| {
+                                        def.abilities
+                                            .iter()
+                                            .filter_map(|a| match a {
+                                                AbilityDefinition::Keyword(
+                                                    KeywordAbility::Poisonous(n),
+                                                ) => Some(*n),
+                                                _ => None,
+                                            })
+                                            .collect()
+                                    })
+                                    .unwrap_or_else(|| {
+                                        // Fallback: check keywords on the object itself
+                                        obj.characteristics
+                                            .keywords
+                                            .iter()
+                                            .filter_map(|kw| match kw {
+                                                KeywordAbility::Poisonous(n) => Some(*n),
+                                                _ => None,
+                                            })
+                                            .collect()
+                                    });
+
+                                let controller = obj.controller;
+                                let source_id = obj.id;
+                                for n in poisonous_values {
+                                    triggers.push(PendingTrigger {
+                                        source: source_id,
+                                        ability_index: 0, // unused for poisonous triggers
+                                        controller,
+                                        triggering_event: Some(
+                                            TriggerEvent::SelfDealsCombatDamageToPlayer,
+                                        ),
+                                        entering_object_id: None,
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        is_evoke_sacrifice: false,
+                                        is_madness_trigger: false,
+                                        madness_exiled_card: None,
+                                        madness_cost: None,
+                                        is_miracle_trigger: false,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        is_unearth_trigger: false,
+                                        is_exploit_trigger: false,
+                                        is_modular_trigger: false,
+                                        modular_counter_count: None,
+                                        is_evolve_trigger: false,
+                                        evolve_entering_creature: None,
+                                        is_myriad_trigger: false,
+                                        is_suspend_counter_trigger: false,
+                                        is_suspend_cast_trigger: false,
+                                        suspend_card_id: None,
+                                        is_hideaway_trigger: false,
+                                        hideaway_count: None,
+                                        is_partner_with_trigger: false,
+                                        partner_with_name: None,
+                                        is_ingest_trigger: false,
+                                        ingest_target_player: None,
+                                        is_flanking_trigger: false,
+                                        flanking_blocker_id: None,
+                                        is_rampage_trigger: false,
+                                        rampage_n: None,
+                                        is_provoke_trigger: false,
+                                        provoke_target_creature: None,
+                                        is_renown_trigger: false,
+                                        renown_n: None,
+                                        is_melee_trigger: false,
+                                        is_poisonous_trigger: true,
+                                        poisonous_n: Some(n),
+                                        poisonous_target_player: Some(damaged_player),
                                     });
                                 }
                             }
@@ -2417,6 +2550,9 @@ fn collect_triggers_for_event(
                 is_renown_trigger: false,
                 renown_n: None,
                 is_melee_trigger: false,
+                is_poisonous_trigger: false,
+                poisonous_n: None,
+                poisonous_target_player: None,
             });
         }
     }
@@ -2750,6 +2886,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // Bonus computed at resolution time from state.combat (ruling 2016-08-23).
                 StackObjectKind::MeleeTrigger {
                     source_object: trigger.source,
+                }
+            } else if trigger.is_poisonous_trigger {
+                // CR 702.70a: Poisonous N combat damage trigger -- "Whenever this creature
+                // deals combat damage to a player, that player gets N poison counters."
+                StackObjectKind::PoisonousTrigger {
+                    source_object: trigger.source,
+                    target_player: trigger
+                        .poisonous_target_player
+                        .unwrap_or(trigger.controller),
+                    poisonous_n: trigger.poisonous_n.unwrap_or(1),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

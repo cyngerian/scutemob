@@ -1,0 +1,198 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_122",
+    "name": "Poisonous 1 — unblocked attacker deals normal damage AND gives 1 poison counter",
+    "description": "p1 controls Poisonous Viper (2/2, Poisonous 1). p2 has no creatures. p1 declares Poisonous Viper as an attacker targeting p2. p2 declares no blockers. Combat damage resolves: Poisonous Viper (power 2, unblocked) deals 2 damage to p2, reducing p2's life from 40 to 38. Additionally, CR 702.70a triggers — 'Whenever this creature deals combat damage to a player, that player gets N poison counters.' The trigger fires at combat damage and is placed on the stack. Both players pass priority; the trigger resolves and p2 gets 1 poison counter. Final state: p2 at 38 life (normal 2 combat damage) with 1 poison counter. This validates that Poisonous is ADDITIVE — unlike Infect (CR 702.90), which replaces damage with poison counters, Poisonous gives poison counters IN ADDITION to dealing normal damage. CR 702.70b confirms: N is fixed (1 poison counter) regardless of how much damage was dealt.",
+    "cr_sections_tested": ["702.70a", "702.70b", "508.1", "508.1f", "509.1", "509.1h", "510.1", "510.1b", "120.3", "118.2", "704.3", "704.5c"],
+    "corner_case_ref": null,
+    "tags": ["combat", "poisonous", "triggered-ability", "poison-counter", "additive-damage", "unblocked", "combat-damage"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Poisonous Viper is a test card defined at crates/engine/src/cards/defs/poisonous_viper.rs (card_id: poisonous-viper): {2}{B}, Creature — Snake 2/2, Poisonous 1. Matches the name used by unit tests in crates/engine/tests/poisonous.rs (ObjectSpec::creature(p1, 'Poisonous Viper', 2, 2).with_keyword(KeywordAbility::Poisonous(1))). No real MTG card with a simple Poisonous N keyword and no other abilities is available in the engine registry; Poisonous Viper is a dedicated test creature. CR 702.70a: 'Poisonous N means: Whenever this creature deals combat damage to a player, that player gets N poison counters.' This trigger fires AFTER combat damage is dealt — it goes on the stack during the combat damage step. CR 702.70b: N is fixed (1 counter) regardless of damage amount — dealing 2 damage with Poisonous 1 gives exactly 1 poison counter, not 2. This is a key distinction from Infect (CR 702.90b), where each point of infect damage gives one poison counter. Virulent Sliver ruling (2021-03-19): 'Poisonous 1 causes the player to get just one poison counter when a Sliver deals combat damage to them, no matter how much damage that Sliver dealt.' The engine implements this correctly in rules/resolution.rs (StackObjectKind::PoisonousTrigger: player.poison_counters += poisonous_n). Turn 4 used to avoid summoning sickness on Poisonous Viper (CR 302.6). The trigger fires when Poisonous Viper deals combat damage to p2 as a player (CR 702.70a). The trigger is a StackObjectKind::PoisonousTrigger with target_player = p2 and poisonous_n = 1. After the trigger resolves, p2 has 1 poison counter — below 10, so SBA 704.5c (player with 10+ poison counters loses) does NOT fire. p2 life = 38 (40 - 2 from normal combat damage). The poison counter assertion validates Poisonous is additive: if it were a replacement (like Infect), p2 would be at 40 life with 2 poison counters instead.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Poisonous Viper", "tapped": false, "is_commander": false, "owner": null }
+        ],
+        "p2": []
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Poisonous Viper as an attacker targeting p2. CR 508.1f: Poisonous Viper becomes tapped. Poisonous does NOT trigger at this step — CR 702.70a triggers on 'deals combat damage', not on 'attacks'. Both players pass priority.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Poisonous Viper (2/2, Poisonous 1) untapped on p1 battlefield; p2 at 40 life, 0 poison counters; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Poisonous Viper" }] },
+            "permanent.Poisonous Viper.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "players.p2.poison_counters": 0,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Turn 4 — no summoning sickness (CR 302.6). Poisonous Viper (2/2, Poisonous 1) is a legal attacker. p2 has no creatures — no legal blockers exist. Poisonous is a triggered ability that fires on combat damage to a player (CR 702.70a), not on attacking."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Poisonous Viper", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Poisonous Viper as an attacking creature targeting p2. CR 508.1f: Poisonous Viper becomes tapped as part of the attack declaration. Poisonous does NOT trigger here — CR 702.70a triggers only when this creature deals combat damage to a player."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Poisonous Viper is tapped; stack empty — no Poisonous trigger yet",
+          "assertions": {
+            "permanent.Poisonous Viper.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Poisonous Viper tapped upon attacking. Poisonous 1 (CR 702.70a) triggers only on combat damage, which has not yet been dealt."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 has no creatures and declares no blockers. Poisonous Viper becomes an unblocked attacker (CR 509.1h). No triggers fire at this step — Poisonous triggers on combat damage (CR 702.70a). Both players pass priority — advance to CombatDamage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers (no creatures on p2's battlefield). CR 509.1h: Poisonous Viper has no blocking creatures — it becomes an unblocked attacker. Poisonous does NOT trigger here — CR 702.70a triggers only on combat damage to a player, not on becoming unblocked."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step. Poisonous Viper (power 2, unblocked) will deal 2 combat damage to p2. CR 702.70a: the Poisonous trigger fires when the damage is dealt."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step (CR 510.1): Poisonous Viper (power 2, unblocked) deals 2 combat damage to p2. p2 life: 40 → 38. CR 702.70a: Poisonous 1 trigger fires — 'Whenever this creature deals combat damage to a player, that player gets 1 poison counter.' The trigger is placed on the stack. Both players pass priority; trigger resolves — p2 gets 1 poison counter. CR 702.70b: N is fixed regardless of damage amount — Poisonous 1 always gives exactly 1 counter, not 2 (even though 2 damage was dealt).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "After combat damage is dealt: p2 life = 38 (lost 2 from 2 combat damage); Poisonous trigger on stack (count 1); p2 has 0 poison counters (trigger not yet resolved)",
+          "assertions": {
+            "players.p2.life": 38,
+            "players.p2.poison_counters": 0,
+            "zones.stack.count": 1
+          },
+          "note": "CR 510.1b: Poisonous Viper (power 2, unblocked) assigns 2 damage to p2. CR 120.3: p2 loses 2 life (40 → 38). CR 702.70a: Poisonous 1 trigger fires immediately — it is placed on the stack. p2 has 0 poison counters — trigger has not resolved yet. Stack count is 1 (the Poisonous triggered ability)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Poisonous trigger (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Poisonous Viper",
+          "resolution": [
+            {
+              "effect": "add_poison_counters",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.70a",
+              "note": "CR 702.70a: Poisonous 1 trigger resolves — p2 gets exactly 1 poison counter. CR 702.70b: N is fixed at 1 regardless of damage dealt (Poisonous Viper dealt 2 damage but gives only 1 counter). p2 poison_counters: 0 → 1."
+            }
+          ],
+          "note": "CR 608.2: Poisonous triggered ability resolves. CR 702.70a: target player (p2) gets N (1) poison counters. CR 702.70b: the amount is fixed — N does not scale with damage dealt. This is the key distinction from Infect (CR 702.90b), which gives 1 poison counter per point of infect damage."
+        },
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5c: p2 has 1 poison counter — below 10, so the 'player with 10+ poison counters loses' SBA does not apply. CR 704.5g: Poisonous Viper (2/2) dealt damage to a player (not a creature) — no damage marked on Poisonous Viper — no lethal damage SBA. CR 704.5a: p2 life is 38 (above 0) — no player-death SBA. No SBAs fire."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after Poisonous trigger resolves and SBAs checked. Stack is empty — advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p2 at 38 life (lost 2 from normal combat damage — Poisonous does NOT replace damage like Infect); p2 has 1 poison counter (from Poisonous 1 trigger); p1 at 40 life; Poisonous Viper still on p1 battlefield (tapped); stack empty",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 38,
+            "players.p2.poison_counters": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Poisonous Viper" }] },
+            "permanent.Poisonous Viper.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.70a: Poisonous 1 gave p2 exactly 1 poison counter after combat damage. CR 702.70b: N=1 is fixed — the 2 damage dealt did NOT give 2 counters (compare: Infect would give 2 counters for 2 damage). p2 life = 38 confirms Poisonous is ADDITIVE (normal damage still applies), not a replacement like Infect (CR 702.90b). p2 has 1 poison counter — below 10, so no game loss (CR 704.5c). Poisonous Viper survives (it dealt damage to a player, not a creature — no damage is marked on it, CR 510.1b)."
+        }
+      ]
+    }
+  ]
+}

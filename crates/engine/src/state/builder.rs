@@ -529,6 +529,12 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.70a: Poisonous N -- trigger dispatch is handled manually in
+                // abilities.rs CombatDamageDealt handler (same as Ingest / Renown).
+                // No TriggeredAbilityDef is registered here to avoid double-triggering:
+                // the manual dispatch block already creates the PoisonousTrigger StackObjectKind
+                // with the correct N value and target player carried as fields.
+
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."

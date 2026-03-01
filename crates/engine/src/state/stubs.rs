@@ -304,6 +304,25 @@ pub struct PendingTrigger {
     /// The bonus is computed at resolution time from `state.combat`.
     #[serde(default)]
     pub is_melee_trigger: bool,
+    /// CR 702.70a: If true, this pending trigger is a Poisonous trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::PoisonousTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.
+    /// The `poisonous_n` carries the N value (number of poison counters).
+    /// The `poisonous_target_player` carries the damaged player's ID.
+    #[serde(default)]
+    pub is_poisonous_trigger: bool,
+    /// CR 702.70a: The N value from "Poisonous N" -- how many poison counters
+    /// to give the damaged player when the trigger resolves.
+    ///
+    /// Only meaningful when `is_poisonous_trigger` is true.
+    #[serde(default)]
+    pub poisonous_n: Option<u32>,
+    /// CR 702.70a: The player dealt combat damage (who receives poison counters).
+    ///
+    /// Only meaningful when `is_poisonous_trigger` is true.
+    #[serde(default)]
+    pub poisonous_target_player: Option<PlayerId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

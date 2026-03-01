@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Melee validated; CR 702.121 confirmed (was incorrectly listed as 702.122 — that is Crew); types.rs:701-711, stack.rs:514-533, stubs.rs:300-302, builder.rs:513-528, abilities.rs:1479-1487+2749-2751, resolution.rs:1888-1897; Wings of the Guard card def; 7 unit tests in melee.rs; game script combat/121; P4 validated 13->14, total validated 105->106)
+> Last audited: 2026-03-01 (Poisonous validated; CR 702.70 confirmed; KeywordAbility::Poisonous(u32) disc 84 at types.rs:722; StackObjectKind::PoisonousTrigger disc 24 at stack.rs:534-554; trigger dispatch in abilities.rs:2336-2427; resolution in resolution.rs:1967-1995; Poisonous Viper test card def; 6 unit tests in tests/poisonous.rs; game script combat/122; P4 validated 14->15, total validated 106->107)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 14        | 0        | 0       | 74   | 12  |
-| **Total**| **199**| **106**  | **2**    | **0**   | **79**| **12** |
+| P4       | 100   | 15        | 0        | 0       | 73   | 12  |
+| **Total**| **199**| **107**  | **2**    | **0**   | **78**| **12** |
 
 ---
 
@@ -287,7 +287,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Ingest | 702.115 | P4 | `validated` | state/types.rs:629-638, state/stubs.rs:230-242, state/stack.rs:407-427, state/hash.rs:467-468+1090-1092+1373-1374, rules/abilities.rs:1757-1840+2218-2226, rules/resolution.rs:1634-1671 | Mist Intruder | baseline/113 | CR 702.115a+b fully enforced; triggered ability on combat damage to player; multiple instances trigger separately (702.115b); empty library is safe no-op; face-up exile (default); 6 unit tests in ingest.rs; TUI stack_view.rs:80-81 + view_model.rs:473-474,687 | Combat damage to player → exile top card of library |
 | Wither | 702.80 | P3 | `validated` | state/types.rs:481, state/hash.rs:422, rules/combat.rs:863-1006, effects/mod.rs:206-241 | Boggart Ram-Gang | combat/091 | CR 702.80a fully enforced; combat + non-combat damage to creatures places -1/-1 counters instead of marking damage; 6 unit tests in keywords.rs; script pending_review | Damage dealt as -1/-1 counters |
 | Infect | 702.90 | P3 | `validated` | state/types.rs:511-520, state/hash.rs:433-444, rules/events.rs:357-374, rules/combat.rs:863-1073, effects/mod.rs:143-275 | Glistener Elf | combat/092 | CR 702.90 fully enforced; creature damage as -1/-1 counters (reusing Wither path); player damage as poison counters; 9 unit tests in tests/keywords.rs; poison SBA (704.5c) was pre-existing |
-| Poisonous | 702.70 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters |
+| Poisonous | 702.70 | P4 | `validated` | state/types.rs:722, state/hash.rs:497-500, state/stack.rs:534-554, state/stubs.rs:307-318, state/builder.rs:532-536, rules/abilities.rs:2336-2427+2890-2898, rules/resolution.rs:1967-1995 | Poisonous Viper (test card) | combat/122 | Infect poison infra | CR 702.70a+b fully enforced; triggered ability (not replacement); N is fixed, independent of damage dealt; multiple instances trigger separately (702.70b); 6 unit tests in tests/poisonous.rs; reuses PoisonCountersGiven event + 704.5c SBA from Infect infra |
 | Toxic | 702.156 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters (fixed number) |
 | Corrupted | — | P4 | `none` | — | — | — | — | Ability word; if opponent has 3+ poison counters |
 | Hideaway | 702.75 | P3 | `validated` | types.rs:544, stack.rs:370, stubs.rs:205, game_object.rs:409, abilities.rs:921, abilities.rs:2011, resolution.rs:1468, events.rs:843, effects/mod.rs:1593, lands.rs:136, engine.rs:72, hash.rs:439 | Windbrisk Heights (#112) | baseline/103 | 7 unit tests in hideaway.rs; ETB trigger, resolution, exile tracking, empty-library edge, face-down, PlayExiledCard, negative test |

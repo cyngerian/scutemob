@@ -488,6 +488,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::MeleeTrigger { source_object, .. } => {
             ("melee_trigger", Some(*source_object))
         }
+        StackObjectKind::PoisonousTrigger { source_object, .. } => {
+            ("poisonous_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -708,5 +711,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Renown(n) => format!("Renown {n}"),
         KeywordAbility::Training => "Training".to_string(),
         KeywordAbility::Melee => "Melee".to_string(),
+        KeywordAbility::Poisonous(n) => format!("Poisonous {n}"),
     }
 }
