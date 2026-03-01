@@ -284,6 +284,19 @@ pub struct PendingTrigger {
     /// in the AttackersDeclared handler in `abilities.rs`.
     #[serde(default)]
     pub provoke_target_creature: Option<ObjectId>,
+    /// CR 702.112a: If true, this pending trigger is a Renown trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::RenownTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.
+    /// The `renown_n` carries the N value (number of +1/+1 counters).
+    #[serde(default)]
+    pub is_renown_trigger: bool,
+    /// CR 702.112a: The N value from "Renown N" -- how many +1/+1 counters
+    /// to place on the creature when the trigger resolves.
+    ///
+    /// Only meaningful when `is_renown_trigger` is true.
+    #[serde(default)]
+    pub renown_n: Option<u32>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

@@ -1233,6 +1233,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     decayed_sacrifice_at_eoc: false,
                     is_suspended: false,
                     exiled_by_hideaway: None,
+                    is_renowned: false,
                 };
 
                 // Add the token to the battlefield.
@@ -1368,6 +1369,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 rampage_n: None,
                                 is_provoke_trigger: false,
                                 provoke_target_creature: None,
+                                is_renown_trigger: false,
+                                renown_n: None,
                             });
                     }
                 }
@@ -1836,6 +1839,50 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+        // CR 702.112a: Renown trigger resolves -- re-check the intervening-if
+        // (CR 603.4) and place N +1/+1 counters on the source creature, then
+        // set it as renowned (CR 702.112b).
+        //
+        // Ruling 2015-06-22: "If a renown ability triggers, but the creature
+        // leaves the battlefield before that ability resolves, the creature
+        // doesn't become renowned."
+        StackObjectKind::RenownTrigger {
+            source_object,
+            renown_n,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if at resolution time.
+            // Source must still be on the battlefield AND not yet renowned.
+            let should_resolve = state
+                .objects
+                .get(&source_object)
+                .map(|obj| obj.zone == ZoneId::Battlefield && !obj.is_renowned)
+                .unwrap_or(false);
+
+            if should_resolve {
+                // CR 702.112a: Place N +1/+1 counters on the source creature.
+                if let Some(obj) = state.objects.get_mut(&source_object) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj
+                        .counters
+                        .update(CounterType::PlusOnePlusOne, current + renown_n);
+                    // CR 702.112b: Set the renowned designation.
+                    obj.is_renowned = true;
+                }
+            }
+            // CR 603.4: Whether the intervening-if passed or failed,
+            // the ability always emits AbilityResolved (it "resolves" even if it
+            // does nothing because the intervening-if failed at resolution).
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1946,7 +1993,8 @@ pub fn counter_stack_object(
         | StackObjectKind::IngestTrigger { .. }
         | StackObjectKind::FlankingTrigger { .. }
         | StackObjectKind::RampageTrigger { .. }
-        | StackObjectKind::ProvokeTrigger { .. } => {
+        | StackObjectKind::ProvokeTrigger { .. }
+        | StackObjectKind::RenownTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

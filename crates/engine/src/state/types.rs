@@ -680,6 +680,16 @@ pub enum KeywordAbility {
     /// The trigger fires on SelfBecomesBlocked events; the defending player
     /// is resolved at flush time via PendingTrigger.defending_player_id.
     Afflict(u32),
+    /// CR 702.112: Renown N -- triggered ability.
+    /// "When this creature deals combat damage to a player, if it isn't renowned,
+    /// put N +1/+1 counters on it and it becomes renowned."
+    /// CR 702.112c: Multiple instances trigger separately.
+    ///
+    /// Renowned is a designation tracked as `is_renowned` on `GameObject`
+    /// (CR 702.112b). Not a copiable value. Resets on zone change (CR 400.7).
+    /// Implemented via custom `StackObjectKind::RenownTrigger` with intervening-if
+    /// checked at both trigger time and resolution time (CR 603.4).
+    Renown(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

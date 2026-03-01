@@ -434,4 +434,12 @@ pub struct GameObject {
     /// battlefield at the time the trigger resolved (CR 607.2a).
     #[serde(default)]
     pub exiled_by_hideaway: Option<ObjectId>,
+    /// CR 702.112b: Renowned designation. Tracked as a boolean flag on the
+    /// permanent. Once set by a resolved Renown trigger, stays true until
+    /// the permanent leaves the battlefield (CR 400.7 resets it).
+    ///
+    /// NOT a copiable value (CR 702.112b) -- copies start non-renowned.
+    /// NOT an ability -- persists even if abilities are removed (e.g., Humility).
+    #[serde(default)]
+    pub is_renowned: bool,
 }

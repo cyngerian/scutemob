@@ -295,6 +295,8 @@ impl GameState {
             is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
+            // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
+            is_renowned: false,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -384,6 +386,8 @@ impl GameState {
             is_suspended: false,
             // CR 400.7: hideaway exile link is cleared on zone change.
             exiled_by_hideaway: None,
+            // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
+            is_renowned: false,
         };
 
         // Insert at the front (= bottom) of the destination zone.

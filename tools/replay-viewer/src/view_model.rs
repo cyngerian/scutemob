@@ -482,6 +482,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::ProvokeTrigger { source_object, .. } => {
             ("provoke_trigger", Some(*source_object))
         }
+        StackObjectKind::RenownTrigger { source_object, .. } => {
+            ("renown_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -699,5 +702,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Rampage(n) => format!("Rampage {n}"),
         KeywordAbility::Provoke => "Provoke".to_string(),
         KeywordAbility::Afflict(n) => format!("Afflict {n}"),
+        KeywordAbility::Renown(n) => format!("Renown {n}"),
     }
 }

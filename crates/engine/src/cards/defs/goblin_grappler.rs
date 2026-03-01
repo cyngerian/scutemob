@@ -13,6 +13,5 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Provoke),
         ],
-        ..Default::default()
     }
 }

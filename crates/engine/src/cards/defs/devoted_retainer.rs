@@ -13,6 +13,5 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Bushido(1)),
         ],
-        ..Default::default()
     }
 }

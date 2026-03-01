@@ -136,6 +136,7 @@ fn test_clone_independence_object_modification() {
                 decayed_sacrifice_at_eoc: false,
                 is_suspended: false,
                 exiled_by_hideaway: None,
+                is_renowned: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

@@ -198,6 +198,7 @@ fn test_add_object_to_state() {
         decayed_sacrifice_at_eoc: false,
         is_suspended: false,
         exiled_by_hideaway: None,
+        is_renowned: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

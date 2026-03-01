@@ -2005,6 +2005,14 @@ fn execute_effect_inner(
                                         partner_with_name: None,
                                         is_ingest_trigger: false,
                                         ingest_target_player: None,
+                                        is_flanking_trigger: false,
+                                        flanking_blocker_id: None,
+                                        is_rampage_trigger: false,
+                                        rampage_n: None,
+                                        is_provoke_trigger: false,
+                                        provoke_target_creature: None,
+                                        is_renown_trigger: false,
+                                        renown_n: None,
                                     });
                                 }
                             }
@@ -2463,6 +2471,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         decayed_sacrifice_at_eoc: false,
         is_suspended: false,
         exiled_by_hideaway: None,
+        is_renowned: false,
     }
 }
 
@@ -2621,6 +2630,14 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         partner_with_name: None,
                         is_ingest_trigger: false,
                         ingest_target_player: None,
+                        is_flanking_trigger: false,
+                        flanking_blocker_id: None,
+                        is_rampage_trigger: false,
+                        rampage_n: None,
+                        is_provoke_trigger: false,
+                        provoke_target_creature: None,
+                        is_renown_trigger: false,
+                        renown_n: None,
                     });
                 }
             }

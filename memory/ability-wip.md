@@ -1,17 +1,17 @@
-# Ability WIP: Afflict
+# Ability WIP: Renown
 
-ability: Afflict
-cr: 702.130
+ability: Renown
+cr: 702.112
 priority: P4
 started: 2026-03-01
 phase: closed
-plan_file: memory/abilities/ability-plan-afflict.md
+plan_file: memory/abilities/ability-plan-renown.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:673, hash.rs:483-487, view_model.rs:701
-- [x] 2. Rule enforcement — builder.rs:763-780 (TriggeredAbilityDef with LoseLife effect)
-- [x] 3. Trigger wiring — abilities.rs:1650-1700 (BlockersDeclared handler tags defending_player_id)
-- [x] 4. Unit tests — crates/engine/tests/afflict.rs (6 tests: basic, unblocked, multi-blockers, multi-instances, multiplayer, life-not-damage)
-- [x] 5. Card definition — crates/engine/src/cards/defs/khenra_eternal.rs (Khenra Eternal, {1}{B}, 2/2, Afflict 1)
-- [x] 6. Game script — test-data/generated-scripts/combat/118_khenra_eternal_afflict_life_loss.json
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 11/88, 103 total validated)
+- [x] 1. Enum variant — state/types.rs:682 (Renown(u32)), state/hash.rs:488 (discriminant 81), state/game_object.rs:437 (is_renowned: bool), state/hash.rs:653 (is_renowned hash), state/hash.rs:1120 (PendingTrigger renown hash), state/stubs.rs:287 (is_renown_trigger, renown_n), state/stack.rs:510 (RenownTrigger variant), state/hash.rs:1439 (discriminant 22)
+- [x] 2. Rule enforcement — rules/abilities.rs:2139 (Renown dispatch in CombatDamageDealt), rules/abilities.rs:2562 (flush to stack), rules/resolution.rs:1842 (RenownTrigger resolution arm)
+- [x] 3. Trigger wiring — n/a (covered by Step 2; custom StackObjectKind pattern like Ingest)
+- [x] 4. Unit tests — crates/engine/tests/renown.rs (7 tests: basic, renown-2, no-trigger-when-renowned, zone-change-reset, multiple-instances-cr603.4, leaves-before-resolution, multiplayer)
+- [x] 5. Card definition — crates/engine/src/cards/defs/topan_freeblade.rs (Topan Freeblade, {1}{W}, 2/2, Vigilance + Renown 1)
+- [x] 6. Game script — test-data/generated-scripts/combat/119_topan_freeblade_renown_combat_damage.json
+- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 12/88, 104 total validated)

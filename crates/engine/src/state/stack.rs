@@ -489,4 +489,26 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         provoked_creature: ObjectId,
     },
+    /// CR 702.112a: Renown N triggered ability on the stack.
+    ///
+    /// "When this creature deals combat damage to a player, if it isn't renowned,
+    /// put N +1/+1 counters on it and it becomes renowned."
+    ///
+    /// `source_object` is the creature with renown.
+    /// `renown_n` is the number of +1/+1 counters to place.
+    ///
+    /// When this trigger resolves:
+    /// 1. Re-check the intervening-if (CR 603.4): source must still be on the
+    ///    battlefield AND not yet renowned.
+    /// 2. If check passes: place N +1/+1 counters on source and set is_renowned.
+    /// 3. If source left the battlefield before resolution, do nothing
+    ///    (Ruling 2015-06-22).
+    ///
+    /// CR 702.112c: Multiple instances each create their own RenownTrigger.
+    /// The first to resolve sets is_renowned; subsequent triggers fail the
+    /// intervening-if (CR 603.4) and do nothing.
+    RenownTrigger {
+        source_object: ObjectId,
+        renown_n: u32,
+    },
 }

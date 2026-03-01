@@ -485,6 +485,11 @@ impl HashInto for KeywordAbility {
                 80u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Renown (discriminant 81) -- CR 702.112
+            KeywordAbility::Renown(n) => {
+                81u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -650,6 +655,8 @@ impl HashInto for GameObject {
         self.is_suspended.hash_into(hasher);
         // Hideaway (CR 702.75a / CR 607.2a) — card was exiled face-down by a Hideaway trigger
         self.exiled_by_hideaway.hash_into(hasher);
+        // Renowned (CR 702.112b) — designation flag
+        self.is_renowned.hash_into(hasher);
     }
 }
 
@@ -1118,6 +1125,9 @@ impl HashInto for PendingTrigger {
         // CR 702.39a: is_provoke_trigger -- provoke attack trigger marker
         self.is_provoke_trigger.hash_into(hasher);
         self.provoke_target_creature.hash_into(hasher);
+        // CR 702.112a: is_renown_trigger -- renown combat damage trigger marker
+        self.is_renown_trigger.hash_into(hasher);
+        self.renown_n.hash_into(hasher);
     }
 }
 
@@ -1435,6 +1445,15 @@ impl HashInto for StackObjectKind {
                 21u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 provoked_creature.hash_into(hasher);
+            }
+            // RenownTrigger (discriminant 22) -- CR 702.112a
+            StackObjectKind::RenownTrigger {
+                source_object,
+                renown_n,
+            } => {
+                22u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                renown_n.hash_into(hasher);
             }
         }
     }

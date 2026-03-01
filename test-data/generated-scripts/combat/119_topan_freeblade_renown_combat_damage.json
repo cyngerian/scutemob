@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_119",
+    "name": "Topan Freeblade Renown 1 — trigger fires once then suppressed by intervening-if",
+    "description": "p1 controls Topan Freeblade ({1}{W}, 2/2 Vigilance + Renown 1). On turn 3, Topan Freeblade attacks p2 unblocked and deals 2 combat damage. The Renown 1 trigger fires (CR 702.112a: 'When this creature deals combat damage to a player, if it isn't renowned') with the intervening-if clause checked at trigger time (CR 603.4): Topan Freeblade is not yet renowned, so the ability triggers. It resolves: one +1/+1 counter is placed on Topan Freeblade and it becomes renowned (effective 3/3). On turn 4, Topan Freeblade attacks p2 again unblocked and deals 3 combat damage. The Renown trigger does NOT fire a second time because the intervening-if condition — 'if it isn't renowned' — is false (CR 603.4): Topan Freeblade is already renowned. This script validates the full Renown lifecycle: trigger, resolution, and subsequent non-trigger due to the permanent renowned designation.",
+    "cr_sections_tested": [
+      "702.112a",
+      "702.112b",
+      "603.4",
+      "508.1",
+      "508.1f",
+      "510.1b",
+      "510.2",
+      "510.3a",
+      "603.2",
+      "603.3",
+      "608.2",
+      "120.3",
+      "702.20a"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "renown",
+      "triggered-ability",
+      "intervening-if",
+      "counter",
+      "combat",
+      "vigilance",
+      "topan-freeblade",
+      "combat-damage-trigger",
+      "renown-suppressed-second-attack"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Topan Freeblade oracle text (MCP verified): {1}{W}, Creature — Human Soldier, 2/2. Vigilance (Attacking doesn't cause this creature to tap). Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned). Topan Freeblade is NOT in the engine Available Cards list and has no CardDefinition — harness validation will fail for trigger-related assertions until the card is authored. A dispute entry documents this. CR 702.112a: Renown 1 is a triggered ability with an embedded intervening-if clause: 'if it isn't renowned.' Per CR 603.4, the condition is checked both at trigger time and at resolution time. First attack: Topan Freeblade deals 2 combat damage to p2 (power 2, unblocked). Renown trigger fires because 'it isn't renowned' is TRUE at trigger time. Both players pass priority; condition still TRUE at resolution → trigger resolves, one +1/+1 counter placed on Topan Freeblade, it becomes renowned. Effective P/T: 3/3. CR 702.112b: Renowned is a permanent designation; it does not leave with zone changes but persists on the same battlefield object. Second attack: Topan Freeblade (now renowned, 3/3) attacks p2 again unblocked. Deals 3 combat damage (power 3). The Renown trigger does NOT fire — CR 603.4 intervening-if: 'if it isn't renowned' is FALSE (it IS renowned). The trigger simply does not trigger. No stack entry for Renown; no additional counter is placed. CR 702.20a: Vigilance means attacking does not cause Topan Freeblade to tap. Therefore tapped: false throughout both attacks. p2 life: 40 → 38 (after first attack, 2 damage) → 35 (after second attack, 3 damage from now-3/3 creature). The harness does not execute declare_attackers, combat damage, or combat triggers as engine commands, so all combat steps are informational (turn_based_action, trigger_placed). The assert_state after initial setup and the final assert_state reflect harness-visible state only. Dispute entries document the CardDefinition gap and the harness limitation.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 0,
+        "raised_by": "game-script-generator",
+        "description": "Topan Freeblade is not in the engine Available Cards list and has no CardDefinition. Without the CardDefinition, the engine treats Topan Freeblade as a vanilla creature — the Renown triggered ability never fires, no +1/+1 counter is placed, and the creature never becomes renowned. The harness assertions for zones.stack.count: 1 (after Renown triggers) and the counter placement will fail. The script is otherwise CR-correct per oracle text (MCP-verified). Resolution requires authoring a CardDefinition for Topan Freeblade in crates/engine/src/cards/defs/topan_freeblade.rs with Vigilance keyword and a Renown 1 triggered ability.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      },
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "game-script-generator",
+        "description": "The harness does not execute declare_attackers, combat damage, or combat-damage-triggered abilities as engine commands (translate_player_action does not map these to any Command). Therefore all combat steps in this script are informational (turn_based_action, trigger_placed, stack_resolve). Expected CR outcomes — p2 life 38 after first attack (2 unblocked combat damage), Renown counter placed, renowned flag set, p2 life 35 after second attack (3 unblocked combat damage from 3/3), no second Renown trigger — are documented in informational steps and generation_notes. The final assert_state reflects initial harness-visible state only (life totals and zone counts unchanged from initial state). This is consistent with scripts 013 and 081 which use the same documentary combat approach.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "combat",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Topan Freeblade", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "combat",
+      "step_note": "Turn 3 — FIRST ATTACK. p1 declares Topan Freeblade as attacker targeting p2. Vigilance: Topan Freeblade does not tap (CR 702.20a). p2 has no creatures; Topan Freeblade is unblocked. It deals 2 combat damage to p2 (power 2, CR 510.1b); p2 life 40 → 38. Renown 1 trigger fires: 'if it isn't renowned' is TRUE (CR 603.4 intervening-if). Trigger goes on stack. Both players pass priority. Trigger resolves: one +1/+1 counter placed on Topan Freeblade (effective 3/3); it becomes renowned (CR 702.112a).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Topan Freeblade (2/2 not renowned) untapped on p1 battlefield; p1 at 40 life; p2 at 40 life; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "permanent.Topan Freeblade.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Topan Freeblade has been on the battlefield since before turn 3 — no summoning sickness (CR 302.6). It is not yet renowned (no prior combat damage to a player). Vigilance means it will not tap when declared as an attacker."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers step: p1 declares Topan Freeblade as attacker targeting p2. Topan Freeblade does NOT tap (Vigilance, CR 702.20a).",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Topan Freeblade as the attacking creature against p2. CR 508.1a: Topan Freeblade is untapped and has been controlled by p1 continuously since the turn began — no summoning sickness. CR 702.20a: Vigilance — 'Attacking doesn't cause this creature to tap.' Topan Freeblade remains untapped. CR 508.1k: Topan Freeblade becomes an attacking creature."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers step: p2 controls no creatures and declares no blockers — Topan Freeblade is unblocked",
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 controls no creatures and declares no blockers. Topan Freeblade becomes an unblocked attacker (CR 509.1h)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage step: Topan Freeblade (unblocked, power 2) assigns 2 damage to p2. p2 life: 40 → 38.",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: An unblocked creature assigns its combat damage to the player it is attacking. Topan Freeblade (power 2) assigns all 2 damage to p2. CR 510.2: Combat damage is dealt simultaneously. p2 life: 40 → 38."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Renown 1 trigger fires: 'When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.' (CR 702.112a) Intervening-if checked: Topan Freeblade is NOT yet renowned — condition TRUE (CR 603.4). Trigger fires.",
+          "cr_ref": "702.112a",
+          "note": "CR 702.112a: Renown 1 triggered ability fires when Topan Freeblade deals combat damage to p2. CR 603.4: The intervening-if clause 'if it isn't renowned' is checked at trigger time. Topan Freeblade has not previously dealt combat damage to a player, so it is not renowned — condition is TRUE. The triggered ability fires. CR 510.3a: Abilities that triggered on damage being dealt are put onto the stack before the active player gets priority."
+        },
+        {
+          "type": "trigger_placed",
+          "source": "Topan Freeblade",
+          "controller": "p1",
+          "trigger_condition": "renown_combat_damage_to_player_if_not_renowned",
+          "targets": [],
+          "ordering_context": null,
+          "apnap_position": null,
+          "cr_ref": "603.3",
+          "note": "CR 603.3: The Renown triggered ability is placed on the stack the next time a player would receive priority (after combat damage is dealt, per CR 510.3). CR 603.3a: The ability is controlled by p1 (controller of Topan Freeblade when it triggered). The trigger has no targets — it places a counter on its own source."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Renown 1 triggered ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Topan Freeblade Renown 1 trigger",
+          "resolution": [
+            {
+              "effect": "put_counter",
+              "target": { "type": "permanent", "player": null, "card": "Topan Freeblade", "controller": "p1" },
+              "amount": 1,
+              "counter_type": "plus1plus1",
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.112a",
+              "note": "CR 702.112a: Renown 1 resolves — CR 603.4 intervening-if re-checked: Topan Freeblade still is not renowned (nothing changed since the trigger fired). Effect: put 1 +1/+1 counter on Topan Freeblade and it becomes renowned. Topan Freeblade is now effective 3/3 (base 2/2 + one +1/+1 counter). CR 702.112b: Renowned is a permanent designation that persists on the object while it remains on the battlefield."
+            }
+          ],
+          "note": "CR 608.2: Renown triggered ability resolves. One +1/+1 counter placed on Topan Freeblade; it becomes renowned. Effective P/T: 3/3. Requires Topan Freeblade CardDefinition for the engine to execute this resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "Post-first-attack harness state: Topan Freeblade still on p1 battlefield untapped (Vigilance), stack empty. Life totals and hand counts unchanged from harness perspective (combat not executed by harness). CR outcome documented: p2 at 38 life, Topan Freeblade renowned and effective 3/3.",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "permanent.Topan Freeblade.tapped": false,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Harness does not execute combat or triggers. Expected CR state at this point: Topan Freeblade is renowned and has a +1/+1 counter (3/3). p2 life is 38. Topan Freeblade is untapped (Vigilance, CR 702.20a). See dispute entry for harness limitation details."
+        }
+      ]
+    },
+    {
+      "step": "combat",
+      "step_note": "Turn 4 — SECOND ATTACK. p1 declares Topan Freeblade (now renowned, effective 3/3) as attacker targeting p2 again. Topan Freeblade does not tap (Vigilance). p2 is unblocked; deals 3 combat damage to p2 (power 3); p2 life 38 → 35. Renown trigger does NOT fire: CR 603.4 intervening-if 'if it isn't renowned' is now FALSE (it IS renowned). No trigger is placed on the stack. This validates the permanent nature of the renowned designation (CR 702.112b) and the intervening-if suppression (CR 603.4).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Turn 4 start: Topan Freeblade still on p1 battlefield untapped (Vigilance); stack empty. (Expected CR state: renowned, 3/3 — engine sees initial harness state only.)",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "permanent.Topan Freeblade.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "By this turn, Topan Freeblade is renowned (per the CR-correct outcome of turn 3) and carries one +1/+1 counter (effective 3/3). Vigilance ensures it untapped naturally. No engine-visible change from harness state."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare attackers step (turn 4): p1 declares Topan Freeblade (renowned, effective 3/3) as attacker targeting p2. Does not tap (Vigilance).",
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Topan Freeblade as attacker. CR 702.20a: Vigilance — Topan Freeblade does not tap. CR 508.1k: Topan Freeblade becomes an attacking creature."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Declare blockers step (turn 4): p2 declares no blockers — Topan Freeblade is unblocked",
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers. Topan Freeblade is unblocked (CR 509.1h)."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Combat damage step (turn 4): Topan Freeblade (unblocked, now power 3 with +1/+1 counter) assigns 3 damage to p2. p2 life: 38 → 35.",
+          "cr_ref": "510.1b",
+          "note": "CR 510.1b: Unblocked creature assigns its combat damage to the defending player. Topan Freeblade has a +1/+1 counter (base power 2 + 1 = 3); it assigns 3 damage to p2. CR 510.2: Combat damage dealt simultaneously. p2 life: 38 → 35."
+        },
+        {
+          "type": "turn_based_action",
+          "description": "Renown 1 trigger does NOT fire on second attack. CR 603.4 intervening-if 'if it isn't renowned' is FALSE — Topan Freeblade IS renowned. The trigger condition is not met; no triggered ability is placed on the stack.",
+          "cr_ref": "603.4",
+          "note": "CR 702.112a: Renown 1 reads 'When this creature deals combat damage to a player, if it isn't renowned...' CR 603.4: The intervening-if clause is checked at the time the trigger event occurs. Topan Freeblade IS renowned (became renowned when the trigger resolved in turn 3). Condition 'if it isn't renowned' is FALSE — the ability does NOT trigger. No trigger is placed on the stack. This is the key validation: Renown fires at most once, protected by the intervening-if clause and the permanent renowned designation (CR 702.112b)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final harness state: Topan Freeblade still on p1 battlefield untapped (Vigilance); stack empty. No second Renown trigger was placed on the stack. Life totals unchanged from harness perspective (combat not executed by harness). CR outcome: p2 at 35 life total; Topan Freeblade is renowned and remains a 3/3 with +1/+1 counter.",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Topan Freeblade" }] },
+            "permanent.Topan Freeblade.tapped": false,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Stack is empty — no second Renown trigger was placed (CR 603.4 intervening-if suppression). CR 702.112b: Renowned persists on Topan Freeblade as long as it remains on the battlefield. Expected CR outcome for second attack: p2 life 35, no Renown trigger, Topan Freeblade still 3/3 renowned. Harness life totals unchanged from initial state (harness does not execute combat). Requires Topan Freeblade CardDefinition for engine-enforced validation of the Renown trigger and renowned designation."
+        }
+      ]
+    }
+  ]
+}

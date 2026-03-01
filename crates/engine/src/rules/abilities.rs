@@ -538,6 +538,8 @@ pub fn handle_cycle_card(
             rampage_n: None,
             is_provoke_trigger: false,
             provoke_target_creature: None,
+            is_renown_trigger: false,
+            renown_n: None,
         });
     }
 
@@ -869,6 +871,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -946,6 +950,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 rampage_n: None,
                                 is_provoke_trigger: false,
                                 provoke_target_creature: None,
+                                is_renown_trigger: false,
+                                renown_n: None,
                             });
                         }
                     }
@@ -1012,6 +1018,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         });
                     }
                 }
@@ -1080,6 +1088,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 rampage_n: None,
                                 is_provoke_trigger: false,
                                 provoke_target_creature: None,
+                                is_renown_trigger: false,
+                                renown_n: None,
                             });
                         }
                     }
@@ -1238,6 +1248,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             rampage_n: None,
                                             is_provoke_trigger: false,
                                             provoke_target_creature: None,
+                                            is_renown_trigger: false,
+                                            renown_n: None,
                                         });
                                     }
                                 }
@@ -1635,6 +1647,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         });
                     }
                 }
@@ -1822,6 +1836,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         });
                     }
                 }
@@ -1888,6 +1904,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         });
                     }
                 }
@@ -1998,6 +2016,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             rampage_n: None,
                             is_provoke_trigger: false,
                             provoke_target_creature: None,
+                            is_renown_trigger: false,
+                            renown_n: None,
                         });
                     }
                 }
@@ -2107,6 +2127,98 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         rampage_n: None,
                                         is_provoke_trigger: false,
                                         provoke_target_creature: None,
+                                        is_renown_trigger: false,
+                                        renown_n: None,
+                                    });
+                                }
+                            }
+                        }
+
+                        // CR 702.112a: Renown N -- "When this creature deals combat
+                        // damage to a player, if it isn't renowned, put N +1/+1
+                        // counters on it and it becomes renowned."
+                        // CR 702.112c: Multiple instances trigger separately.
+                        // CR 603.4: Intervening-if -- checked here at trigger time
+                        // (is_renowned must be false) and again at resolution time.
+                        if let Some(obj) = state.objects.get(&assignment.source) {
+                            if obj.zone == ZoneId::Battlefield && !obj.is_renowned
+                            // CR 603.4: intervening-if at trigger time
+                            {
+                                // Collect Renown N values from card definition.
+                                // CR 702.112c: Each keyword instance triggers separately.
+                                let renown_values: Vec<u32> = obj
+                                    .card_id
+                                    .as_ref()
+                                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                                    .map(|def| {
+                                        def.abilities
+                                            .iter()
+                                            .filter_map(|a| match a {
+                                                AbilityDefinition::Keyword(
+                                                    KeywordAbility::Renown(n),
+                                                ) => Some(*n),
+                                                _ => None,
+                                            })
+                                            .collect()
+                                    })
+                                    .unwrap_or_else(|| {
+                                        // Fallback: check keywords on the object itself
+                                        obj.characteristics
+                                            .keywords
+                                            .iter()
+                                            .filter_map(|kw| match kw {
+                                                KeywordAbility::Renown(n) => Some(*n),
+                                                _ => None,
+                                            })
+                                            .collect()
+                                    });
+
+                                let controller = obj.controller;
+                                let source_id = obj.id;
+                                for n in renown_values {
+                                    triggers.push(PendingTrigger {
+                                        source: source_id,
+                                        ability_index: 0, // unused for renown triggers
+                                        controller,
+                                        triggering_event: Some(
+                                            TriggerEvent::SelfDealsCombatDamageToPlayer,
+                                        ),
+                                        entering_object_id: None,
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        is_evoke_sacrifice: false,
+                                        is_madness_trigger: false,
+                                        madness_exiled_card: None,
+                                        madness_cost: None,
+                                        is_miracle_trigger: false,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        is_unearth_trigger: false,
+                                        is_exploit_trigger: false,
+                                        is_modular_trigger: false,
+                                        modular_counter_count: None,
+                                        is_evolve_trigger: false,
+                                        evolve_entering_creature: None,
+                                        is_myriad_trigger: false,
+                                        is_suspend_counter_trigger: false,
+                                        is_suspend_cast_trigger: false,
+                                        suspend_card_id: None,
+                                        is_hideaway_trigger: false,
+                                        hideaway_count: None,
+                                        is_partner_with_trigger: false,
+                                        partner_with_name: None,
+                                        is_ingest_trigger: false,
+                                        ingest_target_player: None,
+                                        is_flanking_trigger: false,
+                                        flanking_blocker_id: None,
+                                        is_rampage_trigger: false,
+                                        rampage_n: None,
+                                        is_provoke_trigger: false,
+                                        provoke_target_creature: None,
+                                        is_renown_trigger: true,
+                                        renown_n: Some(n),
                                     });
                                 }
                             }
@@ -2229,6 +2341,8 @@ fn collect_triggers_for_event(
                 rampage_n: None,
                 is_provoke_trigger: false,
                 provoke_target_creature: None,
+                is_renown_trigger: false,
+                renown_n: None,
             });
         }
     }
@@ -2546,6 +2660,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 } else {
                     // No valid target -- trigger is not placed on the stack.
                     continue;
+                }
+            } else if trigger.is_renown_trigger {
+                // CR 702.112a: Renown N combat damage trigger -- "When this creature
+                // deals combat damage to a player, if it isn't renowned, put N +1/+1
+                // counters on it and it becomes renowned."
+                // CR 603.4: The intervening-if is re-checked at resolution time
+                // in StackObjectKind::RenownTrigger resolution in resolution.rs.
+                StackObjectKind::RenownTrigger {
+                    source_object: trigger.source,
+                    renown_n: trigger.renown_n.unwrap_or(1),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

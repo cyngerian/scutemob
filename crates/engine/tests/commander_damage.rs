@@ -424,6 +424,7 @@ fn test_commander_damage_survives_zone_change() {
                 decayed_sacrifice_at_eoc: false,
                 is_suspended: false,
                 exiled_by_hideaway: None,
+                is_renowned: false,
             },
             ZoneId::Battlefield,
         )

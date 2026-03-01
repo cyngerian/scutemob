@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Afflict validated; CR 702.130 confirmed; types.rs:674-682, hash.rs:483-486, builder.rs:764-782, abilities.rs:1693-1703; Khenra Eternal card def; 6 unit tests in afflict.rs; game script combat/118; P4 validated 10->11, total validated 102->103)
+> Last audited: 2026-03-01 (Renown validated; CR 702.112 confirmed; types.rs:683-692, game_object.rs:437-444, hash.rs:488-492+658-659+1449-1456, stack.rs:492-513, stubs.rs:287-298, abilities.rs:2137-2178+2664-2673, resolution.rs:1842-1874; Topan Freeblade card def; 7 unit tests in renown.rs; game script combat/119; P4 validated 11->12, total validated 103->104)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 11        | 0        | 0       | 77   | 12  |
-| **Total**| **199**| **103**  | **2**    | **0**   | **82**| **12** |
+| P4       | 100   | 12        | 0        | 0       | 76   | 12  |
+| **Total**| **199**| **104**  | **2**    | **0**   | **81**| **12** |
 
 ---
 
@@ -180,7 +180,7 @@ Keywords that modify combat or trigger during combat.
 | Dethrone | 702.105 | P3 | `validated` | `state/types.rs:372`, `state/game_object.rs:179`, `state/builder.rs:464`, `rules/abilities.rs:965` | Marchesa's Emissary | `tests/dethrone.rs` (8 tests) | `combat/081` | Life-total comparison; planeswalker exclusion; eliminated-player exclusion |
 | Rampage | 702.23 | P4 | `validated` | `state/types.rs:649-659`, `state/stack.rs:448-468`, `state/stubs.rs:256-268`, `state/hash.rs:476-477+1108-1110+1411-1418`, `state/builder.rs:724-743`, `rules/abilities.rs:1596-1616+2425-2431`, `rules/resolution.rs:1723-1743` | Wolverine Pack | `rampage.rs` (8 tests) | `combat/116` | KeywordAbility::Rampage(u32) enum; StackObjectKind::RampageTrigger with source_object+rampage_n; builder generates TriggeredAbilityDef(SelfBecomesBlocked) per Rampage instance; abilities.rs tags is_rampage_trigger+rampage_n on PendingTrigger at BlockersDeclared; resolution.rs computes bonus=(blocker_count-1)*N as +N/+N until EOT; CR 702.23c multiple instances trigger separately; 8 unit tests (blocked-by-2, blocked-by-1-no-bonus, blocked-by-3-scaled, multiple-instances, not-blocked, bonus-expires-EOT, bonus-at-resolution, rampage-3-by-4); card def wolverine_pack.rs; game script combat/116 |
 | Banding | 702.22 | P4 | `n/a` | — | — | — | — | Extremely complex, rarely used; intentionally deferred |
-| Renown | 702.112 | P4 | `none` | — | — | — | — | Put +1/+1 counters on first combat damage to player |
+| Renown | 702.112 | P4 | `validated` | `state/types.rs:683-692`, `state/game_object.rs:437-444`, `state/hash.rs:488-492+658-659+1449-1456`, `state/stack.rs:492-513`, `state/stubs.rs:287-298`, `rules/abilities.rs:2137-2178+2664-2673`, `rules/resolution.rs:1842-1874` | Topan Freeblade | `combat/119` | — | KeywordAbility::Renown(u32) enum (discriminant 81); `is_renowned` designation on GameObject (CR 702.112b); StackObjectKind::RenownTrigger (discriminant 22) with source_object+renown_n; CombatDamageDealt dispatch with intervening-if at trigger time (CR 603.4); resolution re-checks intervening-if + places N +1/+1 counters + sets is_renowned; CR 702.112c multiple instances trigger separately; CR 400.7 resets on zone change; Ruling 2015-06-22 source-left-battlefield; 7 unit tests in `tests/renown.rs`; card def topan_freeblade.rs; game script combat/119 pending_review |
 | Afflict | 702.130 | P4 | `validated` | `state/types.rs:674-682`, `state/hash.rs:483-486`, `state/builder.rs:764-782`, `rules/abilities.rs:1693-1703` | Khenra Eternal | `combat/118` | — | KeywordAbility::Afflict(u32) enum (discriminant 80); TriggeredAbilityDef via builder.rs using SelfBecomesBlocked + LoseLife with DeclaredTarget; defending_player_id tagging in abilities.rs BlockersDeclared handler (CR 508.5 multiplayer); 6 unit tests in `tests/afflict.rs` (basic life loss, not-blocked-no-trigger, multiple-blockers-single-trigger, multiple-instances-trigger-separately, multiplayer-correct-defending-player, life-loss-not-damage); card def khenra_eternal.rs; game script combat/118 |
 
 ---
@@ -539,3 +539,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Provoke (CR 702.39) — validated 2026-03-01 (script combat/117, Goblin Grappler, 7 unit tests in provoke.rs).
 
 **Resolved**: Afflict (CR 702.130) — validated 2026-03-01 (script combat/118, Khenra Eternal, 6 unit tests in afflict.rs).
+
+**Resolved**: Renown (CR 702.112) — validated 2026-03-01 (script combat/119, Topan Freeblade, 7 unit tests in renown.rs).

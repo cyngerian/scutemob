@@ -843,6 +843,7 @@ impl GameStateBuilder {
                 decayed_sacrifice_at_eoc: false,
                 is_suspended: false,
                 exiled_by_hideaway: None,
+                is_renowned: false,
             };
 
             state.add_object(object, zone)?;
