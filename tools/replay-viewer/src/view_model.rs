@@ -712,5 +712,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Training => "Training".to_string(),
         KeywordAbility::Melee => "Melee".to_string(),
         KeywordAbility::Poisonous(n) => format!("Poisonous {n}"),
+        KeywordAbility::Toxic(n) => format!("Toxic {n}"),
     }
 }

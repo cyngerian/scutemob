@@ -720,6 +720,17 @@ pub enum KeywordAbility {
     /// Reuses existing poison counter infrastructure (PlayerState.poison_counters,
     /// PoisonCountersGiven event, 10-poison SBA CR 704.5c).
     Poisonous(u32),
+    /// CR 702.164: Toxic N -- static ability.
+    /// "Combat damage dealt to a player by a creature with toxic causes that
+    /// creature's controller to give the player a number of poison counters
+    /// equal to that creature's total toxic value, in addition to the damage's
+    /// other results."
+    ///
+    /// CR 702.164b: Multiple instances are cumulative -- total toxic value is
+    /// the sum of all N values.
+    /// CR 120.3g: Only combat damage to a player; does not apply to creatures,
+    /// planeswalkers, or non-combat damage.
+    Toxic(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

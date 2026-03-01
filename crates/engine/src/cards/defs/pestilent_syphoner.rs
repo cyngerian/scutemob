@@ -1,0 +1,19 @@
+// Pestilent Syphoner — {1}{B}, Creature — Phyrexian Insect 1/1; Flying, Toxic 1
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("pestilent-syphoner"),
+        name: "Pestilent Syphoner".to_string(),
+        mana_cost: Some(ManaCost { generic: 1, black: 1, ..Default::default() }),
+        types: creature_types(&["Phyrexian", "Insect"]),
+        oracle_text: "Flying\nToxic 1 (Players dealt combat damage by this creature also get a poison counter.)".to_string(),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Flying),
+            AbilityDefinition::Keyword(KeywordAbility::Toxic(1)),
+        ],
+        ..Default::default()
+    }
+}

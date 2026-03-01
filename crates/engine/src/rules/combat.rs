@@ -1113,9 +1113,17 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
 
     // --- Collect application info before mutating state ---
     // Pre-extract per-assignment: (source_deathtouch, source_lifelink, source_wither,
-    // source_infect, source_controller, commander_info)
+    // source_infect, source_toxic_total, source_controller, commander_info)
     // commander_info = Some((attacking_player_id, card_id)) if source is a commander.
-    type DamageAppInfo = (bool, bool, bool, bool, PlayerId, Option<(PlayerId, CardId)>);
+    type DamageAppInfo = (
+        bool,
+        bool,
+        bool,
+        bool,
+        u32,
+        PlayerId,
+        Option<(PlayerId, CardId)>,
+    );
     let app_info: Vec<DamageAppInfo> = assignments
         .iter()
         .map(|a| {
@@ -1142,6 +1150,25 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 .as_ref()
                 .map(|c| c.keywords.contains(&KeywordAbility::Infect))
                 .unwrap_or(false);
+            // CR 702.164b: Total toxic value is the sum of all Toxic N values on the source.
+            // Multiple instances are cumulative (not redundant like Infect).
+            // Uses layer-resolved characteristics so ability-removal (Humility, Dress Down)
+            // and ability-granting effects are correctly respected (CR 613).
+            // NOTE: If two identical Toxic(N) values exist on the same object, OrdSet
+            // deduplication means only one is counted. This is a known limitation (LOW);
+            // no real-world card combination currently produces this in the engine.
+            let source_toxic_total: u32 = chars
+                .as_ref()
+                .map(|c| {
+                    c.keywords
+                        .iter()
+                        .filter_map(|kw| match kw {
+                            KeywordAbility::Toxic(n) => Some(*n),
+                            _ => None,
+                        })
+                        .sum()
+                })
+                .unwrap_or(0);
             let source_controller = obj.map(|o| o.controller).unwrap_or(PlayerId(0));
 
             let commander_info = obj.and_then(|o| {
@@ -1164,6 +1191,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 source_lifelink,
                 source_wither,
                 source_infect,
+                source_toxic_total,
                 source_controller,
                 commander_info,
             )
@@ -1212,6 +1240,7 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                 source_lifelink,
                 source_wither,
                 source_infect,
+                source_toxic_total,
                 source_controller,
                 commander_info,
             ),
@@ -1272,6 +1301,22 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     if let Some(player) = state.players.get_mut(player_id) {
                         player.life_total -= final_dmg as i32;
                     }
+                }
+                // CR 702.164c / CR 120.3g: Toxic -- give poison counters equal to the
+                // source's total toxic value, in addition to the damage's other results.
+                // Applies regardless of Infect (both can coexist: Infect adds damage-amount
+                // poison counters, Toxic adds toxic-value poison counters independently).
+                // The final_dmg == 0 guard above ensures we only reach here when damage
+                // was actually dealt (CR 120.3g: "combat damage dealt to a player").
+                if *source_toxic_total > 0 {
+                    if let Some(player) = state.players.get_mut(player_id) {
+                        player.poison_counters += *source_toxic_total;
+                    }
+                    poison_events.push(GameEvent::PoisonCountersGiven {
+                        player: *player_id,
+                        amount: *source_toxic_total,
+                        source: assignment.source,
+                    });
                 }
                 // Track commander damage (CR 903.10a).
                 // Commander damage counts COMBAT damage dealt, not life lost — infect

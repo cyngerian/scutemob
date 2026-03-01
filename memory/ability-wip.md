@@ -1,22 +1,30 @@
-# Ability WIP: Poisonous
+# Ability WIP: Toxic
 
-ability: Poisonous
-cr: 702.70
+ability: Toxic
+cr: 702.164
 priority: P4
 started: 2026-03-01
 phase: closed
-plan_file: memory/abilities/ability-plan-poisonous.md
+plan_file: memory/abilities/ability-plan-toxic.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:701, hash.rs:497-501, view_model.rs:711, builder.rs:532-545
-- [x] 2. Rule enforcement — stubs.rs:307-330, hash.rs:1142-1145, abilities.rs/effects/mod.rs/turn_actions.rs/resolution.rs/miracle.rs (all PendingTrigger sites)
-- [x] 3. Trigger wiring — stack.rs:534-558, hash.rs:1471-1480, abilities.rs (dispatch+flush), resolution.rs (resolution+counter arm), view_model.rs:490-492, stack_view.rs:98-100
-- [x] 4. Unit tests — crates/engine/tests/poisonous.rs (6 tests, all passing)
-- [x] 5. Card definition — crates/engine/src/cards/defs/poisonous_viper.rs (test card: {2}{B}, 2/2 Snake, Poisonous 1)
-- [x] 6. Game script — test-data/generated-scripts/combat/122_poisonous_viper_gives_poison_counter.json
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 15/88, 107 total validated)
+- [x] 1. Enum variant — types.rs:722, hash.rs:502, view_model.rs:715
+- [x] 2. Rule enforcement — combat.rs:1118-1183 (DamageAppInfo), combat.rs:1291-1311 (Player arm)
+- [x] 3. Trigger wiring (N/A — Toxic is static)
+- [x] 4. Unit tests — crates/engine/tests/toxic.rs (8 tests)
+- [x] 5. Card definition — crates/engine/src/cards/defs/pestilent_syphoner.rs (Pestilent Syphoner, {1}{B}, 1/1, Flying + Toxic 1)
+- [x] 6. Game script — test-data/generated-scripts/combat/123_pestilent_syphoner_toxic_inline_poison.json
+- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 16/88, 108 total validated, CR corrected to 702.164)
 
 ## Review
-findings: 2 LOW (no HIGH/MEDIUM)
-verdict: clean
-review_file: memory/abilities/ability-review-poisonous.md
+findings: 1 MEDIUM + 2 LOW
+verdict: fixed
+review_file: memory/abilities/ability-review-toxic.md
+
+## Fix Log
+- MEDIUM (Finding 1): combat.rs — replaced CardDefinition registry path for source_toxic_total
+  with layer-resolved chars.keywords iteration (same pattern as deathtouch/lifelink/wither/infect)
+- LOW (Finding 3): toxic.rs:296 — added .with_keyword(KeywordAbility::Toxic(1)) to ObjectSpec
+  so both Toxic(2) and Toxic(1) appear in layer-resolved keywords; test_cumulative now exercises
+  the correct path
+- LOW (Finding 2): deferred (OrdSet same-N deduplication — no real-world card triggers this)

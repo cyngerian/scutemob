@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Poisonous validated; CR 702.70 confirmed; KeywordAbility::Poisonous(u32) disc 84 at types.rs:722; StackObjectKind::PoisonousTrigger disc 24 at stack.rs:534-554; trigger dispatch in abilities.rs:2336-2427; resolution in resolution.rs:1967-1995; Poisonous Viper test card def; 6 unit tests in tests/poisonous.rs; game script combat/122; P4 validated 14->15, total validated 106->107)
+> Last audited: 2026-03-01 (Toxic validated; CR 702.164 confirmed — was incorrectly listed as 702.156; KeywordAbility::Toxic(u32) disc 85 at types.rs:733; static ability enforced inline in combat.rs apply_combat_damage_assignments L1153-1318; 8 unit tests in tests/toxic.rs; Pestilent Syphoner card def at defs/pestilent_syphoner.rs; game script combat/123; P4 validated 15->16, total validated 107->108; also fixed Plot CR from 702.164 to 702.170)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 15        | 0        | 0       | 73   | 12  |
-| **Total**| **199**| **107**  | **2**    | **0**   | **78**| **12** |
+| P4       | 100   | 16        | 0        | 0       | 72   | 12  |
+| **Total**| **199**| **108**  | **2**    | **0**   | **77**| **12** |
 
 ---
 
@@ -114,7 +114,7 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 | Embalm | 702.128 | P4 | `none` | — | — | — | — | Create token copy from graveyard, white, no mana cost |
 | Eternalize | 702.129 | P4 | `none` | — | — | — | — | Create 4/4 token copy from graveyard, black |
 | Ninjutsu | 702.49 | P4 | `none` | — | — | — | — | Swap unblocked attacker for creature in hand |
-| Plot | 702.164 | P4 | `none` | — | — | — | — | Exile from hand, cast for free on a later turn |
+| Plot | 702.170 | P4 | `none` | — | — | — | — | Exile from hand, cast for free on a later turn |
 | Blitz | 702.152 | P4 | `none` | — | — | — | — | Alternative cost, gains haste + "draw when dies" + sacrifice at end |
 | Dash | 702.109 | P4 | `none` | — | — | — | — | Alternative cost, gains haste, return to hand at end |
 
@@ -288,7 +288,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Wither | 702.80 | P3 | `validated` | state/types.rs:481, state/hash.rs:422, rules/combat.rs:863-1006, effects/mod.rs:206-241 | Boggart Ram-Gang | combat/091 | CR 702.80a fully enforced; combat + non-combat damage to creatures places -1/-1 counters instead of marking damage; 6 unit tests in keywords.rs; script pending_review | Damage dealt as -1/-1 counters |
 | Infect | 702.90 | P3 | `validated` | state/types.rs:511-520, state/hash.rs:433-444, rules/events.rs:357-374, rules/combat.rs:863-1073, effects/mod.rs:143-275 | Glistener Elf | combat/092 | CR 702.90 fully enforced; creature damage as -1/-1 counters (reusing Wither path); player damage as poison counters; 9 unit tests in tests/keywords.rs; poison SBA (704.5c) was pre-existing |
 | Poisonous | 702.70 | P4 | `validated` | state/types.rs:722, state/hash.rs:497-500, state/stack.rs:534-554, state/stubs.rs:307-318, state/builder.rs:532-536, rules/abilities.rs:2336-2427+2890-2898, rules/resolution.rs:1967-1995 | Poisonous Viper (test card) | combat/122 | Infect poison infra | CR 702.70a+b fully enforced; triggered ability (not replacement); N is fixed, independent of damage dealt; multiple instances trigger separately (702.70b); 6 unit tests in tests/poisonous.rs; reuses PoisonCountersGiven event + 704.5c SBA from Infect infra |
-| Toxic | 702.156 | P4 | `none` | — | — | — | — | Combat damage to player → poison counters (fixed number) |
+| Toxic | 702.164 | P4 | `validated` | state/types.rs:723-733 (KeywordAbility::Toxic(u32), discriminant 85), state/hash.rs:502-504, rules/combat.rs:1153-1318 (inline in apply_combat_damage_assignments: total toxic value summed from all Toxic N instances, poison counters given as additional result of combat damage to a player), tools/replay-viewer/src/view_model.rs:715 | Pestilent Syphoner (`defs/pestilent_syphoner.rs`) | `combat/123` | Infect poison infra | CR 702.164a+b+c fully enforced; static ability (NOT triggered -- no StackObjectKind variant); total toxic value = sum of all Toxic N values (CR 702.164b, cumulative); combat damage to player gives poison counters equal to total toxic value as additional result (CR 702.164c); does NOT replace damage (unlike Infect); does NOT apply to creature damage; zero-power creature deals 0 damage so Toxic does not apply (CR 120.3g); Toxic + Infect coexist independently; Toxic + Lifelink coexist independently; 10-poison SBA (704.5c) tested; multiplayer-correct (only attacked player gets poison); OrdSet dedup noted as LOW limitation; 8 unit tests in tests/toxic.rs; game script combat/123 pending_review |
 | Corrupted | — | P4 | `none` | — | — | — | — | Ability word; if opponent has 3+ poison counters |
 | Hideaway | 702.75 | P3 | `validated` | types.rs:544, stack.rs:370, stubs.rs:205, game_object.rs:409, abilities.rs:921, abilities.rs:2011, resolution.rs:1468, events.rs:843, effects/mod.rs:1593, lands.rs:136, engine.rs:72, hash.rs:439 | Windbrisk Heights (#112) | baseline/103 | 7 unit tests in hideaway.rs; ETB trigger, resolution, exile tracking, empty-library edge, face-down, PlayExiledCard, negative test |
 | Retrain | — | P4 | `n/a` | — | — | — | — | Digital-only (MTG Arena) |
@@ -545,3 +545,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Training (CR 702.149) — validated 2026-03-01 (script combat/120, Gryff Rider, 7 unit tests in training.rs).
 
 **Resolved**: Melee (CR 702.121) — validated 2026-03-01 (script combat/121, Wings of the Guard, 7 unit tests in melee.rs).
+
+**Resolved**: Poisonous (CR 702.70) — validated 2026-03-01 (script combat/122, Poisonous Viper, 6 unit tests in poisonous.rs).
+
+**Resolved**: Toxic (CR 702.164) — validated 2026-03-01 (script combat/123, Pestilent Syphoner, 8 unit tests in toxic.rs). Static ability enforced inline in combat.rs (no StackObjectKind variant). CR number corrected from 702.156 to 702.164.

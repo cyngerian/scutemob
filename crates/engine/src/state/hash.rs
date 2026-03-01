@@ -499,6 +499,11 @@ impl HashInto for KeywordAbility {
                 84u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Toxic (discriminant 85) -- CR 702.164
+            KeywordAbility::Toxic(n) => {
+                85u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
