@@ -14,27 +14,30 @@
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
-| W5: Card Authoring | Author Tier 2 ready cards from worklist | ACTIVE | 2026-02-28 | Resume from previous session; 8 cards authored; run generate_worklist.py for current list |
+| W5: Card Authoring | — | available | — | 15 cards total authored; low yield until DSL gaps filled — see handoff |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
 
 ## Last Handoff
 
-**Date**: 2026-02-28 (night)
+**Date**: 2026-02-28 (late night)
 **Workstream**: W5: Card Authoring
-**Task**: Author first card batches + fix worklist to block DSL-gap cards
+**Task**: Author top ready cards from worklist (second batch)
 **Completed**:
-- Batches A/B/C: authored 30 cards, then audited and removed 22 that used simplifications
-- 8 accurate cards remain: Ancient Tomb, Ashnod's Altar, Anguished Unmaking, Viscera Seer, Zulaport Cutthroat, Heroic Intervention, Prismatic Vista, Sakura-Tribe Elder
-- Fixed `generate_worklist.py`: added DSL_GAP_PATTERNS (5 patterns), `check_oracle_dsl_gaps()`, blocked classification, reporting; fixed `parse_authored_cards` for one-file-per-card layout; regenerated `_authoring_worklist.json`
-- All 22 removed cards now classified as `blocked` with specific DSL gap reason
-- Top DSL gaps discovered: targeted_trigger (57 cards), return_from_graveyard (17), nonbasic_land_search (15), count_threshold (14), shock_etb (10)
-**Next**: Author more Tier 2 ready cards — run `python3 test-data/test-decks/generate_worklist.py` to get current list; top ready cards by deck count are visible in the JSON; avoid any card with `blocking_dsl_gaps`
-**Hazards**: None — all commits clean; worklist JSON regenerated and committed
-**Commit prefix used**: `W5-cards:` (cards), `W5:` (worklist fix)
+- Authored 7 more cards (commit `c3e80e0`): Demonic Tutor, Worldly Tutor, Vampiric Tutor, Mana Confluence, Phyrexian Altar, Impact Tremors, Skullclamp (partial — death trigger omitted, clear TODO)
+- Exported `LibraryPosition` + `TargetController` from helpers.rs prelude
+- Triaged ~50 top ready cards; found most blocked by DSL gaps not yet in generate_worklist.py
+- 3 newly-identified DSL gaps blocking many cards: (1) multi-type OR filter, (2) Activated has no TargetRequirement field, (3) WheneverCreatureDies has no controller filter
+**Next**: W5 is low-yield until more ability/DSL gaps are resolved. Recommended: finish W1 abilities first, then add DSL_GAP_PATTERNS for the 3 new gaps to generate_worklist.py, then resume W5. Simple 1-deck feasible cards still available (Fyndhorn Elves, Dark Ritual, Ornithopter, Avacyn's Pilgrim, Terminate, etc.)
+**Hazards**: W1 Shadow changes (combat.rs, types.rs, hash.rs, view_model.rs, tests/shadow.rs) are staged but uncommitted — leave for W1 session
+**Commit prefix used**: `W5-cards:`
 
 ## Handoff History
+
+### 2026-02-28 (night) — W5: Card Authoring (first batch)
+- Batches A/B/C: authored 30, removed 22 with simplifications; 8 accurate cards remain
+- Fixed generate_worklist.py: DSL_GAP_PATTERNS, blocked classification; commit prefix `W5-cards:`
 
 ### 2026-02-28 (night) — W2: TUI & Simulator (UX fixes)
 - Fix 1-6: Hand scrolling, discard events, zone counters, zone browser overlay, CardDetail return-to, action hints; Esc bug fix; commit `f9f7c45`
