@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 0: P3 stragglers (Overload, Bolster, Adapt, Partner With) | ACTIVE | 2026-02-28 | Hideaway already closed; working remaining 4 |
+| W1: Abilities | — | available | — | Batch 0 complete; Batch 1 next (Shadow, Horsemanship, Skulk, Devoid, Decayed, Ingest) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -21,35 +21,35 @@
 
 ## Last Handoff
 
-**Date**: 2026-02-28 (late night)
-**Workstream**: W5: Card Authoring
-**Task**: Author top ready cards from worklist (second batch)
+**Date**: 2026-02-28 (session end)
+**Workstream**: W1: Abilities — Batch 0
+**Task**: Implement Batch 0: P3 stragglers + Shadow (P4)
 **Completed**:
-- Authored 7 more cards (commit `c3e80e0`): Demonic Tutor, Worldly Tutor, Vampiric Tutor, Mana Confluence, Phyrexian Altar, Impact Tremors, Skullclamp (partial — death trigger omitted, clear TODO)
-- Exported `LibraryPosition` + `TargetController` from helpers.rs prelude
-- Triaged ~50 top ready cards; found most blocked by DSL gaps not yet in generate_worklist.py
-- 3 newly-identified DSL gaps blocking many cards: (1) multi-type OR filter, (2) Activated has no TargetRequirement field, (3) WheneverCreatureDies has no controller filter
-**Next**: W5 is low-yield until more ability/DSL gaps are resolved. Recommended: finish W1 abilities first, then add DSL_GAP_PATTERNS for the 3 new gaps to generate_worklist.py, then resume W5. Simple 1-deck feasible cards still available (Fyndhorn Elves, Dark Ritual, Ornithopter, Avacyn's Pilgrim, Terminate, etc.)
-**Hazards**: W1 Shadow changes (combat.rs, types.rs, hash.rs, view_model.rs, tests/shadow.rs) are staged but uncommitted — leave for W1 session
-**Commit prefix used**: `W5-cards:`
+- Bolster (CR 701.39): Effect::Bolster, 8 tests, Cached Defenses card, script 104 — commits a84e6fe
+- Adapt (CR 701.46): KeywordAbility::Adapt(u32), Condition::SourceHasNoCountersOfType, 6 tests, Sharktocrab, script 105 — commit fb01b08
+- Shadow (CR 702.28): bidirectional block restriction, 7 tests, Dauthi Slayer, script 106 — commit aacef15
+- Partner With (CR 702.124j): PartnerWithTrigger, ETB search, has_name TargetFilter, commander validation, 10 tests, Pir+Toothy, script 107 — commit da29f16
+- Overload (CR 702.96): alt cost, WasOverloaded condition, ForEach dispatch, 11 tests, Vandalblast, script 108 — commit 2729c3d
+- Bonus: CounterType/LibraryPosition/TargetController exported from helpers.rs; TargetController::Opponent enforced in collect_for_each; TUI PartnerWithTrigger arm in stack_view.rs
+- Batch 0 checkbox in workstream-coordination.md — ready to check off
+**Next**: Batch 1: Evasion & Simple Keywords (Shadow done; remaining: Horsemanship, Skulk, Devoid, Decayed, Ingest). Claim W1-B1.
+**Hazards**: Some W5 card defs (Demonic Tutor, Worldly Tutor, Vampiric Tutor, Mana Confluence, Phyrexian Altar, Impact Tremors, Skullclamp) exist as untracked files — committed by W5 session, may need W5 claim to manage
+**Commit prefix used**: `W1-B0:`
 
 ## Handoff History
+
+### 2026-02-28 (late night) — W5: Card Authoring (second batch)
+- 7 cards (Demonic Tutor, Worldly Tutor, Vampiric Tutor, Mana Confluence, Phyrexian Altar, Impact Tremors, Skullclamp); 3 new DSL gaps identified; commit `c3e80e0`
 
 ### 2026-02-28 (night) — W5: Card Authoring (first batch)
 - Batches A/B/C: authored 30, removed 22 with simplifications; 8 accurate cards remain
 - Fixed generate_worklist.py: DSL_GAP_PATTERNS, blocked classification; commit prefix `W5-cards:`
 
 ### 2026-02-28 (night) — W2: TUI & Simulator (UX fixes)
-- Fix 1-6: Hand scrolling, discard events, zone counters, zone browser overlay, CardDetail return-to, action hints; Esc bug fix; commit `f9f7c45`
-
-### 2026-02-28 (evening) — W5: Card Authoring (setup)
-- Added W5 as workstream; worklist confirmed (1,061 ready); commit prefix `W5-cards:`
+- Fix 1-6: Hand scrolling, discard events, zone counters, zone browser overlay, CardDetail return-to, action hints; Esc bug fix
 
 ### 2026-02-28 (late) — W2: Card Pipeline Phases 5-9
-- Split definitions.rs → 112 files in defs/; build.rs auto-discovery; skeleton generator; agent rewrite; commit `f9f7c45`
-
-### 2026-02-28 — W2: Overview layout + Card DSL detail pane
-- Overview bottom row: 3-column layout; Card DSL parser + detail pane; commit `8d78f7b`
+- Split definitions.rs → 112 files in defs/; build.rs auto-discovery; skeleton generator; agent rewrite
 
 ### 2026-02-28 — W3: T2 dead code + T1 tests (Phase 0 complete)
-- MR-M1-14/19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-11/13/14/15 closed; commits `320b77f` `7d535ec`
+- MR-M1-14/19/20, MR-M2-07/08/17, MR-M4-13, MR-M5-08, MR-M6-08, MR-M8-15, MR-M9-14/15, MR-M9.4-11/13/14/15 closed
