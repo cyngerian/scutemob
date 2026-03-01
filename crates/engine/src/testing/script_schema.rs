@@ -266,6 +266,11 @@ pub enum ScriptAction {
         /// Example: "Eager Construct"
         #[serde(default)]
         attacker_name: Option<String>,
+        /// CR 702.81a: For `cast_spell_retrace`. Name of the land card in the
+        /// player's hand to discard as the retrace additional cost.
+        /// Example: "Mountain"
+        #[serde(default)]
+        discard_land: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

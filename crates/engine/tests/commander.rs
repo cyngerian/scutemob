@@ -134,6 +134,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -231,6 +232,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -317,6 +319,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -401,6 +404,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -464,6 +468,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -522,6 +527,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -1034,6 +1040,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1116,6 +1123,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -2239,6 +2247,7 @@ fn test_full_four_player_commander_game() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();

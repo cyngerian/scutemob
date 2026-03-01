@@ -487,6 +487,7 @@ fn test_miracle_cast_for_miracle_cost() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -592,6 +593,7 @@ fn test_miracle_sorcery_ignores_timing() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -795,6 +797,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(

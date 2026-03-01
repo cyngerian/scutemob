@@ -78,6 +78,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -153,6 +154,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -216,6 +218,7 @@ fn test_608_3a_creature_enters_battlefield() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -298,6 +301,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -360,6 +364,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -443,6 +448,7 @@ fn test_608_1_lifo_resolves_top_first() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -467,6 +473,7 @@ fn test_608_1_lifo_resolves_top_first() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -580,6 +587,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -665,6 +673,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -739,6 +748,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();

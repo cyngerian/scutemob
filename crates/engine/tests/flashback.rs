@@ -251,6 +251,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -352,6 +353,7 @@ fn test_flashback_exile_on_resolution() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -470,6 +472,7 @@ fn test_flashback_exile_on_counter() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -514,6 +517,7 @@ fn test_flashback_exile_on_counter() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -615,6 +619,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -683,6 +688,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -767,6 +773,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -856,6 +863,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -956,6 +964,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1039,6 +1048,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -1115,6 +1125,7 @@ fn test_flashback_mana_value_unchanged() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();

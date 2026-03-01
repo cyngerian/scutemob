@@ -164,6 +164,16 @@ pub enum Command {
         /// objects instead of a single target).
         #[serde(default)]
         cast_with_overload: bool,
+        /// CR 702.81a: If casting via retrace from the graveyard, the ObjectId of a
+        /// land card in the player's hand to discard as an additional cost.
+        /// Must be a card with `CardType::Land` in the player's hand.
+        /// `None` if not using retrace.
+        ///
+        /// Retrace is an additional cost (CR 118.8), NOT an alternative cost.
+        /// The player pays the card's normal mana cost PLUS discards this land card.
+        /// After resolution the card returns to the graveyard normally (not exiled).
+        #[serde(default)]
+        retrace_discard_land: Option<ObjectId>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

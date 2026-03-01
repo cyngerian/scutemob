@@ -759,6 +759,15 @@ pub enum KeywordAbility {
     /// Bypasses commander tax entirely (it is an activated ability, not a
     /// spell cast). See ruling 2020-11-10.
     CommanderNinjutsu,
+    /// CR 702.81: Retrace -- card may be cast from the owner's graveyard
+    /// by discarding a land card as an additional cost (CR 118.8).
+    /// Unlike Flashback, the card returns to the graveyard on resolution
+    /// (not exiled). The normal mana cost is paid (not an alternative cost).
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// No `AbilityDefinition::Retrace` is needed because there is no separate
+    /// cost to store -- the card uses its normal mana cost.
+    Retrace,
 }
 
 /// All creature subtypes from CR 205.3m.

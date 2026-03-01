@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Ninjutsu + Commander Ninjutsu validated; KeywordAbility::Ninjutsu disc 87, KeywordAbility::CommanderNinjutsu disc 88; AbilityDefinition::Ninjutsu/CommanderNinjutsu; Command::ActivateNinjutsu; StackObjectKind::NinjutsuAbility disc 26; handle_ninjutsu() in abilities.rs + resolve_ninjutsu() in resolution.rs; 12 unit tests in tests/ninjutsu.rs; Ninja of the Deep Hours card def at defs/ninja_of_the_deep_hours.rs; game script combat/125; Commander Ninjutsu row added to Section 4; P4 validated 17->19, total validated 109->111)
+> Last audited: 2026-03-01 (Retrace validated; KeywordAbility::Retrace disc 89; retrace_discard_land on CastSpell command; casting.rs graveyard-cast + land validation + additional-cost payment; 11 unit tests in tests/retrace.rs; Flame Jab card def at defs/flame_jab.rs; game script combat/126; P4 validated 19->20, total validated 111->112)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 19        | 0        | 0       | 70   | 12  |
-| **Total**| **200**| **111**  | **2**    | **0**   | **75**| **12** |
+| P4       | 101   | 20        | 0        | 0       | 69   | 12  |
+| **Total**| **200**| **112**  | **2**    | **0**   | **74**| **12** |
 
 ---
 
@@ -106,7 +106,7 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 | Miracle | 702.94 | P3 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `state/stack.rs`, `state/stubs.rs`, `state/player.rs`, `rules/miracle.rs`, `rules/casting.rs`, `rules/engine.rs`, `rules/turn_actions.rs`, `rules/replacement.rs`, `rules/resolution.rs`, `rules/abilities.rs`, `effects/mod.rs`, `testing/replay_harness.rs` | Terminus | `stack/084` | — | Draw-site detection (first draw this turn), MiracleRevealChoiceRequired event, ChooseMiracle command, MiracleTrigger on stack, alternative cost in casting.rs (mutual exclusion with flashback/evoke/bestow/madness), sorcery timing bypass, MiracleTrigger no-op resolution, cards_drawn_this_turn reset at turn boundary for all players; 11 unit tests in miracle.rs |
 | Escape | 702.138 | P3 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Ox of Agonas | `stack/085` | — | KeywordAbility::Escape enum + AbilityDefinition::Escape{cost,exile_count} + EscapeWithCounter; graveyard zone detection, exile cost payment, mutual exclusion with all other alt costs, sorcery timing bypass, was_escaped propagation to permanent, +1/+1 counter on ETB; 16 unit tests in escape.rs |
 | Foretell | 702.143 | P3 | `validated` | `rules/foretell.rs`, `rules/casting.rs`, `state/types.rs`, `cards/card_definition.rs`, `state/game_object.rs`, `state/stack.rs`, `rules/engine.rs`, `testing/replay_harness.rs` | Saw It Coming | `stack/086` | — | KeywordAbility::Foretell enum (disc 51) + AbilityDefinition::Foretell{cost}; is_foretold/foretold_turn on GameObject; Command::ForetellCard special action; GameEvent::CardForetold; foretell.rs: priority check, turn check, {2} payment, exile face-down (CR 702.143b no stack); casting.rs: foretell zone detection, same-turn restriction, foretell cost, mutual exclusion with all other alt costs (CR 118.9a); 18 unit tests in foretell.rs |
-| Retrace | 702.81 | P4 | `none` | — | — | — | — | Cast from graveyard by discarding a land |
+| Retrace | 702.81 | P4 | `validated` | `state/types.rs:762-770`, `state/hash.rs:513-514`, `rules/casting.rs:69,186-221,434,711-765,993-997`, `rules/command.rs:167-176`, `rules/engine.rs:97,119`, `testing/replay_harness.rs:739-764`, `testing/script_schema.rs:269-270` | Flame Jab | `combat/126` | — | CR 702.81a: static ability — cast from graveyard by paying normal mana cost + discarding a land card as additional cost (CR 118.8, not alternative); KeywordAbility::Retrace disc 89; `retrace_discard_land: Option<ObjectId>` on CastSpell command; validation: card has Retrace keyword, is in graveyard, land is in hand + is land type; card returns to graveyard on resolution (not exile, unlike Flashback); sorcery-speed timing preserved; `cast_spell_retrace` harness action; 11 unit tests in `tests/retrace.rs`; game script approved |
 | Jump-Start | 702.133 | P4 | `none` | — | — | — | — | Cast from graveyard by discarding a card |
 | Aftermath | 702.127 | P4 | `none` | — | — | — | — | Cast second half from graveyard only |
 | Disturb | 702.146 | P4 | `none` | — | — | — | — | Cast transformed from graveyard |
@@ -554,3 +554,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Enlist (CR 702.154) — validated 2026-03-01 (script combat/124, Coalition Skyknight, 8 unit tests in enlist.rs). CR number corrected from 702.155 to 702.154. Static ability (optional attack cost) + linked triggered ability; 10-check validation in combat.rs; EnlistTrigger StackObjectKind with resolution reading enlisted creature's power for +X/+0 UntilEndOfTurn.
 
 **Resolved**: Ninjutsu (CR 702.49) + Commander Ninjutsu (CR 702.49d) — validated 2026-03-01 (script combat/125, Ninja of the Deep Hours, 12 unit tests in ninjutsu.rs). Activated ability from hand (or command zone for Commander Ninjutsu); Command::ActivateNinjutsu + NinjutsuAbility StackObjectKind; handle_ninjutsu() 14-check validation + resolve_ninjutsu() full ETB site pattern with combat registration; no commander tax for Commander Ninjutsu.
+
+**Resolved**: Retrace (CR 702.81) — validated 2026-03-01 (script combat/126, Flame Jab, 11 unit tests in retrace.rs). Static ability on instants/sorceries; KeywordAbility::Retrace disc 89; `retrace_discard_land` on CastSpell command; additional cost (CR 118.8), not alternative; card returns to graveyard on resolution (not exile); sorcery-speed timing preserved from graveyard; `cast_spell_retrace` harness action.

@@ -96,6 +96,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -150,6 +151,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -204,6 +206,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -256,6 +259,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .expect("CastSpell should succeed");
@@ -435,6 +439,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             },
         );
         assert!(
@@ -480,6 +485,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             },
         );
         assert!(
@@ -530,6 +536,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -587,6 +594,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -643,6 +651,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .expect("CastSpell should succeed");

@@ -66,6 +66,7 @@ pub fn handle_cast_spell(
     cast_with_foretell: bool,
     cast_with_buyback: bool,
     cast_with_overload: bool,
+    retrace_discard_land: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -97,6 +98,7 @@ pub fn handle_cast_spell(
         card_has_escape_keyword,
         card_id,
         base_mana_cost,
+        casting_with_retrace,
     ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
@@ -181,6 +183,19 @@ pub fn handle_cast_spell(
             }
         }
 
+        // CR 702.81a: Retrace — allowed if card has the Retrace keyword and is in graveyard,
+        // AND the player is providing a land card to discard (retrace_discard_land.is_some()).
+        // Retrace is an additional cost (CR 118.8), NOT an alternative cost — it does not
+        // conflict with Flashback or Escape. However, if the card is being cast via Flashback
+        // (alternative cost), Retrace's additional cost is not required for that cast.
+        let casting_with_retrace = casting_from_graveyard
+            && card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::Retrace)
+            && !casting_with_flashback // Flashback takes priority (Flashback is alt-cost)
+            && retrace_discard_land.is_some(); // Player must signal retrace with a land
+
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
@@ -188,6 +203,8 @@ pub fn handle_cast_spell(
             && !casting_with_escape_auto
             && !cast_with_escape
             && !cast_with_foretell
+            && !casting_with_retrace
+        // CR 702.81a: Retrace allows graveyard cast
         {
             return Err(GameStateError::InvalidCommand(
                 "card is not in your hand".into(),
@@ -201,6 +218,7 @@ pub fn handle_cast_spell(
             card_has_escape_keyword,
             card_obj.card_id.clone(),
             card_obj.characteristics.mana_cost.clone(),
+            casting_with_retrace,
         )
     };
 
@@ -413,6 +431,7 @@ pub fn handle_cast_spell(
             && card_has_escape_keyword
             && !casting_with_flashback
             && !casting_with_madness
+            && !casting_with_retrace // Player explicitly chose retrace
     };
 
     // Also add escape to existing mutual exclusion checks for evoke, bestow, madness, miracle:
@@ -689,6 +708,52 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.81a / CR 601.2b,f: Retrace — validate and bind the land discard cost.
+    // Retrace is an additional cost (CR 118.8): the player pays the card's normal mana
+    // cost PLUS discards a land card from hand. The discard is validated here (before the
+    // mana cost is paid) and executed after mana payment alongside other cost events.
+    // CR 601.2f: Additional costs are paid as part of the total cost payment.
+    //
+    // Unlike Flashback (exile on departure), Retrace does NOT change where the card goes
+    // on resolution — instants/sorceries go to the graveyard normally (CR 702.81a ruling
+    // 2008-08-01: "put back into your graveyard").
+    let retrace_land_to_discard: Option<ObjectId> = if casting_with_retrace {
+        let land_id = retrace_discard_land.ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "retrace: internal error -- retrace_discard_land must be Some".into(),
+            )
+        })?;
+
+        // Validate the land card:
+        // 1. Must be in the player's hand (CR 702.81a: "discarding a land card").
+        // 2. Must have CardType::Land.
+        let (land_owner, land_is_in_hand, land_is_land_type) = {
+            let land_obj = state.object(land_id)?;
+            (
+                land_obj.owner,
+                land_obj.zone == ZoneId::Hand(player),
+                land_obj
+                    .characteristics
+                    .card_types
+                    .contains(&CardType::Land),
+            )
+        };
+        let _ = land_owner; // owner used in event below
+        if !land_is_in_hand {
+            return Err(GameStateError::InvalidCommand(
+                "retrace: discarded card must be in your hand (CR 702.81a)".into(),
+            ));
+        }
+        if !land_is_land_type {
+            return Err(GameStateError::InvalidCommand(
+                "retrace: discarded card must be a land card (CR 702.81a)".into(),
+            ));
+        }
+        Some(land_id)
+    } else {
+        None
+    };
+
     // Validate casting window.
     // CR 702.35 ruling: Madness ignores timing restrictions — a sorcery cast via madness
     // can be cast any time the player has priority, like an instant.
@@ -696,6 +761,8 @@ pub fn handle_cast_spell(
     // can be cast at instant speed (while the miracle trigger is on the stack).
     // CR 702.138a ruling (2020-01-24): Escape does NOT ignore timing restrictions —
     // sorcery-speed cards with escape can only be cast at sorcery speed.
+    // CR 702.81a ruling (2008-08-01): Retrace does NOT ignore timing restrictions —
+    // sorceries with retrace can only be cast at sorcery speed from the graveyard.
     if !is_instant_speed && !casting_with_madness && !cast_with_miracle {
         // Sorcery speed: active player only, main phase, empty stack (CR 307.1).
         if state.turn.active_player != player {
@@ -922,6 +989,20 @@ pub fn handle_cast_spell(
     // CR 702.138a / CR 601.2h: Emit ObjectExiled events for escape exile cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(escape_exile_events);
+
+    // CR 702.81a / CR 601.2f: Pay the retrace additional cost — discard a land from hand.
+    // The discard is a real discard (CR 118.8 / 701.8): the land goes from hand to the
+    // owner's graveyard and triggers any "whenever a player discards a card" effects.
+    // This happens as part of cost payment (CR 601.2h), after the mana payment.
+    if let Some(land_id) = retrace_land_to_discard {
+        let land_owner = state.object(land_id)?.owner;
+        let (new_land_id, _) = state.move_object_to_zone(land_id, ZoneId::Graveyard(land_owner))?;
+        events.push(GameEvent::CardDiscarded {
+            player,
+            object_id: land_id,
+            new_id: new_land_id,
+        });
+    }
 
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;

@@ -202,6 +202,7 @@ fn test_ward_basic_counter_on_targeting() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -332,6 +333,7 @@ fn test_ward_does_not_trigger_for_controller() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -427,6 +429,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -619,6 +622,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -788,6 +792,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -886,6 +891,7 @@ fn test_ward_multiplayer_opponent_check() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();

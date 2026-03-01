@@ -191,6 +191,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with delve failed: {:?}", e));
@@ -301,6 +302,7 @@ fn test_delve_partial_reduction() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Partial delve cast failed: {:?}", e));
@@ -389,6 +391,7 @@ fn test_delve_object_exiled_events() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Delve cast failed: {:?}", e));
@@ -484,6 +487,7 @@ fn test_delve_reject_no_keyword() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -559,6 +563,7 @@ fn test_delve_reject_too_many_cards() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -620,6 +625,7 @@ fn test_delve_reject_card_not_in_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -681,6 +687,7 @@ fn test_delve_reject_opponents_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -742,6 +749,7 @@ fn test_delve_reject_duplicate_cards() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -812,6 +820,7 @@ fn test_delve_zero_cards_normal_cast() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of delve spell failed: {:?}", e));
@@ -937,6 +946,7 @@ fn test_delve_with_commander_tax() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Commander delve cast failed: {:?}", e));

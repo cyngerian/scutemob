@@ -722,5 +722,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Enlist => "Enlist".to_string(),
         KeywordAbility::Ninjutsu => "Ninjutsu".to_string(),
         KeywordAbility::CommanderNinjutsu => "Commander Ninjutsu".to_string(),
+        KeywordAbility::Retrace => "Retrace".to_string(),
     }
 }

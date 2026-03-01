@@ -219,6 +219,7 @@ fn test_702_96_normal_cast_targets_single() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -327,6 +328,7 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -429,6 +431,7 @@ fn test_702_96_overloaded_no_targets_cannot_fizzle() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -517,6 +520,7 @@ fn test_702_96_overloaded_bypasses_hexproof() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -614,6 +618,7 @@ fn test_702_96_alternative_cost_exclusivity_with_evoke() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     );
 
@@ -679,6 +684,7 @@ fn test_702_96_pays_overload_cost() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     );
 
@@ -747,6 +753,7 @@ fn test_702_96_no_targets_allowed_when_overloaded() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     );
 
@@ -829,6 +836,7 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast failed: {:?}", e));
@@ -988,6 +996,7 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| {
@@ -1155,6 +1164,7 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     );
 
@@ -1266,6 +1276,7 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: true,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("4-player overloaded CastSpell failed: {:?}", e));

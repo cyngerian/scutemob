@@ -85,6 +85,7 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -162,6 +163,7 @@ fn test_protection_from_red_allows_green_spell() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -249,6 +251,7 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 
@@ -319,6 +322,7 @@ fn test_protection_from_all_blocks_all_targeting() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
 

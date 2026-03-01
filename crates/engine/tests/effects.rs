@@ -196,6 +196,7 @@ fn test_effect_deal_damage_to_player() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -281,6 +282,7 @@ fn test_effect_deal_damage_to_creature() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -369,6 +371,7 @@ fn test_effect_exile_and_gain_life() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -474,6 +477,7 @@ fn test_effect_draw_cards() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1159,6 +1163,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1268,6 +1273,7 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1378,6 +1384,7 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1515,6 +1522,7 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1618,6 +1626,7 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();
@@ -1745,6 +1754,7 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap();

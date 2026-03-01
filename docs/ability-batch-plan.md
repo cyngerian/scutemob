@@ -145,7 +145,7 @@ More combat mechanics, including the medium-effort Ninjutsu.
 **Infrastructure reused**: `CombatState::is_blocked()`, poison counter SBA (Infect),
 `MoveZone` to hand. Ninjutsu needs `Command::ActivateNinjutsu`.
 
-- [ ] Batch 3 complete
+- [x] Batch 3 complete
 
 ---
 

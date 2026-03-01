@@ -239,6 +239,9 @@ pub fn translate_player_action(
     // CR 702.49a: For `activate_ninjutsu`, the name of the unblocked attacking
     // creature to return to its owner's hand. `None` for all other action types.
     attacker_name: Option<&str>,
+    // CR 702.81a: For `cast_spell_retrace`, the name of the land card in the
+    // player's hand to discard as the additional cost. `None` for all other action types.
+    discard_land_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -287,6 +290,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: buyback,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -314,6 +318,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -338,6 +343,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -362,6 +368,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -387,6 +394,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -412,6 +420,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -442,6 +451,7 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -696,6 +706,7 @@ pub fn translate_player_action(
                 cast_with_foretell: true,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             })
         }
 
@@ -721,6 +732,36 @@ pub fn translate_player_action(
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: true,
+                retrace_discard_land: None,
+            })
+        }
+
+        // CR 702.81a: Cast a spell with retrace from the player's graveyard.
+        // The player discards a land card from hand as an additional cost.
+        // The spell uses its normal mana cost (retrace is additional, not alternative).
+        // After resolution the card returns to the graveyard normally (not exiled).
+        "cast_spell_retrace" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let land_name = discard_land_name?;
+            let land_id = find_in_hand(state, player, land_name)?;
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+                cast_with_overload: false,
+                retrace_discard_land: Some(land_id),
             })
         }
 

@@ -1,28 +1,29 @@
-# Ability WIP: Ninjutsu
+# Ability WIP: Retrace
 
-ability: Ninjutsu
-cr: 702.49
+ability: Retrace
+cr: 702.81
 priority: P4
 started: 2026-03-01
 phase: closed
-plan_file: memory/abilities/ability-plan-ninjutsu.md
+plan_file: memory/abilities/ability-plan-retrace.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:745-760, card_definition.rs:264-279, hash.rs (KeywordAbility 87/88, AbilityDefinition 22/23), view_model.rs:719-720
-- [x] 2. Rule enforcement — command.rs:ActivateNinjutsu, abilities.rs:handle_ninjutsu+get_ninjutsu_cost, resolution.rs:NinjutsuAbility arm, stack.rs:NinjutsuAbility, hash.rs:discriminant 26
-- [x] 3. Trigger wiring — n/a (ninjutsu is an activated ability, not a triggered ability; ETB triggers are wired via fire_when_enters_triggered_effects in resolution)
-- [x] 4. Unit tests — tests/ninjutsu.rs (12 tests: all pass)
-- [x] 5. Card definition — crates/engine/src/cards/defs/ninja_of_the_deep_hours.rs (Ninjutsu {1}{U}, {3}{U} 1/1 Human Ninja)
-- [x] 6. Game script — test-data/generated-scripts/combat/125_ninjutsu_ninja_of_the_deep_hours.json
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (P4 19/88 now +Commander Ninjutsu, 111 total validated)
+- [x] 1. Enum variant — types.rs:761 (KeywordAbility::Retrace), hash.rs:513 (discriminant 89)
+- [x] 2. Rule enforcement — command.rs:167 (retrace_discard_land field), casting.rs (detection + validation + cost payment), engine.rs (destructure + pass-through)
+- [x] 3. Trigger wiring — n/a (Retrace is a static ability with no triggers)
+- [x] 4. Unit tests — retrace.rs (11 tests: basic cast, graveyard return on resolve, graveyard return when countered, sorcery timing, discard-must-be-land, discard-must-be-in-hand, no-keyword-no-cast, normal-mana-cost, no-land-provided, hand-cast, recast-after-resolution)
+- [x] 5. Card definition — crates/engine/src/cards/defs/flame_jab.rs (Flame Jab, {R} Sorcery, deal 1 damage, Retrace)
+- [x] 6. Game script — test-data/generated-scripts/combat/126_retrace_flame_jab.json
+- [x] 7. Coverage doc update — P4 validated 19→20, total 111→112
 
 ## Review
-findings: 2 HIGH + 2 LOW
+findings: 1 HIGH + 1 MEDIUM + 3 LOW
 verdict: needs-fix → fixed
-review_file: memory/abilities/ability-review-ninjutsu.md
+review_file: memory/abilities/ability-review-retrace.md
 
 ## Fix Phase
-- [x] Finding 1 (HIGH): abilities.rs:910 — replaced `.unwrap()` with `.ok_or_else(|| GameStateError::InvalidCommand(...))?`
-- [x] Finding 2 (HIGH): abilities.rs:929,933 — replaced `.unwrap().expect()` with `.and_then(...).ok_or_else(|| GameStateError::InvalidCommand(...))?`
-- [ ] Finding 3 (LOW): deferred — reveal tracking
-- [ ] Finding 4 (LOW): deferred — missing negative test for wrong-controller case
+- [x] Finding 1 (HIGH): casting.rs:721 — replace .expect() with .ok_or_else()
+- [x] Finding 2 (MEDIUM): casting.rs escape detection — add && !casting_with_retrace
+- [ ] Finding 3 (LOW): deferred
+- [ ] Finding 4 (LOW): deferred
+- [ ] Finding 5 (LOW): deferred

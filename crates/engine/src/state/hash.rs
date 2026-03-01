@@ -510,6 +510,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Ninjutsu => 87u8.hash_into(hasher),
             // Commander Ninjutsu (discriminant 88) -- CR 702.49d
             KeywordAbility::CommanderNinjutsu => 88u8.hash_into(hasher),
+            // Retrace (discriminant 89) -- CR 702.81
+            KeywordAbility::Retrace => 89u8.hash_into(hasher),
         }
     }
 }

@@ -179,6 +179,7 @@ fn test_bestow_cast_as_aura_basic() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -367,6 +368,7 @@ fn test_bestow_cast_normally_as_creature() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -509,6 +511,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -752,6 +755,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             },
         );
         assert!(
@@ -821,6 +825,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 cast_with_foretell: false,
                 cast_with_buyback: false,
                 cast_with_overload: false,
+                retrace_discard_land: None,
             },
         );
         assert!(
@@ -908,6 +913,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -1010,6 +1016,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(
@@ -1076,6 +1083,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     );
     assert!(

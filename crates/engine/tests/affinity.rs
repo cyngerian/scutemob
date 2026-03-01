@@ -125,6 +125,7 @@ fn cast_spell(
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
 }
@@ -543,6 +544,7 @@ fn test_affinity_combined_with_improvise() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
+            retrace_discard_land: None,
         },
     )
     .expect(
