@@ -447,6 +447,8 @@ impl HashInto for KeywordAbility {
                 67u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Shadow (discriminant 68) -- CR 702.28
+            KeywordAbility::Shadow => 68u8.hash_into(hasher),
         }
     }
 }

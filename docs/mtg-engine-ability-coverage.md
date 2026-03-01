@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Adapt validated; CR 701.46 confirmed; state/types.rs:560, card_definition.rs:793, effects/mod.rs:2731; Sharktocrab card def; 6 unit tests in adapt.rs; game script baseline/105 approved; P3 validated 33->34, total validated 89->90)
+> Last audited: 2026-02-28 (Shadow validated; CR 702.28 confirmed; state/types.rs:572, hash.rs:450, rules/combat.rs:491-502; Dauthi Slayer card def; 7 unit tests in shadow.rs; game script combat/106 approved; P4 validated 0->1, total validated 90->91)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 34        | 0        | 0       | 6    | 0   |
-| P4       | 100   | 0         | 0        | 0       | 88   | 12  |
-| **Total**| **199**| **90**   | **2**    | **0**   | **95**| **12** |
+| P4       | 100   | 1         | 0        | 0       | 87   | 12  |
+| **Total**| **199**| **91**   | **2**    | **0**   | **94**| **12** |
 
 ---
 
@@ -72,7 +72,7 @@ Additional evasion and blocking-restriction keywords beyond the evergreen set.
 | Ward | 702.21 | P1 | `validated` | `state/types.rs`, `state/builder.rs`, `state/game_object.rs`, `rules/casting.rs`, `rules/abilities.rs`, `rules/events.rs`, `effects/mod.rs` | Adrix and Nev, Twincasters | `stack/055` | — | Ward(u32) enum + trigger via PermanentTargeted/SelfBecomesTargetByOpponent; MayPayOrElse counter-unless-pay; 7 unit tests in `tests/ward.rs`; script `pending_review` |
 | Intimidate | 702.13 | P1 | `validated` | `state/types.rs:114`, `rules/combat.rs:453-474` | Bladetusk Boar | `combat/009` | — | CR 702.13b blocking restriction enforced (artifact creature OR shared color); 7 unit tests in `tests/keywords.rs:632`; game script `pending_review` (6/6 assertions pass) |
 | Fear | 702.36 | P3 | `validated` | `state/types.rs:385`, `rules/combat.rs:475-489` | Severed Legion | `combat/080` | — | CR 702.36b blocking restriction enforced (artifact creature OR black creature); 7 unit tests in `tests/keywords.rs:1818`; game script approved |
-| Shadow | 702.28 | P4 | `none` | — | — | — | — | Can only block/be blocked by shadow creatures |
+| Shadow | 702.28 | P4 | `validated` | `state/types.rs:572`, `state/hash.rs:450`, `rules/combat.rs:491-502` | Dauthi Slayer | `combat/106` | — | CR 702.28b bidirectional blocking restriction enforced (shadow mismatch = illegal block); 7 unit tests in `tests/shadow.rs`; game script approved |
 | Horsemanship | 702.30 | P4 | `none` | — | — | — | — | Can only be blocked by horsemanship (Portal Three Kingdoms) |
 | Skulk | 702.120 | P4 | `none` | — | — | — | — | Can't be blocked by creatures with greater power |
 | Landwalk | 702.14 | P1 | `validated` | `state/types.rs:60-77,133-137`, `rules/combat.rs:484-509` | Bog Raiders | `combat/010` | — | LandwalkType enum (BasicType + Nonbasic variants); KeywordAbility::Landwalk; blocking restriction enforced via calculate_characteristics (handles Blood Moon etc.); 7 unit tests in `tests/keywords.rs:1137-1480`; game script `pending_review` (8/8 assertions pass) |

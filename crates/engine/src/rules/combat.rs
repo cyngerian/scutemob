@@ -488,6 +488,18 @@ pub fn handle_declare_blockers(
             }
         }
 
+        // CR 702.28b: Shadow is a bidirectional evasion ability.
+        // A creature with shadow can't be blocked by creatures without shadow,
+        // and a creature without shadow can't be blocked by creatures with shadow.
+        let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
+        let blocker_has_shadow = blocker_chars.keywords.contains(&KeywordAbility::Shadow);
+        if attacker_has_shadow != blocker_has_shadow {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} cannot block {:?} (shadow mismatch: attacker shadow={}, blocker shadow={})",
+                blocker_id, attacker_id, attacker_has_shadow, blocker_has_shadow
+            )));
+        }
+
         // CR 702.16f: protection from blocking. A creature with protection from a quality
         // cannot be blocked by creatures that match that quality. The blocker is the source.
         if !super::protection::can_block(&attacker_chars.keywords, &blocker_chars) {

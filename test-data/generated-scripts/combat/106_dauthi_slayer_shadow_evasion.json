@@ -1,0 +1,168 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_106",
+    "name": "Shadow — Dauthi Slayer is unblockable by non-shadow creature",
+    "description": "p1 controls Dauthi Slayer (2/2, Shadow). p2 controls Llanowar Elves (1/1, no shadow). p1 attacks with Dauthi Slayer. Under CR 702.28b, a creature with shadow can't be blocked by creatures without shadow. Llanowar Elves has no shadow and therefore cannot legally block Dauthi Slayer. p2 declares no blockers. Dauthi Slayer is unblocked and deals 2 combat damage to p2, reducing p2's life from 40 to 38. This script demonstrates the bidirectional shadow blocking restriction and uses the fully executable declare_attackers and declare_blockers harness commands.",
+    "cr_sections_tested": ["702.28b", "508.1", "508.1a", "508.1f", "508.1k", "509.1", "509.1b", "509.1h", "510.1b"],
+    "corner_case_ref": null,
+    "tags": ["shadow", "combat", "evasion", "blocking-restriction", "declare-attackers", "declare-blockers", "unblocked", "combat-damage"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Dauthi Slayer oracle text (engine-verified): 'Shadow (This creature can block or be blocked by only creatures with shadow.) This creature attacks each combat if able.' P/T: 2/2. Mana cost: {B}{B}. Type: Creature — Dauthi Soldier. card_id: dauthi-slayer. Shadow keyword defined as KeywordAbility::Shadow in dauthi_slayer.rs. The mandatory-attack ('attacks each combat if able') is NOT yet implemented in the engine (noted as TODO in dauthi_slayer.rs — no AttacksEachCombat DSL variant exists). Because the script places us directly in the declare_attackers step, the mandatory-attack clause has no effect on the script's validity. CR 702.28b: 'A creature with shadow can't be blocked by creatures without shadow.' Llanowar Elves is a vanilla 1/1 Elf Druid with no shadow keyword — it cannot legally block Dauthi Slayer. Therefore p2 must declare no blockers in the declare_blockers step. CR 509.1b: The defending player checks each declared blocker for illegal blocking restrictions; since Llanowar Elves cannot block a shadow creature, an attempt to do so would be illegal. The script models the correct play: p2 simply declares an empty blocker list. CR 509.1h: Dauthi Slayer has no creatures declared as blockers — it becomes unblocked. CR 510.1b: Unblocked Dauthi Slayer (power 2) assigns all 2 damage to p2. p2 life: 40 → 38. Llanowar Elves takes no damage (not a blocker), so no SBA 704.5g applies. Dauthi Slayer takes no damage (unblocked), so no SBA 704.5g applies. p2 life is 38 (above 0), so no SBA 704.5a applies. The script uses turn_number: 4 to ensure no summoning sickness on Dauthi Slayer (GameStateBuilder sets has_summoning_sickness: false for permanents in initial_state, consistent with scripts 015, 016, etc.). Initial phase is 'declare_attackers' per the pattern in script 015.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Dauthi Slayer", "is_commander": false, "owner": null, "tapped": false }
+        ],
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Dauthi Slayer as an attacker targeting p2. Dauthi Slayer becomes tapped (CR 508.1f). Priority resets to p1 after attackers are declared.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Dauthi Slayer (2/2, Shadow) untapped on p1 battlefield; Llanowar Elves (1/1, no shadow) untapped on p2 battlefield; life totals 40/40",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Dauthi Slayer" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Dauthi Slayer.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Dauthi Slayer is untapped and free of summoning sickness (turn_number: 4, builder sets has_summoning_sickness: false). Llanowar Elves is a 1/1 Elf Druid with no shadow keyword — it cannot legally block Dauthi Slayer per CR 702.28b."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Dauthi Slayer", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Dauthi Slayer as an attacking creature targeting p2. CR 508.1a: Dauthi Slayer is untapped and free of summoning sickness — legal attacker. CR 508.1f: Dauthi Slayer becomes tapped as a side effect of attacking. CR 508.1k: Dauthi Slayer becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Dauthi Slayer is tapped, stack empty",
+          "assertions": {
+            "permanent.Dauthi Slayer.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Dauthi Slayer was tapped as part of the attack declaration. Priority is held by p1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to DeclareBlockers step. p1 receives priority as active player in DeclareBlockers."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 cannot block Dauthi Slayer with Llanowar Elves because Llanowar Elves has no shadow (CR 702.28b). p2 declares no blockers. Dauthi Slayer becomes an unblocked attacker (CR 509.1h). Both players pass priority — advance to CombatDamage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares no blockers. CR 702.28b: Shadow — 'A creature with shadow can't be blocked by creatures without shadow.' Llanowar Elves has no shadow keyword and therefore cannot legally be declared as a blocker for Dauthi Slayer. CR 509.1b: Any blocker declared in violation of a restriction is illegal; p2 correctly declares an empty blocker list. CR 509.1h: Dauthi Slayer has no blocking creatures declared — it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in succession with empty stack — advance to CombatDamage step. The engine executes combat damage as a turn-based action on entering CombatDamage (no player command needed)."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Dauthi Slayer (power 2, unblocked) assigns 2 combat damage to p2 (CR 510.1b). p2 life: 40 → 38. No SBAs apply.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [],
+          "note": "CR 704.5a: p2 has 38 life (above 0) — no player-death SBA. CR 704.5g: Dauthi Slayer (2/2) took no damage — no lethal-damage SBA. CR 704.5g: Llanowar Elves (1/1) took no damage (was not a blocker) — no SBA. No SBAs apply."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage resolves. Stack is empty — advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: p2 at 38 life (lost 2 from unblocked Dauthi Slayer), p1 at 40 life, Dauthi Slayer still on p1 battlefield (tapped), Llanowar Elves still on p2 battlefield (took no damage)",
+          "assertions": {
+            "players.p2.life": 38,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": { "includes": [{ "card": "Dauthi Slayer" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Dauthi Slayer.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Dauthi Slayer (power 2) dealt 2 combat damage to p2. p2 life: 40 → 38. Dauthi Slayer remains on p1 battlefield (tapped from attacking, took no damage). Llanowar Elves remains on p2 battlefield (was not declared as a blocker, took no damage). Shadow's blocking restriction (CR 702.28b) was enforced: the non-shadow Llanowar Elves could not block the shadow Dauthi Slayer."
+        }
+      ]
+    }
+  ]
+}

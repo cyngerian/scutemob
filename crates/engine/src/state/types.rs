@@ -569,6 +569,11 @@ pub enum KeywordAbility {
     /// The condition check (no +1/+1 counters) happens at resolution time,
     /// not at activation time (ruling 2019-01-25).
     Adapt(u32),
+    /// CR 702.28: Shadow -- evasion ability.
+    /// "A creature with shadow can't be blocked by creatures without shadow,
+    /// and a creature without shadow can't be blocked by creatures with shadow."
+    /// CR 702.28c: Multiple instances are redundant (auto-deduped by OrdSet).
+    Shadow,
 }
 
 /// All creature subtypes from CR 205.3m.
