@@ -488,6 +488,8 @@ fn test_miracle_cast_for_miracle_cost() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -594,6 +596,8 @@ fn test_miracle_sorcery_ignores_timing() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -770,6 +774,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -798,6 +803,8 @@ fn test_miracle_cannot_combine_with_flashback() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
     assert!(

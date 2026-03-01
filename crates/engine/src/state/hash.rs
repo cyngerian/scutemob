@@ -512,6 +512,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::CommanderNinjutsu => 88u8.hash_into(hasher),
             // Retrace (discriminant 89) -- CR 702.81
             KeywordAbility::Retrace => 89u8.hash_into(hasher),
+            // Jump-Start (discriminant 90) -- CR 702.133
+            KeywordAbility::JumpStart => 90u8.hash_into(hasher),
         }
     }
 }
@@ -1583,6 +1585,8 @@ impl HashInto for StackObject {
         self.was_suspended.hash_into(hasher);
         // Overload (CR 702.96a) — spell was cast with overload cost
         self.was_overloaded.hash_into(hasher);
+        // Jump-Start (CR 702.133a) — exiled instead of graveyard when cast_with_jump_start
+        self.cast_with_jump_start.hash_into(hasher);
     }
 }
 

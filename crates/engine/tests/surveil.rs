@@ -203,6 +203,8 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -307,6 +309,8 @@ fn test_surveil_zero_no_event() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -405,6 +409,8 @@ fn test_surveil_empty_library_still_emits_event() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -491,6 +497,8 @@ fn test_surveil_library_fewer_than_n() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -599,6 +607,8 @@ fn test_surveil_then_draw_sequence() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -732,6 +742,8 @@ fn test_whenever_you_surveil_trigger() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -838,6 +850,8 @@ fn test_surveil_zero_does_not_fire_trigger() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();

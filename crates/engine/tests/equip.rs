@@ -346,6 +346,8 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();

@@ -271,6 +271,12 @@ pub enum ScriptAction {
         /// Example: "Mountain"
         #[serde(default)]
         discard_land: Option<String>,
+        /// CR 702.133a: For `cast_spell_jump_start`. Name of any card in the
+        /// player's hand to discard as the jump-start additional cost.
+        /// Any card type is accepted (unlike retrace which requires a land).
+        /// Example: "Lightning Bolt"
+        #[serde(default)]
+        discard_card: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

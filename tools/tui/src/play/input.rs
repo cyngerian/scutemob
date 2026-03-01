@@ -107,6 +107,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         cast_with_buyback: false,
                         cast_with_overload: false,
                         retrace_discard_land: None,
+                        cast_with_jump_start: false,
+                        jump_start_discard: None,
                     };
                     app.execute_command(cmd)?;
                 } else {

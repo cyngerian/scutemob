@@ -206,6 +206,8 @@ fn test_riot_enters_with_counter() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -315,6 +317,8 @@ fn test_riot_creature_has_correct_stats() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -406,6 +410,8 @@ fn test_riot_keyword_present_on_permanent() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -499,6 +505,8 @@ fn test_riot_multiple_instances_each_add_counter() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -605,6 +613,8 @@ fn test_riot_no_counters_on_non_riot_creature() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();

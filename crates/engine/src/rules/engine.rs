@@ -95,6 +95,8 @@ pub fn process_command(
             cast_with_buyback,
             cast_with_overload,
             retrace_discard_land,
+            cast_with_jump_start,
+            jump_start_discard,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -117,6 +119,8 @@ pub fn process_command(
                 cast_with_buyback,
                 cast_with_overload,
                 retrace_discard_land,
+                cast_with_jump_start,
+                jump_start_discard,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).

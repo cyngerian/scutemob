@@ -132,6 +132,13 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_overloaded: bool,
+    /// CR 702.133a: If true, this spell was cast via jump-start from the graveyard.
+    /// When it leaves the stack (resolves, is countered, or fizzles), it is exiled
+    /// instead of going to any other zone. Same departure behavior as flashback.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub cast_with_jump_start: bool,
 }
 
 /// The kind of object on the stack.

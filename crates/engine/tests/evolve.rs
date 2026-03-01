@@ -85,6 +85,8 @@ fn cast_and_resolve(
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -828,6 +830,8 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1160,6 +1164,8 @@ fn test_evolve_multiplayer_only_same_controller() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("P2 CastSpell should succeed");

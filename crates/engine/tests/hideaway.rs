@@ -97,6 +97,7 @@ fn make_hideaway_trigger_stack_obj(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     }
 }
 

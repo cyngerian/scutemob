@@ -156,6 +156,8 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("CR 702.126a: should succeed when tapping 3 artifacts for 3 generic pips");
@@ -256,6 +258,8 @@ fn test_improvise_cannot_pay_colored_mana() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -325,6 +329,8 @@ fn test_improvise_reject_no_keyword() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -387,6 +393,8 @@ fn test_improvise_reject_tapped_artifact() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -448,6 +456,8 @@ fn test_improvise_reject_not_artifact() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -509,6 +519,8 @@ fn test_improvise_reject_opponent_artifact() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -579,6 +591,8 @@ fn test_improvise_reject_too_many_artifacts() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -648,6 +662,8 @@ fn test_improvise_zero_artifacts_normal_cast() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("CR 702.126a: should succeed with zero artifacts (normal full-mana cast)");
@@ -763,6 +779,8 @@ fn test_improvise_with_commander_tax() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect(
@@ -883,6 +901,8 @@ fn test_improvise_combined_with_convoke() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("edge case: spell with both convoke and improvise should succeed");
@@ -960,6 +980,8 @@ fn test_improvise_artifact_creature_can_be_used() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("ruling: artifact creature should be valid for improvise");
@@ -1031,6 +1053,8 @@ fn test_improvise_summoning_sickness_irrelevant() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("ruling: summoning sickness should NOT prevent improvise");

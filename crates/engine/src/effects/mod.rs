@@ -801,7 +801,10 @@ fn execute_effect_inner(
                                     .unwrap_or(controller);
                                 // CR 702.34a: If cast with flashback, exile instead of
                                 // graveyard when countered by an effect.
-                                let destination = if stack_obj.cast_with_flashback {
+                                // CR 702.133a: Jump-start also exiles when countered by an effect.
+                                let destination = if stack_obj.cast_with_flashback
+                                    || stack_obj.cast_with_jump_start
+                                {
                                     crate::state::zone::ZoneId::Exile
                                 } else {
                                     ZoneId::Graveyard(owner)

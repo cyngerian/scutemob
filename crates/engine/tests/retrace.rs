@@ -238,6 +238,8 @@ fn test_retrace_basic_cast_from_graveyard() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -364,6 +366,8 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -478,6 +482,8 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -519,6 +525,8 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -616,6 +624,8 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -698,6 +708,8 @@ fn test_retrace_discard_must_be_land() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(non_land_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -779,6 +791,8 @@ fn test_retrace_discard_must_be_in_hand() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -860,6 +874,8 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -938,6 +954,8 @@ fn test_retrace_pays_normal_mana_cost() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -1019,7 +1037,9 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
-            retrace_discard_land: None, // No land provided = no retrace permission
+            retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None, // No land provided = no retrace permission
         },
     );
 
@@ -1091,7 +1111,9 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
             cast_with_foretell: false,
             cast_with_buyback: false,
             cast_with_overload: false,
-            retrace_discard_land: None, // No land required for hand cast
+            retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None, // No land required for hand cast
         },
     );
 
@@ -1197,6 +1219,8 @@ fn test_retrace_recast_after_resolution() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain1_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .expect("First retrace cast should succeed");
@@ -1240,6 +1264,8 @@ fn test_retrace_recast_after_resolution() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: Some(mountain2_id),
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 

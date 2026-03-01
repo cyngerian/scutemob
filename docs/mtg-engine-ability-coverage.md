@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Retrace validated; KeywordAbility::Retrace disc 89; retrace_discard_land on CastSpell command; casting.rs graveyard-cast + land validation + additional-cost payment; 11 unit tests in tests/retrace.rs; Flame Jab card def at defs/flame_jab.rs; game script combat/126; P4 validated 19->20, total validated 111->112)
+> Last audited: 2026-03-01 (Jump-Start validated; KeywordAbility::JumpStart disc 90; cast_with_jump_start + jump_start_discard on CastSpell command; casting.rs graveyard-cast + discard validation + additional-cost payment + exile-on-departure; resolution.rs exile on resolve/counter/fizzle; 12 unit tests in tests/jump_start.rs; Radical Idea card def at defs/radical_idea.rs; game script combat/127; P4 validated 20->21, total validated 112->113)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 20        | 0        | 0       | 69   | 12  |
-| **Total**| **200**| **112**  | **2**    | **0**   | **74**| **12** |
+| P4       | 101   | 21        | 0        | 0       | 68   | 12  |
+| **Total**| **200**| **113**  | **2**    | **0**   | **73**| **12** |
 
 ---
 
@@ -107,7 +107,7 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 | Escape | 702.138 | P3 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Ox of Agonas | `stack/085` | — | KeywordAbility::Escape enum + AbilityDefinition::Escape{cost,exile_count} + EscapeWithCounter; graveyard zone detection, exile cost payment, mutual exclusion with all other alt costs, sorcery timing bypass, was_escaped propagation to permanent, +1/+1 counter on ETB; 16 unit tests in escape.rs |
 | Foretell | 702.143 | P3 | `validated` | `rules/foretell.rs`, `rules/casting.rs`, `state/types.rs`, `cards/card_definition.rs`, `state/game_object.rs`, `state/stack.rs`, `rules/engine.rs`, `testing/replay_harness.rs` | Saw It Coming | `stack/086` | — | KeywordAbility::Foretell enum (disc 51) + AbilityDefinition::Foretell{cost}; is_foretold/foretold_turn on GameObject; Command::ForetellCard special action; GameEvent::CardForetold; foretell.rs: priority check, turn check, {2} payment, exile face-down (CR 702.143b no stack); casting.rs: foretell zone detection, same-turn restriction, foretell cost, mutual exclusion with all other alt costs (CR 118.9a); 18 unit tests in foretell.rs |
 | Retrace | 702.81 | P4 | `validated` | `state/types.rs:762-770`, `state/hash.rs:513-514`, `rules/casting.rs:69,186-221,434,711-765,993-997`, `rules/command.rs:167-176`, `rules/engine.rs:97,119`, `testing/replay_harness.rs:739-764`, `testing/script_schema.rs:269-270` | Flame Jab | `combat/126` | — | CR 702.81a: static ability — cast from graveyard by paying normal mana cost + discarding a land card as additional cost (CR 118.8, not alternative); KeywordAbility::Retrace disc 89; `retrace_discard_land: Option<ObjectId>` on CastSpell command; validation: card has Retrace keyword, is in graveyard, land is in hand + is land type; card returns to graveyard on resolution (not exile, unlike Flashback); sorcery-speed timing preserved; `cast_spell_retrace` harness action; 11 unit tests in `tests/retrace.rs`; game script approved |
-| Jump-Start | 702.133 | P4 | `none` | — | — | — | — | Cast from graveyard by discarding a card |
+| Jump-Start | 702.133 | P4 | `validated` | `state/types.rs:780-782` (KeywordAbility::JumpStart disc 90), `state/hash.rs:516`, `rules/casting.rs:70-71,117-118,205-225,305-314,802-826,1083-1089,1223-1224`, `rules/resolution.rs:83-93,539-544,2289-2291`, `rules/command.rs:178-190`, `state/stack.rs:141` | Radical Idea (`defs/radical_idea.rs`) | `combat/127` | — | CR 702.133a fully enforced; two static abilities: (1) cast from graveyard by paying normal mana cost + discarding any card from hand as additional cost (CR 601.2b,f-h), (2) exile instead of going anywhere else when leaving the stack (resolve, counter, fizzle); `cast_with_jump_start: bool` + `jump_start_discard: Option<ObjectId>` on CastSpell command; instant/sorcery type validation; discard-in-hand validation; mutual exclusion with flashback; sorcery-speed timing preserved; `cast_spell_jump_start` harness action; 12 unit tests in `tests/jump_start.rs`; game script pending_review |
 | Aftermath | 702.127 | P4 | `none` | — | — | — | — | Cast second half from graveyard only |
 | Disturb | 702.146 | P4 | `none` | — | — | — | — | Cast transformed from graveyard |
 | Unearth | 702.84 | P3 | `validated` | `rules/abilities.rs`, `rules/turn_actions.rs`, `rules/replacement.rs`, `rules/resolution.rs`, `state/types.rs`, `state/stack.rs`, `cards/card_definition.rs` | Dregscape Zombie | `stack/087` | — | Full flow: activate from graveyard (sorcery speed), return to battlefield w/ haste, exile at end step delayed trigger, zone-change replacement (leave BF -> exile). 12 unit tests in `unearth.rs` |
@@ -556,3 +556,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Ninjutsu (CR 702.49) + Commander Ninjutsu (CR 702.49d) — validated 2026-03-01 (script combat/125, Ninja of the Deep Hours, 12 unit tests in ninjutsu.rs). Activated ability from hand (or command zone for Commander Ninjutsu); Command::ActivateNinjutsu + NinjutsuAbility StackObjectKind; handle_ninjutsu() 14-check validation + resolve_ninjutsu() full ETB site pattern with combat registration; no commander tax for Commander Ninjutsu.
 
 **Resolved**: Retrace (CR 702.81) — validated 2026-03-01 (script combat/126, Flame Jab, 11 unit tests in retrace.rs). Static ability on instants/sorceries; KeywordAbility::Retrace disc 89; `retrace_discard_land` on CastSpell command; additional cost (CR 118.8), not alternative; card returns to graveyard on resolution (not exile); sorcery-speed timing preserved from graveyard; `cast_spell_retrace` harness action.
+
+**Resolved**: Jump-Start (CR 702.133) — validated 2026-03-01 (script combat/127, Radical Idea, 12 unit tests in jump_start.rs). Two static abilities: (1) cast from graveyard paying normal mana cost + discard any card as additional cost (CR 601.2b,f-h), (2) exile on any stack departure (resolve/counter/fizzle); KeywordAbility::JumpStart disc 90; `cast_with_jump_start` + `jump_start_discard` on CastSpell command; instant/sorcery type check; mutual exclusion with flashback; `cast_spell_jump_start` harness action.

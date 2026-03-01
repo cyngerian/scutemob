@@ -768,6 +768,18 @@ pub enum KeywordAbility {
     /// No `AbilityDefinition::Retrace` is needed because there is no separate
     /// cost to store -- the card uses its normal mana cost.
     Retrace,
+    /// CR 702.133: Jump-start -- cast from graveyard by paying mana cost + discarding a card.
+    /// Jump-start is NOT an alternative cost: the card's normal mana cost is paid PLUS the
+    /// player discards any card from hand as an additional cost (CR 601.2f-h).
+    /// Unlike Retrace, the discarded card may be any card (not just a land).
+    /// Unlike Flashback, alternative costs can still be applied on top of jump-start (since
+    /// jump-start is additional, not alternative -- 2018-10-05 ruling on Radical Idea).
+    /// The card is exiled on departure (resolves, countered, or fizzles) -- same as Flashback.
+    ///
+    /// This variant is a marker for quick presence-checking (`keywords.contains`).
+    /// No `AbilityDefinition::JumpStart` is needed because there is no per-card cost --
+    /// jump-start always uses the card's printed mana cost.
+    JumpStart,
 }
 
 /// All creature subtypes from CR 205.3m.

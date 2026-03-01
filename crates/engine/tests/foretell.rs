@@ -426,6 +426,8 @@ fn test_foretell_cannot_cast_same_turn() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -530,6 +532,8 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -900,6 +904,8 @@ fn test_foretell_mutual_exclusion_with_escape() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -998,6 +1004,8 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -1095,6 +1103,8 @@ fn test_foretell_sorcery_timing_restriction() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -1192,6 +1202,8 @@ fn test_foretell_instant_timing() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -1415,6 +1427,8 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -1541,6 +1555,8 @@ fn test_foretell_requires_is_foretold_flag() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 

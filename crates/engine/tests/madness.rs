@@ -451,6 +451,8 @@ fn test_madness_cast_from_exile() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -550,6 +552,8 @@ fn test_madness_sorcery_ignores_timing() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -683,6 +687,8 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -760,6 +766,8 @@ fn test_madness_non_madness_exile_cannot_cast() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     );
 
@@ -916,6 +924,8 @@ fn test_madness_mana_value_unchanged() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();
@@ -1045,6 +1055,8 @@ fn test_madness_effect_discard_goes_to_exile() {
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap();

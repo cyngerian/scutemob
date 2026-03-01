@@ -147,6 +147,8 @@ fn cast_and_enter_battlefield(
             cast_with_buyback: false,
             cast_with_overload: false,
             retrace_discard_land: None,
+            cast_with_jump_start: false,
+            jump_start_discard: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

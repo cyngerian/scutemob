@@ -342,6 +342,7 @@ pub fn handle_activate_ability(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -579,6 +580,7 @@ pub fn handle_cycle_card(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -752,6 +754,7 @@ pub fn handle_unearth_card(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1004,6 +1007,7 @@ pub fn handle_ninjutsu(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3086,6 +3090,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     was_buyback_paid: false,
                     was_suspended: false,
                     was_overloaded: false,
+                    cast_with_jump_start: false,
                 };
                 state.stack_objects.push_back(stack_obj);
 
@@ -3263,6 +3268,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 was_buyback_paid: false,
                 was_suspended: false,
                 was_overloaded: false,
+                cast_with_jump_start: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -3615,6 +3621,7 @@ pub fn handle_crew_vehicle(
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 

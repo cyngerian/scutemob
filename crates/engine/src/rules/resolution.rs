@@ -80,14 +80,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         //
                         // CR 702.34a: If cast with flashback, the card is exiled instead of
                         // going to the graveyard — this applies even on fizzle.
+                        // CR 702.133a: If cast with jump-start, the card is also exiled on fizzle.
                         //
                         // CR 707.10: Copies have no physical card to move — skip zone move.
                         let fizzle_source_id = if stack_obj.is_copy {
                             source_object
                         } else {
                             let owner = state.object(source_object)?.owner;
-                            let destination = if stack_obj.cast_with_flashback {
-                                ZoneId::Exile // CR 702.34a
+                            let destination = if stack_obj.cast_with_flashback
+                                || stack_obj.cast_with_jump_start
+                            {
+                                ZoneId::Exile // CR 702.34a / CR 702.133a
                             } else {
                                 ZoneId::Graveyard(owner)
                             };
@@ -532,9 +535,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 702.34a: If cast with flashback, exile instead of graveyard.
                 // Flashback overrides buyback: "exile instead of putting it anywhere
                 // else any time it would leave the stack" (CR 702.34a).
-                // CR 702.27a: If buyback was paid (and not flashbacked), return to hand.
-                let destination = if stack_obj.cast_with_flashback {
-                    ZoneId::Exile // CR 702.34a — overrides all other destinations
+                // CR 702.133a: Jump-start also exiles instead of graveyard on resolution.
+                // Jump-start overrides buyback: "exile this card instead of putting it
+                // anywhere else any time it would leave the stack" (CR 702.133a).
+                // CR 702.27a: If buyback was paid (and not flashbacked or jump-started), return to hand.
+                let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start
+                {
+                    ZoneId::Exile // CR 702.34a / CR 702.133a — overrides all other destinations
                 } else if stack_obj.was_buyback_paid {
                     ZoneId::Hand(owner) // CR 702.27a
                 } else {
@@ -1451,6 +1458,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_suspended: true,
                             // CR 702.96a: suspend casts cannot be overloaded.
                             was_overloaded: false,
+                            // CR 702.133a: suspend casts are not jump-start casts.
+                            cast_with_jump_start: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -2277,8 +2286,9 @@ pub fn counter_stack_object(
             let controller = stack_obj.controller;
             let owner = state.object(source_object)?.owner;
             // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
-            let destination = if stack_obj.cast_with_flashback {
-                ZoneId::Exile // CR 702.34a
+            // CR 702.133a: Jump-start also exiles instead of graveyard when countered.
+            let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start {
+                ZoneId::Exile // CR 702.34a / CR 702.133a
             } else {
                 ZoneId::Graveyard(owner)
             };

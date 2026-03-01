@@ -894,6 +894,7 @@ fn test_ninjutsu_split_second_blocks() {
         was_buyback_paid: false,
         was_suspended: false,
         was_overloaded: false,
+        cast_with_jump_start: false,
     };
     state.stack_objects.push_back(stack_obj);
 

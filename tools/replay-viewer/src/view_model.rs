@@ -723,5 +723,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Ninjutsu => "Ninjutsu".to_string(),
         KeywordAbility::CommanderNinjutsu => "Commander Ninjutsu".to_string(),
         KeywordAbility::Retrace => "Retrace".to_string(),
+        KeywordAbility::JumpStart => "Jump-Start".to_string(),
     }
 }

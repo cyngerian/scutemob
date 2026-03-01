@@ -174,6 +174,20 @@ pub enum Command {
         /// After resolution the card returns to the graveyard normally (not exiled).
         #[serde(default)]
         retrace_discard_land: Option<ObjectId>,
+        /// CR 702.133a: If true, cast this spell from graveyard using jump-start.
+        /// The card's regular mana cost is paid, plus the player must discard a card
+        /// (specified in `jump_start_discard`). This is NOT an alternative cost --
+        /// it can combine with other alternative costs per the 2018-10-05 ruling.
+        ///
+        /// If the spell resolves, is countered, or otherwise leaves the stack,
+        /// it is exiled instead of going to its normal destination.
+        #[serde(default)]
+        cast_with_jump_start: bool,
+        /// CR 702.133a: The card to discard as the jump-start additional cost.
+        /// Must be a card in the caster's hand (not the jump-start card itself,
+        /// which is in the graveyard). Required when `cast_with_jump_start` is true.
+        #[serde(default)]
+        jump_start_discard: Option<ObjectId>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

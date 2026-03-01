@@ -32,7 +32,7 @@ use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
 use crate::state::types::{AffinityTarget, CardType, EnchantTarget, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
-use crate::state::GameState;
+use crate::state::{GameState, PendingTrigger};
 
 use super::events::GameEvent;
 
@@ -67,6 +67,8 @@ pub fn handle_cast_spell(
     cast_with_buyback: bool,
     cast_with_overload: bool,
     retrace_discard_land: Option<ObjectId>,
+    cast_with_jump_start: bool,
+    jump_start_discard: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -99,6 +101,7 @@ pub fn handle_cast_spell(
         card_id,
         base_mana_cost,
         casting_with_retrace,
+        casting_with_jump_start,
     ) = {
         let card_obj = state.object(card)?;
         let casting_from_command_zone = card_obj.zone == ZoneId::Command(player);
@@ -111,12 +114,15 @@ pub fn handle_cast_spell(
         // choosing escape over flashback, which is legal per CR 118.9a and the ruling for
         // Glimpse of Freedom / Ox of Agonas (2020-01-24): "If a card has multiple abilities
         // giving you permission to cast it... you choose which one to apply."
+        // Also suppress when cast_with_jump_start is true: if a card somehow has both Flashback
+        // and JumpStart, the player explicitly chose jump-start, so flashback should not activate.
         let casting_with_flashback = casting_from_graveyard
             && card_obj
                 .characteristics
                 .keywords
                 .contains(&KeywordAbility::Flashback)
-            && !cast_with_escape;
+            && !cast_with_escape
+            && !cast_with_jump_start; // CR 702.133a: suppress flashback if player chose jump-start
 
         // CR 702.138a: Escape — allowed if card has the escape keyword and is in graveyard.
         let card_has_escape_keyword = card_obj
@@ -196,6 +202,30 @@ pub fn handle_cast_spell(
             && !casting_with_flashback // Flashback takes priority (Flashback is alt-cost)
             && retrace_discard_land.is_some(); // Player must signal retrace with a land
 
+        // CR 702.133a: Jump-Start — allowed if card has JumpStart keyword and is in graveyard,
+        // AND the player signals intent with cast_with_jump_start: true.
+        // Jump-start is NOT an alternative cost — it pays the card's normal mana cost PLUS
+        // discards any card from hand as an additional cost (2018-10-05 ruling on Radical Idea).
+        // The player must explicitly set cast_with_jump_start: true to use this ability.
+        let casting_with_jump_start = cast_with_jump_start
+            && casting_from_graveyard
+            && card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::JumpStart);
+
+        // CR 702.133a: If cast_with_jump_start: true but card doesn't have the keyword, reject.
+        if cast_with_jump_start
+            && !card_obj
+                .characteristics
+                .keywords
+                .contains(&KeywordAbility::JumpStart)
+        {
+            return Err(GameStateError::InvalidCommand(
+                "jump-start: card does not have the JumpStart keyword (CR 702.133a)".into(),
+            ));
+        }
+
         if card_obj.zone != ZoneId::Hand(player)
             && !casting_from_command_zone
             && !casting_with_flashback
@@ -204,7 +234,8 @@ pub fn handle_cast_spell(
             && !cast_with_escape
             && !cast_with_foretell
             && !casting_with_retrace
-        // CR 702.81a: Retrace allows graveyard cast
+            && !casting_with_jump_start
+        // CR 702.133a: Jump-start allows graveyard cast
         {
             return Err(GameStateError::InvalidCommand(
                 "card is not in your hand".into(),
@@ -219,6 +250,7 @@ pub fn handle_cast_spell(
             card_obj.card_id.clone(),
             card_obj.characteristics.mana_cost.clone(),
             casting_with_retrace,
+            casting_with_jump_start,
         )
     };
 
@@ -266,6 +298,19 @@ pub fn handle_cast_spell(
         if !is_instant_or_sorcery {
             return Err(GameStateError::InvalidCommand(
                 "flashback can only be used on instants and sorceries".into(),
+            ));
+        }
+    }
+
+    // CR 702.133a: Jump-start — type validation: only instants and sorceries.
+    // CR 702.133a: "You may cast this card from your graveyard if the resulting spell is an
+    // instant or sorcery spell."
+    if casting_with_jump_start {
+        let is_instant_or_sorcery = chars.card_types.contains(&CardType::Instant)
+            || chars.card_types.contains(&CardType::Sorcery);
+        if !is_instant_or_sorcery {
+            return Err(GameStateError::InvalidCommand(
+                "jump-start can only be used on instants and sorceries (CR 702.133a)".into(),
             ));
         }
     }
@@ -754,6 +799,37 @@ pub fn handle_cast_spell(
         None
     };
 
+    // CR 702.133a / CR 601.2b,f: Jump-start — validate and bind the discard card.
+    // Jump-start is an additional cost (CR 601.2f-h): the player pays the card's normal
+    // mana cost PLUS discards any card from hand. The discard is validated here (before
+    // mana payment) and executed after mana payment.
+    // CR 601.2f: Additional costs are paid as part of the total cost payment.
+    //
+    // Unlike Retrace, the discarded card may be any card type (not just lands).
+    // Like Flashback, the jump-start card is exiled on departure (see resolution.rs).
+    let jump_start_card_to_discard: Option<ObjectId> = if casting_with_jump_start {
+        let discard_id = jump_start_discard.ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "jump-start: must provide a card to discard (jump_start_discard must be Some) (CR 702.133a)".into(),
+            )
+        })?;
+
+        // Validate the discard card:
+        // 1. Must be in the player's hand.
+        // 2. Can be any card type (any card, not just lands -- CR 702.133a).
+        {
+            let discard_obj = state.object(discard_id)?;
+            if discard_obj.zone != ZoneId::Hand(player) {
+                return Err(GameStateError::InvalidCommand(
+                    "jump-start: discard card must be in caster's hand (CR 702.133a)".into(),
+                ));
+            }
+        }
+        Some(discard_id)
+    } else {
+        None
+    };
+
     // Validate casting window.
     // CR 702.35 ruling: Madness ignores timing restrictions — a sorcery cast via madness
     // can be cast any time the player has priority, like an instant.
@@ -1004,6 +1080,96 @@ pub fn handle_cast_spell(
         });
     }
 
+    // CR 702.133a / CR 601.2f-h: Pay the jump-start additional cost — discard any card from hand.
+    // The discard is a real discard (CR 118.8 / 701.8): the card goes from hand to the
+    // owner's graveyard and triggers any "whenever a player discards a card" effects.
+    // This happens as part of cost payment (CR 601.2h), after the mana payment.
+    // CR 702.35a: If the discarded card has Madness, it goes to exile instead of graveyard,
+    // and a MadnessTrigger is queued so the player may cast it for its madness cost.
+    if let Some(discard_id) = jump_start_card_to_discard {
+        let discard_owner = state.object(discard_id)?.owner;
+        let discard_card_id_opt = state.object(discard_id)?.card_id.clone();
+        let has_madness = state
+            .object(discard_id)?
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Madness);
+        let discard_destination = if has_madness {
+            ZoneId::Exile
+        } else {
+            ZoneId::Graveyard(discard_owner)
+        };
+        let (new_discard_id, _) = state.move_object_to_zone(discard_id, discard_destination)?;
+        // CR 701.8: CardDiscarded is always emitted, even when the card goes to exile via madness.
+        events.push(GameEvent::CardDiscarded {
+            player,
+            object_id: discard_id,
+            new_id: new_discard_id,
+        });
+        // CR 702.35a: Queue MadnessTrigger so the player gets a window to cast at madness cost.
+        if has_madness {
+            let madness_cost = discard_card_id_opt.as_ref().and_then(|cid| {
+                state.card_registry.get(cid.clone()).and_then(|def| {
+                    def.abilities.iter().find_map(|a| {
+                        if let AbilityDefinition::Madness { cost } = a {
+                            Some(cost.clone())
+                        } else {
+                            None
+                        }
+                    })
+                })
+            });
+            state.pending_triggers.push_back(PendingTrigger {
+                source: new_discard_id,
+                ability_index: 0,
+                controller: player,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                is_evoke_sacrifice: false,
+                is_madness_trigger: true,
+                madness_exiled_card: Some(new_discard_id),
+                madness_cost,
+                is_miracle_trigger: false,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                is_unearth_trigger: false,
+                is_exploit_trigger: false,
+                is_modular_trigger: false,
+                modular_counter_count: None,
+                is_evolve_trigger: false,
+                evolve_entering_creature: None,
+                is_myriad_trigger: false,
+                is_suspend_counter_trigger: false,
+                is_suspend_cast_trigger: false,
+                suspend_card_id: None,
+                is_hideaway_trigger: false,
+                hideaway_count: None,
+                is_partner_with_trigger: false,
+                partner_with_name: None,
+                is_ingest_trigger: false,
+                ingest_target_player: None,
+                is_flanking_trigger: false,
+                flanking_blocker_id: None,
+                is_rampage_trigger: false,
+                rampage_n: None,
+                is_provoke_trigger: false,
+                provoke_target_creature: None,
+                is_renown_trigger: false,
+                renown_n: None,
+                is_melee_trigger: false,
+                is_poisonous_trigger: false,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                is_enlist_trigger: false,
+                enlist_enlisted_creature: None,
+            });
+        }
+    }
+
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
 
@@ -1054,6 +1220,8 @@ pub fn handle_cast_spell(
         was_suspended: false,
         // CR 702.96a: Record whether this spell was cast by paying its overload cost.
         was_overloaded: casting_with_overload,
+        // CR 702.133a: Record whether this spell was cast via jump-start from graveyard.
+        cast_with_jump_start: casting_with_jump_start,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1159,6 +1327,7 @@ pub fn handle_cast_spell(
             was_buyback_paid: false,
             was_suspended: false,
             was_overloaded: false,
+            cast_with_jump_start: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1202,6 +1371,7 @@ pub fn handle_cast_spell(
             was_buyback_paid: false,
             was_suspended: false,
             was_overloaded: false,
+            cast_with_jump_start: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

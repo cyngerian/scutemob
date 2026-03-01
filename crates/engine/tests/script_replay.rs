@@ -149,6 +149,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     enlist,
                     attacker_name,
                     discard_land,
+                    discard_card,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -169,6 +170,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             enlist,
                             attacker_name.as_deref(),
                             discard_land.as_deref(),
+                            discard_card.as_deref(),
                             &state,
                             &players,
                         );

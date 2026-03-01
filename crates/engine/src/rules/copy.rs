@@ -191,6 +191,8 @@ pub fn copy_spell_on_stack(
         was_suspended: false,
         // CR 702.96a: Copies are never cast, so was_overloaded is always false.
         was_overloaded: false,
+        // CR 702.133a: Copies are never cast, so cast_with_jump_start is always false.
+        cast_with_jump_start: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -367,6 +369,8 @@ pub fn resolve_cascade(
                 was_buyback_paid: false,
                 was_suspended: false,
                 was_overloaded: false,
+                // CR 702.133a: cascade free-cast spells are not jump-start casts.
+                cast_with_jump_start: false,
             };
             state.stack_objects.push_back(stack_obj);
 
