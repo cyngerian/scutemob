@@ -253,6 +253,19 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_flanking_trigger` is true.
     #[serde(default)]
     pub flanking_blocker_id: Option<ObjectId>,
+    /// CR 702.23a: If true, this pending trigger is a Rampage N trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::RampageTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `rampage_n` field carries the N parameter from the Rampage keyword.
+    /// CR 702.23b: Bonus is calculated at resolution time from `state.combat`.
+    #[serde(default)]
+    pub is_rampage_trigger: bool,
+    /// CR 702.23a: The N value of the Rampage keyword (e.g., 2 for Rampage 2).
+    ///
+    /// Only meaningful when `is_rampage_trigger` is true.
+    #[serde(default)]
+    pub rampage_n: Option<u32>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

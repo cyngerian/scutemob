@@ -476,6 +476,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::FlankingTrigger { source_object, .. } => {
             ("flanking_trigger", Some(*source_object))
         }
+        StackObjectKind::RampageTrigger { source_object, .. } => {
+            ("rampage_trigger", Some(*source_object))
+        }
     }
 }
 

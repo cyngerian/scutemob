@@ -1364,6 +1364,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ingest_target_player: None,
                                 is_flanking_trigger: false,
                                 flanking_blocker_id: None,
+                                is_rampage_trigger: false,
+                                rampage_n: None,
                             });
                     }
                 }
@@ -1717,6 +1719,69 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.23a: Rampage N -- "Whenever this creature becomes blocked, it
+        // gets +N/+N until end of turn for each creature blocking it beyond
+        // the first."
+        // CR 702.23b: Bonus calculated once at resolution time (not trigger time).
+        StackObjectKind::RampageTrigger {
+            source_object,
+            rampage_n,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Count blockers for this attacker from combat state.
+            // CR 702.23b: Snapshot count at resolution; changes after don't matter.
+            let blocker_count = state
+                .combat
+                .as_ref()
+                .map(|c| c.blockers_for(source_object).len())
+                .unwrap_or(0);
+
+            // CR 702.23a: "for each creature blocking it beyond the first"
+            let beyond_first = blocker_count.saturating_sub(1);
+            let bonus = (beyond_first as i32) * (rampage_n as i32);
+
+            if bonus > 0 {
+                // Only apply if the source is still on the battlefield.
+                let source_alive = state
+                    .objects
+                    .get(&source_object)
+                    .map(|obj| obj.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+
+                if source_alive {
+                    // Register the +N/+N continuous effect (Layer 7c, UntilEndOfTurn).
+                    // Uses ModifyBoth matching the Flanking pattern (CR 702.45a).
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(
+                        crate::state::continuous_effect::ContinuousEffect {
+                            id: crate::state::continuous_effect::EffectId(eff_id),
+                            source: None,
+                            timestamp: ts,
+                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                            duration:
+                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                                source_object,
+                            ),
+                            modification:
+                                crate::state::continuous_effect::LayerModification::ModifyBoth(
+                                    bonus,
+                                ),
+                            is_cda: false,
+                        },
+                    );
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1825,7 +1890,8 @@ pub fn counter_stack_object(
         | StackObjectKind::HideawayTrigger { .. }
         | StackObjectKind::PartnerWithTrigger { .. }
         | StackObjectKind::IngestTrigger { .. }
-        | StackObjectKind::FlankingTrigger { .. } => {
+        | StackObjectKind::FlankingTrigger { .. }
+        | StackObjectKind::RampageTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

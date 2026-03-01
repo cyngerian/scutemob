@@ -83,6 +83,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::FlankingTrigger { source_object, .. } => {
                     ("Flanking: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::RampageTrigger { source_object, .. } => {
+                    ("Rampage: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

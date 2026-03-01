@@ -445,4 +445,25 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         blocker_id: ObjectId,
     },
+    /// CR 702.23a: Rampage N triggered ability on the stack.
+    ///
+    /// "Whenever this creature becomes blocked, it gets +N/+N until end of
+    /// turn for each creature blocking it beyond the first."
+    ///
+    /// When this trigger resolves:
+    /// 1. Count blockers for the source attacker from `state.combat`.
+    /// 2. Compute bonus = (blocker_count - 1) * rampage_n.
+    /// 3. If bonus > 0 and source is on the battlefield, apply +bonus/+bonus as
+    ///    two ContinuousEffects (UntilEndOfTurn) in Layer 7c (PtModify).
+    ///
+    /// CR 702.23b: Bonus calculated once at resolution. Later blocker
+    /// changes do not affect it.
+    /// CR 603.10: Source need not be on battlefield at resolution time
+    /// (trigger is already on the stack), but bonus only applies if source
+    /// is still on the battlefield.
+    /// CR 702.23c: Multiple instances trigger separately.
+    RampageTrigger {
+        source_object: ObjectId,
+        rampage_n: u32,
+    },
 }

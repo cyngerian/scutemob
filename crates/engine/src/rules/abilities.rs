@@ -534,6 +534,8 @@ pub fn handle_cycle_card(
             ingest_target_player: None,
             is_flanking_trigger: false,
             flanking_blocker_id: None,
+            is_rampage_trigger: false,
+            rampage_n: None,
         });
     }
 
@@ -861,6 +863,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: false,
                             flanking_blocker_id: None,
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -934,6 +938,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 ingest_target_player: None,
                                 is_flanking_trigger: false,
                                 flanking_blocker_id: None,
+                                is_rampage_trigger: false,
+                                rampage_n: None,
                             });
                         }
                     }
@@ -996,6 +1002,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: false,
                             flanking_blocker_id: None,
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         });
                     }
                 }
@@ -1060,6 +1068,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 ingest_target_player: None,
                                 is_flanking_trigger: false,
                                 flanking_blocker_id: None,
+                                is_rampage_trigger: false,
+                                rampage_n: None,
                             });
                         }
                     }
@@ -1214,6 +1224,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             ingest_target_player: None,
                                             is_flanking_trigger: false,
                                             flanking_blocker_id: None,
+                                            is_rampage_trigger: false,
+                                            rampage_n: None,
                                         });
                                     }
                                 }
@@ -1554,12 +1566,14 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: true,
                             flanking_blocker_id: Some(*blocker_id),
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         });
                     }
                 }
 
-                // CR 509.1h / CR 702.45a: SelfBecomesBlocked -- fires on each
-                // ATTACKER that has at least one blocker declared against it.
+                // CR 509.1h / CR 702.45a / CR 702.23a: SelfBecomesBlocked -- fires
+                // on each ATTACKER that has at least one blocker declared against it.
                 // Collect unique attacker IDs to ensure each triggers only once
                 // (CR 509.3c: "generally triggers only once each combat").
                 let mut blocked_attackers: Vec<ObjectId> = blockers
@@ -1570,6 +1584,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 blocked_attackers.dedup();
 
                 for attacker_id in blocked_attackers {
+                    let pre_len = triggers.len();
                     collect_triggers_for_event(
                         state,
                         &mut triggers,
@@ -1577,6 +1592,36 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(attacker_id),
                         None,
                     );
+
+                    // CR 702.23a: Tag Rampage triggers with is_rampage_trigger and rampage_n.
+                    // Each Rampage(n) keyword on the attacker generates a TriggeredAbilityDef
+                    // with description starting "Rampage N (CR 702.23a):". We detect these
+                    // and set the custom StackObjectKind by tagging the PendingTrigger.
+                    if let Some(obj) = state.objects.get(&attacker_id) {
+                        for t in &mut triggers[pre_len..] {
+                            if let Some(ability_def) =
+                                obj.characteristics.triggered_abilities.get(t.ability_index)
+                            {
+                                if ability_def.description.starts_with("Rampage") {
+                                    // Find the matching Rampage(n) keyword for this trigger.
+                                    // Each Rampage instance generates its own TriggeredAbilityDef
+                                    // with a unique description containing "Rampage {n}".
+                                    for kw in &obj.characteristics.keywords {
+                                        if let KeywordAbility::Rampage(n) = kw {
+                                            if ability_def
+                                                .description
+                                                .contains(&format!("Rampage {n}"))
+                                            {
+                                                t.is_rampage_trigger = true;
+                                                t.rampage_n = Some(*n);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1694,6 +1739,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: false,
                             flanking_blocker_id: None,
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         });
                     }
                 }
@@ -1756,6 +1803,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: false,
                             flanking_blocker_id: None,
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         });
                     }
                 }
@@ -1862,6 +1911,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             ingest_target_player: None,
                             is_flanking_trigger: false,
                             flanking_blocker_id: None,
+                            is_rampage_trigger: false,
+                            rampage_n: None,
                         });
                     }
                 }
@@ -1967,6 +2018,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         ingest_target_player: Some(damaged_player),
                                         is_flanking_trigger: false,
                                         flanking_blocker_id: None,
+                                        is_rampage_trigger: false,
+                                        rampage_n: None,
                                     });
                                 }
                             }
@@ -2085,6 +2138,8 @@ fn collect_triggers_for_event(
                 ingest_target_player: None,
                 is_flanking_trigger: false,
                 flanking_blocker_id: None,
+                is_rampage_trigger: false,
+                rampage_n: None,
             });
         }
     }
@@ -2366,6 +2421,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 StackObjectKind::FlankingTrigger {
                     source_object: trigger.source,
                     blocker_id: trigger.flanking_blocker_id.unwrap_or(trigger.source),
+                }
+            } else if trigger.is_rampage_trigger {
+                // CR 702.23a: Rampage N "becomes blocked" trigger.
+                // `rampage_n` was tagged by the BlockersDeclared handler.
+                // Bonus is computed at resolution time from combat state (CR 702.23b).
+                StackObjectKind::RampageTrigger {
+                    source_object: trigger.source,
+                    rampage_n: trigger.rampage_n.unwrap_or(1),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

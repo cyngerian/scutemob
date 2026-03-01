@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Bushido validated; CR 702.45 confirmed; state/types.rs:644-648, builder.rs:687-722, abilities.rs:1561-1578; Devoted Retainer card def; 7 unit tests in bushido.rs; game script combat/115; P4 validated 7->8, total validated 99->100)
+> Last audited: 2026-03-01 (Rampage validated; CR 702.23 confirmed; types.rs:649-659, stack.rs:448-468, builder.rs:724-743, abilities.rs:1596-1616+2425-2431, resolution.rs:1723-1743; Wolverine Pack card def; 8 unit tests in rampage.rs; game script combat/116; P4 validated 8->9, total validated 100->101)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 8         | 0        | 0       | 80   | 12  |
-| **Total**| **199**| **100**  | **2**    | **0**   | **85**| **12** |
+| P4       | 100   | 9         | 0        | 0       | 79   | 12  |
+| **Total**| **199**| **101**  | **2**    | **0**   | **84**| **12** |
 
 ---
 
@@ -178,7 +178,7 @@ Keywords that modify combat or trigger during combat.
 | Enlist | 702.155 | P4 | `none` | — | — | — | — | Tap non-attacking creature to add its power |
 | Annihilator | 702.86 | P2 | `validated` | `state/types.rs:269`, `state/hash.rs:351+2223`, `state/stubs.rs:83`, `state/builder.rs:418-435`, `rules/abilities.rs:657-677,1000-1003`, `cards/card_definition.rs:349-354`, `effects/mod.rs:1034` | Ulamog's Crusher | `combat/068` | — | KeywordAbility::Annihilator(u32) enum + Effect::SacrificePermanents; defending_player_id on PendingTrigger; builder keyword-to-trigger translation (WhenAttacks + SacrificePermanents); check_triggers dispatch + flush_pending_triggers Target::Player wiring; 8 unit tests in `tests/annihilator.rs`; game script pending_review; TODO: "attacks each combat if able" static ability on Ulamog's Crusher is cosmetic only |
 | Dethrone | 702.105 | P3 | `validated` | `state/types.rs:372`, `state/game_object.rs:179`, `state/builder.rs:464`, `rules/abilities.rs:965` | Marchesa's Emissary | `tests/dethrone.rs` (8 tests) | `combat/081` | Life-total comparison; planeswalker exclusion; eliminated-player exclusion |
-| Rampage | 702.23 | P4 | `none` | — | — | — | — | +N/+N for each creature blocking beyond first |
+| Rampage | 702.23 | P4 | `validated` | `state/types.rs:649-659`, `state/stack.rs:448-468`, `state/stubs.rs:256-268`, `state/hash.rs:476-477+1108-1110+1411-1418`, `state/builder.rs:724-743`, `rules/abilities.rs:1596-1616+2425-2431`, `rules/resolution.rs:1723-1743` | Wolverine Pack | `rampage.rs` (8 tests) | `combat/116` | KeywordAbility::Rampage(u32) enum; StackObjectKind::RampageTrigger with source_object+rampage_n; builder generates TriggeredAbilityDef(SelfBecomesBlocked) per Rampage instance; abilities.rs tags is_rampage_trigger+rampage_n on PendingTrigger at BlockersDeclared; resolution.rs computes bonus=(blocker_count-1)*N as +N/+N until EOT; CR 702.23c multiple instances trigger separately; 8 unit tests (blocked-by-2, blocked-by-1-no-bonus, blocked-by-3-scaled, multiple-instances, not-blocked, bonus-expires-EOT, bonus-at-resolution, rampage-3-by-4); card def wolverine_pack.rs; game script combat/116 |
 | Banding | 702.22 | P4 | `n/a` | — | — | — | — | Extremely complex, rarely used; intentionally deferred |
 | Renown | 702.112 | P4 | `none` | — | — | — | — | Put +1/+1 counters on first combat damage to player |
 | Afflict | 702.130 | P4 | `none` | — | — | — | — | Defending player loses N life when this is blocked |
@@ -533,3 +533,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Ingest (CR 702.115) — validated 2026-03-01 (script baseline/113, Mist Intruder, 6 unit tests in ingest.rs).
 
 **Resolved**: Bushido (CR 702.45) — validated 2026-03-01 (script combat/115, Devoted Retainer, 7 unit tests in bushido.rs).
+
+**Resolved**: Rampage (CR 702.23) — validated 2026-03-01 (script combat/116, Wolverine Pack, 8 unit tests in rampage.rs).

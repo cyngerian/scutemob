@@ -720,6 +720,27 @@ impl GameStateBuilder {
                         effect: Some(bushido_effect),
                     });
                 }
+
+                // CR 702.23a: Rampage N -- "Whenever this creature becomes blocked,
+                // it gets +N/+N until end of turn for each creature blocking it
+                // beyond the first."
+                // Each Rampage(n) keyword instance generates one TriggeredAbilityDef
+                // (CR 702.23c: multiple instances trigger separately).
+                // The effect is None because resolution is handled by the custom
+                // RampageTrigger StackObjectKind -- the bonus is computed at resolution
+                // time from combat state (CR 702.23b).
+                if let KeywordAbility::Rampage(n) = kw {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfBecomesBlocked,
+                        intervening_if: None,
+                        description: format!(
+                            "Rampage {n} (CR 702.23a): Whenever this creature becomes blocked, \
+                             it gets +{n}/+{n} until end of turn for each creature blocking \
+                             it beyond the first."
+                        ),
+                        effect: None, // Custom resolution via RampageTrigger
+                    });
+                }
             }
 
             let characteristics = Characteristics {

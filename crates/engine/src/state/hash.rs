@@ -473,6 +473,11 @@ impl HashInto for KeywordAbility {
                 77u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Rampage (discriminant 78) -- CR 702.23
+            KeywordAbility::Rampage(n) => {
+                78u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1100,6 +1105,9 @@ impl HashInto for PendingTrigger {
         // CR 702.25a: is_flanking_trigger -- flanking blocker trigger marker
         self.is_flanking_trigger.hash_into(hasher);
         self.flanking_blocker_id.hash_into(hasher);
+        // CR 702.23a: is_rampage_trigger -- rampage becomes-blocked trigger marker
+        self.is_rampage_trigger.hash_into(hasher);
+        self.rampage_n.hash_into(hasher);
     }
 }
 
@@ -1399,6 +1407,15 @@ impl HashInto for StackObjectKind {
                 19u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 blocker_id.hash_into(hasher);
+            }
+            // RampageTrigger (discriminant 20) -- CR 702.23a
+            StackObjectKind::RampageTrigger {
+                source_object,
+                rampage_n,
+            } => {
+                20u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                rampage_n.hash_into(hasher);
             }
         }
     }

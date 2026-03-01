@@ -646,6 +646,17 @@ pub enum KeywordAbility {
     /// until end of turn."
     /// CR 702.45b: Multiple instances trigger separately.
     Bushido(u32),
+    /// CR 702.23: Rampage N -- triggered ability.
+    /// "Whenever this creature becomes blocked, it gets +N/+N until end of
+    /// turn for each creature blocking it beyond the first."
+    ///
+    /// CR 702.23b: Bonus calculated once at resolution time (not trigger time).
+    /// Adding/removing blockers after resolution does not change the bonus.
+    /// CR 702.23c: Multiple instances trigger separately.
+    ///
+    /// Implemented via a custom `StackObjectKind::RampageTrigger` so that
+    /// the blocker count can be queried from `state.combat` at resolution time.
+    Rampage(u32),
 }
 
 /// All creature subtypes from CR 205.3m.
