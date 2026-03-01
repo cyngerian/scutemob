@@ -16,6 +16,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             AbilityDefinition::Keyword(KeywordAbility::Ingest),
         ],
-        ..Default::default()
     }
 }

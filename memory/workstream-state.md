@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | Batch 1 complete; Batch 2 next (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training) |
+| W1: Abilities | — | available | — | Batch 0+1+2 complete; Batch 3 next (Ninjutsu, Bushido+, Exalted, etc.) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -22,22 +22,26 @@
 ## Last Handoff
 
 **Date**: 2026-03-01 (session end)
-**Workstream**: W1: Abilities — Batch 1
-**Task**: Implement Batch 1: Evasion & Simple Keywords (5 abilities)
+**Workstream**: W1: Abilities — Batch 2
+**Task**: Implement Batch 2: Combat Triggers — Blocking (7 abilities)
 **Completed**:
-- Horsemanship (CR 702.31): unidirectional block restriction, discriminant 71, 7 tests, Shu Cavalry card, script 109 — commit 9cc5672
-- Skulk (CR 702.118): power-based block restriction (blocker power > attacker power), discriminant 72, 7 tests, Furtive Homunculus, script 110
-- Devoid (CR 702.114): CDA in layers.rs ColorChange (Layer 5), discriminant 73, 8 tests, Forerunner of Slaughter, script 111
-- Decayed (CR 702.147): can't-block + EOC sacrifice flag, discriminant 74, 8 tests, Shambling Ghast, script 112
-- Ingest (CR 702.115): combat damage trigger → exile top library card, StackObjectKind::IngestTrigger, discriminant 75, 6 tests, Mist Intruder, script 113
-- CR corrections: Horsemanship=702.31 (not 702.30=Echo), Skulk=702.118 (not 702.120=Escalate), Decayed=702.147 (not 702.145)
-- Batch 0 + Batch 1 checkboxes checked in workstream-coordination.md and ability-batch-plan.md
-- 1177 tests passing; 98 abilities validated total; P4 6/88
-**Next**: Batch 2: Combat Triggers — Blocking (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training). Claim W1-B2.
-**Hazards**: None — all changes committed in 9cc5672; working tree clean
-**Commit prefix used**: `W1-B1:`
+- Flanking (CR 702.25): BlockersDeclared trigger, -1/-1 ModifyBoth UntilEndOfTurn, StackObjectKind::FlankingTrigger (disc 19), discriminant 76, 7 tests, Suq'Ata Lancer, script 114 — commit a9457c8
+- Bushido (CR 702.45): SelfBlocks + SelfBecomesBlocked triggers, AddCounter, discriminant 77, TriggerEvent::SelfBecomesBlocked (disc 18), 7 tests, Devoted Retainer, script 115 — commit ca39b61
+- Rampage (CR 702.23): SelfBecomesBlocked + blocker count at resolution, ModifyBoth(bonus), StackObjectKind::RampageTrigger (disc 20), discriminant 78, 8 tests, Wolverine Pack, script 116 — commit a9c38e0
+- Provoke (CR 702.39): new CombatState::forced_blocks OrdMap, ProvokeTrigger (disc 21), untap + force-block with evasion checks, discriminant 79, 7 tests, Goblin Grappler, script 117 — commit 2700b56
+- Afflict (CR 702.130): SelfBecomesBlocked + defending_player LoseLife, discriminant 80, 6 tests, Khenra Eternal, script 118 — commit 4bdbb6a
+- Renown (CR 702.112): is_renowned: bool on GameObject (reset on zone change), SelfCombatDamageDealt + RenownTrigger (disc 22), CR 603.4 intervening-if, discriminant 81, 7 tests, Topan Freeblade, script 119 — commit d4fe4b5
+- Training (CR 702.149): SelfAttacksWithGreaterPowerAlly (disc 19), builder.rs TriggeredAbilityDef, calculate_characteristics() power compare, discriminant 82, 7 tests, Gryff Rider, script 120 — commit 92f1265
+- CR correction: Training=702.149 (not 702.150=Compleated); coordination docs updated — commit cf85ee6
+- 1254 tests passing; 105 abilities validated total; P4 13/88
+**Next**: Batch 3 — check `docs/ability-batch-plan.md` for the next batch. Claim W1-B3.
+**Hazards**: None — all changes committed; working tree has only minor modification to test-data/test-decks/_authoring_worklist.json
+**Commit prefix used**: `W1-B2:`
 
 ## Handoff History
+
+### 2026-03-01 (session end) — W1: Abilities — Batch 1
+- Horsemanship, Skulk, Devoid, Decayed, Ingest; 1177 tests; P4 6/88; scripts 109-113; cards: Shu Cavalry, Furtive Homunculus, Forerunner of Slaughter, Shambling Ghast, Mist Intruder; commit 9cc5672
 
 ### 2026-02-28 (session end) — W1: Abilities — Batch 0
 - Bolster, Adapt, Shadow, Partner With, Overload; 1166 tests; scripts 104-108; P3 36/40, P4 1/88; commit 2729c3d
@@ -51,6 +55,3 @@
 
 ### 2026-02-28 (night) — W2: TUI & Simulator (UX fixes)
 - Fix 1-6: Hand scrolling, discard events, zone counters, zone browser overlay, CardDetail return-to, action hints; Esc bug fix
-
-### 2026-02-28 (late) — W2: Card Pipeline Phases 5-9
-- Split definitions.rs → 112 files in defs/; build.rs auto-discovery; skeleton generator; agent rewrite

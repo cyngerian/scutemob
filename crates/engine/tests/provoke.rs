@@ -465,8 +465,7 @@ fn test_702_39b_provoke_multiple_instances_trigger_separately() {
         "CR 702.39b: Both stack objects should be ProvokeTrigger variants"
     );
     assert_ne!(
-        targets[0],
-        targets[1],
+        targets[0], targets[1],
         "CR 702.39b: Two provoke triggers should target different creatures"
     );
 }

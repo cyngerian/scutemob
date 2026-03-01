@@ -138,6 +138,14 @@ pub fn handle_choose_miracle(
         partner_with_name: None,
         is_ingest_trigger: false,
         ingest_target_player: None,
+        is_flanking_trigger: false,
+        flanking_blocker_id: None,
+        is_rampage_trigger: false,
+        rampage_n: None,
+        is_provoke_trigger: false,
+        provoke_target_creature: None,
+        is_renown_trigger: false,
+        renown_n: None,
     });
 
     Ok(vec![])

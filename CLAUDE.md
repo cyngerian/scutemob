@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1177 tests passing; ~98 validated; 40/42 P1; 16/17 P2 (Modal deferred); 36/40 P3; 6/88 P4 (+Horsemanship, Skulk, Devoid, Decayed, Ingest); Batch 0+1 complete; Batch 2 next (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training); 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: 1254 tests passing; ~105 validated; 40/42 P1; 16/17 P2 (Modal deferred); 36/40 P3; 13/88 P4 (+Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training); Batch 0+1+2 complete; Batch 3 next; 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Last Updated**: 2026-03-01
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
