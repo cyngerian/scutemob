@@ -425,4 +425,24 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         target_player: crate::state::player::PlayerId,
     },
+    /// CR 702.25a: Flanking triggered ability on the stack.
+    ///
+    /// "Whenever this creature becomes blocked by a creature without flanking,
+    /// the blocking creature gets -1/-1 until end of turn."
+    ///
+    /// `source_object` is the creature with flanking (the attacker).
+    /// `blocker_id` is the blocking creature that will receive -1/-1.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the blocker is still on the battlefield (CR 400.7).
+    /// 2. If yes, register a ContinuousEffect with ModifyBoth(-1) in Layer 7c
+    ///    (PtModify) targeting SingleObject(blocker_id) with UntilEndOfTurn duration.
+    /// 3. If the blocker left the battlefield, do nothing (trigger fizzles).
+    ///
+    /// CR 702.25b: Multiple instances trigger separately (each creates its own
+    /// trigger with the same blocker_id).
+    FlankingTrigger {
+        source_object: ObjectId,
+        blocker_id: ObjectId,
+    },
 }

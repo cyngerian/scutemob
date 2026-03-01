@@ -636,6 +636,11 @@ pub enum KeywordAbility {
     /// Ruling 2015-08-25: "If the player has no cards in their library when
     /// the ingest ability resolves, nothing happens."
     Ingest,
+    /// CR 702.25: Flanking -- triggered ability.
+    /// "Whenever this creature becomes blocked by a creature without flanking,
+    /// the blocking creature gets -1/-1 until end of turn."
+    /// CR 702.25b: Multiple instances trigger separately.
+    Flanking,
 }
 
 /// All creature subtypes from CR 205.3m.

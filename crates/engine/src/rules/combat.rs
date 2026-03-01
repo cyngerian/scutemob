@@ -643,14 +643,26 @@ pub fn handle_declare_blockers(
         blockers: blockers.clone(),
     });
 
-    // Check and queue triggers from blocker declaration (e.g., SelfBlocks).
+    // Check and queue triggers from blocker declaration (e.g., SelfBlocks, Flanking).
     let new_triggers = abilities::check_triggers(state, &events);
     for t in new_triggers {
         state.pending_triggers.push_back(t);
     }
 
-    // Do NOT change priority — defending players declare without requiring priority.
-    // Triggers will be flushed the next time enter_step grants priority.
+    // CR 603.3 / CR 509.3f: Flush any pending triggers (e.g., Flanking CR 702.25a,
+    // SelfBlocks) so they appear on the stack before priority is granted.
+    // This ensures triggered abilities from blocker declaration (like Flanking's -1/-1)
+    // resolve BEFORE combat damage is dealt, which is correct per MTG rules.
+    let trigger_events = abilities::flush_pending_triggers(state);
+    events.extend(trigger_events);
+
+    // Grant priority to the active player so players can respond to triggers
+    // (including Flanking triggers) before combat damage is dealt.
+    state.turn.players_passed = OrdSet::new();
+    state.turn.priority_holder = Some(state.turn.active_player);
+    events.push(GameEvent::PriorityGiven {
+        player: state.turn.active_player,
+    });
 
     Ok(events)
 }

@@ -532,6 +532,8 @@ pub fn handle_cycle_card(
             partner_with_name: None,
             is_ingest_trigger: false,
             ingest_target_player: None,
+            is_flanking_trigger: false,
+            flanking_blocker_id: None,
         });
     }
 
@@ -857,6 +859,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             partner_with_name: None,
                             is_ingest_trigger: false,
                             ingest_target_player: None,
+                            is_flanking_trigger: false,
+                            flanking_blocker_id: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -928,6 +932,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 partner_with_name: None,
                                 is_ingest_trigger: false,
                                 ingest_target_player: None,
+                                is_flanking_trigger: false,
+                                flanking_blocker_id: None,
                             });
                         }
                     }
@@ -988,6 +994,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             partner_with_name: None,
                             is_ingest_trigger: false,
                             ingest_target_player: None,
+                            is_flanking_trigger: false,
+                            flanking_blocker_id: None,
                         });
                     }
                 }
@@ -1050,6 +1058,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 partner_with_name: Some(name),
                                 is_ingest_trigger: false,
                                 ingest_target_player: None,
+                                is_flanking_trigger: false,
+                                flanking_blocker_id: None,
                             });
                         }
                     }
@@ -1202,6 +1212,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             partner_with_name: None,
                                             is_ingest_trigger: false,
                                             ingest_target_player: None,
+                                            is_flanking_trigger: false,
+                                            flanking_blocker_id: None,
                                         });
                                     }
                                 }
@@ -1452,6 +1464,99 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
                 }
+
+                // CR 702.25a: Flanking -- "Whenever this creature becomes blocked by
+                // a creature without flanking, the blocking creature gets -1/-1 until
+                // end of turn."
+                // CR 702.25b: Multiple instances trigger separately.
+                // CR 509.3f: The "without flanking" check is at declaration time.
+                for (blocker_id, attacker_id) in blockers {
+                    let attacker_obj = match state.objects.get(attacker_id) {
+                        Some(obj) if obj.zone == ZoneId::Battlefield => obj.clone(),
+                        _ => continue,
+                    };
+                    if !attacker_obj
+                        .characteristics
+                        .keywords
+                        .contains(&KeywordAbility::Flanking)
+                    {
+                        continue;
+                    }
+
+                    // Check that the blocker does NOT have flanking (CR 702.25a).
+                    let blocker_has_flanking = state
+                        .objects
+                        .get(blocker_id)
+                        .map(|b| {
+                            b.characteristics
+                                .keywords
+                                .contains(&KeywordAbility::Flanking)
+                        })
+                        .unwrap_or(false);
+                    if blocker_has_flanking {
+                        continue;
+                    }
+
+                    // Count flanking instances from card definition (CR 702.25b).
+                    let flanking_count = attacker_obj
+                        .card_id
+                        .as_ref()
+                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter(|a| {
+                                    matches!(
+                                        a,
+                                        AbilityDefinition::Keyword(KeywordAbility::Flanking)
+                                    )
+                                })
+                                .count()
+                        })
+                        .unwrap_or(1)
+                        .max(1);
+
+                    let controller = attacker_obj.controller;
+                    let source_id = attacker_obj.id;
+                    for _ in 0..flanking_count {
+                        triggers.push(PendingTrigger {
+                            source: source_id,
+                            ability_index: 0, // unused for flanking triggers
+                            controller,
+                            triggering_event: Some(TriggerEvent::SelfBlocks),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            is_evoke_sacrifice: false,
+                            is_madness_trigger: false,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            is_miracle_trigger: false,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            is_unearth_trigger: false,
+                            is_exploit_trigger: false,
+                            is_modular_trigger: false,
+                            modular_counter_count: None,
+                            is_evolve_trigger: false,
+                            evolve_entering_creature: None,
+                            is_myriad_trigger: false,
+                            is_suspend_counter_trigger: false,
+                            is_suspend_cast_trigger: false,
+                            suspend_card_id: None,
+                            is_hideaway_trigger: false,
+                            hideaway_count: None,
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
+                            is_ingest_trigger: false,
+                            ingest_target_player: None,
+                            is_flanking_trigger: true,
+                            flanking_blocker_id: Some(*blocker_id),
+                        });
+                    }
+                }
             }
 
             GameEvent::PermanentTargeted {
@@ -1566,6 +1671,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             partner_with_name: None,
                             is_ingest_trigger: false,
                             ingest_target_player: None,
+                            is_flanking_trigger: false,
+                            flanking_blocker_id: None,
                         });
                     }
                 }
@@ -1626,6 +1733,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             partner_with_name: None,
                             is_ingest_trigger: false,
                             ingest_target_player: None,
+                            is_flanking_trigger: false,
+                            flanking_blocker_id: None,
                         });
                     }
                 }
@@ -1730,6 +1839,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             partner_with_name: None,
                             is_ingest_trigger: false,
                             ingest_target_player: None,
+                            is_flanking_trigger: false,
+                            flanking_blocker_id: None,
                         });
                     }
                 }
@@ -1767,8 +1878,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             {
                                 // Already guaranteed by the `if matches!(..., Player(_))`
                                 // guard above — use `let...else` instead of unreachable!().
-                                let CombatDamageTarget::Player(damaged_player) =
-                                    &assignment.target
+                                let CombatDamageTarget::Player(damaged_player) = &assignment.target
                                 else {
                                     continue;
                                 };
@@ -1834,6 +1944,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         partner_with_name: None,
                                         is_ingest_trigger: true,
                                         ingest_target_player: Some(damaged_player),
+                                        is_flanking_trigger: false,
+                                        flanking_blocker_id: None,
                                     });
                                 }
                             }
@@ -1950,6 +2062,8 @@ fn collect_triggers_for_event(
                 partner_with_name: None,
                 is_ingest_trigger: false,
                 ingest_target_player: None,
+                is_flanking_trigger: false,
+                flanking_blocker_id: None,
             });
         }
     }
@@ -2223,6 +2337,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 StackObjectKind::IngestTrigger {
                     source_object: trigger.source,
                     target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
+                }
+            } else if trigger.is_flanking_trigger {
+                // CR 702.25a: Flanking trigger -- "the blocking creature gets -1/-1
+                // until end of turn."
+                // `flanking_blocker_id` carries the blocking creature's ObjectId.
+                StackObjectKind::FlankingTrigger {
+                    source_object: trigger.source,
+                    blocker_id: trigger.flanking_blocker_id.unwrap_or(trigger.source),
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

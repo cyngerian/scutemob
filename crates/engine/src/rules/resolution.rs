@@ -1362,6 +1362,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 partner_with_name: None,
                                 is_ingest_trigger: false,
                                 ingest_target_player: None,
+                                is_flanking_trigger: false,
+                                flanking_blocker_id: None,
                             });
                     }
                 }
@@ -1669,6 +1671,52 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.25a: Flanking trigger resolves -- the blocking creature gets
+        // -1/-1 until end of turn.
+        //
+        // The -1/-1 is a continuous effect in Layer 7c (PtModify) with
+        // UntilEndOfTurn duration. If the blocker has left the battlefield
+        // by resolution time (CR 400.7), the trigger does nothing.
+        StackObjectKind::FlankingTrigger {
+            source_object: _,
+            blocker_id,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if the blocker is still on the battlefield.
+            let blocker_alive = state
+                .objects
+                .get(&blocker_id)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if blocker_alive {
+                // Register the -1/-1 continuous effect (Layer 7c, UntilEndOfTurn).
+                let eff_id = state.next_object_id().0;
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                let effect = crate::state::continuous_effect::ContinuousEffect {
+                    id: crate::state::continuous_effect::EffectId(eff_id),
+                    source: None, // spell/trigger-based effect, not from a permanent
+                    timestamp: ts,
+                    layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                    duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                    filter: crate::state::continuous_effect::EffectFilter::SingleObject(blocker_id),
+                    modification: crate::state::continuous_effect::LayerModification::ModifyBoth(
+                        -1,
+                    ),
+                    is_cda: false,
+                };
+                state.continuous_effects.push_back(effect);
+            }
+            // If blocker left the battlefield, do nothing (CR 400.7).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1776,7 +1824,8 @@ pub fn counter_stack_object(
         | StackObjectKind::SuspendCastTrigger { .. }
         | StackObjectKind::HideawayTrigger { .. }
         | StackObjectKind::PartnerWithTrigger { .. }
-        | StackObjectKind::IngestTrigger { .. } => {
+        | StackObjectKind::IngestTrigger { .. }
+        | StackObjectKind::FlankingTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Ingest validated; CR 702.115 confirmed; state/types.rs:629-638, stubs.rs:230-242, stack.rs:407-427, abilities.rs:1757-1840+2218-2226, resolution.rs:1634-1671; Mist Intruder card def; 6 unit tests in ingest.rs; game script baseline/113 approved; P4 validated 5->6, total validated 97->98)
+> Last audited: 2026-03-01 (Flanking validated; CR 702.25 confirmed; state/types.rs:639-643, abilities.rs:1468-1556, resolution.rs:1675-1681, combat.rs:646-660; Suq'Ata Lancer card def; 7 unit tests in flanking.rs; game script combat/114; P4 validated 6->7, total validated 98->99)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 6         | 0        | 0       | 82   | 12  |
-| **Total**| **199**| **98**   | **2**    | **0**   | **87**| **12** |
+| P4       | 100   | 7         | 0        | 0       | 81   | 12  |
+| **Total**| **199**| **99**   | **2**    | **0**   | **86**| **12** |
 
 ---
 
@@ -168,7 +168,7 @@ Keywords that modify combat or trigger during combat.
 
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
-| Flanking | 702.25 | P4 | `none` | — | — | — | — | Blocking creature without flanking gets -1/-1 |
+| Flanking | 702.25 | P4 | `validated` | `state/types.rs:639-643`, `rules/abilities.rs:1468-1556`, `rules/resolution.rs:1675-1681`, `rules/combat.rs:646-660` | Suq'Ata Lancer (`defs/suq_ata_lancer.rs`) | `combat/114` | — | KeywordAbility::Flanking enum; triggered ability fires at declare blockers (CR 702.25a); blocker without flanking gets -1/-1 until EOT; multiple instances trigger separately (CR 702.25b); FlankingTrigger stack kind; flanking_blocker_id on PendingTrigger; 7 unit tests in `tests/flanking.rs`; game script combat/114 validated |
 | Bushido | 702.45 | P4 | `none` | — | — | — | — | +N/+N when blocks or becomes blocked |
 | Provoke | 702.39 | P4 | `none` | — | — | — | — | Force target creature to block this |
 | Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |

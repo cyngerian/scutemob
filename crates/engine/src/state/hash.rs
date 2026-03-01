@@ -466,6 +466,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Decayed => 74u8.hash_into(hasher),
             // Ingest (discriminant 75) -- CR 702.115
             KeywordAbility::Ingest => 75u8.hash_into(hasher),
+            // Flanking (discriminant 76) -- CR 702.25
+            KeywordAbility::Flanking => 76u8.hash_into(hasher),
         }
     }
 }
@@ -1090,6 +1092,9 @@ impl HashInto for PendingTrigger {
         // CR 702.115a: is_ingest_trigger -- ingest combat damage trigger marker
         self.is_ingest_trigger.hash_into(hasher);
         self.ingest_target_player.hash_into(hasher);
+        // CR 702.25a: is_flanking_trigger -- flanking blocker trigger marker
+        self.is_flanking_trigger.hash_into(hasher);
+        self.flanking_blocker_id.hash_into(hasher);
     }
 }
 
@@ -1378,6 +1383,15 @@ impl HashInto for StackObjectKind {
                 18u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 target_player.hash_into(hasher);
+            }
+            // FlankingTrigger (discriminant 19) -- CR 702.25a
+            StackObjectKind::FlankingTrigger {
+                source_object,
+                blocker_id,
+            } => {
+                19u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                blocker_id.hash_into(hasher);
             }
         }
     }

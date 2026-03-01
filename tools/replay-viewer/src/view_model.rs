@@ -473,6 +473,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::IngestTrigger { source_object, .. } => {
             ("ingest_trigger", Some(*source_object))
         }
+        StackObjectKind::FlankingTrigger { source_object, .. } => {
+            ("flanking_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -685,5 +688,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Devoid => "Devoid".to_string(),
         KeywordAbility::Decayed => "Decayed".to_string(),
         KeywordAbility::Ingest => "Ingest".to_string(),
+        KeywordAbility::Flanking => "Flanking".to_string(),
     }
 }

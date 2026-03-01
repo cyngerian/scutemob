@@ -240,6 +240,19 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_ingest_trigger` is true.
     #[serde(default)]
     pub ingest_target_player: Option<PlayerId>,
+    /// CR 702.25a: If true, this pending trigger is a Flanking trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::FlankingTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.
+    /// The `flanking_blocker_id` carries the blocking creature's ObjectId so
+    /// the resolution knows which creature to apply -1/-1 to.
+    #[serde(default)]
+    pub is_flanking_trigger: bool,
+    /// CR 702.25a: The blocking creature that gets -1/-1 until end of turn.
+    ///
+    /// Only meaningful when `is_flanking_trigger` is true.
+    #[serde(default)]
+    pub flanking_blocker_id: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).
