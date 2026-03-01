@@ -12,8 +12,8 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1166 tests passing; ~93 approved scripts; 40/42 P1 validated; 16/17 P2 validated (Modal choice deferred); 36/40 P3 validated (+Bolster, Adapt, Partner With, Overload); 1/88 P4 validated (+Shadow); Batch 0 complete; Batch 1 next (Horsemanship, Skulk, Devoid, Decayed, Ingest); 0 HIGH/MEDIUM; ~40 LOW deferred
-- **Last Updated**: 2026-02-28
+- **Status**: 1177 tests passing; ~98 validated; 40/42 P1; 16/17 P2 (Modal deferred); 36/40 P3; 6/88 P4 (+Horsemanship, Skulk, Devoid, Decayed, Ingest); Batch 0+1 complete; Batch 2 next (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training); 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Last Updated**: 2026-03-01
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry

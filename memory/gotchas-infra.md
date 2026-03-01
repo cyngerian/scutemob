@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + 59 abilities + W3 T1 tests (2026-02-28)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 1 (2026-03-01)
 
 ## Rust / im-rs Gotchas
 
@@ -199,6 +199,19 @@
   `initial_state.players[*].commander` and calls `register_commander_zone_replacements`.
   If you add a new initial_state field that affects pre-game setup, add it to `build_initial_state`
   in `tests/script_replay.rs`.
+
+## EOC Flag Pattern (Decayed, Myriad)
+
+For "sacrifice/exile at end of combat" effects where the trigger is locked in at attack
+declaration (even if the ability is later removed):
+1. Add a `bool` flag to `GameObject` (e.g., `decayed_sacrifice_at_eoc`)
+2. Set the flag in `handle_declare_attackers()` in `combat.rs` — ONLY here has mutable state
+3. Check the flag in `end_combat()` in `turn_actions.rs` — collect flagged creatures, sacrifice
+4. Reset the flag in BOTH `move_object_to_zone()` sites in `state/mod.rs`
+5. Initialize to `false` in: `builder.rs`, `effects/mod.rs` (token creation), `resolution.rs`
+6. Hash the new field in `hash.rs`
+
+This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs:399-408` (Decayed).
 
 ## Turn Structure Gotchas
 

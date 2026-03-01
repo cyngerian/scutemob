@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + 59 abilities (2026-02-28)
+# Rules Gotchas — Last verified: M9.5 + Batch 1 (2026-03-01)
 
 ## MTG Rules Gotchas
 
@@ -158,3 +158,15 @@ the graveyard DO prevent the "dies" trigger.
 If a loop involves only mandatory actions (no player choices), it must continue indefinitely
 or the game draws. If it involves optional actions, the active player must stop it if it
 benefits no player or only the active player. Engine needs non-termination detection.
+
+### #35 — CDA (Characteristic-Defining Abilities) apply in all zones (CR 604.3)
+CDAs like Devoid and Changeling function everywhere — hand, graveyard, exile, stack, even
+outside the game. When implementing a CDA, do NOT add a battlefield-only guard in
+`calculate_characteristics()`. The layer system iterates all objects regardless of zone.
+
+### #36 — Ability-batch-plan.md CR numbers can be wrong
+The batch plan was authored before MCP lookups. Planners have caught multiple errors:
+- Horsemanship: plan said 702.30 (wrong — that's Echo); correct is 702.31
+- Skulk: plan said 702.120 (wrong — that's Escalate); correct is 702.118
+- Decayed: plan said 702.145 (wrong); correct is 702.147
+Always verify CR numbers via MCP lookup at plan time, not from the batch plan table.
