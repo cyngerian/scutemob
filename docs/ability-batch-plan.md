@@ -126,7 +126,7 @@ declare-blockers step in `combat.rs`.
 **Infrastructure reused**: `CombatState::blockers_for()`, declare-blocker triggers,
 combat damage triggers. Renown needs a `is_renowned: bool` on GameObject.
 
-- [ ] Batch 2 complete
+- [x] Batch 2 complete
 
 ---
 
