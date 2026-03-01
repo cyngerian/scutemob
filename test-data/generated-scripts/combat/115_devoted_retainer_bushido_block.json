@@ -1,0 +1,223 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_115",
+    "name": "Bushido 1 — Devoted Retainer blocks, gets +1/+1 until end of turn",
+    "description": "p1 controls Monastery Swiftspear (1/2, Haste, Prowess) and attacks p2. p2 controls Devoted Retainer (1/1, Bushido 1). p2 declares Devoted Retainer as a blocker. CR 702.45a: Bushido triggers during the declare blockers step — 'Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.' The trigger goes on the stack; both players pass priority; the trigger resolves, giving Devoted Retainer +1/+1 until end of turn, making it 2/2. In the combat damage step both creatures deal simultaneous damage (CR 510.1): Monastery Swiftspear (power 1) deals 1 damage to Devoted Retainer (now 2/2 from Bushido); Devoted Retainer (power 2 after Bushido) deals 2 damage to Monastery Swiftspear (toughness 2). SBA 704.5g: Monastery Swiftspear received 2 damage against 2 toughness — lethal — destroyed. Devoted Retainer received only 1 damage against 2 toughness (after Bushido) — survives. Without Bushido, Devoted Retainer (1/1) would have received lethal damage and died; Bushido 1 is what saves it.",
+    "cr_sections_tested": ["702.45a", "508.1", "508.1f", "509.1", "509.1a", "509.1g", "509.1h", "510.1", "510.2", "704.5g", "704.3", "514.2"],
+    "corner_case_ref": null,
+    "tags": ["combat", "bushido", "triggered-ability", "declare-blockers", "plus-one-plus-one", "until-end-of-turn", "lethal-damage", "sba", "creature-dies"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Devoted Retainer oracle text (MCP verified): Creature — Human Samurai, {W}, 1/1, Bushido 1. CR 702.45a: 'Bushido N means: Whenever this creature blocks or becomes blocked, it gets +N/+N until end of turn.' The trigger fires during the declare blockers step when Devoted Retainer becomes blocked. Monastery Swiftspear oracle text (Available Cards list): 1/2, Haste, Prowess. Prowess only triggers on non-creature spells being cast — no spells are cast during this combat, so Prowess does not fire. Haste means Monastery Swiftspear can attack the turn it enters the battlefield (CR 702.10a); turn 1 is used for simplicity. At declare blockers: Devoted Retainer blocks Monastery Swiftspear; CR 509.1h makes Swiftspear a blocked creature; CR 702.45a fires the Bushido trigger (Devoted Retainer 'becomes blocked'). Trigger resolves: Devoted Retainer gets +1/+1 until end of turn, becoming 2/2. Combat damage step (CR 510.1): Monastery Swiftspear (power 1) assigns 1 damage to Devoted Retainer; Devoted Retainer (power 2 after Bushido boost) assigns 2 damage to Monastery Swiftspear. Damage is simultaneous (CR 510.2). SBA 704.5g: Monastery Swiftspear has toughness 2 and received 2 damage (2 >= 2 = lethal) — destroyed, moves to p1 graveyard. Devoted Retainer has toughness 2 (1 base + 1 Bushido) and received 1 damage (1 < 2 = not lethal) — survives. This scenario deliberately highlights that Bushido 1 saved Devoted Retainer: without the +1/+1, Devoted Retainer would be 1/1 and 1 damage from Swiftspear would be lethal (1 >= 1), destroying both creatures. With Bushido, only Swiftspear dies. p2 player takes no damage (attacker was fully blocked). The Bushido +1/+1 expires at end of turn (CR 514.2 cleanup). Two-player game sufficient — no multiplayer interactions required.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Monastery Swiftspear", "tapped": false, "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Devoted Retainer", "tapped": false, "is_commander": false, "owner": null }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Monastery Swiftspear as an attacker targeting p2. CR 508.1f: Swiftspear becomes tapped. Bushido does NOT trigger at declare attackers — CR 702.45a specifies it triggers when the creature 'blocks or becomes blocked,' which happens during the declare blockers step.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Monastery Swiftspear untapped on p1 battlefield; Devoted Retainer untapped on p2 battlefield; life totals 40/40; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Monastery Swiftspear" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Devoted Retainer" }] },
+            "permanent.Monastery Swiftspear.tapped": false,
+            "permanent.Devoted Retainer.tapped": false,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Monastery Swiftspear has Haste (CR 702.10a) — it can attack on turn 1. Devoted Retainer is a 1/1 Samurai with Bushido 1. No spells are cast during combat so Prowess on Swiftspear will not trigger."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Monastery Swiftspear", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Monastery Swiftspear as an attacking creature targeting p2. CR 508.1f: Monastery Swiftspear becomes tapped. CR 702.10a: Haste allows Swiftspear to attack on turn 1. Bushido does NOT trigger here — it triggers when the creature 'becomes blocked,' not when it attacks."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Monastery Swiftspear tapped (CR 508.1f), Devoted Retainer untapped, stack empty",
+          "assertions": {
+            "permanent.Monastery Swiftspear.tapped": true,
+            "permanent.Devoted Retainer.tapped": false,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Swiftspear is now an attacking creature (tapped). No triggers have fired yet. Bushido triggers at the declare blockers step, not here."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "p2 declares Devoted Retainer as a blocker for Monastery Swiftspear. CR 702.45a: Bushido triggers — Devoted Retainer 'becomes blocked' — one triggered ability is placed on the stack giving Devoted Retainer +1/+1 until end of turn.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [
+            { "card": "Devoted Retainer", "blocking": "Monastery Swiftspear" }
+          ],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: p2 declares Devoted Retainer as a blocker for Monastery Swiftspear. CR 509.1a: Devoted Retainer is untapped — legal blocker. CR 509.1g: Devoted Retainer becomes a blocking creature. CR 509.1h: Monastery Swiftspear becomes a blocked creature. CR 702.45a: Devoted Retainer has Bushido 1; it just 'became blocked' — the Bushido triggered ability fires, placing one trigger on the stack: 'Devoted Retainer gets +1/+1 until end of turn.'"
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_blockers: Bushido trigger on the stack (count 1), both creatures still on battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Monastery Swiftspear" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Devoted Retainer" }] },
+            "zones.stack.count": 1
+          },
+          "note": "CR 702.45a: The Bushido 1 triggered ability is on the stack. When it resolves, Devoted Retainer will get +1/+1 until end of turn, temporarily becoming a 2/2."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the Bushido trigger (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Devoted Retainer",
+          "resolution": [
+            {
+              "effect": "grant_bonus",
+              "target": { "type": "permanent", "card": "Devoted Retainer", "controller": "p2" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.45a",
+              "note": "CR 702.45a: Bushido 1 trigger resolves — Devoted Retainer gets +1/+1 until end of turn. Devoted Retainer is now 2/2 (was 1/1)."
+            }
+          ],
+          "note": "CR 608.2: Bushido triggered ability resolves. Devoted Retainer receives +1/+1 until end of turn, becoming 2/2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Bushido trigger resolves: stack empty, both creatures still on battlefield, Devoted Retainer now effectively 2/2",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Monastery Swiftspear" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Devoted Retainer" }] }
+          },
+          "note": "Bushido trigger has resolved. Devoted Retainer has a +1/+1 until-end-of-turn continuous effect applied, making it 2/2. Both creatures remain on the battlefield entering the combat damage step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack — advance to CombatDamage step."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "Combat damage (CR 510.1): Monastery Swiftspear (power 1, blocked) assigns 1 damage to Devoted Retainer (now 2/2 from Bushido); Devoted Retainer (power 2 after Bushido) assigns 2 damage to Monastery Swiftspear (toughness 2). Damage is simultaneous (CR 510.2). SBA 704.5g: Monastery Swiftspear has 2 damage marked against toughness 2 — lethal — destroyed. Devoted Retainer has 1 damage marked against toughness 2 (after Bushido) — not lethal — survives.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Monastery Swiftspear has toughness 2 and received 2 damage (from Devoted Retainer's power 2 after Bushido) — 2 >= 2 — lethal damage — destroyed",
+              "object": "Monastery Swiftspear",
+              "controller": "p1",
+              "result": "moved to p1 graveyard",
+              "cr_ref": "704.5g"
+            }
+          ],
+          "note": "CR 704.5g: Monastery Swiftspear has toughness 2 and 2 damage marked — lethal — destroyed and moves to p1's graveyard. Devoted Retainer has toughness 2 (1 base + 1 Bushido) and only 1 damage marked (from Swiftspear's power 1) — not lethal — Devoted Retainer survives. Without the Bushido +1/+1 bonus, Devoted Retainer would have been 1/1 and 1 damage from Swiftspear would be lethal (1 >= 1 toughness), killing it too. CR 704.3: SBAs are checked as a batch."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after combat damage and SBAs. Stack is empty — advance to EndOfCombat step."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage and SBAs: p2 at 40 life (Swiftspear was blocked), Monastery Swiftspear in p1 graveyard, Devoted Retainer still on p2 battlefield",
+          "assertions": {
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.battlefield.p2": { "includes": [{ "card": "Devoted Retainer" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Monastery Swiftspear" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Monastery Swiftspear" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1c: Monastery Swiftspear was blocked — it assigned all 1 damage to Devoted Retainer, not to p2. p2 life remains 40. Devoted Retainer's toughness was boosted to 2 by Bushido 1; it received only 1 damage (Swiftspear's base power 1) — not lethal — Devoted Retainer survives on p2's battlefield. Monastery Swiftspear received 2 damage (Devoted Retainer's power 2 after Bushido) against its 2 toughness — lethal (SBA 704.5g) — destroyed, in p1's graveyard. The +1/+1 Bushido bonus on Devoted Retainer expires at the cleanup step (CR 514.2), returning it to 1/1."
+        }
+      ]
+    }
+  ]
+}

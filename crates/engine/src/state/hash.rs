@@ -468,6 +468,11 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Ingest => 75u8.hash_into(hasher),
             // Flanking (discriminant 76) -- CR 702.25
             KeywordAbility::Flanking => 76u8.hash_into(hasher),
+            // Bushido (discriminant 77) -- CR 702.45
+            KeywordAbility::Bushido(n) => {
+                77u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1149,6 +1154,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::ControllerInvestigates => 16u8.hash_into(hasher),
             // CR 701.34: ControllerProliferates trigger — discriminant 17
             TriggerEvent::ControllerProliferates => 17u8.hash_into(hasher),
+            // CR 509.1h / CR 702.45a: SelfBecomesBlocked trigger — discriminant 18
+            TriggerEvent::SelfBecomesBlocked => 18u8.hash_into(hasher),
         }
     }
 }

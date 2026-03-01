@@ -689,5 +689,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Decayed => "Decayed".to_string(),
         KeywordAbility::Ingest => "Ingest".to_string(),
         KeywordAbility::Flanking => "Flanking".to_string(),
+        KeywordAbility::Bushido(n) => format!("Bushido {n}"),
     }
 }

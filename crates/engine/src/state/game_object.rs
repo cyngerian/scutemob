@@ -196,6 +196,12 @@ pub enum TriggerEvent {
     /// Used by "whenever you proliferate" cards (e.g., Core Prowler, Vat Emergence).
     /// The controller match is done at trigger-collection time in `rules/abilities.rs`.
     ControllerProliferates,
+    /// CR 509.1h / CR 702.45a: Triggers when this attacking creature becomes blocked
+    /// (has one or more blockers declared against it). Used by the Bushido keyword.
+    /// The "becomes blocked" check is done at trigger-collection time in
+    /// `rules/abilities.rs` when processing `BlockersDeclared` events.
+    /// Triggers once per attacker regardless of how many creatures block it (CR 509.3c).
+    SelfBecomesBlocked,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).

@@ -683,6 +683,43 @@ impl GameStateBuilder {
                         effect: None, // Handled by MyriadTrigger resolution
                     });
                 }
+
+                // CR 702.45a: Bushido N -- "Whenever this creature blocks or becomes
+                // blocked, it gets +N/+N until end of turn."
+                // Two TriggeredAbilityDefs per Bushido instance: one for SelfBlocks,
+                // one for SelfBecomesBlocked. Each triggers separately (CR 702.45b).
+                if let KeywordAbility::Bushido(n) = kw {
+                    let bushido_effect = Effect::ApplyContinuousEffect {
+                        effect_def: Box::new(ContinuousEffectDef {
+                            layer: EffectLayer::PtModify,
+                            modification: LayerModification::ModifyBoth(*n as i32),
+                            filter: CEFilter::Source,
+                            duration: CEDuration::UntilEndOfTurn,
+                        }),
+                    };
+
+                    // Trigger 1: "Whenever this creature blocks"
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfBlocks,
+                        intervening_if: None,
+                        description: format!(
+                            "Bushido {n} (CR 702.45a): Whenever this creature blocks, \
+                             it gets +{n}/+{n} until end of turn."
+                        ),
+                        effect: Some(bushido_effect.clone()),
+                    });
+
+                    // Trigger 2: "Whenever this creature becomes blocked"
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfBecomesBlocked,
+                        intervening_if: None,
+                        description: format!(
+                            "Bushido {n} (CR 702.45a): Whenever this creature becomes blocked, \
+                             it gets +{n}/+{n} until end of turn."
+                        ),
+                        effect: Some(bushido_effect),
+                    });
+                }
             }
 
             let characteristics = Characteristics {

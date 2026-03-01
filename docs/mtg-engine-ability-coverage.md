@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Flanking validated; CR 702.25 confirmed; state/types.rs:639-643, abilities.rs:1468-1556, resolution.rs:1675-1681, combat.rs:646-660; Suq'Ata Lancer card def; 7 unit tests in flanking.rs; game script combat/114; P4 validated 6->7, total validated 98->99)
+> Last audited: 2026-03-01 (Bushido validated; CR 702.45 confirmed; state/types.rs:644-648, builder.rs:687-722, abilities.rs:1561-1578; Devoted Retainer card def; 7 unit tests in bushido.rs; game script combat/115; P4 validated 7->8, total validated 99->100)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 7         | 0        | 0       | 81   | 12  |
-| **Total**| **199**| **99**   | **2**    | **0**   | **86**| **12** |
+| P4       | 100   | 8         | 0        | 0       | 80   | 12  |
+| **Total**| **199**| **100**  | **2**    | **0**   | **85**| **12** |
 
 ---
 
@@ -169,7 +169,7 @@ Keywords that modify combat or trigger during combat.
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Flanking | 702.25 | P4 | `validated` | `state/types.rs:639-643`, `rules/abilities.rs:1468-1556`, `rules/resolution.rs:1675-1681`, `rules/combat.rs:646-660` | Suq'Ata Lancer (`defs/suq_ata_lancer.rs`) | `combat/114` | — | KeywordAbility::Flanking enum; triggered ability fires at declare blockers (CR 702.25a); blocker without flanking gets -1/-1 until EOT; multiple instances trigger separately (CR 702.25b); FlankingTrigger stack kind; flanking_blocker_id on PendingTrigger; 7 unit tests in `tests/flanking.rs`; game script combat/114 validated |
-| Bushido | 702.45 | P4 | `none` | — | — | — | — | +N/+N when blocks or becomes blocked |
+| Bushido | 702.45 | P4 | `validated` | `state/types.rs:644-648`, `state/builder.rs:687-722`, `rules/abilities.rs:1561-1578` | Devoted Retainer (`defs/devoted_retainer.rs`) | `combat/115` | — | KeywordAbility::Bushido(N) enum; two TriggeredAbilityDefs per instance via builder (SelfBlocks + SelfBecomesBlocked); ApplyContinuousEffect with ModifyBoth(+N) until EOT; SelfBecomesBlocked dispatch in abilities.rs fires once per attacker (CR 509.1h); multiple instances trigger separately (CR 702.45b); 7 unit tests in `tests/bushido.rs`; game script combat/115 validated |
 | Provoke | 702.39 | P4 | `none` | — | — | — | — | Force target creature to block this |
 | Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |
 | Battle Cry | 702.91 | P3 | `validated` | `state/types.rs:309`, `state/hash.rs:369-370+1976`, `cards/card_definition.rs:750-753`, `state/builder.rs:438-451`, `effects/mod.rs:1995-1998`, `tools/replay-viewer/src/view_model.rs:608` | Signal Pest | `combat/076` | — | KeywordAbility::BattleCry enum + ForEachTarget::EachOtherAttackingCreature; builder keyword-to-trigger translation (WhenAttacks + ForEach over EachOtherAttackingCreature with +1/+0); effects collect_for_each arm excludes source; 7 unit tests in `tests/battle_cry.rs`; Signal Pest card def in definitions.rs:1866; game script combat/076 validated |
@@ -531,3 +531,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Decayed (CR 702.147) — validated 2026-02-28 (script baseline/112, Shambling Ghast, 8 unit tests in decayed.rs).
 
 **Resolved**: Ingest (CR 702.115) — validated 2026-03-01 (script baseline/113, Mist Intruder, 6 unit tests in ingest.rs).
+
+**Resolved**: Bushido (CR 702.45) — validated 2026-03-01 (script combat/115, Devoted Retainer, 7 unit tests in bushido.rs).

@@ -1557,6 +1557,27 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         });
                     }
                 }
+
+                // CR 509.1h / CR 702.45a: SelfBecomesBlocked -- fires on each
+                // ATTACKER that has at least one blocker declared against it.
+                // Collect unique attacker IDs to ensure each triggers only once
+                // (CR 509.3c: "generally triggers only once each combat").
+                let mut blocked_attackers: Vec<ObjectId> = blockers
+                    .iter()
+                    .map(|(_, attacker_id)| *attacker_id)
+                    .collect();
+                blocked_attackers.sort();
+                blocked_attackers.dedup();
+
+                for attacker_id in blocked_attackers {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::SelfBecomesBlocked,
+                        Some(attacker_id),
+                        None,
+                    );
+                }
             }
 
             GameEvent::PermanentTargeted {

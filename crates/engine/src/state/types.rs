@@ -641,6 +641,11 @@ pub enum KeywordAbility {
     /// the blocking creature gets -1/-1 until end of turn."
     /// CR 702.25b: Multiple instances trigger separately.
     Flanking,
+    /// CR 702.45: Bushido N -- triggered ability.
+    /// "Whenever this creature blocks or becomes blocked, it gets +N/+N
+    /// until end of turn."
+    /// CR 702.45b: Multiple instances trigger separately.
+    Bushido(u32),
 }
 
 /// All creature subtypes from CR 205.3m.
