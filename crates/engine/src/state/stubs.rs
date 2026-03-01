@@ -297,6 +297,13 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_renown_trigger` is true.
     #[serde(default)]
     pub renown_n: Option<u32>,
+    /// CR 702.121a: If true, this pending trigger is a Melee trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::MeleeTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`.
+    /// The bonus is computed at resolution time from `state.combat`.
+    #[serde(default)]
+    pub is_melee_trigger: bool,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

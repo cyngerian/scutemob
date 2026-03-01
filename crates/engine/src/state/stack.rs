@@ -511,4 +511,24 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         renown_n: u32,
     },
+    /// CR 702.121a: Melee triggered ability on the stack.
+    ///
+    /// "Whenever this creature attacks, it gets +1/+1 until end of turn for
+    /// each opponent you attacked with a creature this combat."
+    ///
+    /// When this trigger resolves:
+    /// 1. Count distinct opponents (players) targeted by any attacker in
+    ///    `state.combat.attackers` (only `AttackTarget::Player` entries count,
+    ///    NOT planeswalkers -- ruling 2016-08-23).
+    /// 2. If count > 0 and source is on the battlefield, apply +count/+count
+    ///    as a ContinuousEffect (UntilEndOfTurn) in Layer 7c (PtModify).
+    ///
+    /// CR 702.121b: Multiple instances trigger separately (each creates its
+    /// own MeleeTrigger; each computes the bonus independently).
+    ///
+    /// The bonus is computed at resolution time (ruling 2016-08-23: "You
+    /// determine the size of the bonus as the melee ability resolves").
+    /// `state.combat.attackers` retains all declared attackers even if they
+    /// leave the battlefield, so the count is stable.
+    MeleeTrigger { source_object: ObjectId },
 }

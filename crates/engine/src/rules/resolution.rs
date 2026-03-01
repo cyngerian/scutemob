@@ -1371,6 +1371,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 provoke_target_creature: None,
                                 is_renown_trigger: false,
                                 renown_n: None,
+                                is_melee_trigger: false,
                             });
                     }
                 }
@@ -1883,6 +1884,82 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.121a: Melee trigger resolves -- count distinct opponents attacked
+        // with creatures, then apply +count/+count until end of turn if source is
+        // still on the battlefield.
+        //
+        // Ruling 2016-08-23: "You determine the size of the bonus as the melee
+        // ability resolves. Count each opponent that you attacked with one or more
+        // creatures."
+        // Ruling 2016-08-23: Only opponents (players) count, NOT planeswalkers.
+        // Only `AttackTarget::Player(pid)` entries in state.combat.attackers count.
+        StackObjectKind::MeleeTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Count distinct opponents attacked with creatures (players only).
+            // CR 702.121a: "for each opponent you attacked with a creature"
+            // Ruling: "It doesn't matter how many creatures you attacked a player
+            // with, only that you attacked a player with at least one creature."
+            let opponents_attacked = state
+                .combat
+                .as_ref()
+                .map(|c| {
+                    c.attackers
+                        .values()
+                        .filter_map(|target| {
+                            if let crate::state::combat::AttackTarget::Player(pid) = target {
+                                Some(*pid)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<OrdSet<crate::state::player::PlayerId>>()
+                        .len()
+                })
+                .unwrap_or(0);
+
+            let bonus = opponents_attacked as i32;
+
+            if bonus > 0 {
+                // Only apply if the source is still on the battlefield.
+                let source_alive = state
+                    .objects
+                    .get(&source_object)
+                    .map(|obj| obj.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+
+                if source_alive {
+                    // Register the +bonus/+bonus continuous effect (Layer 7c, UntilEndOfTurn).
+                    let eff_id = state.next_object_id().0;
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    state.continuous_effects.push_back(
+                        crate::state::continuous_effect::ContinuousEffect {
+                            id: crate::state::continuous_effect::EffectId(eff_id),
+                            source: None,
+                            timestamp: ts,
+                            layer: crate::state::continuous_effect::EffectLayer::PtModify,
+                            duration:
+                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                                source_object,
+                            ),
+                            modification:
+                                crate::state::continuous_effect::LayerModification::ModifyBoth(
+                                    bonus,
+                                ),
+                            is_cda: false,
+                        },
+                    );
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1994,7 +2071,8 @@ pub fn counter_stack_object(
         | StackObjectKind::FlankingTrigger { .. }
         | StackObjectKind::RampageTrigger { .. }
         | StackObjectKind::ProvokeTrigger { .. }
-        | StackObjectKind::RenownTrigger { .. } => {
+        | StackObjectKind::RenownTrigger { .. }
+        | StackObjectKind::MeleeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

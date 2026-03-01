@@ -92,6 +92,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::RenownTrigger { source_object, .. } => {
                     ("Renown: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::MeleeTrigger { source_object, .. } => {
+                    ("Melee: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

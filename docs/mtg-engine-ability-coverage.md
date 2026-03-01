@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Training validated; CR 702.149 confirmed (was incorrectly listed as 702.150); types.rs:693-700, game_object.rs:206-211, builder.rs:489-511, hash.rs:493-494+1189-1190, abilities.rs:1508-1550; Gryff Rider card def; 7 unit tests in training.rs; game script combat/120; P4 validated 12->13, total validated 104->105)
+> Last audited: 2026-03-01 (Melee validated; CR 702.121 confirmed (was incorrectly listed as 702.122 — that is Crew); types.rs:701-711, stack.rs:514-533, stubs.rs:300-302, builder.rs:513-528, abilities.rs:1479-1487+2749-2751, resolution.rs:1888-1897; Wings of the Guard card def; 7 unit tests in melee.rs; game script combat/121; P4 validated 13->14, total validated 105->106)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 13        | 0        | 0       | 75   | 12  |
-| **Total**| **199**| **105**  | **2**    | **0**   | **80**| **12** |
+| P4       | 100   | 14        | 0        | 0       | 74   | 12  |
+| **Total**| **199**| **106**  | **2**    | **0**   | **79**| **12** |
 
 ---
 
@@ -174,7 +174,7 @@ Keywords that modify combat or trigger during combat.
 | Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |
 | Battle Cry | 702.91 | P3 | `validated` | `state/types.rs:309`, `state/hash.rs:369-370+1976`, `cards/card_definition.rs:750-753`, `state/builder.rs:438-451`, `effects/mod.rs:1995-1998`, `tools/replay-viewer/src/view_model.rs:608` | Signal Pest | `combat/076` | — | KeywordAbility::BattleCry enum + ForEachTarget::EachOtherAttackingCreature; builder keyword-to-trigger translation (WhenAttacks + ForEach over EachOtherAttackingCreature with +1/+0); effects collect_for_each arm excludes source; 7 unit tests in `tests/battle_cry.rs`; Signal Pest card def in definitions.rs:1866; game script combat/076 validated |
 | Myriad | 702.116 | P3 | `validated` | state/types.rs, state/stack.rs, state/stubs.rs, state/builder.rs, state/game_object.rs, rules/abilities.rs, rules/resolution.rs, rules/turn_actions.rs | Warchief Giant | myriad.rs (7) | combat/093 | Token copies attacking each opponent; end-of-combat exile; myriad_exile_at_eoc flag; multiple instances trigger separately (CR 702.116b) |
-| Melee | 702.122 | P4 | `none` | — | — | — | — | +1/+1 for each opponent attacked this combat |
+| Melee | 702.121 | P4 | `validated` | `state/types.rs:701-711`, `state/stack.rs:514-533`, `state/stubs.rs:300-302`, `state/builder.rs:513-528`, `state/hash.rs:495-496+1466-1467`, `rules/abilities.rs:1479-1487+2749-2751`, `rules/resolution.rs:1888-1897` | Wings of the Guard (`defs/wings_of_the_guard.rs`) | `combat/121` | — | KeywordAbility::Melee enum (discriminant 83); StackObjectKind::MeleeTrigger (discriminant 23) with source_object; builder generates TriggeredAbilityDef(SelfAttacks) with custom MeleeTrigger resolution; resolution.rs counts distinct opponents attacked with at least one creature this combat and applies +N/+N until EOT; CR 702.121b multiple instances trigger separately; planeswalker attacks do not count opponents (Ruling 2016-08-23); source-leaves-battlefield = no bonus; 7 unit tests in `tests/melee.rs` (basic-1-opp, multiplayer-2-opps, multiplayer-3-opps, planeswalker-no-count, multiple-instances, source-leaves, attacking-alone); card def wings_of_the_guard.rs; game script combat/121 validated |
 | Enlist | 702.155 | P4 | `none` | — | — | — | — | Tap non-attacking creature to add its power |
 | Annihilator | 702.86 | P2 | `validated` | `state/types.rs:269`, `state/hash.rs:351+2223`, `state/stubs.rs:83`, `state/builder.rs:418-435`, `rules/abilities.rs:657-677,1000-1003`, `cards/card_definition.rs:349-354`, `effects/mod.rs:1034` | Ulamog's Crusher | `combat/068` | — | KeywordAbility::Annihilator(u32) enum + Effect::SacrificePermanents; defending_player_id on PendingTrigger; builder keyword-to-trigger translation (WhenAttacks + SacrificePermanents); check_triggers dispatch + flush_pending_triggers Target::Player wiring; 8 unit tests in `tests/annihilator.rs`; game script pending_review; TODO: "attacks each combat if able" static ability on Ulamog's Crusher is cosmetic only |
 | Dethrone | 702.105 | P3 | `validated` | `state/types.rs:372`, `state/game_object.rs:179`, `state/builder.rs:464`, `rules/abilities.rs:965` | Marchesa's Emissary | `tests/dethrone.rs` (8 tests) | `combat/081` | Life-total comparison; planeswalker exclusion; eliminated-player exclusion |
@@ -543,3 +543,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Renown (CR 702.112) — validated 2026-03-01 (script combat/119, Topan Freeblade, 7 unit tests in renown.rs).
 
 **Resolved**: Training (CR 702.149) — validated 2026-03-01 (script combat/120, Gryff Rider, 7 unit tests in training.rs).
+
+**Resolved**: Melee (CR 702.121) — validated 2026-03-01 (script combat/121, Wings of the Guard, 7 unit tests in melee.rs).

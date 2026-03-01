@@ -510,6 +510,25 @@ impl GameStateBuilder {
                     });
                 }
 
+                // CR 702.121a: Melee -- "Whenever this creature attacks, it gets
+                // +1/+1 until end of turn for each opponent you attacked with a
+                // creature this combat."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.121b).
+                // The effect is None because resolution is handled by the custom
+                // MeleeTrigger StackObjectKind -- the bonus is computed at resolution
+                // time from combat state (ruling 2016-08-23).
+                if matches!(kw, KeywordAbility::Melee) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: "Melee (CR 702.121a): Whenever this creature attacks, it \
+                                      gets +1/+1 until end of turn for each opponent you \
+                                      attacked with a creature this combat."
+                            .to_string(),
+                        effect: None, // Custom resolution via MeleeTrigger
+                    });
+                }
+
                 // CR 702.79a: Persist — "When this permanent is put into a graveyard from
                 // the battlefield, if it had no -1/-1 counters on it, return it to the
                 // battlefield under its owner's control with a -1/-1 counter on it."

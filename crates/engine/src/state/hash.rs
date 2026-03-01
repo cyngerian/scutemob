@@ -492,6 +492,8 @@ impl HashInto for KeywordAbility {
             }
             // Training (discriminant 82) -- CR 702.149
             KeywordAbility::Training => 82u8.hash_into(hasher),
+            // Melee (discriminant 83) -- CR 702.121
+            KeywordAbility::Melee => 83u8.hash_into(hasher),
         }
     }
 }
@@ -1130,6 +1132,8 @@ impl HashInto for PendingTrigger {
         // CR 702.112a: is_renown_trigger -- renown combat damage trigger marker
         self.is_renown_trigger.hash_into(hasher);
         self.renown_n.hash_into(hasher);
+        // CR 702.121a: is_melee_trigger -- melee attack trigger marker
+        self.is_melee_trigger.hash_into(hasher);
     }
 }
 
@@ -1458,6 +1462,11 @@ impl HashInto for StackObjectKind {
                 22u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 renown_n.hash_into(hasher);
+            }
+            // MeleeTrigger (discriminant 23) -- CR 702.121a
+            StackObjectKind::MeleeTrigger { source_object } => {
+                23u8.hash_into(hasher);
+                source_object.hash_into(hasher);
             }
         }
     }

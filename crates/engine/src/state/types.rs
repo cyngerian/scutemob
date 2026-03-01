@@ -698,6 +698,17 @@ pub enum KeywordAbility {
     /// TriggeredAbilityDef from this keyword at object-construction time.
     /// Multiple instances each trigger separately (CR 702.149b).
     Training,
+    /// CR 702.121: Melee -- triggered ability.
+    /// "Whenever this creature attacks, it gets +1/+1 until end of turn for
+    /// each opponent you attacked with a creature this combat."
+    ///
+    /// CR 702.121b: Multiple instances trigger separately.
+    ///
+    /// Implemented via a custom `StackObjectKind::MeleeTrigger` because the
+    /// bonus is computed at resolution time from `state.combat` (ruling
+    /// 2016-08-23: "You determine the size of the bonus as the melee ability
+    /// resolves"). The trigger fires on `TriggerEvent::SelfAttacks`.
+    Melee,
 }
 
 /// All creature subtypes from CR 205.3m.

@@ -540,6 +540,7 @@ pub fn handle_cycle_card(
             provoke_target_creature: None,
             is_renown_trigger: false,
             renown_n: None,
+            is_melee_trigger: false,
         });
     }
 
@@ -873,6 +874,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -952,6 +954,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 provoke_target_creature: None,
                                 is_renown_trigger: false,
                                 renown_n: None,
+                                is_melee_trigger: false,
                             });
                         }
                     }
@@ -1020,6 +1023,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         });
                     }
                 }
@@ -1090,6 +1094,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 provoke_target_creature: None,
                                 is_renown_trigger: false,
                                 renown_n: None,
+                                is_melee_trigger: false,
                             });
                         }
                     }
@@ -1250,6 +1255,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             provoke_target_creature: None,
                                             is_renown_trigger: false,
                                             renown_n: None,
+                                            is_melee_trigger: false,
                                         });
                                     }
                                 }
@@ -1463,6 +1469,23 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             provoke_targets_used.push(tid);
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    // CR 702.121a/b: Tag melee triggers for special stack handling.
+                    // A SelfAttacks trigger is a melee trigger if its triggered ability
+                    // description starts with "Melee" (set by builder.rs). Unlike
+                    // Rampage which needs an N value, Melee always gives +1/+1 per
+                    // opponent attacked -- no parameter to carry.
+                    for t in &mut triggers[pre_len..] {
+                        if let Some(obj) = state.objects.get(&t.source) {
+                            if let Some(ta) =
+                                obj.characteristics.triggered_abilities.get(t.ability_index)
+                            {
+                                if ta.effect.is_none() && ta.description.starts_with("Melee") {
+                                    t.is_melee_trigger = true;
                                 }
                             }
                         }
@@ -1693,6 +1716,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         });
                     }
                 }
@@ -1882,6 +1906,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         });
                     }
                 }
@@ -1950,6 +1975,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         });
                     }
                 }
@@ -2062,6 +2088,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             provoke_target_creature: None,
                             is_renown_trigger: false,
                             renown_n: None,
+                            is_melee_trigger: false,
                         });
                     }
                 }
@@ -2173,6 +2200,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         provoke_target_creature: None,
                                         is_renown_trigger: false,
                                         renown_n: None,
+                                        is_melee_trigger: false,
                                     });
                                 }
                             }
@@ -2263,6 +2291,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         provoke_target_creature: None,
                                         is_renown_trigger: true,
                                         renown_n: Some(n),
+                                        is_melee_trigger: false,
                                     });
                                 }
                             }
@@ -2387,6 +2416,7 @@ fn collect_triggers_for_event(
                 provoke_target_creature: None,
                 is_renown_trigger: false,
                 renown_n: None,
+                is_melee_trigger: false,
             });
         }
     }
@@ -2714,6 +2744,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 StackObjectKind::RenownTrigger {
                     source_object: trigger.source,
                     renown_n: trigger.renown_n.unwrap_or(1),
+                }
+            } else if trigger.is_melee_trigger {
+                // CR 702.121a: Melee SelfAttacks trigger.
+                // Bonus computed at resolution time from state.combat (ruling 2016-08-23).
+                StackObjectKind::MeleeTrigger {
+                    source_object: trigger.source,
                 }
             } else {
                 StackObjectKind::TriggeredAbility {
