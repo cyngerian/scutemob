@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + Batch 1 (2026-03-01)
+# Rules Gotchas — Last verified: M9.5 + Batch 3 (2026-03-01)
 
 ## MTG Rules Gotchas
 
@@ -63,6 +63,19 @@
 - **Convoke does NOT require summoning sickness exemption** (ruling under CR 702.51a). Tapping
   a creature for convoke is not an activated ability tap cost — summoning sickness only prevents
   `{T}` activated abilities. A creature that entered this turn can still convoke.
+- **Toxic (702.164) is STATIC; Poisonous (702.70) is TRIGGERED.** Toxic applies inline as a
+  combat damage result (CR 120.3g) — no trigger on the stack, cannot be responded to separately,
+  multiple instances are cumulative (sum all N values). Poisonous IS a triggered ability — goes on
+  stack, can be countered, each instance triggers separately. Both give poison counters *in addition
+  to* normal life loss (unlike Infect which replaces). Toxic is enforced in `combat.rs`
+  `apply_combat_damage_assignments()`; Poisonous uses the trigger dispatch system (like Ingest).
+- **Ninjutsu does NOT fire "whenever this creature attacks" (CR 508.3a/508.4).** The ninja is
+  "put onto the battlefield tapped and attacking" — it never went through declare_attackers, so no
+  AttackersDeclared event includes it. ETB triggers DO fire normally. The ninja inherits the
+  returned creature's attack target specifically (CR 702.49c) — not a general choose-any rule.
+  Commander Ninjutsu from command zone does NOT increment commander_tax (ruling 2020-11-10).
+- **Batch 3 CR corrections (another batch-plan gotcha):** Melee=702.121 (702.122=Crew),
+  Enlist=702.154 (702.155=different), Toxic=702.164 (702.156=Ravenous). Always MCP-verify.
 - **Combat damage trigger infrastructure: `check_triggers` must fire on TBA events (CR 510.3a).**
   `enter_step` processes turn-based actions (like assigning combat damage). Triggers from those
   TBAs must be checked inside `enter_step` itself — `check_triggers()` called only after player

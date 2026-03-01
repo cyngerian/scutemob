@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 3: Combat Modifiers & Ninjutsu | ACTIVE | 2026-03-01 | Melee, Enlist, Poisonous, Toxic, Ninjutsu |
+| W1: Abilities | — | available | — | Batch 3 done; Batch 4 next (Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -22,23 +22,24 @@
 ## Last Handoff
 
 **Date**: 2026-03-01 (session end)
-**Workstream**: W1: Abilities — Batch 2
-**Task**: Implement Batch 2: Combat Triggers — Blocking (7 abilities)
+**Workstream**: W1: Abilities — Batch 3
+**Task**: Implement Batch 3: Combat Modifiers & Ninjutsu (5 abilities)
 **Completed**:
-- Flanking (CR 702.25): BlockersDeclared trigger, -1/-1 ModifyBoth UntilEndOfTurn, StackObjectKind::FlankingTrigger (disc 19), discriminant 76, 7 tests, Suq'Ata Lancer, script 114 — commit a9457c8
-- Bushido (CR 702.45): SelfBlocks + SelfBecomesBlocked triggers, AddCounter, discriminant 77, TriggerEvent::SelfBecomesBlocked (disc 18), 7 tests, Devoted Retainer, script 115 — commit ca39b61
-- Rampage (CR 702.23): SelfBecomesBlocked + blocker count at resolution, ModifyBoth(bonus), StackObjectKind::RampageTrigger (disc 20), discriminant 78, 8 tests, Wolverine Pack, script 116 — commit a9c38e0
-- Provoke (CR 702.39): new CombatState::forced_blocks OrdMap, ProvokeTrigger (disc 21), untap + force-block with evasion checks, discriminant 79, 7 tests, Goblin Grappler, script 117 — commit 2700b56
-- Afflict (CR 702.130): SelfBecomesBlocked + defending_player LoseLife, discriminant 80, 6 tests, Khenra Eternal, script 118 — commit 4bdbb6a
-- Renown (CR 702.112): is_renowned: bool on GameObject (reset on zone change), SelfCombatDamageDealt + RenownTrigger (disc 22), CR 603.4 intervening-if, discriminant 81, 7 tests, Topan Freeblade, script 119 — commit d4fe4b5
-- Training (CR 702.149): SelfAttacksWithGreaterPowerAlly (disc 19), builder.rs TriggeredAbilityDef, calculate_characteristics() power compare, discriminant 82, 7 tests, Gryff Rider, script 120 — commit 92f1265
-- CR correction: Training=702.149 (not 702.150=Compleated); coordination docs updated — commit cf85ee6
-- 1254 tests passing; 105 abilities validated total; P4 13/88
-**Next**: Batch 3 — check `docs/ability-batch-plan.md` for the next batch. Claim W1-B3.
-**Hazards**: None — all changes committed; working tree has only minor modification to test-data/test-decks/_authoring_worklist.json
-**Commit prefix used**: `W1-B2:`
+- Melee (CR 702.121): SelfAttacks trigger, MeleeTrigger (disc 23), counts distinct Player targets at resolution, disc 83, 7 tests, Wings of the Guard, script 121 — commit 3e695b4
+- Poisonous (CR 702.70): CombatDamageDealt triggered ability, PoisonousTrigger (disc 24), N fixed counters additive (unlike Infect), disc 84, 6 tests, Poisonous Viper (test card), script 122 — commit 9a6961c
+- Toxic (CR 702.164): STATIC ability inline in combat.rs, no trigger/stack, sum all Toxic(N) values, disc 85, 8 tests, Pestilent Syphoner, script 123 — commit 3dfc5a8
+- Enlist (CR 702.154): enlist_choices on DeclareAttackers, 10-check validation, tap-as-cost, EnlistTrigger (disc 25), +X/+0 UntilEndOfTurn at resolution, disc 86, 8 tests, Coalition Skyknight, script 124 — commit 29c24a4
+- Ninjutsu (CR 702.49) + CommanderNinjutsu (CR 702.49d): Command::ActivateNinjutsu, NinjutsuAbility (disc 26), discs 87/88, ETB site pattern + combat registration, attack target inheritance (CR 702.49c), 12 tests, Ninja of the Deep Hours, script 125 — commit 17e19fd
+- 3 CR corrections: Melee=702.121 (not 702.122=Crew), Enlist=702.154 (not 702.155), Toxic=702.164 (not 702.156=Ravenous)
+- 1295 tests passing; 111 abilities validated total; P4 19/88
+**Next**: Batch 4 — Alt-cast graveyard (Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore). Claim W1-B4.
+**Hazards**: None — all committed; Toxic review found layer-bypass bug (fixed inline). Discriminant chain: KeywordAbility 83-88, StackObjectKind 23-26.
+**Commit prefix used**: `W1-B3:`
 
 ## Handoff History
+
+### 2026-03-01 (session end) — W1: Abilities — Batch 2
+- Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training; 1254 tests; P4 13/88; scripts 114-120; cards: Suq'Ata Lancer, Devoted Retainer, Wolverine Pack, Goblin Grappler, Khenra Eternal, Topan Freeblade, Gryff Rider; commit 92f1265
 
 ### 2026-03-01 (session end) — W1: Abilities — Batch 1
 - Horsemanship, Skulk, Devoid, Decayed, Ingest; 1177 tests; P4 6/88; scripts 109-113; cards: Shu Cavalry, Furtive Homunculus, Forerunner of Slaughter, Shambling Ghast, Mist Intruder; commit 9cc5672
