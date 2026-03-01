@@ -467,6 +467,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::HideawayTrigger { source_object, .. } => {
             ("hideaway_trigger", Some(*source_object))
         }
+        StackObjectKind::PartnerWithTrigger { source_object, .. } => {
+            ("partner_with_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -672,5 +675,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Hideaway(n) => format!("Hideaway {n}"),
         KeywordAbility::Adapt(n) => format!("Adapt {n}"),
         KeywordAbility::Shadow => "Shadow".to_string(),
+        KeywordAbility::PartnerWith(name) => format!("Partner with {name}"),
     }
 }

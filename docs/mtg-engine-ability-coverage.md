@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-02-28 (Shadow validated; CR 702.28 confirmed; state/types.rs:572, hash.rs:450, rules/combat.rs:491-502; Dauthi Slayer card def; 7 unit tests in shadow.rs; game script combat/106 approved; P4 validated 0->1, total validated 90->91)
+> Last audited: 2026-02-28 (Partner With validated; CR 702.124j confirmed; state/types.rs:213, state/stack.rs:394, rules/abilities.rs, rules/resolution.rs:1572, rules/commander.rs:487-540; Pir + Toothy card defs; 10 unit tests in partner_with.rs; game script baseline/107 approved; P3 validated 34->35, total validated 91->92)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 34        | 0        | 0       | 6    | 0   |
+| P3       | 40    | 35        | 0        | 0       | 5    | 0   |
 | P4       | 100   | 1         | 0        | 0       | 87   | 12  |
-| **Total**| **199**| **91**   | **2**    | **0**   | **94**| **12** |
+| **Total**| **199**| **92**   | **2**    | **0**   | **93**| **12** |
 
 ---
 
@@ -252,7 +252,7 @@ Keywords specifically relevant to Commander or multiplayer.
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Partner | 702.124 | P1 | `validated` | `rules/commander.rs` | — | `commander/` scripts | — | Two commanders; deck validation enforced |
 | Companion | 702.139 | P1 | `validated` | `rules/commander.rs`, `rules/engine.rs` | — | `commander/` scripts | — | Start in sideboard; bring to hand for {3} |
-| Partner With | 702.124 | P3 | `none` | — | — | — | Partner | Specific partner pairs; search on ETB |
+| Partner With | 702.124 | P3 | `validated` | `state/types.rs:213`, `state/stack.rs:394`, `rules/abilities.rs:1001,2104`, `rules/resolution.rs:1572`, `rules/commander.rs:487-540` | Pir, Imaginative Rascal; Toothy, Imaginary Friend | `baseline/107` | Partner | 10 unit tests in `partner_with.rs`; ETB trigger searches library; deck validation cross-checks names (CR 702.124j); prevents mixing with plain Partner (CR 702.124f) |
 | Friends Forever | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant from Stranger Things Secret Lair |
 | Choose a Background | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant for Background enchantments |
 | Doctor's Companion | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant from Doctor Who |

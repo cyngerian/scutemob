@@ -1,21 +1,21 @@
-# Ability WIP: Shadow
+# Ability WIP: Partner With
 
-ability: Shadow
-cr: 702.28
-priority: P4
+ability: Partner With
+cr: 702.124
+priority: P3
 started: 2026-02-28
 phase: closed
-plan_file: memory/abilities/ability-plan-shadow.md
+plan_file: memory/abilities/ability-plan-partner-with.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:571, hash.rs:451, view_model.rs:673, helpers.rs:16
-- [x] 2. Rule enforcement — combat.rs:491-502 (bidirectional shadow blocking check)
-- [x] 3. Trigger wiring — N/A (Shadow is a static evasion keyword, no triggers)
-- [x] 4. Unit tests — crates/engine/tests/shadow.rs (7 tests, all passing)
-- [x] 5. Card definition — crates/engine/src/cards/defs/dauthi_slayer.rs
-- [x] 6. Game script — test-data/generated-scripts/combat/106_dauthi_slayer_shadow_evasion.json
+- [x] 1. Enum variant (types.rs:199, hash.rs:451, stack.rs:374, stubs.rs:217, hash.rs:PendingTrigger, card_definition.rs:688, effects/mod.rs:2679, view_model.rs:674)
+- [x] 2. Rule enforcement (commander.rs:459 validate_partner_commanders extended; resolution.rs:1559 PartnerWithTrigger arm)
+- [x] 3. Trigger wiring (abilities.rs:~985 ETB generation; abilities.rs:~2091 flush branch)
+- [x] 4. Unit tests (crates/engine/tests/partner_with.rs — 10 tests)
+- [x] 5. Card definition — pir_imaginative_rascal.rs + toothy_imaginary_friend.rs
+- [x] 6. Game script — test-data/generated-scripts/baseline/107_pir_partner_with_toothy.json
 - [x] 7. Coverage doc update
 
 ## Review
-findings: 0 HIGH/MEDIUM, 4 LOW — clean (no fixes needed)
-review_file: memory/abilities/ability-review-shadow.md
+findings: 1 HIGH, 1 MEDIUM, 3 LOW — HIGH+MEDIUM fixed; 3 LOWs deferred
+review_file: memory/abilities/ability-review-partner-with.md

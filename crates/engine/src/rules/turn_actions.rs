@@ -93,6 +93,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             suspend_card_id: Some(card_id),
             is_hideaway_trigger: false,
             hideaway_count: None,
+            is_partner_with_trigger: false,
+            partner_with_name: None,
         });
     }
 
@@ -146,6 +148,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             suspend_card_id: None,
             is_hideaway_trigger: false,
             hideaway_count: None,
+            is_partner_with_trigger: false,
+            partner_with_name: None,
         });
     }
 
@@ -420,6 +424,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         suspend_card_id: None,
                         is_hideaway_trigger: false,
                         hideaway_count: None,
+                        is_partner_with_trigger: false,
+                        partner_with_name: None,
                     });
                 }
             }

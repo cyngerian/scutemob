@@ -686,6 +686,11 @@ pub struct TargetFilter {
     pub controller: TargetController,
     /// Subtype constraint.
     pub has_subtype: Option<SubType>,
+    /// Must have exactly this name (exact match). None = no restriction.
+    /// Used by "Partner with" ETB search (CR 702.124j) and similar
+    /// "search for a card named [name]" effects.
+    #[serde(default)]
+    pub has_name: Option<String>,
 }
 
 /// Whose control an object must be under for a target filter.

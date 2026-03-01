@@ -449,6 +449,11 @@ impl HashInto for KeywordAbility {
             }
             // Shadow (discriminant 68) -- CR 702.28
             KeywordAbility::Shadow => 68u8.hash_into(hasher),
+            // PartnerWith (discriminant 69) -- CR 702.124j
+            KeywordAbility::PartnerWith(name) => {
+                69u8.hash_into(hasher);
+                name.hash_into(hasher);
+            }
         }
     }
 }
@@ -1065,6 +1070,9 @@ impl HashInto for PendingTrigger {
         // CR 702.75a: is_hideaway_trigger -- hideaway ETB trigger marker
         self.is_hideaway_trigger.hash_into(hasher);
         self.hideaway_count.hash_into(hasher);
+        // CR 702.124j: is_partner_with_trigger -- partner with ETB trigger marker
+        self.is_partner_with_trigger.hash_into(hasher);
+        self.partner_with_name.hash_into(hasher);
     }
 }
 
@@ -1333,6 +1341,17 @@ impl HashInto for StackObjectKind {
                 16u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 hideaway_count.hash_into(hasher);
+            }
+            // PartnerWithTrigger (discriminant 17) — CR 702.124j
+            StackObjectKind::PartnerWithTrigger {
+                source_object,
+                partner_name,
+                target_player,
+            } => {
+                17u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                partner_name.hash_into(hasher);
+                target_player.hash_into(hasher);
             }
         }
     }
@@ -2172,6 +2191,7 @@ impl HashInto for TargetFilter {
         self.basic.hash_into(hasher);
         self.controller.hash_into(hasher);
         self.has_subtype.hash_into(hasher);
+        self.has_name.hash_into(hasher);
     }
 }
 

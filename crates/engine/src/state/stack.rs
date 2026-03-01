@@ -371,4 +371,29 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         hideaway_count: u32,
     },
+    /// CR 702.124j: Partner With ETB triggered ability on the stack.
+    ///
+    /// "When this permanent enters, target player may search their library
+    /// for a card named [name], reveal it, put it into their hand, then
+    /// shuffle."
+    ///
+    /// `source_object` is the permanent with "Partner with [name]" on the
+    /// battlefield.
+    /// `partner_name` is the exact name of the card to search for.
+    /// `target_player` is the targeted player who will search their library.
+    ///
+    /// When this trigger resolves:
+    /// 1. The target player searches their library for a card with the exact
+    ///    name `partner_name`.
+    /// 2. If found, reveal it and put it into their hand.
+    /// 3. Shuffle the target player's library.
+    ///
+    /// CR 603.3: The trigger goes on the stack and can be countered.
+    /// If the source has left the battlefield by resolution time (CR 400.7),
+    /// the trigger still resolves (it is already on the stack).
+    PartnerWithTrigger {
+        source_object: ObjectId,
+        partner_name: String,
+        target_player: crate::state::player::PlayerId,
+    },
 }

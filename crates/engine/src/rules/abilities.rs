@@ -527,6 +527,8 @@ pub fn handle_cycle_card(
             suspend_card_id: None,
             is_hideaway_trigger: false,
             hideaway_count: None,
+            is_partner_with_trigger: false,
+            partner_with_name: None,
         });
     }
 
@@ -846,6 +848,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             suspend_card_id: None,
                             is_hideaway_trigger: false,
                             hideaway_count: None,
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -913,6 +917,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 suspend_card_id: None,
                                 is_hideaway_trigger: false,
                                 hideaway_count: None,
+                                is_partner_with_trigger: false,
+                                partner_with_name: None,
                             });
                         }
                     }
@@ -969,7 +975,70 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             suspend_card_id: None,
                             is_hideaway_trigger: true,
                             hideaway_count: Some(n),
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
                         });
+                    }
+                }
+
+                // CR 702.124j: Partner With ETB trigger —
+                // "When this permanent enters, target player may search their
+                // library for a card named [name], reveal it, put it into their
+                // hand, then shuffle."
+                //
+                // CR 603.3: The trigger goes on the stack (can be countered).
+                // Target player: deterministic fallback = the entering permanent's
+                // controller (the player most likely to have the partner in their
+                // library in a Commander game).
+                {
+                    if let Some(obj) = state.objects.get(object_id) {
+                        let controller = obj.controller;
+                        let partner_with_names: Vec<String> = obj
+                            .characteristics
+                            .keywords
+                            .iter()
+                            .filter_map(|kw| {
+                                if let KeywordAbility::PartnerWith(name) = kw {
+                                    Some(name.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        for name in partner_with_names {
+                            triggers.push(PendingTrigger {
+                                source: *object_id,
+                                ability_index: 0, // unused for partner-with triggers
+                                controller,
+                                triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
+                                entering_object_id: Some(*object_id),
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                is_evoke_sacrifice: false,
+                                is_madness_trigger: false,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                is_miracle_trigger: false,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                is_unearth_trigger: false,
+                                is_exploit_trigger: false,
+                                is_modular_trigger: false,
+                                modular_counter_count: None,
+                                is_evolve_trigger: false,
+                                evolve_entering_creature: None,
+                                is_myriad_trigger: false,
+                                is_suspend_counter_trigger: false,
+                                is_suspend_cast_trigger: false,
+                                suspend_card_id: None,
+                                is_hideaway_trigger: false,
+                                hideaway_count: None,
+                                is_partner_with_trigger: true,
+                                partner_with_name: Some(name),
+                            });
+                        }
                     }
                 }
 
@@ -1116,6 +1185,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             suspend_card_id: None,
                                             is_hideaway_trigger: false,
                                             hideaway_count: None,
+                                            is_partner_with_trigger: false,
+                                            partner_with_name: None,
                                         });
                                     }
                                 }
@@ -1476,6 +1547,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             suspend_card_id: None,
                             is_hideaway_trigger: false,
                             hideaway_count: None,
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
                         });
                     }
                 }
@@ -1532,6 +1605,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             suspend_card_id: None,
                             is_hideaway_trigger: false,
                             hideaway_count: None,
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
                         });
                     }
                 }
@@ -1632,6 +1707,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             suspend_card_id: None,
                             is_hideaway_trigger: false,
                             hideaway_count: None,
+                            is_partner_with_trigger: false,
+                            partner_with_name: None,
                         });
                     }
                 }
@@ -1763,6 +1840,8 @@ fn collect_triggers_for_event(
                 suspend_card_id: None,
                 is_hideaway_trigger: false,
                 hideaway_count: None,
+                is_partner_with_trigger: false,
+                partner_with_name: None,
             });
         }
     }
@@ -2017,6 +2096,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     hideaway_count: trigger.hideaway_count.unwrap_or(4),
                 }
+            } else if trigger.is_partner_with_trigger {
+                // CR 702.124j: Partner With ETB trigger — "When this permanent enters,
+                // target player may search their library for a card named [name], reveal
+                // it, put it into their hand, then shuffle."
+                // Target player: deterministic fallback = the trigger controller (owner).
+                StackObjectKind::PartnerWithTrigger {
+                    source_object: trigger.source,
+                    partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
+                    target_player: trigger.controller,
+                }
             } else {
                 StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
@@ -2104,6 +2193,11 @@ fn compute_trigger_doubling(state: &GameState, trigger: &PendingTrigger) -> u32 
 /// battlefield, AND the trigger's source (the permanent with the ability) must be
 /// controlled by the doubler's controller, AND the triggering event must be
 /// `AnyPermanentEntersBattlefield` caused by an artifact or creature entering.
+///
+/// TODO: SelfEntersBattlefield triggers (PartnerWith, Hideaway, Exploit) are not doubled
+/// by Panharmonicon — fix holistically when addressing trigger doubling for all self-ETB
+/// triggers. These keyword ETB triggers use TriggerEvent::SelfEntersBattlefield, but this
+/// function only matches TriggerEvent::AnyPermanentEntersBattlefield.
 fn doubler_applies_to_trigger(
     state: &GameState,
     doubler: &TriggerDoubler,

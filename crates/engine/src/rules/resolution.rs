@@ -1355,6 +1355,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 suspend_card_id: Some(suspended_card),
                                 is_hideaway_trigger: false,
                                 hideaway_count: None,
+                                is_partner_with_trigger: false,
+                                partner_with_name: None,
                             });
                     }
                 }
@@ -1554,6 +1556,73 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 }
             }
         }
+
+        // CR 702.124j: Partner With ETB trigger resolution.
+        //
+        // "When this permanent enters, target player may search their library
+        // for a card named [name], reveal it, put it into their hand, then
+        // shuffle."
+        //
+        // Deterministic: always search (the 'may' is treated as 'do'), targeting
+        // the controller (the player most likely to have the partner in their
+        // library). If the card is not in the library, the search finds nothing
+        // and the library is shuffled anyway.
+        //
+        // CR 603.3: Trigger resolves even if source left the battlefield (CR 400.7).
+        StackObjectKind::PartnerWithTrigger {
+            source_object: _,
+            partner_name,
+            target_player,
+        } => {
+            let controller = stack_obj.controller;
+            let lib_zone = ZoneId::Library(target_player);
+
+            // Find the first card in the target player's library with the exact name.
+            // Use lowest ObjectId for determinism (im::OrdMap iteration order is
+            // by key, so iteration is already in ascending ObjectId order).
+            let matching_card: Option<crate::state::game_object::ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| obj.zone == lib_zone && obj.characteristics.name == partner_name)
+                .map(|(id, _)| *id)
+                .next();
+
+            if let Some(card_id) = matching_card {
+                // Found -- move to target player's hand (reveal is implicit since
+                // the card is being put into hand from a search).
+                let hand_zone = ZoneId::Hand(target_player);
+                let _ = state.move_object_to_zone(card_id, hand_zone);
+            }
+
+            // Whether found or not, shuffle the target player's library (CR 701.20).
+            // Use seeded LCG (same pattern as Hideaway) for determinism.
+            let seed = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            if let Some(zone) = state.zones.get_mut(&lib_zone) {
+                let ids: Vec<crate::state::game_object::ObjectId> = zone.object_ids();
+                let mut shuffled = ids;
+                let mut rng_state = seed;
+                for i in (1..shuffled.len()).rev() {
+                    rng_state = rng_state
+                        .wrapping_mul(6_364_136_223_846_793_005)
+                        .wrapping_add(1_442_695_040_888_963_407);
+                    let j = (rng_state as usize) % (i + 1);
+                    shuffled.swap(i, j);
+                }
+                // Reorder: move each card to the bottom in the new order.
+                for &card_id in &shuffled {
+                    let _ = state.move_object_to_bottom_of_zone(card_id, lib_zone);
+                }
+            }
+
+            events.push(GameEvent::LibraryShuffled {
+                player: target_player,
+            });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1659,7 +1728,8 @@ pub fn counter_stack_object(
         | StackObjectKind::MyriadTrigger { .. }
         | StackObjectKind::SuspendCounterTrigger { .. }
         | StackObjectKind::SuspendCastTrigger { .. }
-        | StackObjectKind::HideawayTrigger { .. } => {
+        | StackObjectKind::HideawayTrigger { .. }
+        | StackObjectKind::PartnerWithTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }

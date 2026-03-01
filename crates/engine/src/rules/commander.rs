@@ -456,19 +456,26 @@ pub fn handle_return_commander_to_command_zone(
 /// CR 702.124d: Each partner commander's tax and commander damage are tracked
 /// independently — casting commander A does not affect commander B's tax or
 /// damage totals.
+///
+/// CR 702.124f: Different partner abilities are distinct and cannot be combined.
+/// A card with "partner with [name]" can ONLY partner with the specifically named
+/// card. It cannot combine with plain "partner" or other partner variants.
+///
+/// CR 702.124j: "Partner with [name]" allows the named pair as co-commanders,
+/// provided each has a 'partner with' ability naming the other (cross-reference).
 pub fn validate_partner_commanders(
     cmd1: &CardDefinition,
     cmd2: &CardDefinition,
 ) -> Result<(), String> {
     use crate::state::KeywordAbility;
 
+    // Check for plain Partner keyword.
     let cmd1_has_partner = cmd1.abilities.iter().any(|a| {
         matches!(
             a,
             crate::cards::AbilityDefinition::Keyword(KeywordAbility::Partner)
         )
     });
-
     let cmd2_has_partner = cmd2.abilities.iter().any(|a| {
         matches!(
             a,
@@ -476,6 +483,61 @@ pub fn validate_partner_commanders(
         )
     });
 
+    // Check for "Partner with [name]" keyword.
+    let cmd1_partner_with: Option<&str> = cmd1.abilities.iter().find_map(|a| {
+        if let crate::cards::AbilityDefinition::Keyword(KeywordAbility::PartnerWith(name)) = a {
+            Some(name.as_str())
+        } else {
+            None
+        }
+    });
+    let cmd2_partner_with: Option<&str> = cmd2.abilities.iter().find_map(|a| {
+        if let crate::cards::AbilityDefinition::Keyword(KeywordAbility::PartnerWith(name)) = a {
+            Some(name.as_str())
+        } else {
+            None
+        }
+    });
+
+    // Case 1: Both have plain Partner — valid pair (CR 702.124h).
+    if cmd1_has_partner && cmd2_has_partner {
+        return Ok(());
+    }
+
+    // Case 2: Both have PartnerWith — verify names cross-reference each other
+    // (CR 702.124j: each must have 'partner with [name]' naming the other).
+    if let (Some(pw1), Some(pw2)) = (cmd1_partner_with, cmd2_partner_with) {
+        if pw1 == cmd2.name && pw2 == cmd1.name {
+            return Ok(());
+        } else {
+            return Err(format!(
+                "'{}' has partner with '{}' but '{}' has partner with '{}' \
+                 -- names don't match (CR 702.124j)",
+                cmd1.name, pw1, cmd2.name, pw2
+            ));
+        }
+    }
+
+    // Case 3: Mixed Partner + PartnerWith — not allowed (CR 702.124f).
+    if (cmd1_has_partner && cmd2_partner_with.is_some())
+        || (cmd2_has_partner && cmd1_partner_with.is_some())
+    {
+        return Err(format!(
+            "'Partner' and 'Partner with [name]' cannot be combined (CR 702.124f): \
+             '{}' and '{}'",
+            cmd1.name, cmd2.name
+        ));
+    }
+
+    // Case 4: One has PartnerWith but the other has nothing — incomplete pair.
+    if cmd1_partner_with.is_some() || cmd2_partner_with.is_some() {
+        return Err(format!(
+            "partner with pairing incomplete: '{}' and '{}' (CR 702.124j)",
+            cmd1.name, cmd2.name
+        ));
+    }
+
+    // Case 5: Neither has plain Partner and neither has PartnerWith.
     if !cmd1_has_partner && !cmd2_has_partner {
         return Err(format!(
             "neither '{}' nor '{}' has partner",
@@ -488,14 +550,11 @@ pub fn validate_partner_commanders(
             cmd1.name
         ));
     }
-    if !cmd2_has_partner {
-        return Err(format!(
-            "'{}' does not have partner (CR 702.124h)",
-            cmd2.name
-        ));
-    }
 
-    Ok(())
+    Err(format!(
+        "'{}' does not have partner (CR 702.124h)",
+        cmd2.name
+    ))
 }
 
 // ── Mulligan (CR 103.5 / CR 103.5c) ───────────────────────────────────────────

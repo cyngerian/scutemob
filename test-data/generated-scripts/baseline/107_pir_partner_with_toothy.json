@@ -1,0 +1,201 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_107",
+    "name": "Pir ETB Partner With trigger — Toothy found in library",
+    "description": "p1 casts Pir, Imaginative Rascal ({2}{G}). When Pir enters the battlefield, its 'Partner with Toothy, Imaginary Friend' ETB trigger fires (CR 702.124j): target player may search their library for a card named Toothy, Imaginary Friend, reveal it, put it into their hand, then shuffle. p1 chooses to search and finds Toothy. After the trigger resolves: Pir is on the battlefield under p1's control, Toothy is in p1's hand, and p1's library has been shuffled (is empty — Toothy was the only card).",
+    "cr_sections_tested": ["601.2", "603.2", "608.2", "702.124j"],
+    "corner_case_ref": null,
+    "tags": ["etb-trigger", "partner-with", "search-library", "pir", "toothy", "commander"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Pir, Imaginative Rascal oracle text: 'Partner with Toothy, Imaginary Friend (When this creature enters, target player may put Toothy into their hand from their library, then shuffle.)'. CR 702.124j defines the Partner With ETB trigger: 'When this permanent enters, target player may search their library for a card named [name], reveal it, put it into their hand, then shuffle.' The trigger uses a StackObjectKind::PartnerWithTrigger. Resolution: p1 searches library for 'Toothy, Imaginary Friend', reveals it, puts it in hand, shuffles. Mana setup: p1 has {2}{G} to cast Pir ({2}{G}). Library contains exactly one card (Toothy). After trigger resolves: Pir on battlefield, Toothy in p1 hand, library empty (shuffled after removing Toothy). Note: the caller-provided CR refs for search (701.19) appear to reference Regenerate in current rules; the correct governing rule is 702.124j which encodes both the trigger and search-reveal-put-into-hand-shuffle instruction. Pir and Toothy are not in the engine's Available Cards list — card_ids are provided by caller: 'pir-imaginative-rascal' and 'toothy-imaginary-friend'.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "generic": 2, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Pir, Imaginative Rascal", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Toothy, Imaginary Friend", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Pir, Imaginative Rascal from hand, paying {2}{G}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Pir in p1 hand, Toothy in p1 library, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Pir, Imaginative Rascal",
+          "targets": [],
+          "mana_paid": { "generic": 2, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Pir, Imaginative Rascal; pays {2}{G} from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Pir on stack, p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Pir moved from hand to stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Pir resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Pir, Imaginative Rascal",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Pir, Imaginative Rascal",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Pir, Imaginative Rascal enters the battlefield under p1's control."
+            },
+            {
+              "effect": "trigger_etb",
+              "source": "Pir, Imaginative Rascal",
+              "trigger_condition": "partner_with_enters",
+              "cr_ref": "603.2",
+              "note": "CR 603.2: 'Partner with Toothy' ETB trigger fires; goes on stack targeting p1 (CR 702.124j)."
+            }
+          ],
+          "note": "Pir enters battlefield; Partner With ETB trigger placed on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Pir enters: Pir on battlefield, Partner With trigger on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Pir, Imaginative Rascal" }
+              ]
+            }
+          },
+          "note": "Pir on battlefield; Partner With trigger awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Partner With trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Pir, Imaginative Rascal Partner With trigger",
+          "resolution": [
+            {
+              "effect": "search_library_for_named_card",
+              "controller": "p1",
+              "target_player": "p1",
+              "card_name": "Toothy, Imaginary Friend",
+              "result": "Toothy, Imaginary Friend",
+              "cr_ref": "702.124j",
+              "note": "CR 702.124j: target player (p1) searches library for 'Toothy, Imaginary Friend', finds it."
+            },
+            {
+              "effect": "reveal_card",
+              "card": "Toothy, Imaginary Friend",
+              "controller": "p1",
+              "cr_ref": "702.124j",
+              "note": "CR 702.124j: Toothy, Imaginary Friend is revealed to all players."
+            },
+            {
+              "effect": "put_into_hand",
+              "card": "Toothy, Imaginary Friend",
+              "player": "p1",
+              "cr_ref": "702.124j",
+              "note": "CR 702.124j: Toothy, Imaginary Friend moves from library to p1's hand."
+            },
+            {
+              "effect": "shuffle_library",
+              "player": "p1",
+              "cr_ref": "702.124j",
+              "note": "CR 702.124j: p1 shuffles their library after the search."
+            }
+          ],
+          "note": "Partner With trigger resolves: p1 searches, reveals, puts Toothy into hand, shuffles."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Pir on battlefield, Toothy in p1 hand, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Pir, Imaginative Rascal" }
+              ]
+            },
+            "zones.hand.p1": {
+              "includes": [
+                { "card": "Toothy, Imaginary Friend" }
+              ]
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": "Pir on battlefield, Toothy successfully retrieved into p1's hand, stack empty."
+        }
+      ]
+    }
+  ]
+}

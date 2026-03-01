@@ -134,6 +134,8 @@ pub fn handle_choose_miracle(
         suspend_card_id: None,
         is_hideaway_trigger: false,
         hideaway_count: None,
+        is_partner_with_trigger: false,
+        partner_with_name: None,
     });
 
     Ok(vec![])

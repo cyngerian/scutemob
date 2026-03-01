@@ -197,6 +197,20 @@ pub enum KeywordAbility {
     /// CR 702.124: Partner keyword — allows two legendary creatures to serve as
     /// commanders together. Both commanders must have partner.
     Partner,
+    /// CR 702.124j: "Partner with [name]" represents two abilities:
+    /// (1) Deck construction: allows this card and the named card as co-commanders,
+    ///     provided each has a 'partner with [name]' ability naming the other.
+    /// (2) ETB trigger: "When this permanent enters, target player may search their
+    ///     library for a card named [name], reveal it, put it into their hand, then
+    ///     shuffle."
+    ///
+    /// The `String` is the exact name of the partner card. The deck validation
+    /// in `commander.rs` checks that both commanders have matching PartnerWith
+    /// names. The ETB trigger is wired in `abilities.rs` via PendingTrigger.
+    ///
+    /// CR 702.124f: PartnerWith cannot combine with plain Partner or other
+    /// partner variants.
+    PartnerWith(String),
     /// CR 402.2: "You have no maximum hand size."
     ///
     /// Placed on permanents (Thought Vessel, Reliquary Tower). When a permanent

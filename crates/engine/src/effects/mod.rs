@@ -1993,6 +1993,8 @@ fn execute_effect_inner(
                                         suspend_card_id: None,
                                         is_hideaway_trigger: false,
                                         hideaway_count: None,
+                                        is_partner_with_trigger: false,
+                                        partner_with_name: None,
                                     });
                                 }
                             }
@@ -2604,6 +2606,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         suspend_card_id: None,
                         is_hideaway_trigger: false,
                         hideaway_count: None,
+                        is_partner_with_trigger: false,
+                        partner_with_name: None,
                     });
                 }
             }
@@ -2673,6 +2677,12 @@ pub fn matches_filter(chars: &Characteristics, filter: &TargetFilter) -> bool {
     }
     if let Some(st) = &filter.has_subtype {
         if !chars.subtypes.contains(st) {
+            return false;
+        }
+    }
+    // CR 702.124j: exact-name filter for "search for a card named [name]"
+    if let Some(name) = &filter.has_name {
+        if &chars.name != name {
             return false;
         }
     }

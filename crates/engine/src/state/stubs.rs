@@ -214,6 +214,19 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_hideaway_trigger` is true.
     #[serde(default)]
     pub hideaway_count: Option<u32>,
+    /// CR 702.124j: If true, this pending trigger is a Partner With ETB trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::PartnerWithTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `partner_with_name` carries the partner's exact card name. The
+    /// `ability_index` field is unused when this is true.
+    #[serde(default)]
+    pub is_partner_with_trigger: bool,
+    /// CR 702.124j: The exact name of the partner card to search for.
+    ///
+    /// Only meaningful when `is_partner_with_trigger` is true.
+    #[serde(default)]
+    pub partner_with_name: Option<String>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).
