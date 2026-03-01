@@ -657,6 +657,20 @@ pub enum KeywordAbility {
     /// Implemented via a custom `StackObjectKind::RampageTrigger` so that
     /// the blocker count can be queried from `state.combat` at resolution time.
     Rampage(u32),
+    /// CR 702.39: Provoke -- triggered ability.
+    /// "Whenever this creature attacks, you may have target creature defending
+    /// player controls untap and block this creature this combat if able."
+    ///
+    /// CR 702.39b: Multiple instances of provoke each trigger separately.
+    ///
+    /// Implemented via a custom `StackObjectKind::ProvokeTrigger`. At trigger
+    /// collection time (AttackersDeclared handler), a target creature controlled
+    /// by the defending player is selected deterministically (first by ObjectId
+    /// order). The trigger is not placed on the stack if no valid target exists
+    /// (CR 603.3d). On resolution: untap the provoked creature, then add a
+    /// forced-block requirement to `CombatState::forced_blocks` (enforced in
+    /// `handle_declare_blockers` per CR 509.1c).
+    Provoke,
 }
 
 /// All creature subtypes from CR 205.3m.

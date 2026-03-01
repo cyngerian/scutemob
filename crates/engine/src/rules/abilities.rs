@@ -536,6 +536,8 @@ pub fn handle_cycle_card(
             flanking_blocker_id: None,
             is_rampage_trigger: false,
             rampage_n: None,
+            is_provoke_trigger: false,
+            provoke_target_creature: None,
         });
     }
 
@@ -865,6 +867,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: None,
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -940,6 +944,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 flanking_blocker_id: None,
                                 is_rampage_trigger: false,
                                 rampage_n: None,
+                                is_provoke_trigger: false,
+                                provoke_target_creature: None,
                             });
                         }
                     }
@@ -1004,6 +1010,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: None,
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         });
                     }
                 }
@@ -1070,6 +1078,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 flanking_blocker_id: None,
                                 is_rampage_trigger: false,
                                 rampage_n: None,
+                                is_provoke_trigger: false,
+                                provoke_target_creature: None,
                             });
                         }
                     }
@@ -1226,6 +1236,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             flanking_blocker_id: None,
                                             is_rampage_trigger: false,
                                             rampage_n: None,
+                                            is_provoke_trigger: false,
+                                            provoke_target_creature: None,
                                         });
                                     }
                                 }
@@ -1389,6 +1401,56 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             {
                                 if ta.effect.is_none() && ta.description.starts_with("Myriad") {
                                     t.is_myriad_trigger = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // CR 702.39a/b: Tag provoke triggers for special stack handling.
+                    // A SelfAttacks trigger is a provoke trigger if the triggered ability
+                    // description starts with "Provoke" (set by builder.rs). At collection
+                    // time, select a target creature the defending player controls
+                    // (deterministic: first by ObjectId order in OrdMap).
+                    // CR 603.3d: If no valid target exists, provoke_target_creature is None
+                    // and the trigger will not be placed on the stack in flush_pending_triggers.
+                    // CR 702.39b: When a creature has multiple Provoke instances, each trigger
+                    // independently selects a target. Track already-assigned targets so that
+                    // successive triggers from the same attacker pick different creatures.
+                    let mut provoke_targets_used: Vec<ObjectId> = Vec::new();
+                    for t in &mut triggers[pre_len..] {
+                        if let Some(obj) = state.objects.get(&t.source) {
+                            if let Some(ta) =
+                                obj.characteristics.triggered_abilities.get(t.ability_index)
+                            {
+                                if ta.description.starts_with("Provoke") {
+                                    t.is_provoke_trigger = true;
+
+                                    // Select target: first creature controlled by defending player
+                                    // that has not already been claimed by a prior provoke trigger
+                                    // from this attacker this combat.
+                                    if let Some(dp) = defending_player {
+                                        let target = state
+                                            .objects
+                                            .values()
+                                            .filter(|o| {
+                                                o.zone == ZoneId::Battlefield
+                                                    && o.controller == dp
+                                                    && !provoke_targets_used.contains(&o.id)
+                                                    && crate::rules::layers::calculate_characteristics(
+                                                        state, o.id,
+                                                    )
+                                                    .map(|c| {
+                                                        c.card_types.contains(&CardType::Creature)
+                                                    })
+                                                    .unwrap_or(false)
+                                            })
+                                            .map(|o| o.id)
+                                            .next(); // OrdMap iteration is by ObjectId order
+                                        t.provoke_target_creature = target;
+                                        if let Some(tid) = target {
+                                            provoke_targets_used.push(tid);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1568,6 +1630,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: Some(*blocker_id),
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         });
                     }
                 }
@@ -1741,6 +1805,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: None,
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         });
                     }
                 }
@@ -1805,6 +1871,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: None,
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         });
                     }
                 }
@@ -1913,6 +1981,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             flanking_blocker_id: None,
                             is_rampage_trigger: false,
                             rampage_n: None,
+                            is_provoke_trigger: false,
+                            provoke_target_creature: None,
                         });
                     }
                 }
@@ -2020,6 +2090,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         flanking_blocker_id: None,
                                         is_rampage_trigger: false,
                                         rampage_n: None,
+                                        is_provoke_trigger: false,
+                                        provoke_target_creature: None,
                                     });
                                 }
                             }
@@ -2140,6 +2212,8 @@ fn collect_triggers_for_event(
                 flanking_blocker_id: None,
                 is_rampage_trigger: false,
                 rampage_n: None,
+                is_provoke_trigger: false,
+                provoke_target_creature: None,
             });
         }
     }
@@ -2234,6 +2308,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Object(attacker_id),
                 zone_at_cast: None,
             }]
+        } else if trigger.is_provoke_trigger {
+            // CR 702.39a: Provoke triggers target the provoked creature.
+            // Set it as Target::Object so target legality can be checked at resolution.
+            if let Some(provoked) = trigger.provoke_target_creature {
+                vec![SpellTarget {
+                    target: Target::Object(provoked),
+                    zone_at_cast: Some(ZoneId::Battlefield),
+                }]
+            } else {
+                vec![]
+            }
         } else {
             vec![]
         };
@@ -2429,6 +2514,23 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 StackObjectKind::RampageTrigger {
                     source_object: trigger.source,
                     rampage_n: trigger.rampage_n.unwrap_or(1),
+                }
+            } else if trigger.is_provoke_trigger {
+                // CR 702.39a: Provoke SelfAttacks trigger -- "Whenever this creature
+                // attacks, you may have target creature defending player controls
+                // untap and block this creature this combat if able."
+                //
+                // If no valid target was found at trigger-collection time, skip
+                // placing this trigger on the stack (CR 603.3d -- triggered ability
+                // with no legal targets is not placed on the stack).
+                if let Some(provoked) = trigger.provoke_target_creature {
+                    StackObjectKind::ProvokeTrigger {
+                        source_object: trigger.source,
+                        provoked_creature: provoked,
+                    }
+                } else {
+                    // No valid target -- trigger is not placed on the stack.
+                    continue;
                 }
             } else {
                 StackObjectKind::TriggeredAbility {

@@ -52,6 +52,16 @@ pub struct CombatState {
     /// Defending players who have already declared blockers this step.
     /// In multiplayer, each defending player declares independently (CR 509.1).
     pub defenders_declared: OrdSet<PlayerId>,
+
+    /// CR 702.39a / CR 509.1c: Blocking requirements created by Provoke triggers.
+    ///
+    /// Each entry maps a provoked creature (ObjectId) to the attacker it must block
+    /// (ObjectId of the provoking creature) "if able". Populated when a
+    /// `StackObjectKind::ProvokeTrigger` resolves. Checked in `handle_declare_blockers`
+    /// to enforce CR 509.1c (blocking requirements cannot override restrictions).
+    ///
+    /// Cleared naturally when `CombatState` is dropped at end of combat.
+    pub forced_blocks: OrdMap<ObjectId, ObjectId>,
 }
 
 impl CombatState {
@@ -64,6 +74,7 @@ impl CombatState {
             damage_assignment_order: OrdMap::new(),
             first_strike_damage_resolved: false,
             defenders_declared: OrdSet::new(),
+            forced_blocks: OrdMap::new(),
         }
     }
 

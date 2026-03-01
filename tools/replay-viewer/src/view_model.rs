@@ -479,6 +479,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::RampageTrigger { source_object, .. } => {
             ("rampage_trigger", Some(*source_object))
         }
+        StackObjectKind::ProvokeTrigger { source_object, .. } => {
+            ("provoke_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -693,5 +696,7 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Ingest => "Ingest".to_string(),
         KeywordAbility::Flanking => "Flanking".to_string(),
         KeywordAbility::Bushido(n) => format!("Bushido {n}"),
+        KeywordAbility::Rampage(n) => format!("Rampage {n}"),
+        KeywordAbility::Provoke => "Provoke".to_string(),
     }
 }

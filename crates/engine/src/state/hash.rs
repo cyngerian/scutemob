@@ -478,6 +478,8 @@ impl HashInto for KeywordAbility {
                 78u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Provoke (discriminant 79) -- CR 702.39
+            KeywordAbility::Provoke => 79u8.hash_into(hasher),
         }
     }
 }
@@ -1108,6 +1110,9 @@ impl HashInto for PendingTrigger {
         // CR 702.23a: is_rampage_trigger -- rampage becomes-blocked trigger marker
         self.is_rampage_trigger.hash_into(hasher);
         self.rampage_n.hash_into(hasher);
+        // CR 702.39a: is_provoke_trigger -- provoke attack trigger marker
+        self.is_provoke_trigger.hash_into(hasher);
+        self.provoke_target_creature.hash_into(hasher);
     }
 }
 
@@ -1417,6 +1422,15 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 rampage_n.hash_into(hasher);
             }
+            // ProvokeTrigger (discriminant 21) -- CR 702.39a
+            StackObjectKind::ProvokeTrigger {
+                source_object,
+                provoked_creature,
+            } => {
+                21u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                provoked_creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -1485,6 +1499,8 @@ impl HashInto for CombatState {
         self.damage_assignment_order.hash_into(hasher);
         self.first_strike_damage_resolved.hash_into(hasher);
         self.defenders_declared.hash_into(hasher);
+        // CR 702.39a / CR 509.1c: forced_blocks -- provoke blocking requirements
+        self.forced_blocks.hash_into(hasher);
     }
 }
 

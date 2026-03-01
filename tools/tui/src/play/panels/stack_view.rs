@@ -86,6 +86,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::RampageTrigger { source_object, .. } => {
                     ("Rampage: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::ProvokeTrigger { source_object, .. } => {
+                    ("Provoke: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

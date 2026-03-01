@@ -266,6 +266,24 @@ pub struct PendingTrigger {
     /// Only meaningful when `is_rampage_trigger` is true.
     #[serde(default)]
     pub rampage_n: Option<u32>,
+    /// CR 702.39a: If true, this pending trigger is a Provoke trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::ProvokeTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `provoke_target_creature` carries the ObjectId of the creature to be
+    /// provoked. The `ability_index` field is unused when this is true.
+    ///
+    /// If `provoke_target_creature` is `None` (no eligible target exists),
+    /// the trigger is not placed on the stack (CR 603.3d).
+    #[serde(default)]
+    pub is_provoke_trigger: bool,
+    /// CR 702.39a: The ObjectId of the creature that must block "if able".
+    ///
+    /// Only meaningful when `is_provoke_trigger` is true. This is the target
+    /// creature the defending player controls. Set at trigger-collection time
+    /// in the AttackersDeclared handler in `abilities.rs`.
+    #[serde(default)]
+    pub provoke_target_creature: Option<ObjectId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

@@ -741,6 +741,25 @@ impl GameStateBuilder {
                         effect: None, // Custom resolution via RampageTrigger
                     });
                 }
+
+                // CR 702.39a: Provoke -- "Whenever this creature attacks, you may
+                // have target creature defending player controls untap and block this
+                // creature this combat if able."
+                // Each keyword instance generates one TriggeredAbilityDef (CR 702.39b).
+                // The actual untap + forced-block logic is in StackObjectKind::ProvokeTrigger
+                // resolution. The description starts with "Provoke" so abilities.rs can
+                // identify and tag it as a provoke trigger at collection time.
+                if matches!(kw, KeywordAbility::Provoke) {
+                    triggered_abilities.push(TriggeredAbilityDef {
+                        trigger_on: TriggerEvent::SelfAttacks,
+                        intervening_if: None,
+                        description: "Provoke (CR 702.39a): Whenever this creature attacks, \
+                                      you may have target creature defending player controls \
+                                      untap and block this creature this combat if able."
+                            .to_string(),
+                        effect: None, // Handled by ProvokeTrigger resolution
+                    });
+                }
             }
 
             let characteristics = Characteristics {

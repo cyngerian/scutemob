@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Rampage validated; CR 702.23 confirmed; types.rs:649-659, stack.rs:448-468, builder.rs:724-743, abilities.rs:1596-1616+2425-2431, resolution.rs:1723-1743; Wolverine Pack card def; 8 unit tests in rampage.rs; game script combat/116; P4 validated 8->9, total validated 100->101)
+> Last audited: 2026-03-01 (Provoke validated; CR 702.39 confirmed; types.rs:660-673, state/stack.rs:478-491, state/combat.rs:58-64, state/builder.rs:745-761, rules/abilities.rs:1409-1452+2311-2530, rules/resolution.rs:1788-1830, rules/combat.rs:630-797; Goblin Grappler card def; 7 unit tests in provoke.rs; game script combat/117; P4 validated 9->10, total validated 101->102)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 100   | 9         | 0        | 0       | 79   | 12  |
-| **Total**| **199**| **101**  | **2**    | **0**   | **84**| **12** |
+| P4       | 100   | 10        | 0        | 0       | 78   | 12  |
+| **Total**| **199**| **102**  | **2**    | **0**   | **83**| **12** |
 
 ---
 
@@ -170,7 +170,7 @@ Keywords that modify combat or trigger during combat.
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Flanking | 702.25 | P4 | `validated` | `state/types.rs:639-643`, `rules/abilities.rs:1468-1556`, `rules/resolution.rs:1675-1681`, `rules/combat.rs:646-660` | Suq'Ata Lancer (`defs/suq_ata_lancer.rs`) | `combat/114` | — | KeywordAbility::Flanking enum; triggered ability fires at declare blockers (CR 702.25a); blocker without flanking gets -1/-1 until EOT; multiple instances trigger separately (CR 702.25b); FlankingTrigger stack kind; flanking_blocker_id on PendingTrigger; 7 unit tests in `tests/flanking.rs`; game script combat/114 validated |
 | Bushido | 702.45 | P4 | `validated` | `state/types.rs:644-648`, `state/builder.rs:687-722`, `rules/abilities.rs:1561-1578` | Devoted Retainer (`defs/devoted_retainer.rs`) | `combat/115` | — | KeywordAbility::Bushido(N) enum; two TriggeredAbilityDefs per instance via builder (SelfBlocks + SelfBecomesBlocked); ApplyContinuousEffect with ModifyBoth(+N) until EOT; SelfBecomesBlocked dispatch in abilities.rs fires once per attacker (CR 509.1h); multiple instances trigger separately (CR 702.45b); 7 unit tests in `tests/bushido.rs`; game script combat/115 validated |
-| Provoke | 702.39 | P4 | `none` | — | — | — | — | Force target creature to block this |
+| Provoke | 702.39 | P4 | `validated` | `state/types.rs:660-673`, `state/stack.rs:478-491`, `state/combat.rs:58-64`, `state/builder.rs:745-761`, `rules/abilities.rs:1409-1452+2311-2530`, `rules/resolution.rs:1788-1830`, `rules/combat.rs:630-797` | Goblin Grappler (`defs/goblin_grappler.rs`) | `combat/117` | — | KeywordAbility::Provoke enum; triggered ability fires at declare attackers (CR 702.39a); ProvokeTrigger stack kind with source_object + provoked_creature; untaps provoked creature on resolution; adds forced_blocks entry to CombatState (CR 509.1c); forced-block enforcement in combat.rs checks evasion/restrictions before requiring block; multiple instances trigger separately targeting different creatures (CR 702.39b); no trigger when no valid target (CR 603.3d); multiplayer-correct (targets only defending player's creatures, CR 508.5a); 7 unit tests in `tests/provoke.rs`; game script combat/117 validated |
 | Exalted | 702.83 | P2 | `validated` | `state/types.rs:256`, `state/hash.rs:349+904+946`, `state/game_object.rs:146`, `state/stubs.rs:74`, `state/builder.rs:396-420`, `rules/abilities.rs:667-697,983-989` | Akrasan Squire | `combat/067` | — | KeywordAbility::Exalted enum + TriggerEvent::ControllerCreatureAttacksAlone; exalted_attacker_id on PendingTrigger; builder keyword-to-trigger translation; check_triggers attacks-alone detection + flush_pending_triggers Target::Object wiring; 8 unit tests in `tests/exalted.rs`; game script pending_review |
 | Battle Cry | 702.91 | P3 | `validated` | `state/types.rs:309`, `state/hash.rs:369-370+1976`, `cards/card_definition.rs:750-753`, `state/builder.rs:438-451`, `effects/mod.rs:1995-1998`, `tools/replay-viewer/src/view_model.rs:608` | Signal Pest | `combat/076` | — | KeywordAbility::BattleCry enum + ForEachTarget::EachOtherAttackingCreature; builder keyword-to-trigger translation (WhenAttacks + ForEach over EachOtherAttackingCreature with +1/+0); effects collect_for_each arm excludes source; 7 unit tests in `tests/battle_cry.rs`; Signal Pest card def in definitions.rs:1866; game script combat/076 validated |
 | Myriad | 702.116 | P3 | `validated` | state/types.rs, state/stack.rs, state/stubs.rs, state/builder.rs, state/game_object.rs, rules/abilities.rs, rules/resolution.rs, rules/turn_actions.rs | Warchief Giant | myriad.rs (7) | combat/093 | Token copies attacking each opponent; end-of-combat exile; myriad_exile_at_eoc flag; multiple instances trigger separately (CR 702.116b) |
@@ -535,3 +535,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Bushido (CR 702.45) — validated 2026-03-01 (script combat/115, Devoted Retainer, 7 unit tests in bushido.rs).
 
 **Resolved**: Rampage (CR 702.23) — validated 2026-03-01 (script combat/116, Wolverine Pack, 8 unit tests in rampage.rs).
+
+**Resolved**: Provoke (CR 702.39) — validated 2026-03-01 (script combat/117, Goblin Grappler, 7 unit tests in provoke.rs).

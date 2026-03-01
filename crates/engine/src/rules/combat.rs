@@ -627,6 +627,178 @@ pub fn handle_declare_blockers(
         }
     }
 
+    // CR 702.39a / CR 509.1c: Provoke forced-block requirements.
+    //
+    // Each provoked creature must block its provoking attacker if able.
+    // "If able" means the creature is on the battlefield, untapped, is a creature,
+    // can legally block the attacker (no evasion restrictions prevent it), and is
+    // controlled by the declaring player. If ALL conditions are met and the creature
+    // is NOT in the blocker list blocking its provoking attacker, the declaration is
+    // illegal (CR 509.1c -- must maximize obeyed requirements without violating restrictions).
+    {
+        // Collect forced-block entries for this player (immutable borrow scope).
+        let forced: Vec<(ObjectId, ObjectId)> = state
+            .combat
+            .as_ref()
+            .map(|c| c.forced_blocks.iter().map(|(&k, &v)| (k, v)).collect())
+            .unwrap_or_default();
+
+        for (provoked_id, must_block_attacker) in forced {
+            // Only check if the provoked creature is controlled by this declaring player.
+            let provoked_obj = match state.objects.get(&provoked_id) {
+                Some(o) if o.controller == player && o.zone == ZoneId::Battlefield => o,
+                _ => continue, // Not this player's creature or not on battlefield
+            };
+
+            // Check if the creature is tapped (can't block if tapped).
+            if provoked_obj.status.tapped {
+                continue;
+            }
+
+            // Check if the attacker is still a declared attacker.
+            let attacker_still_active = state
+                .combat
+                .as_ref()
+                .map(|c| c.attackers.contains_key(&must_block_attacker))
+                .unwrap_or(false);
+            if !attacker_still_active {
+                continue;
+            }
+
+            // Compute characteristics for both the provoked creature and the attacker.
+            // If either is missing characteristics (no longer a creature, etc.), skip.
+            let provoked_chars = match calculate_characteristics(state, provoked_id) {
+                Some(c) if c.card_types.contains(&CardType::Creature) => c,
+                _ => continue, // No longer a creature -- requirement impossible
+            };
+            let attacker_chars = match calculate_characteristics(state, must_block_attacker) {
+                Some(c) => c,
+                None => continue, // Attacker gone -- skip
+            };
+
+            // CR 509.1b / CR 702.9a: Flying evasion check.
+            let attacker_has_flying = attacker_chars.keywords.contains(&KeywordAbility::Flying);
+            let blocker_has_flying = provoked_chars.keywords.contains(&KeywordAbility::Flying);
+            let blocker_has_reach = provoked_chars.keywords.contains(&KeywordAbility::Reach);
+            if attacker_has_flying && !blocker_has_flying && !blocker_has_reach {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 702.147a: Decayed creatures can't block.
+            if provoked_chars.keywords.contains(&KeywordAbility::Decayed) {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 509.1: CantBeBlocked keyword -- creature can't be blocked at all.
+            if attacker_chars
+                .keywords
+                .contains(&KeywordAbility::CantBeBlocked)
+            {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 702.13b: Intimidate -- can only be blocked by artifact creatures
+            // and/or creatures sharing a color.
+            if attacker_chars
+                .keywords
+                .contains(&KeywordAbility::Intimidate)
+            {
+                let blocker_is_artifact_creature =
+                    provoked_chars.card_types.contains(&CardType::Artifact)
+                        && provoked_chars.card_types.contains(&CardType::Creature);
+                let shares_a_color = attacker_chars
+                    .colors
+                    .iter()
+                    .any(|c| provoked_chars.colors.contains(c));
+                if !blocker_is_artifact_creature && !shares_a_color {
+                    continue; // Requirement impossible -- skip
+                }
+            }
+
+            // CR 702.36b: Fear -- can only be blocked by artifact creatures and/or black.
+            if attacker_chars.keywords.contains(&KeywordAbility::Fear) {
+                let blocker_is_artifact_creature =
+                    provoked_chars.card_types.contains(&CardType::Artifact)
+                        && provoked_chars.card_types.contains(&CardType::Creature);
+                let blocker_is_black = provoked_chars.colors.contains(&Color::Black);
+                if !blocker_is_artifact_creature && !blocker_is_black {
+                    continue; // Requirement impossible -- skip
+                }
+            }
+
+            // CR 702.28b: Shadow mismatch.
+            let attacker_has_shadow = attacker_chars.keywords.contains(&KeywordAbility::Shadow);
+            let blocker_has_shadow = provoked_chars.keywords.contains(&KeywordAbility::Shadow);
+            if attacker_has_shadow != blocker_has_shadow {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 702.31b: Horsemanship.
+            if attacker_chars
+                .keywords
+                .contains(&KeywordAbility::Horsemanship)
+                && !provoked_chars
+                    .keywords
+                    .contains(&KeywordAbility::Horsemanship)
+            {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 702.118b: Skulk -- can't be blocked by creatures with greater power.
+            if attacker_chars.keywords.contains(&KeywordAbility::Skulk) {
+                let attacker_power = attacker_chars.power.unwrap_or(0);
+                let blocker_power = provoked_chars.power.unwrap_or(0);
+                if blocker_power > attacker_power {
+                    continue; // Requirement impossible -- skip
+                }
+            }
+
+            // CR 702.16f: Protection prevents blocking.
+            if !super::protection::can_block(&attacker_chars.keywords, &provoked_chars) {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 702.14c: Landwalk -- can't be blocked if defender controls matching land.
+            let mut landwalk_blocks = false;
+            for kw in attacker_chars.keywords.iter() {
+                if let KeywordAbility::Landwalk(lw_type) = kw {
+                    let defender_has_matching_land = state.objects.values().any(|obj| {
+                        obj.zone == ZoneId::Battlefield && obj.controller == player && {
+                            let chars =
+                                calculate_characteristics(state, obj.id).unwrap_or_default();
+                            chars.card_types.contains(&CardType::Land)
+                                && match lw_type {
+                                    LandwalkType::BasicType(st) => chars.subtypes.contains(st),
+                                    LandwalkType::Nonbasic => {
+                                        !chars.supertypes.contains(&SuperType::Basic)
+                                    }
+                                }
+                        }
+                    });
+                    if defender_has_matching_land {
+                        landwalk_blocks = true;
+                        break;
+                    }
+                }
+            }
+            if landwalk_blocks {
+                continue; // Requirement impossible -- skip
+            }
+
+            // The provoked creature CAN block the provoking attacker.
+            // Check if it IS blocking it in this declaration.
+            let is_blocking_required_attacker = blockers
+                .iter()
+                .any(|(b, a)| *b == provoked_id && *a == must_block_attacker);
+            if !is_blocking_required_attacker {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "Creature {:?} must block {:?} (provoke requirement, CR 702.39a / CR 509.1c)",
+                    provoked_id, must_block_attacker
+                )));
+            }
+        }
+    }
+
     let mut events = Vec::new();
 
     // Record blockers in combat state.

@@ -466,4 +466,27 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         rampage_n: u32,
     },
+    /// CR 702.39a: Provoke triggered ability on the stack.
+    ///
+    /// "Whenever this creature attacks, you may have target creature defending
+    /// player controls untap and block this creature this combat if able."
+    ///
+    /// `source_object` is the creature with provoke (the attacker).
+    /// `provoked_creature` is the target creature (defending player controls).
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the provoked creature is still on the battlefield
+    ///    (target legality, CR 608.2b).
+    /// 2. Untap the provoked creature (CR 702.39a: "untap that creature").
+    /// 3. Add a forced-block requirement to `CombatState::forced_blocks`:
+    ///    provoked_creature must block source_object "if able" (CR 509.1c).
+    ///
+    /// If the provoked creature has left the battlefield, the trigger fizzles.
+    ///
+    /// CR 702.39b: Multiple instances each trigger separately, each with their
+    /// own `ProvokeTrigger` stack object.
+    ProvokeTrigger {
+        source_object: ObjectId,
+        provoked_creature: ObjectId,
+    },
 }

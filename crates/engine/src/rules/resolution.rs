@@ -1366,6 +1366,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 flanking_blocker_id: None,
                                 is_rampage_trigger: false,
                                 rampage_n: None,
+                                is_provoke_trigger: false,
+                                provoke_target_creature: None,
                             });
                     }
                 }
@@ -1782,6 +1784,58 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.39a: Provoke trigger resolves -- untap the provoked creature
+        // and create a forced-block requirement in CombatState.
+        //
+        // "Whenever this creature attacks, you may have target creature defending
+        // player controls untap and block this creature this combat if able."
+        // 1. If the provoked creature is no longer on the battlefield, fizzle.
+        // 2. Untap the provoked creature (CR 702.39a: "untap that creature").
+        // 3. Add a forced-block entry to CombatState::forced_blocks (CR 509.1c).
+        StackObjectKind::ProvokeTrigger {
+            source_object,
+            provoked_creature,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Target legality: provoked creature must still be on the battlefield.
+            let target_valid = state
+                .objects
+                .get(&provoked_creature)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if target_valid {
+                // 1. Untap the provoked creature (CR 702.39a: "untap that creature").
+                if let Some(obj) = state.objects.get(&provoked_creature) {
+                    if obj.status.tapped {
+                        // Need to clone the controller before borrowing state mutably
+                        let provoked_controller = obj.controller;
+                        if let Some(obj_mut) = state.objects.get_mut(&provoked_creature) {
+                            obj_mut.status.tapped = false;
+                        }
+                        events.push(GameEvent::PermanentUntapped {
+                            player: provoked_controller,
+                            object_id: provoked_creature,
+                        });
+                    }
+                }
+
+                // 2. Add forced-block requirement to CombatState (CR 509.1c).
+                if let Some(combat) = state.combat.as_mut() {
+                    combat
+                        .forced_blocks
+                        .insert(provoked_creature, source_object);
+                }
+            }
+            // If target invalid, trigger fizzles -- do nothing (CR 608.2b).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -1891,7 +1945,8 @@ pub fn counter_stack_object(
         | StackObjectKind::PartnerWithTrigger { .. }
         | StackObjectKind::IngestTrigger { .. }
         | StackObjectKind::FlankingTrigger { .. }
-        | StackObjectKind::RampageTrigger { .. } => {
+        | StackObjectKind::RampageTrigger { .. }
+        | StackObjectKind::ProvokeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
         }
     }
