@@ -110,6 +110,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         cast_with_jump_start: false,
                         jump_start_discard: None,
                         cast_with_aftermath: false,
+                        cast_with_dash: false,
                     };
                     app.execute_command(cmd)?;
                 } else {

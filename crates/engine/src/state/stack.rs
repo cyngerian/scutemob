@@ -149,6 +149,13 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub cast_with_aftermath: bool,
+    /// CR 702.109a: If true, this spell was cast by paying its dash cost
+    /// (an alternative cost). When the permanent enters the battlefield,
+    /// it gains haste and a delayed trigger returns it at end step.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_dashed: bool,
 }
 
 /// The kind of object on the stack.
@@ -678,4 +685,20 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         activator: crate::state::player::PlayerId,
     },
+    /// CR 702.109a: Dash delayed triggered ability on the stack.
+    ///
+    /// "Return the permanent this spell becomes to its owner's hand at the
+    /// beginning of the next end step."
+    /// This is a delayed triggered ability created when the dash spell resolves
+    /// and the permanent enters the battlefield.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the source is still on the battlefield (CR 400.7).
+    /// 2. If yes, return it to its owner's hand.
+    /// 3. If no (died, blinked, bounced), do nothing.
+    ///
+    /// If countered (e.g., by Stifle), the permanent stays on the battlefield
+    /// but retains haste (the haste is a static ability linked to was_dashed,
+    /// not to this trigger).
+    DashReturnTrigger { source_object: ObjectId },
 }

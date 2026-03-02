@@ -352,6 +352,13 @@ pub struct PendingTrigger {
     /// before sacrificing.
     #[serde(default)]
     pub encore_activator: Option<PlayerId>,
+    /// CR 702.109a: If true, this pending trigger is a dash return-to-hand trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::DashReturnTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The `ability_index`
+    /// field is unused when this is true.
+    #[serde(default)]
+    pub is_dash_return_trigger: bool,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

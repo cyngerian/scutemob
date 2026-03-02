@@ -283,6 +283,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // If bestow_fallback is true, the spell reverted to creature mode;
                     // the permanent enters as a creature (not as a bestowed Aura).
                     obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
+                    // CR 702.109a: Transfer dashed status from stack to permanent.
+                    // "As long as this permanent's dash cost was paid, it has haste."
+                    // Also marks the permanent for end-step return trigger (turn_actions.rs).
+                    obj.was_dashed = stack_obj.was_dashed;
+                    if stack_obj.was_dashed {
+                        // CR 702.109a: "it has haste" -- grant haste keyword.
+                        obj.characteristics.keywords.insert(KeywordAbility::Haste);
+                    }
                     // CR 702.62a: If the spell was cast via suspend and the permanent
                     // is a creature, it gains haste (modelled as clearing summoning
                     // sickness; V1 simplification per plan). The "until you lose control"
@@ -1000,6 +1008,41 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.109a: Dash delayed triggered ability resolves.
+        //
+        // "Return the permanent this spell becomes to its owner's hand at the
+        // beginning of the next end step."
+        // If the source has left the battlefield by resolution time (CR 400.7),
+        // the trigger does nothing -- the creature is a new object elsewhere.
+        StackObjectKind::DashReturnTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source is still on the battlefield (CR 400.7).
+            let owner_opt = state
+                .objects
+                .get(&source_object)
+                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .map(|obj| obj.owner);
+
+            if let Some(owner) = owner_opt {
+                // Return to owner's hand (not controller's -- CR 702.109a says "owner's hand").
+                let (new_hand_id, _old) =
+                    state.move_object_to_zone(source_object, ZoneId::Hand(owner))?;
+
+                events.push(GameEvent::ObjectReturnedToHand {
+                    player: owner,
+                    object_id: source_object,
+                    new_hand_id,
+                });
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
         // a creature. Default (deterministic, no interactive choice): decline.
         //
@@ -1259,6 +1302,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -1404,6 +1448,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 enlist_enlisted_creature: None,
                                 is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
+                                is_dash_return_trigger: false,
                             });
                     }
                 }
@@ -1482,6 +1527,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             cast_with_jump_start: false,
                             // CR 702.127a: suspend casts are not aftermath casts.
                             cast_with_aftermath: false,
+                            // CR 702.109a: suspend casts are not dash casts.
+                            was_dashed: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -2348,6 +2395,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2530,6 +2578,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2731,6 +2780,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Ruling 2020-11-10: track the original activator so the end-step
                         // sacrifice trigger can verify control hasn't changed.
                         encore_activated_by: Some(controller),
+                        was_dashed: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3026,10 +3076,13 @@ pub fn counter_stack_object(
         | StackObjectKind::EmbalmAbility { .. }
         | StackObjectKind::EternalizeAbility { .. }
         | StackObjectKind::EncoreAbility { .. }
-        | StackObjectKind::EncoreSacrificeTrigger { .. } => {
+        | StackObjectKind::EncoreSacrificeTrigger { .. }
+        | StackObjectKind::DashReturnTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
+            // Note: For DashReturnTrigger, the creature stays on the battlefield
+            // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
         }
     }
 

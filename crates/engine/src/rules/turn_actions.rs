@@ -113,6 +113,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             is_encore_sacrifice_trigger: false,
             encore_activator: None,
+            is_dash_return_trigger: false,
         });
     }
 
@@ -186,6 +187,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             is_encore_sacrifice_trigger: false,
             encore_activator: None,
+            is_dash_return_trigger: false,
         });
     }
 
@@ -195,7 +197,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
     // the EncoreAbility resolves. The activator is stored in `encore_activated_by`
     // on the token (ruling 2020-11-10: if control changes, token cannot be sacrificed,
     // so we must use the original activator identity, not the current controller).
-    let encore_tokens: Vec<(ObjectId, crate::state::player::PlayerId, Option<crate::state::player::PlayerId>)> = state
+    let encore_tokens: Vec<(
+        ObjectId,
+        crate::state::player::PlayerId,
+        Option<crate::state::player::PlayerId>,
+    )> = state
         .objects
         .values()
         .filter(|obj| {
@@ -257,6 +263,73 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             // controller. If encore_activated_by is unset (e.g., old state from before
             // this field was added), fall back to current controller.
             encore_activator: encore_activated_by.or(Some(controller)),
+            is_dash_return_trigger: false,
+        });
+    }
+
+    // CR 702.109a: Queue return-to-hand triggers for all dashed permanents.
+    // "Return the permanent this spell becomes to its owner's hand at the
+    // beginning of the next end step."
+    // Each dashed permanent is tagged with `was_dashed = true` when the dash
+    // spell resolves (resolution.rs). At end step, we queue a DashReturnTrigger.
+    let dashed_permanents: Vec<(ObjectId, crate::state::player::PlayerId)> = state
+        .objects
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.was_dashed)
+        .map(|obj| (obj.id, obj.controller))
+        .collect();
+
+    for (obj_id, controller) in dashed_permanents {
+        state.pending_triggers.push_back(PendingTrigger {
+            source: obj_id,
+            ability_index: 0, // unused for dash return triggers
+            controller,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            is_evoke_sacrifice: false,
+            is_madness_trigger: false,
+            madness_exiled_card: None,
+            madness_cost: None,
+            is_miracle_trigger: false,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            is_unearth_trigger: false,
+            is_exploit_trigger: false,
+            is_modular_trigger: false,
+            modular_counter_count: None,
+            is_evolve_trigger: false,
+            evolve_entering_creature: None,
+            is_myriad_trigger: false,
+            is_suspend_counter_trigger: false,
+            is_suspend_cast_trigger: false,
+            suspend_card_id: None,
+            is_hideaway_trigger: false,
+            hideaway_count: None,
+            is_partner_with_trigger: false,
+            partner_with_name: None,
+            is_ingest_trigger: false,
+            ingest_target_player: None,
+            is_flanking_trigger: false,
+            flanking_blocker_id: None,
+            is_rampage_trigger: false,
+            rampage_n: None,
+            is_provoke_trigger: false,
+            provoke_target_creature: None,
+            is_renown_trigger: false,
+            renown_n: None,
+            is_melee_trigger: false,
+            is_poisonous_trigger: false,
+            poisonous_n: None,
+            poisonous_target_player: None,
+            is_enlist_trigger: false,
+            enlist_enlisted_creature: None,
+            is_encore_sacrifice_trigger: false,
+            encore_activator: None,
+            is_dash_return_trigger: true,
         });
     }
 
@@ -551,6 +624,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         enlist_enlisted_creature: None,
                         is_encore_sacrifice_trigger: false,
                         encore_activator: None,
+                        is_dash_return_trigger: false,
                     });
                 }
             }

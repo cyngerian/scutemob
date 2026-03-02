@@ -144,6 +144,7 @@ fn test_storm_creates_copies() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -266,6 +267,7 @@ fn test_storm_copies_resolve_independently() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -398,6 +400,7 @@ fn test_storm_count_resets_each_turn() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -502,6 +505,7 @@ fn test_spell_copy_is_not_cast() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

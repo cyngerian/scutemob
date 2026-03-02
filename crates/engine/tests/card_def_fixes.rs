@@ -120,6 +120,7 @@ fn test_read_the_bones_scry_then_draw() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -301,6 +302,7 @@ fn test_path_to_exile_optional_search() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -800,6 +802,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("casting Rest in Peace failed");

@@ -525,6 +525,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("CastSpell should succeed");

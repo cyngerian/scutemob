@@ -512,6 +512,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::EncoreSacrificeTrigger { source_object, .. } => {
             ("encore_sacrifice_trigger", Some(*source_object))
         }
+        StackObjectKind::DashReturnTrigger { source_object } => {
+            ("dash_return_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -743,5 +746,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Embalm => "Embalm".to_string(),
         KeywordAbility::Eternalize => "Eternalize".to_string(),
         KeywordAbility::Encore => "Encore".to_string(),
+        KeywordAbility::Dash => "Dash".to_string(),
     }
 }

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-01 (Encore validated; KeywordAbility::Encore disc 94; AbilityDefinition::Encore disc 27; StackObjectKind::EncoreAbility disc 29 + EncoreSacrificeTrigger disc 30; Command::EncoreCard; abilities.rs handle_encore_card + get_encore_cost; resolution.rs EncoreAbility (for-each-opponent token copy with Haste + sacrifice tags) + EncoreSacrificeTrigger; turn_actions.rs end_step_actions encore sacrifice queue; 3 new GameObject fields (encore_sacrifice_at_end_step, encore_must_attack, encore_activated_by); 10 unit tests in tests/encore.rs; Briarblade Adept card def at defs/briarblade_adept.rs; game script stack/131; P4 validated 24->25, total validated 116->117)
+> Last audited: 2026-03-01 (Dash validated; KeywordAbility::Dash disc 95; AbilityDefinition::Dash{cost} disc 28; StackObjectKind::DashReturnTrigger disc 31; CastSpell::cast_with_dash; casting.rs dash alt-cost validation + mutual exclusion + get_dash_cost; resolution.rs ETB haste grant + DashReturnTrigger resolution; turn_actions.rs end_step_actions DashReturnTrigger queue; GameObject::was_dashed + StackObject::was_dashed + PendingTrigger::is_dash_return_trigger; 7 unit tests in tests/dash.rs; Zurgo Bellstriker card def at defs/zurgo_bellstriker.rs; game script stack/132; P4 validated 25->26, total validated 117->118)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 25        | 0        | 0       | 64   | 12  |
-| **Total**| **200**| **117**  | **2**    | **0**   | **69**| **12** |
+| P4       | 101   | 26        | 0        | 0       | 63   | 12  |
+| **Total**| **200**| **118**  | **2**    | **0**   | **68**| **12** |
 
 ---
 
@@ -117,7 +117,7 @@ Keywords that allow spells to be cast from non-hand zones or at alternate costs.
 | Commander Ninjutsu | 702.49d | P4 | `validated` | `state/types.rs:761` (KeywordAbility::CommanderNinjutsu disc 88), `state/hash.rs:511-512`, `cards/card_definition.rs:278` (AbilityDefinition::CommanderNinjutsu{cost}), `rules/abilities.rs:858-888` (command zone detection + keyword check) | — (test-only card in `tests/ninjutsu.rs`) | — | Ninjutsu | CR 702.49d variant; also functions from command zone; no commander tax increment; shares ActivateNinjutsu command + NinjutsuAbility resolution with Ninjutsu; 1 dedicated unit test (test_commander_ninjutsu_from_command_zone) in `tests/ninjutsu.rs` |
 | Plot | 702.170 | P4 | `none` | — | — | — | — | Exile from hand, cast for free on a later turn |
 | Blitz | 702.152 | P4 | `none` | — | — | — | — | Alternative cost, gains haste + "draw when dies" + sacrifice at end |
-| Dash | 702.109 | P4 | `none` | — | — | — | — | Alternative cost, gains haste, return to hand at end |
+| Dash | 702.109 | P4 | `validated` | `state/types.rs:819` (KeywordAbility::Dash disc 95), `state/hash.rs:525-526`, `cards/card_definition.rs:334-341` (AbilityDefinition::Dash{cost} disc 28), `rules/command.rs:200-203` (CastSpell::cast_with_dash), `rules/casting.rs:708-768` (dash alt-cost validation + mutual exclusion with 11 other alt costs), `rules/casting.rs:851-854` (dash cost lookup + payment), `rules/casting.rs:1435-1436` (was_dashed transfer to stack), `rules/casting.rs:1855-1866` (get_dash_cost helper), `rules/resolution.rs:286-290` (ETB haste grant: was_dashed transfer + Haste keyword), `rules/turn_actions.rs:270-332` (end_step_actions: DashReturnTrigger queue for was_dashed permanents), `rules/resolution.rs:1011-1017` (DashReturnTrigger resolution: return to hand or fizzle if gone), `state/game_object.rs:487-494` (GameObject::was_dashed), `state/stack.rs:152-158` (StackObject::was_dashed), `state/stack.rs:688-703` (StackObjectKind::DashReturnTrigger disc 31), `state/stubs.rs:355-361` (PendingTrigger::is_dash_return_trigger), `testing/replay_harness.rs:907-932` (cast_spell_dash action) | Zurgo Bellstriker (`defs/zurgo_bellstriker.rs`) | `stack/132` | — | CR 702.109a fully enforced; three abilities per CR text: (1) alt cost on stack, (2) delayed return trigger at next end step, (3) haste while was_dashed; dash is an alternative cost (CR 118.9) -- mutual exclusion with flashback/evoke/bestow/madness/miracle/escape/foretell/buyback/overload/retrace/jump-start/aftermath; commander tax applies on top of dash cost (CR 118.9d); creature leaving battlefield before trigger resolves causes fizzle (CR 400.7); copies do not inherit was_dashed; 7 unit tests in `tests/dash.rs`; game script stack/132 (Zurgo Bellstriker cast with dash, attacks, returns at end step) |
 
 ---
 

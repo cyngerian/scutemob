@@ -331,6 +331,14 @@ pub enum AbilityDefinition {
         /// Target requirements for the aftermath half's spell.
         targets: Vec<TargetRequirement>,
     },
+    /// CR 702.109: Dash [cost]. You may cast this card by paying [cost] rather
+    /// than its mana cost. If you do, the permanent gains haste and is returned
+    /// to its owner's hand at the beginning of the next end step.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Dash)` for quick
+    /// presence-checking without scanning all abilities.
+    Dash { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

@@ -240,6 +240,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -351,6 +352,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -462,6 +464,7 @@ fn test_aftermath_exile_on_resolution() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -584,6 +587,7 @@ fn test_aftermath_exile_on_counter() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -629,6 +633,7 @@ fn test_aftermath_exile_on_counter() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -735,6 +740,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     );
 
@@ -815,6 +821,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
 
@@ -907,6 +914,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -1006,6 +1014,7 @@ fn test_aftermath_pays_aftermath_cost() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1097,6 +1106,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     );
 
@@ -1186,6 +1196,7 @@ fn test_aftermath_uses_aftermath_effect() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -1293,6 +1304,7 @@ fn test_aftermath_full_lifecycle() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1367,6 +1379,7 @@ fn test_aftermath_full_lifecycle() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1471,6 +1484,7 @@ fn test_aftermath_insufficient_mana_rejected() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: true,
+            cast_with_dash: false,
         },
     );
 

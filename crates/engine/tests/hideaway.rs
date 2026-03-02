@@ -99,6 +99,7 @@ fn make_hideaway_trigger_stack_obj(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     }
 }
 

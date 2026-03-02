@@ -166,7 +166,7 @@ a special cost, with zone-redirect on resolution.
 **Infrastructure reused**: `casting.rs` alternate-cost machinery, `CreateToken`,
 graveyard zone activation (Unearth pattern), end-of-turn sacrifice (Unearth pattern).
 
-- [ ] Batch 4 complete
+- [x] Batch 4 complete
 
 ---
 

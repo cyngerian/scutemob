@@ -119,6 +119,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::EncoreSacrificeTrigger { source_object, .. } => {
                     ("Encore sacrifice: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::DashReturnTrigger { source_object } => {
+                    ("Dash return: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

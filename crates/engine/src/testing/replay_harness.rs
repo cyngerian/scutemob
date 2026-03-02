@@ -297,6 +297,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -328,6 +329,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -356,6 +358,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -384,6 +387,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -413,6 +417,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -442,6 +447,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -476,6 +482,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -767,6 +774,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -796,6 +804,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -828,6 +837,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -860,6 +870,7 @@ pub fn translate_player_action(
                 cast_with_jump_start: true,
                 jump_start_discard: Some(discard_id),
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             })
         }
 
@@ -889,6 +900,36 @@ pub fn translate_player_action(
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: true,
+                cast_with_dash: false,
+            })
+        }
+
+        // CR 702.109a: Cast a spell with dash from the player's hand.
+        // The dash cost (an alternative cost) is paid instead of the mana cost.
+        "cast_spell_dash" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                cast_with_evoke: false,
+                cast_with_bestow: false,
+                cast_with_miracle: false,
+                cast_with_escape: false,
+                escape_exile_cards: vec![],
+                cast_with_foretell: false,
+                cast_with_buyback: false,
+                cast_with_overload: false,
+                retrace_discard_land: None,
+                cast_with_jump_start: false,
+                jump_start_discard: None,
+                cast_with_aftermath: false,
+                cast_with_dash: true,
             })
         }
 

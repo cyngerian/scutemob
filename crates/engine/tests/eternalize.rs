@@ -973,6 +973,7 @@ fn test_eternalize_split_second_blocks() {
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

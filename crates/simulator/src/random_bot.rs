@@ -154,6 +154,7 @@ pub(crate) fn action_to_command(
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
         LegalAction::TapForMana {
             source,

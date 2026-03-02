@@ -70,6 +70,7 @@ pub fn handle_cast_spell(
     cast_with_jump_start: bool,
     jump_start_discard: Option<ObjectId>,
     cast_with_aftermath: bool,
+    cast_with_dash: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -704,6 +705,74 @@ pub fn handle_cast_spell(
         }
     }
 
+    // Step 1i: Validate dash mutual exclusion (CR 702.109a / CR 118.9a).
+    // Dash is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_dash = if cast_with_dash {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with flashback (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with foretell (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with jump-start (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with aftermath (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_dash_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have dash".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
@@ -779,6 +848,10 @@ pub fn handle_cast_spell(
             ));
         }
         cost
+    } else if casting_with_dash {
+        // CR 702.109a: Pay dash cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_dash_cost(&card_id, &state.card_registry)
     } else {
         base_mana_cost
     };
@@ -1298,6 +1371,7 @@ pub fn handle_cast_spell(
                 enlist_enlisted_creature: None,
                 is_encore_sacrifice_trigger: false,
                 encore_activator: None,
+                is_dash_return_trigger: false,
             });
         }
     }
@@ -1358,6 +1432,8 @@ pub fn handle_cast_spell(
         cast_with_jump_start: casting_with_jump_start,
         // CR 702.127a: Record whether this spell was cast as the aftermath half from graveyard.
         cast_with_aftermath: casting_with_aftermath,
+        // CR 702.109a: Record whether this spell was cast by paying its dash cost.
+        was_dashed: casting_with_dash,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1465,6 +1541,7 @@ pub fn handle_cast_spell(
             was_overloaded: false,
             cast_with_jump_start: false,
             cast_with_aftermath: false,
+            was_dashed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1510,6 +1587,7 @@ pub fn handle_cast_spell(
             was_overloaded: false,
             cast_with_jump_start: false,
             cast_with_aftermath: false,
+            was_dashed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1766,6 +1844,27 @@ fn get_aftermath_card_type(
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Aftermath { card_type, .. } = a {
                     Some(*card_type)
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.109a: Look up the dash cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Dash { cost }`, or `None`
+/// if the card has no definition or no dash ability defined.
+fn get_dash_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Dash { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }

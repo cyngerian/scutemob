@@ -197,6 +197,10 @@ pub enum Command {
         /// Aftermath keyword. This is an alternative cost (CR 118.9).
         #[serde(default)]
         cast_with_aftermath: bool,
+        /// CR 702.109a: If true, this spell is being cast by paying its dash cost
+        /// (an alternative cost). The permanent gains haste and returns to hand at end step.
+        #[serde(default)]
+        cast_with_dash: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

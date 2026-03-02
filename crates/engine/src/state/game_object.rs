@@ -484,4 +484,12 @@ pub struct GameObject {
     /// zone changes (CR 400.7).
     #[serde(default)]
     pub encore_activated_by: Option<crate::state::player::PlayerId>,
+    /// CR 702.109a: If true, this permanent was cast by paying its dash cost.
+    /// Grants haste ("as long as this permanent's dash cost was paid, it has haste")
+    /// and triggers return-to-hand at end step.
+    ///
+    /// Set during spell resolution when the permanent enters the battlefield.
+    /// Reset to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub was_dashed: bool,
 }

@@ -215,6 +215,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -335,6 +336,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -422,6 +424,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -507,6 +510,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -593,6 +597,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -692,6 +697,7 @@ fn test_prowess_until_end_of_turn_expires() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -805,6 +811,7 @@ fn test_prowess_multiple_spells_stack() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -849,6 +856,7 @@ fn test_prowess_multiple_spells_stack() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -951,6 +959,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

@@ -65,6 +65,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -138,6 +139,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(result.is_ok());
@@ -198,6 +200,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -257,6 +260,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -319,6 +323,7 @@ fn test_cast_spell_lifo_stack_order() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -354,6 +359,7 @@ fn test_cast_spell_lifo_stack_order() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -415,6 +421,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(
@@ -471,6 +478,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -521,6 +529,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -588,6 +597,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -622,6 +632,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -670,6 +681,7 @@ fn test_cast_spell_land_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -721,6 +733,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -776,6 +789,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

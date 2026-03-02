@@ -154,6 +154,7 @@ pub fn handle_choose_miracle(
         enlist_enlisted_creature: None,
         is_encore_sacrifice_trigger: false,
         encore_activator: None,
+        is_dash_return_trigger: false,
     });
 
     Ok(vec![])

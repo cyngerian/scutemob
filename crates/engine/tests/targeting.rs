@@ -82,6 +82,7 @@ fn test_601_2c_targeting_active_player_is_valid() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(result.is_ok(), "targeting an active player should succeed");
@@ -146,6 +147,7 @@ fn test_601_2c_targeting_object_is_valid() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(result.is_ok());
@@ -203,6 +205,7 @@ fn test_601_2c_targeting_nonexistent_object_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -275,6 +278,7 @@ fn test_601_2c_targeting_eliminated_player_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -335,6 +339,7 @@ fn test_608_2b_fizzle_player_target_concedes() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -420,6 +425,7 @@ fn test_608_2b_fizzle_all_targets_illegal() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -525,6 +531,7 @@ fn test_608_2b_partial_fizzle_spell_resolves() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -630,6 +637,7 @@ fn test_601_mana_cost_deducted_on_cast() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -705,6 +713,7 @@ fn test_601_mana_cost_colored_and_generic() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -773,6 +782,7 @@ fn test_601_insufficient_mana_fails() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(result.is_err(), "casting without enough mana should fail");
@@ -845,6 +855,7 @@ fn test_601_generic_paid_from_any_color() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -914,6 +925,7 @@ fn test_601_colorless_requirement_must_use_colorless() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -970,6 +982,7 @@ fn test_601_no_mana_cost_casts_free() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -1082,6 +1095,7 @@ fn test_601_2c_doom_blade_cannot_target_black_creature() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
 
@@ -1140,6 +1154,7 @@ fn test_601_2c_doom_blade_can_target_non_black_creature() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
 
@@ -1242,6 +1257,7 @@ fn test_601_2c_target_creature_rejects_non_creature() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
 

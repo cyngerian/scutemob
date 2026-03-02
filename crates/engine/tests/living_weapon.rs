@@ -150,6 +150,7 @@ fn cast_and_enter_battlefield(
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

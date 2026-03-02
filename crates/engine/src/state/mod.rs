@@ -303,6 +303,8 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: dash flag is not preserved across zone changes (CR 702.109a).
+            was_dashed: false,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -400,6 +402,8 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: dash flag is not preserved across zone changes (CR 702.109a).
+            was_dashed: false,
         };
 
         // Insert at the front (= bottom) of the destination zone.

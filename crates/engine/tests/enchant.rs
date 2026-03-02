@@ -100,6 +100,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -158,6 +159,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -216,6 +218,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -272,6 +275,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("CastSpell should succeed");
@@ -455,6 +459,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             },
         );
         assert!(
@@ -504,6 +509,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 cast_with_jump_start: false,
                 jump_start_discard: None,
                 cast_with_aftermath: false,
+                cast_with_dash: false,
             },
         );
         assert!(
@@ -558,6 +564,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -619,6 +626,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     );
     assert!(
@@ -679,6 +687,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .expect("CastSpell should succeed");

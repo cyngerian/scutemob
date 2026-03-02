@@ -816,6 +816,16 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The encore cost itself is stored in `AbilityDefinition::Encore { cost }`.
     Encore,
+    /// CR 702.109: Dash [cost] -- alternative cost granting haste and
+    /// return-to-hand at end step.
+    ///
+    /// "You may cast this card by paying [cost] rather than its mana cost.
+    /// If you do, it gains haste, and it's returned from the battlefield to
+    /// its owner's hand at the beginning of the next end step."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The dash cost itself is stored in `AbilityDefinition::Dash { cost }`.
+    Dash,
 }
 
 /// All creature subtypes from CR 205.3m.

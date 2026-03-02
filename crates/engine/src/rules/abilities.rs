@@ -344,6 +344,7 @@ pub fn handle_activate_ability(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -550,6 +551,7 @@ pub fn handle_cycle_card(
             enlist_enlisted_creature: None,
             is_encore_sacrifice_trigger: false,
             encore_activator: None,
+            is_dash_return_trigger: false,
         });
     }
 
@@ -585,6 +587,7 @@ pub fn handle_cycle_card(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -760,6 +763,7 @@ pub fn handle_unearth_card(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1014,6 +1018,7 @@ pub fn handle_ninjutsu(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1205,6 +1210,7 @@ pub fn handle_embalm_card(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1405,6 +1411,7 @@ pub fn handle_eternalize_card(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1604,6 +1611,7 @@ pub fn handle_encore_card(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1739,6 +1747,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -1826,6 +1835,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 enlist_enlisted_creature: None,
                                 is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
+                                is_dash_return_trigger: false,
                             });
                         }
                     }
@@ -1902,6 +1912,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -1980,6 +1991,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 enlist_enlisted_creature: None,
                                 is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
+                                is_dash_return_trigger: false,
                             });
                         }
                     }
@@ -2148,6 +2160,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             enlist_enlisted_creature: None,
                                             is_encore_sacrifice_trigger: false,
                                             encore_activator: None,
+                                            is_dash_return_trigger: false,
                                         });
                                     }
                                 }
@@ -2671,6 +2684,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -2868,6 +2882,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -2944,6 +2959,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -3064,6 +3080,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             is_encore_sacrifice_trigger: false,
                             encore_activator: None,
+                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -3183,6 +3200,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
+                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3281,6 +3299,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
+                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3382,6 +3401,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
+                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3514,6 +3534,7 @@ fn collect_triggers_for_event(
                 enlist_enlisted_creature: None,
                 is_encore_sacrifice_trigger: false,
                 encore_activator: None,
+                is_dash_return_trigger: false,
             });
         }
     }
@@ -3715,6 +3736,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     was_overloaded: false,
                     cast_with_jump_start: false,
                     cast_with_aftermath: false,
+                    was_dashed: false,
                 };
                 state.stack_objects.push_back(stack_obj);
 
@@ -3875,6 +3897,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     source_object: trigger.source,
                     activator: trigger.encore_activator.unwrap_or(trigger.controller),
                 }
+            } else if trigger.is_dash_return_trigger {
+                // CR 702.109a: Dash delayed return trigger -- "return the permanent to
+                // its owner's hand at the beginning of the next end step."
+                StackObjectKind::DashReturnTrigger {
+                    source_object: trigger.source,
+                }
             } else {
                 StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
@@ -3901,6 +3929,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 was_overloaded: false,
                 cast_with_jump_start: false,
                 cast_with_aftermath: false,
+                was_dashed: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4255,6 +4284,7 @@ pub fn handle_crew_vehicle(
         was_overloaded: false,
         cast_with_jump_start: false,
         cast_with_aftermath: false,
+        was_dashed: false,
     };
     state.stack_objects.push_back(stack_obj);
 

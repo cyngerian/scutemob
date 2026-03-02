@@ -2024,6 +2024,7 @@ fn execute_effect_inner(
                                         enlist_enlisted_creature: None,
                                         is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
+                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -2486,6 +2487,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
+        was_dashed: false,
     }
 }
 
@@ -2660,6 +2662,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         enlist_enlisted_creature: None,
                         is_encore_sacrifice_trigger: false,
                         encore_activator: None,
+                        is_dash_return_trigger: false,
                     });
                 }
             }

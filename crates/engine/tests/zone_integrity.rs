@@ -202,6 +202,7 @@ fn test_add_object_to_state() {
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
+        was_dashed: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

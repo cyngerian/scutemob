@@ -349,6 +349,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

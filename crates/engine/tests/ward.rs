@@ -206,6 +206,7 @@ fn test_ward_basic_counter_on_targeting() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -340,6 +341,7 @@ fn test_ward_does_not_trigger_for_controller() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -439,6 +441,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -635,6 +638,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -808,6 +812,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -910,6 +915,7 @@ fn test_ward_multiplayer_opponent_check() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

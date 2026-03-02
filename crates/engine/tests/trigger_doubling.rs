@@ -216,6 +216,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -380,6 +381,7 @@ fn test_two_panharmonicons_triple_triggers() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -526,6 +528,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -670,6 +673,7 @@ fn test_panharmonicon_registration_via_resolution() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -729,6 +733,7 @@ fn test_panharmonicon_registration_via_resolution() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

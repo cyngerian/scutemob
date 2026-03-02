@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | Batch 4 complete; Batch 5 next |
+| W1: Abilities | Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending) | ACTIVE | 2026-03-01 | Batch 4 complete; now on Batch 5 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

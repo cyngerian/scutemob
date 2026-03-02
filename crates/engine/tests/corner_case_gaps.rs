@@ -92,6 +92,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             cast_with_jump_start: false,
             jump_start_discard: None,
             cast_with_aftermath: false,
+            cast_with_dash: false,
         },
     )
     .unwrap();

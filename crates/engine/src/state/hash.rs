@@ -522,6 +522,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Eternalize => 93u8.hash_into(hasher),
             // Encore (discriminant 94) -- CR 702.141
             KeywordAbility::Encore => 94u8.hash_into(hasher),
+            // Dash (discriminant 95) -- CR 702.109
+            KeywordAbility::Dash => 95u8.hash_into(hasher),
         }
     }
 }
@@ -695,6 +697,8 @@ impl HashInto for GameObject {
         self.encore_must_attack.hash_into(hasher);
         // Encore (CR 702.141a / Ruling 2020-11-10) — original activator identity
         self.encore_activated_by.hash_into(hasher);
+        // Dash (CR 702.109a) — permanent was cast by paying its dash cost
+        self.was_dashed.hash_into(hasher);
     }
 }
 
@@ -1179,6 +1183,8 @@ impl HashInto for PendingTrigger {
         // CR 702.154a: is_enlist_trigger -- enlist attack trigger marker
         self.is_enlist_trigger.hash_into(hasher);
         self.enlist_enlisted_creature.hash_into(hasher);
+        // CR 702.109a: is_dash_return_trigger -- dash delayed return-to-hand trigger marker
+        self.is_dash_return_trigger.hash_into(hasher);
     }
 }
 
@@ -1578,6 +1584,11 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 activator.hash_into(hasher);
             }
+            // DashReturnTrigger (discriminant 31) -- CR 702.109a
+            StackObjectKind::DashReturnTrigger { source_object } => {
+                31u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
         }
     }
 }
@@ -1639,6 +1650,8 @@ impl HashInto for StackObject {
         self.cast_with_jump_start.hash_into(hasher);
         // Aftermath (CR 702.127a) — aftermath half cast from graveyard; uses aftermath effect
         self.cast_with_aftermath.hash_into(hasher);
+        // Dash (CR 702.109a) — alternative cost paid; permanent gains haste + return trigger
+        self.was_dashed.hash_into(hasher);
     }
 }
 
@@ -3160,6 +3173,11 @@ impl HashInto for AbilityDefinition {
             // Encore (discriminant 27) -- CR 702.141
             AbilityDefinition::Encore { cost } => {
                 27u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Dash (discriminant 28) -- CR 702.109
+            AbilityDefinition::Dash { cost } => {
+                28u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }
