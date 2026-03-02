@@ -25,7 +25,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind};
-use crate::state::stubs::{PendingTrigger, TriggerDoubler, TriggerDoublerFilter};
+use crate::state::stubs::{PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{CardType, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
@@ -506,52 +506,31 @@ pub fn handle_cycle_card(
             source: new_grave_id,
             ability_index: 0,
             controller: player,
+            kind: PendingTriggerKind::Madness,
             triggering_event: None,
             entering_object_id: None,
             targeting_stack_id: None,
             triggering_player: None,
             exalted_attacker_id: None,
             defending_player_id: None,
-            is_evoke_sacrifice: false,
-            is_madness_trigger: true,
             madness_exiled_card: Some(new_grave_id),
             madness_cost,
-            is_miracle_trigger: false,
             miracle_revealed_card: None,
             miracle_cost: None,
-            is_unearth_trigger: false,
-            is_exploit_trigger: false,
-            is_modular_trigger: false,
             modular_counter_count: None,
-            is_evolve_trigger: false,
             evolve_entering_creature: None,
-            is_myriad_trigger: false,
-            is_suspend_counter_trigger: false,
-            is_suspend_cast_trigger: false,
             suspend_card_id: None,
-            is_hideaway_trigger: false,
             hideaway_count: None,
-            is_partner_with_trigger: false,
             partner_with_name: None,
-            is_ingest_trigger: false,
             ingest_target_player: None,
-            is_flanking_trigger: false,
             flanking_blocker_id: None,
-            is_rampage_trigger: false,
             rampage_n: None,
-            is_provoke_trigger: false,
             provoke_target_creature: None,
-            is_renown_trigger: false,
             renown_n: None,
-            is_melee_trigger: false,
-            is_poisonous_trigger: false,
             poisonous_n: None,
             poisonous_target_player: None,
-            is_enlist_trigger: false,
             enlist_enlisted_creature: None,
-            is_encore_sacrifice_trigger: false,
             encore_activator: None,
-            is_dash_return_trigger: false,
         });
     }
 
@@ -1697,57 +1676,36 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // allowing the controller to order it relative to other ETB triggers
                 // (e.g., Mulldrifter can resolve draw before sacrifice).
                 if let Some(obj) = state.objects.get(object_id) {
-                    if obj.was_evoked {
+                    if obj.cast_alt_cost == Some(crate::state::types::AltCostKind::Evoke) {
                         let evoke_trigger = PendingTrigger {
                             source: *object_id,
                             ability_index: 0, // unused for evoke sacrifice
                             controller: obj.controller,
+                            kind: PendingTriggerKind::Evoke,
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                             entering_object_id: Some(*object_id),
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: true,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: false,
                             modular_counter_count: None,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: false,
                             hideaway_count: None,
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: false,
                             flanking_blocker_id: None,
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -1790,52 +1748,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 source: *object_id,
                                 ability_index: 0, // unused for exploit triggers
                                 controller,
+                                kind: PendingTriggerKind::Exploit,
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
                                 targeting_stack_id: None,
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                is_evoke_sacrifice: false,
-                                is_madness_trigger: false,
                                 madness_exiled_card: None,
                                 madness_cost: None,
-                                is_miracle_trigger: false,
                                 miracle_revealed_card: None,
                                 miracle_cost: None,
-                                is_unearth_trigger: false,
-                                is_exploit_trigger: true,
-                                is_modular_trigger: false,
                                 modular_counter_count: None,
-                                is_evolve_trigger: false,
                                 evolve_entering_creature: None,
-                                is_myriad_trigger: false,
-                                is_suspend_counter_trigger: false,
-                                is_suspend_cast_trigger: false,
                                 suspend_card_id: None,
-                                is_hideaway_trigger: false,
                                 hideaway_count: None,
-                                is_partner_with_trigger: false,
                                 partner_with_name: None,
-                                is_ingest_trigger: false,
                                 ingest_target_player: None,
-                                is_flanking_trigger: false,
                                 flanking_blocker_id: None,
-                                is_rampage_trigger: false,
                                 rampage_n: None,
-                                is_provoke_trigger: false,
                                 provoke_target_creature: None,
-                                is_renown_trigger: false,
                                 renown_n: None,
-                                is_melee_trigger: false,
-                                is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
-                                is_enlist_trigger: false,
                                 enlist_enlisted_creature: None,
-                                is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
-                                is_dash_return_trigger: false,
                             });
                         }
                     }
@@ -1867,52 +1804,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             source: *object_id,
                             ability_index: 0, // unused for hideaway triggers
                             controller,
+                            kind: PendingTriggerKind::Hideaway,
                             triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                             entering_object_id: Some(*object_id),
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: false,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: false,
                             modular_counter_count: None,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: true,
                             hideaway_count: Some(n),
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: false,
                             flanking_blocker_id: None,
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -1946,52 +1862,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 source: *object_id,
                                 ability_index: 0, // unused for partner-with triggers
                                 controller,
+                                kind: PendingTriggerKind::PartnerWith,
                                 triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
                                 entering_object_id: Some(*object_id),
                                 targeting_stack_id: None,
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                is_evoke_sacrifice: false,
-                                is_madness_trigger: false,
                                 madness_exiled_card: None,
                                 madness_cost: None,
-                                is_miracle_trigger: false,
                                 miracle_revealed_card: None,
                                 miracle_cost: None,
-                                is_unearth_trigger: false,
-                                is_exploit_trigger: false,
-                                is_modular_trigger: false,
                                 modular_counter_count: None,
-                                is_evolve_trigger: false,
                                 evolve_entering_creature: None,
-                                is_myriad_trigger: false,
-                                is_suspend_counter_trigger: false,
-                                is_suspend_cast_trigger: false,
                                 suspend_card_id: None,
-                                is_hideaway_trigger: false,
                                 hideaway_count: None,
-                                is_partner_with_trigger: true,
                                 partner_with_name: Some(name),
-                                is_ingest_trigger: false,
                                 ingest_target_player: None,
-                                is_flanking_trigger: false,
                                 flanking_blocker_id: None,
-                                is_rampage_trigger: false,
                                 rampage_n: None,
-                                is_provoke_trigger: false,
                                 provoke_target_creature: None,
-                                is_renown_trigger: false,
                                 renown_n: None,
-                                is_melee_trigger: false,
-                                is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
-                                is_enlist_trigger: false,
                                 enlist_enlisted_creature: None,
-                                is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
-                                is_dash_return_trigger: false,
                             });
                         }
                     }
@@ -2113,6 +2008,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             source: evolve_id,
                                             ability_index: 0, // unused for evolve triggers
                                             controller: evolve_controller,
+                                            kind: PendingTriggerKind::Evolve,
                                             triggering_event: Some(
                                                 TriggerEvent::AnyPermanentEntersBattlefield,
                                             ),
@@ -2121,46 +2017,24 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             triggering_player: None,
                                             exalted_attacker_id: None,
                                             defending_player_id: None,
-                                            is_evoke_sacrifice: false,
-                                            is_madness_trigger: false,
                                             madness_exiled_card: None,
                                             madness_cost: None,
-                                            is_miracle_trigger: false,
                                             miracle_revealed_card: None,
                                             miracle_cost: None,
-                                            is_unearth_trigger: false,
-                                            is_exploit_trigger: false,
-                                            is_modular_trigger: false,
                                             modular_counter_count: None,
-                                            is_evolve_trigger: true,
                                             evolve_entering_creature: Some(*object_id),
-                                            is_myriad_trigger: false,
-                                            is_suspend_counter_trigger: false,
-                                            is_suspend_cast_trigger: false,
                                             suspend_card_id: None,
-                                            is_hideaway_trigger: false,
                                             hideaway_count: None,
-                                            is_partner_with_trigger: false,
                                             partner_with_name: None,
-                                            is_ingest_trigger: false,
                                             ingest_target_player: None,
-                                            is_flanking_trigger: false,
                                             flanking_blocker_id: None,
-                                            is_rampage_trigger: false,
                                             rampage_n: None,
-                                            is_provoke_trigger: false,
                                             provoke_target_creature: None,
-                                            is_renown_trigger: false,
                                             renown_n: None,
-                                            is_melee_trigger: false,
-                                            is_poisonous_trigger: false,
                                             poisonous_n: None,
                                             poisonous_target_player: None,
-                                            is_enlist_trigger: false,
                                             enlist_enlisted_creature: None,
-                                            is_encore_sacrifice_trigger: false,
                                             encore_activator: None,
-                                            is_dash_return_trigger: false,
                                         });
                                     }
                                 }
@@ -2313,17 +2187,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     // A SelfAttacks trigger is a myriad trigger if its source object has
                     // the Myriad keyword. We check the triggered ability's description
                     // (set by builder.rs) to identify myriad triggers -- they carry
-                    // `effect: None` and start with "Myriad". The `is_myriad_trigger`
-                    // flag causes flush_pending_triggers to create a MyriadTrigger stack
-                    // object (not a plain TriggeredAbility) so resolution.rs can execute
-                    // the copy-and-attack logic.
+                    // `effect: None` and start with "Myriad". The `kind` field is set to
+                    // `PendingTriggerKind::Myriad` so flush_pending_triggers creates a
+                    // MyriadTrigger stack object (not a plain TriggeredAbility).
                     for t in &mut triggers[pre_len..] {
                         if let Some(obj) = state.objects.get(&t.source) {
                             if let Some(ta) =
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
                                 if ta.effect.is_none() && ta.description.starts_with("Myriad") {
-                                    t.is_myriad_trigger = true;
+                                    t.kind = PendingTriggerKind::Myriad;
                                 }
                             }
                         }
@@ -2346,7 +2219,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
                                 if ta.description.starts_with("Provoke") {
-                                    t.is_provoke_trigger = true;
+                                    t.kind = PendingTriggerKind::Provoke;
 
                                     // Select target: first creature controlled by defending player
                                     // that has not already been claimed by a prior provoke trigger
@@ -2390,7 +2263,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 obj.characteristics.triggered_abilities.get(t.ability_index)
                             {
                                 if ta.effect.is_none() && ta.description.starts_with("Melee") {
-                                    t.is_melee_trigger = true;
+                                    t.kind = PendingTriggerKind::Melee;
                                 }
                             }
                         }
@@ -2436,7 +2309,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let mut pairing_iter = enlist_pairings_for_attacker.iter();
                         for &idx in &enlist_trigger_indices {
                             if let Some(&enlisted_id) = pairing_iter.next() {
-                                triggers[idx].is_enlist_trigger = true;
+                                triggers[idx].kind = PendingTriggerKind::Enlist;
                                 triggers[idx].enlist_enlisted_creature = Some(enlisted_id);
                             } else {
                                 // No pairing for this Enlist instance -- mark for removal.
@@ -2639,52 +2512,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             source: source_id,
                             ability_index: 0, // unused for flanking triggers
                             controller,
+                            kind: PendingTriggerKind::Flanking,
                             triggering_event: Some(TriggerEvent::SelfBlocks),
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: false,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: false,
                             modular_counter_count: None,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: false,
                             hideaway_count: None,
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: true,
                             flanking_blocker_id: Some(*blocker_id),
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -2710,7 +2562,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         None,
                     );
 
-                    // CR 702.23a: Tag Rampage triggers with is_rampage_trigger and rampage_n.
+                    // CR 702.23a: Tag Rampage triggers with kind=Rampage and rampage_n.
                     // Each Rampage(n) keyword on the attacker generates a TriggeredAbilityDef
                     // with description starting "Rampage N (CR 702.23a):". We detect these
                     // and set the custom StackObjectKind by tagging the PendingTrigger.
@@ -2729,7 +2581,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 .description
                                                 .contains(&format!("Rampage {n}"))
                                             {
-                                                t.is_rampage_trigger = true;
+                                                t.kind = PendingTriggerKind::Rampage;
                                                 t.rampage_n = Some(*n);
                                                 break;
                                             }
@@ -2837,52 +2689,35 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             // stolen creatures — if Player A controls Player B's creature and
                             // it dies, the trigger is controlled by Player A.
                             controller: *death_controller,
+                            kind: if is_modular {
+                                PendingTriggerKind::Modular
+                            } else {
+                                PendingTriggerKind::Normal
+                            },
                             triggering_event: Some(TriggerEvent::SelfDies),
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: false,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: is_modular,
                             modular_counter_count,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: false,
                             hideaway_count: None,
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: false,
                             flanking_blocker_id: None,
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -2914,52 +2749,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             source: *new_grave_id,
                             ability_index: idx,
                             controller,
+                            kind: PendingTriggerKind::Normal,
                             triggering_event: Some(TriggerEvent::SelfDies),
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: false,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: false,
                             modular_counter_count: None,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: false,
                             hideaway_count: None,
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: false,
                             flanking_blocker_id: None,
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -3035,52 +2849,31 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             source: *object_id,
                             ability_index: idx,
                             controller: obj.controller,
+                            kind: PendingTriggerKind::Normal,
                             triggering_event: Some(TriggerEvent::SourceConnives),
                             entering_object_id: None,
                             targeting_stack_id: None,
                             triggering_player: None,
                             exalted_attacker_id: None,
                             defending_player_id: None,
-                            is_evoke_sacrifice: false,
-                            is_madness_trigger: false,
                             madness_exiled_card: None,
                             madness_cost: None,
-                            is_miracle_trigger: false,
                             miracle_revealed_card: None,
                             miracle_cost: None,
-                            is_unearth_trigger: false,
-                            is_exploit_trigger: false,
-                            is_modular_trigger: false,
                             modular_counter_count: None,
-                            is_evolve_trigger: false,
                             evolve_entering_creature: None,
-                            is_myriad_trigger: false,
-                            is_suspend_counter_trigger: false,
-                            is_suspend_cast_trigger: false,
                             suspend_card_id: None,
-                            is_hideaway_trigger: false,
                             hideaway_count: None,
-                            is_partner_with_trigger: false,
                             partner_with_name: None,
-                            is_ingest_trigger: false,
                             ingest_target_player: None,
-                            is_flanking_trigger: false,
                             flanking_blocker_id: None,
-                            is_rampage_trigger: false,
                             rampage_n: None,
-                            is_provoke_trigger: false,
                             provoke_target_creature: None,
-                            is_renown_trigger: false,
                             renown_n: None,
-                            is_melee_trigger: false,
-                            is_poisonous_trigger: false,
                             poisonous_n: None,
                             poisonous_target_player: None,
-                            is_enlist_trigger: false,
                             enlist_enlisted_creature: None,
-                            is_encore_sacrifice_trigger: false,
                             encore_activator: None,
-                            is_dash_return_trigger: false,
                         });
                     }
                 }
@@ -3153,6 +2946,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         source: source_id,
                                         ability_index: 0, // unused for ingest triggers
                                         controller,
+                                        kind: PendingTriggerKind::Ingest,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
@@ -3161,46 +2955,24 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         triggering_player: None,
                                         exalted_attacker_id: None,
                                         defending_player_id: None,
-                                        is_evoke_sacrifice: false,
-                                        is_madness_trigger: false,
                                         madness_exiled_card: None,
                                         madness_cost: None,
-                                        is_miracle_trigger: false,
                                         miracle_revealed_card: None,
                                         miracle_cost: None,
-                                        is_unearth_trigger: false,
-                                        is_exploit_trigger: false,
-                                        is_modular_trigger: false,
                                         modular_counter_count: None,
-                                        is_evolve_trigger: false,
                                         evolve_entering_creature: None,
-                                        is_myriad_trigger: false,
-                                        is_suspend_counter_trigger: false,
-                                        is_suspend_cast_trigger: false,
                                         suspend_card_id: None,
-                                        is_hideaway_trigger: false,
                                         hideaway_count: None,
-                                        is_partner_with_trigger: false,
                                         partner_with_name: None,
-                                        is_ingest_trigger: true,
                                         ingest_target_player: Some(damaged_player),
-                                        is_flanking_trigger: false,
                                         flanking_blocker_id: None,
-                                        is_rampage_trigger: false,
                                         rampage_n: None,
-                                        is_provoke_trigger: false,
                                         provoke_target_creature: None,
-                                        is_renown_trigger: false,
                                         renown_n: None,
-                                        is_melee_trigger: false,
-                                        is_poisonous_trigger: false,
                                         poisonous_n: None,
                                         poisonous_target_player: None,
-                                        is_enlist_trigger: false,
                                         enlist_enlisted_creature: None,
-                                        is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
-                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3252,6 +3024,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         source: source_id,
                                         ability_index: 0, // unused for renown triggers
                                         controller,
+                                        kind: PendingTriggerKind::Renown,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
@@ -3260,46 +3033,24 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         triggering_player: None,
                                         exalted_attacker_id: None,
                                         defending_player_id: None,
-                                        is_evoke_sacrifice: false,
-                                        is_madness_trigger: false,
                                         madness_exiled_card: None,
                                         madness_cost: None,
-                                        is_miracle_trigger: false,
                                         miracle_revealed_card: None,
                                         miracle_cost: None,
-                                        is_unearth_trigger: false,
-                                        is_exploit_trigger: false,
-                                        is_modular_trigger: false,
                                         modular_counter_count: None,
-                                        is_evolve_trigger: false,
                                         evolve_entering_creature: None,
-                                        is_myriad_trigger: false,
-                                        is_suspend_counter_trigger: false,
-                                        is_suspend_cast_trigger: false,
                                         suspend_card_id: None,
-                                        is_hideaway_trigger: false,
                                         hideaway_count: None,
-                                        is_partner_with_trigger: false,
                                         partner_with_name: None,
-                                        is_ingest_trigger: false,
                                         ingest_target_player: None,
-                                        is_flanking_trigger: false,
                                         flanking_blocker_id: None,
-                                        is_rampage_trigger: false,
                                         rampage_n: None,
-                                        is_provoke_trigger: false,
                                         provoke_target_creature: None,
-                                        is_renown_trigger: true,
                                         renown_n: Some(n),
-                                        is_melee_trigger: false,
-                                        is_poisonous_trigger: false,
                                         poisonous_n: None,
                                         poisonous_target_player: None,
-                                        is_enlist_trigger: false,
                                         enlist_enlisted_creature: None,
-                                        is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
-                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3354,6 +3105,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         source: source_id,
                                         ability_index: 0, // unused for poisonous triggers
                                         controller,
+                                        kind: PendingTriggerKind::Poisonous,
                                         triggering_event: Some(
                                             TriggerEvent::SelfDealsCombatDamageToPlayer,
                                         ),
@@ -3362,46 +3114,24 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         triggering_player: None,
                                         exalted_attacker_id: None,
                                         defending_player_id: None,
-                                        is_evoke_sacrifice: false,
-                                        is_madness_trigger: false,
                                         madness_exiled_card: None,
                                         madness_cost: None,
-                                        is_miracle_trigger: false,
                                         miracle_revealed_card: None,
                                         miracle_cost: None,
-                                        is_unearth_trigger: false,
-                                        is_exploit_trigger: false,
-                                        is_modular_trigger: false,
                                         modular_counter_count: None,
-                                        is_evolve_trigger: false,
                                         evolve_entering_creature: None,
-                                        is_myriad_trigger: false,
-                                        is_suspend_counter_trigger: false,
-                                        is_suspend_cast_trigger: false,
                                         suspend_card_id: None,
-                                        is_hideaway_trigger: false,
                                         hideaway_count: None,
-                                        is_partner_with_trigger: false,
                                         partner_with_name: None,
-                                        is_ingest_trigger: false,
                                         ingest_target_player: None,
-                                        is_flanking_trigger: false,
                                         flanking_blocker_id: None,
-                                        is_rampage_trigger: false,
                                         rampage_n: None,
-                                        is_provoke_trigger: false,
                                         provoke_target_creature: None,
-                                        is_renown_trigger: false,
                                         renown_n: None,
-                                        is_melee_trigger: false,
-                                        is_poisonous_trigger: true,
                                         poisonous_n: Some(n),
                                         poisonous_target_player: Some(damaged_player),
-                                        is_enlist_trigger: false,
                                         enlist_enlisted_creature: None,
-                                        is_encore_sacrifice_trigger: false,
                                         encore_activator: None,
-                                        is_dash_return_trigger: false,
                                     });
                                 }
                             }
@@ -3489,52 +3219,31 @@ fn collect_triggers_for_event(
                 source: obj_id,
                 ability_index: idx,
                 controller: obj.controller,
+                kind: PendingTriggerKind::Normal,
                 triggering_event: Some(event_type.clone()),
                 entering_object_id: entering_object,
                 targeting_stack_id: None,
                 triggering_player: None,
                 exalted_attacker_id: None,
                 defending_player_id: None,
-                is_evoke_sacrifice: false,
-                is_madness_trigger: false,
                 madness_exiled_card: None,
                 madness_cost: None,
-                is_miracle_trigger: false,
                 miracle_revealed_card: None,
                 miracle_cost: None,
-                is_unearth_trigger: false,
-                is_exploit_trigger: false,
-                is_modular_trigger: false,
                 modular_counter_count: None,
-                is_evolve_trigger: false,
                 evolve_entering_creature: None,
-                is_myriad_trigger: false,
-                is_suspend_counter_trigger: false,
-                is_suspend_cast_trigger: false,
                 suspend_card_id: None,
-                is_hideaway_trigger: false,
                 hideaway_count: None,
-                is_partner_with_trigger: false,
                 partner_with_name: None,
-                is_ingest_trigger: false,
                 ingest_target_player: None,
-                is_flanking_trigger: false,
                 flanking_blocker_id: None,
-                is_rampage_trigger: false,
                 rampage_n: None,
-                is_provoke_trigger: false,
                 provoke_target_creature: None,
-                is_renown_trigger: false,
                 renown_n: None,
-                is_melee_trigger: false,
-                is_poisonous_trigger: false,
                 poisonous_n: None,
                 poisonous_target_player: None,
-                is_enlist_trigger: false,
                 enlist_enlisted_creature: None,
-                is_encore_sacrifice_trigger: false,
                 encore_activator: None,
-                is_dash_return_trigger: false,
             });
         }
     }
@@ -3629,7 +3338,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 target: Target::Object(attacker_id),
                 zone_at_cast: None,
             }]
-        } else if trigger.is_provoke_trigger {
+        } else if trigger.kind == PendingTriggerKind::Provoke {
             // CR 702.39a: Provoke triggers target the provoked creature.
             // Set it as Target::Object so target legality can be checked at resolution.
             if let Some(provoked) = trigger.provoke_target_creature {
@@ -3651,263 +3360,285 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             // instead of TriggeredAbility to distinguish them at resolution time.
             // CR 702.35a: Madness triggers use MadnessTrigger kind to carry
             // the exiled card ObjectId and madness cost for resolution.
-            let kind = if trigger.is_evoke_sacrifice {
-                StackObjectKind::EvokeSacrificeTrigger {
+            let kind = match trigger.kind {
+                PendingTriggerKind::Evoke => StackObjectKind::EvokeSacrificeTrigger {
                     source_object: trigger.source,
-                }
-            } else if trigger.is_madness_trigger {
-                StackObjectKind::MadnessTrigger {
+                },
+                PendingTriggerKind::Madness => StackObjectKind::MadnessTrigger {
                     source_object: trigger.source,
                     exiled_card: trigger.madness_exiled_card.unwrap_or(trigger.source),
                     madness_cost: trigger.madness_cost.clone().unwrap_or_default(),
                     owner: trigger.controller,
-                }
-            } else if trigger.is_miracle_trigger {
-                // CR 702.94a: Miracle trigger carries the revealed card and cost.
-                StackObjectKind::MiracleTrigger {
-                    source_object: trigger.source,
-                    revealed_card: trigger.miracle_revealed_card.unwrap_or(trigger.source),
-                    miracle_cost: trigger.miracle_cost.clone().unwrap_or_default(),
-                    owner: trigger.controller,
-                }
-            } else if trigger.is_unearth_trigger {
-                // CR 702.84a: Unearth delayed exile trigger -- "Exile [this permanent]
-                // at the beginning of the next end step."
-                StackObjectKind::UnearthTrigger {
-                    source_object: trigger.source,
-                }
-            } else if trigger.is_exploit_trigger {
-                // CR 702.110a: Exploit ETB trigger -- "When this creature enters,
-                // you may sacrifice a creature."
-                StackObjectKind::ExploitTrigger {
-                    source_object: trigger.source,
-                }
-            } else if trigger.is_modular_trigger {
-                // CR 702.43a: Modular dies trigger -- "you may put a +1/+1 counter
-                // on target artifact creature for each +1/+1 counter on this permanent."
-                // Deterministic target selection: first artifact creature on the
-                // battlefield by ObjectId ascending (OrdMap is sorted by key).
-                // CR 603.3d: If no legal artifact creature target exists, the trigger
-                // is not placed on the stack. Use `continue` to skip this trigger.
-                let target_id = state
-                    .objects
-                    .iter()
-                    .find(|(_, obj)| {
-                        obj.zone == ZoneId::Battlefield
-                            && obj.characteristics.card_types.contains(&CardType::Artifact)
-                            && obj.characteristics.card_types.contains(&CardType::Creature)
-                    })
-                    .map(|(id, _)| *id);
-
-                let Some(tid) = target_id else {
-                    // No legal artifact creature target -- skip this trigger (CR 603.3d).
-                    continue;
-                };
-
-                // Override trigger_targets with the selected artifact creature target.
-                // (trigger_targets computed above does not apply to modular triggers.)
-                let modular_targets = vec![SpellTarget {
-                    target: Target::Object(tid),
-                    zone_at_cast: Some(ZoneId::Battlefield),
-                }];
-
-                let counter_count = trigger.modular_counter_count.unwrap_or(0);
-                let stack_id = state.next_object_id();
-                let stack_obj = StackObject {
-                    id: stack_id,
-                    controller: trigger.controller,
-                    kind: StackObjectKind::ModularTrigger {
+                },
+                PendingTriggerKind::Miracle => {
+                    // CR 702.94a: Miracle trigger carries the revealed card and cost.
+                    StackObjectKind::MiracleTrigger {
                         source_object: trigger.source,
-                        counter_count,
-                    },
-                    targets: modular_targets,
-                    cant_be_countered: false,
-                    is_copy: false,
-                    cast_with_flashback: false,
-                    kicker_times_paid: 0,
-                    was_evoked: false,
-                    was_bestowed: false,
-                    cast_with_madness: false,
-                    cast_with_miracle: false,
-                    was_escaped: false,
-                    cast_with_foretell: false,
-                    was_buyback_paid: false,
-                    was_suspended: false,
-                    was_overloaded: false,
-                    cast_with_jump_start: false,
-                    cast_with_aftermath: false,
-                    was_dashed: false,
-                };
-                state.stack_objects.push_back(stack_obj);
-
-                events.push(GameEvent::AbilityTriggered {
-                    controller: trigger.controller,
-                    source_object_id: trigger.source,
-                    stack_object_id: stack_id,
-                });
-
-                // For trigger doubling: already handled via additional_count loop below,
-                // but modular uses an early-exit path above. We run additional_count
-                // copies too. However, for simplicity and correctness, break out of the
-                // per-duplication loop by skipping the rest. The doubler case is handled
-                // after the if-else chain below -- but since we already pushed the stack
-                // object and emitted the event, we must NOT fall through to the bottom
-                // of the loop. Use a labeled continue to advance to the next trigger.
-                // NOTE: trigger doubling (Panharmonicon) is not applicable to non-ETB
-                // triggers, so additional_count will always be 0 here.
-                continue;
-            } else if trigger.is_evolve_trigger {
-                // CR 702.100a: Evolve ETB trigger — "Whenever a creature you control
-                // enters, if that creature's P > this creature's P and/or that creature's
-                // T > this creature's T, put a +1/+1 counter on this creature."
-                // The resolution handler re-checks the intervening-if (CR 603.4).
-                StackObjectKind::EvolveTrigger {
-                    source_object: trigger.source,
-                    entering_creature: trigger.evolve_entering_creature.unwrap_or(trigger.source),
-                }
-            } else if trigger.is_myriad_trigger {
-                // CR 702.116a: Myriad SelfAttacks trigger -- "Whenever this creature
-                // attacks, for each opponent other than defending player, create a token
-                // copy tapped and attacking that player."
-                // The `defending_player_id` was tagged by the AttackersDeclared handler
-                // in check_triggers. Fallback to active player if somehow None.
-                let defending = trigger
-                    .defending_player_id
-                    .unwrap_or(state.turn.active_player);
-                StackObjectKind::MyriadTrigger {
-                    source_object: trigger.source,
-                    defending_player: defending,
-                }
-            } else if trigger.is_suspend_counter_trigger {
-                // CR 702.62a: Suspend upkeep counter-removal trigger.
-                // "At the beginning of your upkeep, if this card is suspended, remove a
-                // time counter from it." This trigger goes on the stack and can be
-                // responded to (e.g., Stifle can counter it, preventing counter removal).
-                StackObjectKind::SuspendCounterTrigger {
-                    source_object: trigger.source,
-                    suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
-                }
-            } else if trigger.is_suspend_cast_trigger {
-                // CR 702.62a: Suspend cast trigger (last time counter removed).
-                // "When the last time counter is removed from this card, if it's exiled,
-                // you may play it without paying its mana cost if able."
-                StackObjectKind::SuspendCastTrigger {
-                    source_object: trigger.source,
-                    suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
-                    owner: trigger.controller,
-                }
-            } else if trigger.is_hideaway_trigger {
-                // CR 702.75a: Hideaway ETB trigger — "When this permanent enters,
-                // look at the top N cards of your library. Exile one of them face
-                // down and put the rest on the bottom of your library in a random order."
-                StackObjectKind::HideawayTrigger {
-                    source_object: trigger.source,
-                    hideaway_count: trigger.hideaway_count.unwrap_or(4),
-                }
-            } else if trigger.is_partner_with_trigger {
-                // CR 702.124j: Partner With ETB trigger — "When this permanent enters,
-                // target player may search their library for a card named [name], reveal
-                // it, put it into their hand, then shuffle."
-                // Target player: deterministic fallback = the trigger controller (owner).
-                StackObjectKind::PartnerWithTrigger {
-                    source_object: trigger.source,
-                    partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
-                    target_player: trigger.controller,
-                }
-            } else if trigger.is_ingest_trigger {
-                // CR 702.115a: Ingest combat damage trigger — "Whenever this creature
-                // deals combat damage to a player, that player exiles the top card of
-                // their library."
-                // `ingest_target_player` carries the damaged player's ID.
-                StackObjectKind::IngestTrigger {
-                    source_object: trigger.source,
-                    target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
-                }
-            } else if trigger.is_flanking_trigger {
-                // CR 702.25a: Flanking trigger -- "the blocking creature gets -1/-1
-                // until end of turn."
-                // `flanking_blocker_id` carries the blocking creature's ObjectId.
-                StackObjectKind::FlankingTrigger {
-                    source_object: trigger.source,
-                    blocker_id: trigger.flanking_blocker_id.unwrap_or(trigger.source),
-                }
-            } else if trigger.is_rampage_trigger {
-                // CR 702.23a: Rampage N "becomes blocked" trigger.
-                // `rampage_n` was tagged by the BlockersDeclared handler.
-                // Bonus is computed at resolution time from combat state (CR 702.23b).
-                StackObjectKind::RampageTrigger {
-                    source_object: trigger.source,
-                    rampage_n: trigger.rampage_n.unwrap_or(1),
-                }
-            } else if trigger.is_provoke_trigger {
-                // CR 702.39a: Provoke SelfAttacks trigger -- "Whenever this creature
-                // attacks, you may have target creature defending player controls
-                // untap and block this creature this combat if able."
-                //
-                // If no valid target was found at trigger-collection time, skip
-                // placing this trigger on the stack (CR 603.3d -- triggered ability
-                // with no legal targets is not placed on the stack).
-                if let Some(provoked) = trigger.provoke_target_creature {
-                    StackObjectKind::ProvokeTrigger {
-                        source_object: trigger.source,
-                        provoked_creature: provoked,
+                        revealed_card: trigger.miracle_revealed_card.unwrap_or(trigger.source),
+                        miracle_cost: trigger.miracle_cost.clone().unwrap_or_default(),
+                        owner: trigger.controller,
                     }
-                } else {
-                    // No valid target -- trigger is not placed on the stack.
+                }
+                PendingTriggerKind::Unearth => {
+                    // CR 702.84a: Unearth delayed exile trigger -- "Exile [this permanent]
+                    // at the beginning of the next end step."
+                    StackObjectKind::UnearthTrigger {
+                        source_object: trigger.source,
+                    }
+                }
+                PendingTriggerKind::Exploit => {
+                    // CR 702.110a: Exploit ETB trigger -- "When this creature enters,
+                    // you may sacrifice a creature."
+                    StackObjectKind::ExploitTrigger {
+                        source_object: trigger.source,
+                    }
+                }
+                PendingTriggerKind::Modular => {
+                    // CR 702.43a: Modular dies trigger -- "you may put a +1/+1 counter
+                    // on target artifact creature for each +1/+1 counter on this permanent."
+                    // Deterministic target selection: first artifact creature on the
+                    // battlefield by ObjectId ascending (OrdMap is sorted by key).
+                    // CR 603.3d: If no legal artifact creature target exists, the trigger
+                    // is not placed on the stack. Use `continue` to skip this trigger.
+                    let target_id = state
+                        .objects
+                        .iter()
+                        .find(|(_, obj)| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.characteristics.card_types.contains(&CardType::Artifact)
+                                && obj.characteristics.card_types.contains(&CardType::Creature)
+                        })
+                        .map(|(id, _)| *id);
+
+                    let Some(tid) = target_id else {
+                        // No legal artifact creature target -- skip this trigger (CR 603.3d).
+                        continue;
+                    };
+
+                    // Override trigger_targets with the selected artifact creature target.
+                    // (trigger_targets computed above does not apply to modular triggers.)
+                    let modular_targets = vec![SpellTarget {
+                        target: Target::Object(tid),
+                        zone_at_cast: Some(ZoneId::Battlefield),
+                    }];
+
+                    let counter_count = trigger.modular_counter_count.unwrap_or(0);
+                    let stack_id = state.next_object_id();
+                    let stack_obj = StackObject {
+                        id: stack_id,
+                        controller: trigger.controller,
+                        kind: StackObjectKind::ModularTrigger {
+                            source_object: trigger.source,
+                            counter_count,
+                        },
+                        targets: modular_targets,
+                        cant_be_countered: false,
+                        is_copy: false,
+                        cast_with_flashback: false,
+                        kicker_times_paid: 0,
+                        was_evoked: false,
+                        was_bestowed: false,
+                        cast_with_madness: false,
+                        cast_with_miracle: false,
+                        was_escaped: false,
+                        cast_with_foretell: false,
+                        was_buyback_paid: false,
+                        was_suspended: false,
+                        was_overloaded: false,
+                        cast_with_jump_start: false,
+                        cast_with_aftermath: false,
+                        was_dashed: false,
+                    };
+                    state.stack_objects.push_back(stack_obj);
+
+                    events.push(GameEvent::AbilityTriggered {
+                        controller: trigger.controller,
+                        source_object_id: trigger.source,
+                        stack_object_id: stack_id,
+                    });
+
+                    // For trigger doubling: already handled via additional_count loop below,
+                    // but modular uses an early-exit path above. We run additional_count
+                    // copies too. However, for simplicity and correctness, break out of the
+                    // per-duplication loop by skipping the rest. The doubler case is handled
+                    // after the if-else chain below -- but since we already pushed the stack
+                    // object and emitted the event, we must NOT fall through to the bottom
+                    // of the loop. Use a labeled continue to advance to the next trigger.
+                    // NOTE: trigger doubling (Panharmonicon) is not applicable to non-ETB
+                    // triggers, so additional_count will always be 0 here.
                     continue;
                 }
-            } else if trigger.is_renown_trigger {
-                // CR 702.112a: Renown N combat damage trigger -- "When this creature
-                // deals combat damage to a player, if it isn't renowned, put N +1/+1
-                // counters on it and it becomes renowned."
-                // CR 603.4: The intervening-if is re-checked at resolution time
-                // in StackObjectKind::RenownTrigger resolution in resolution.rs.
-                StackObjectKind::RenownTrigger {
-                    source_object: trigger.source,
-                    renown_n: trigger.renown_n.unwrap_or(1),
+                PendingTriggerKind::Evolve => {
+                    // CR 702.100a: Evolve ETB trigger — "Whenever a creature you control
+                    // enters, if that creature's P > this creature's P and/or that creature's
+                    // T > this creature's T, put a +1/+1 counter on this creature."
+                    // The resolution handler re-checks the intervening-if (CR 603.4).
+                    StackObjectKind::EvolveTrigger {
+                        source_object: trigger.source,
+                        entering_creature: trigger
+                            .evolve_entering_creature
+                            .unwrap_or(trigger.source),
+                    }
                 }
-            } else if trigger.is_melee_trigger {
-                // CR 702.121a: Melee SelfAttacks trigger.
-                // Bonus computed at resolution time from state.combat (ruling 2016-08-23).
-                StackObjectKind::MeleeTrigger {
-                    source_object: trigger.source,
+                PendingTriggerKind::Myriad => {
+                    // CR 702.116a: Myriad SelfAttacks trigger -- "Whenever this creature
+                    // attacks, for each opponent other than defending player, create a token
+                    // copy tapped and attacking that player."
+                    // The `defending_player_id` was tagged by the AttackersDeclared handler
+                    // in check_triggers. Fallback to active player if somehow None.
+                    let defending = trigger
+                        .defending_player_id
+                        .unwrap_or(state.turn.active_player);
+                    StackObjectKind::MyriadTrigger {
+                        source_object: trigger.source,
+                        defending_player: defending,
+                    }
                 }
-            } else if trigger.is_poisonous_trigger {
-                // CR 702.70a: Poisonous N combat damage trigger -- "Whenever this creature
-                // deals combat damage to a player, that player gets N poison counters."
-                StackObjectKind::PoisonousTrigger {
-                    source_object: trigger.source,
-                    target_player: trigger
-                        .poisonous_target_player
-                        .unwrap_or(trigger.controller),
-                    poisonous_n: trigger.poisonous_n.unwrap_or(1),
+                PendingTriggerKind::SuspendCounter => {
+                    // CR 702.62a: Suspend upkeep counter-removal trigger.
+                    // "At the beginning of your upkeep, if this card is suspended, remove a
+                    // time counter from it." This trigger goes on the stack and can be
+                    // responded to (e.g., Stifle can counter it, preventing counter removal).
+                    StackObjectKind::SuspendCounterTrigger {
+                        source_object: trigger.source,
+                        suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                    }
                 }
-            } else if trigger.is_enlist_trigger {
-                // CR 702.154a: Enlist trigger -- "this creature gets +X/+0 until
-                // end of turn, where X is the tapped creature's power."
-                // `enlist_enlisted_creature` carries the tapped creature's ObjectId.
-                StackObjectKind::EnlistTrigger {
-                    source_object: trigger.source,
-                    enlisted_creature: trigger.enlist_enlisted_creature.unwrap_or(trigger.source),
+                PendingTriggerKind::SuspendCast => {
+                    // CR 702.62a: Suspend cast trigger (last time counter removed).
+                    // "When the last time counter is removed from this card, if it's exiled,
+                    // you may play it without paying its mana cost if able."
+                    StackObjectKind::SuspendCastTrigger {
+                        source_object: trigger.source,
+                        suspended_card: trigger.suspend_card_id.unwrap_or(trigger.source),
+                        owner: trigger.controller,
+                    }
                 }
-            } else if trigger.is_encore_sacrifice_trigger {
-                // CR 702.141a: Encore delayed sacrifice trigger -- "Sacrifice them
-                // at the beginning of the next end step."
-                StackObjectKind::EncoreSacrificeTrigger {
-                    source_object: trigger.source,
-                    activator: trigger.encore_activator.unwrap_or(trigger.controller),
+                PendingTriggerKind::Hideaway => {
+                    // CR 702.75a: Hideaway ETB trigger — "When this permanent enters,
+                    // look at the top N cards of your library. Exile one of them face
+                    // down and put the rest on the bottom of your library in a random order."
+                    StackObjectKind::HideawayTrigger {
+                        source_object: trigger.source,
+                        hideaway_count: trigger.hideaway_count.unwrap_or(4),
+                    }
                 }
-            } else if trigger.is_dash_return_trigger {
-                // CR 702.109a: Dash delayed return trigger -- "return the permanent to
-                // its owner's hand at the beginning of the next end step."
-                StackObjectKind::DashReturnTrigger {
-                    source_object: trigger.source,
+                PendingTriggerKind::PartnerWith => {
+                    // CR 702.124j: Partner With ETB trigger — "When this permanent enters,
+                    // target player may search their library for a card named [name], reveal
+                    // it, put it into their hand, then shuffle."
+                    // Target player: deterministic fallback = the trigger controller (owner).
+                    StackObjectKind::PartnerWithTrigger {
+                        source_object: trigger.source,
+                        partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
+                        target_player: trigger.controller,
+                    }
                 }
-            } else {
-                StackObjectKind::TriggeredAbility {
+                PendingTriggerKind::Ingest => {
+                    // CR 702.115a: Ingest combat damage trigger — "Whenever this creature
+                    // deals combat damage to a player, that player exiles the top card of
+                    // their library."
+                    // `ingest_target_player` carries the damaged player's ID.
+                    StackObjectKind::IngestTrigger {
+                        source_object: trigger.source,
+                        target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
+                    }
+                }
+                PendingTriggerKind::Flanking => {
+                    // CR 702.25a: Flanking trigger -- "the blocking creature gets -1/-1
+                    // until end of turn."
+                    // `flanking_blocker_id` carries the blocking creature's ObjectId.
+                    StackObjectKind::FlankingTrigger {
+                        source_object: trigger.source,
+                        blocker_id: trigger.flanking_blocker_id.unwrap_or(trigger.source),
+                    }
+                }
+                PendingTriggerKind::Rampage => {
+                    // CR 702.23a: Rampage N "becomes blocked" trigger.
+                    // `rampage_n` was tagged by the BlockersDeclared handler.
+                    // Bonus is computed at resolution time from combat state (CR 702.23b).
+                    StackObjectKind::RampageTrigger {
+                        source_object: trigger.source,
+                        rampage_n: trigger.rampage_n.unwrap_or(1),
+                    }
+                }
+                PendingTriggerKind::Provoke => {
+                    // CR 702.39a: Provoke SelfAttacks trigger -- "Whenever this creature
+                    // attacks, you may have target creature defending player controls
+                    // untap and block this creature this combat if able."
+                    //
+                    // If no valid target was found at trigger-collection time, skip
+                    // placing this trigger on the stack (CR 603.3d -- triggered ability
+                    // with no legal targets is not placed on the stack).
+                    if let Some(provoked) = trigger.provoke_target_creature {
+                        StackObjectKind::ProvokeTrigger {
+                            source_object: trigger.source,
+                            provoked_creature: provoked,
+                        }
+                    } else {
+                        // No valid target -- trigger is not placed on the stack.
+                        continue;
+                    }
+                }
+                PendingTriggerKind::Renown => {
+                    // CR 702.112a: Renown N combat damage trigger -- "When this creature
+                    // deals combat damage to a player, if it isn't renowned, put N +1/+1
+                    // counters on it and it becomes renowned."
+                    // CR 603.4: The intervening-if is re-checked at resolution time
+                    // in StackObjectKind::RenownTrigger resolution in resolution.rs.
+                    StackObjectKind::RenownTrigger {
+                        source_object: trigger.source,
+                        renown_n: trigger.renown_n.unwrap_or(1),
+                    }
+                }
+                PendingTriggerKind::Melee => {
+                    // CR 702.121a: Melee SelfAttacks trigger.
+                    // Bonus computed at resolution time from state.combat (ruling 2016-08-23).
+                    StackObjectKind::MeleeTrigger {
+                        source_object: trigger.source,
+                    }
+                }
+                PendingTriggerKind::Poisonous => {
+                    // CR 702.70a: Poisonous N combat damage trigger -- "Whenever this creature
+                    // deals combat damage to a player, that player gets N poison counters."
+                    StackObjectKind::PoisonousTrigger {
+                        source_object: trigger.source,
+                        target_player: trigger
+                            .poisonous_target_player
+                            .unwrap_or(trigger.controller),
+                        poisonous_n: trigger.poisonous_n.unwrap_or(1),
+                    }
+                }
+                PendingTriggerKind::Enlist => {
+                    // CR 702.154a: Enlist trigger -- "this creature gets +X/+0 until
+                    // end of turn, where X is the tapped creature's power."
+                    // `enlist_enlisted_creature` carries the tapped creature's ObjectId.
+                    StackObjectKind::EnlistTrigger {
+                        source_object: trigger.source,
+                        enlisted_creature: trigger
+                            .enlist_enlisted_creature
+                            .unwrap_or(trigger.source),
+                    }
+                }
+                PendingTriggerKind::EncoreSacrifice => {
+                    // CR 702.141a: Encore delayed sacrifice trigger -- "Sacrifice them
+                    // at the beginning of the next end step."
+                    StackObjectKind::EncoreSacrificeTrigger {
+                        source_object: trigger.source,
+                        activator: trigger.encore_activator.unwrap_or(trigger.controller),
+                    }
+                }
+                PendingTriggerKind::DashReturn => {
+                    // CR 702.109a: Dash delayed return trigger -- "return the permanent to
+                    // its owner's hand at the beginning of the next end step."
+                    StackObjectKind::DashReturnTrigger {
+                        source_object: trigger.source,
+                    }
+                }
+                PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
-                }
+                },
             };
             let stack_obj = StackObject {
                 id: stack_id,

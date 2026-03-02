@@ -11,6 +11,7 @@ use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
+use crate::state::types::AltCostKind;
 
 /// A player action submitted to the engine.
 ///
@@ -97,110 +98,55 @@ pub enum Command {
         /// Ignored for spells without kicker.
         #[serde(default)]
         kicker_times: u32,
-        /// CR 702.74a: If true, cast this spell by paying its evoke cost instead
-        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
-        /// combine with flashback or other alternative costs.
-        /// Ignored for spells without evoke.
-        #[serde(default)]
-        cast_with_evoke: bool,
-        /// CR 702.103a: If true, cast this spell by paying its bestow cost instead
-        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
-        /// combine with flashback, evoke, or other alternative costs.
-        /// Ignored for spells without bestow.
-        #[serde(default)]
-        cast_with_bestow: bool,
-        /// CR 702.94a: If true, cast this spell by paying its miracle cost instead
-        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
-        /// combine with flashback, evoke, bestow, or madness.
+        /// CR 118.9 / CR 702: Which alternative casting cost is being used, if any.
         ///
-        /// The card must be in the player's hand (not graveyard/exile), must have
-        /// `KeywordAbility::Miracle`, and a `MiracleTrigger` for this card must be
-        /// on the stack (the reveal happened). Timing restrictions are ignored --
-        /// sorceries may be cast at instant speed (CR 702.94a ruling).
-        #[serde(default)]
-        cast_with_miracle: bool,
-        /// CR 702.138a: If true, cast this spell by paying its escape cost
-        /// (mana + exiling cards from graveyard) instead of its mana cost.
-        /// This is an alternative cost (CR 118.9) -- cannot combine with
-        /// flashback, evoke, bestow, madness, miracle, or other alternative costs.
+        /// - `None` — pay the printed mana cost (normal cast).
+        /// - `Some(AltCostKind::Evoke)` — CR 702.74a: pay evoke cost instead of mana cost.
+        /// - `Some(AltCostKind::Bestow)` — CR 702.103a: pay bestow cost instead of mana cost.
+        /// - `Some(AltCostKind::Miracle)` — CR 702.94a: pay miracle cost; card must be in hand
+        ///   with MiracleTrigger on the stack.
+        /// - `Some(AltCostKind::Escape)` — CR 702.138a: pay escape cost; `escape_exile_cards`
+        ///   must contain the required number of cards to exile.
+        /// - `Some(AltCostKind::Foretell)` — CR 702.143a: pay foretell cost; card must be in
+        ///   exile with `is_foretold == true` and foretold on a prior turn.
+        /// - `Some(AltCostKind::Buyback)` — CR 702.27a: pay buyback as an ADDITIONAL cost;
+        ///   card returns to hand on resolution instead of graveyard.
+        /// - `Some(AltCostKind::Overload)` — CR 702.96a: pay overload cost; spell affects all
+        ///   valid objects. Do NOT pass any `targets` when overloading.
+        /// - `Some(AltCostKind::Retrace)` — CR 702.81a: cast from graveyard; `retrace_discard_land`
+        ///   must identify a land in hand to discard as an additional cost.
+        /// - `Some(AltCostKind::JumpStart)` — CR 702.133a: cast from graveyard; `jump_start_discard`
+        ///   must identify a card in hand to discard. Spell exiled on stack departure.
+        /// - `Some(AltCostKind::Aftermath)` — CR 702.127a: cast aftermath half from graveyard;
+        ///   uses aftermath half's cost and effect. Spell exiled on stack departure.
+        /// - `Some(AltCostKind::Dash)` — CR 702.109a: pay dash cost; permanent enters with haste
+        ///   and returns to hand at beginning of next end step.
         ///
-        /// When true, `escape_exile_cards` must contain exactly the number of
-        /// ObjectIds specified by the card's `AbilityDefinition::Escape { exile_count }`.
-        /// Each card must be in the caster's graveyard and must not be the card
-        /// being cast (it says "other cards").
+        /// Only one alternative cost may be applied (CR 118.9a: cannot combine two alternative costs).
+        /// Buyback and Retrace are additional costs (CR 118.8); Flashback is always auto-detected
+        /// from zone + keyword and does NOT appear here.
         #[serde(default)]
-        cast_with_escape: bool,
+        alt_cost: Option<AltCostKind>,
         /// CR 702.138a: Cards in the caster's graveyard to exile as part of the
         /// escape cost. Must be exactly `exile_count` cards (from AbilityDefinition::Escape).
         /// Each card must be in the caster's graveyard, must not be the card being
         /// cast (the spell itself), and must not be duplicated.
         ///
-        /// Empty vec when `cast_with_escape` is false.
+        /// Empty vec when `alt_cost != Some(AltCostKind::Escape)`.
         #[serde(default)]
         escape_exile_cards: Vec<ObjectId>,
-        /// CR 702.143a: If true, cast this spell by paying its foretell cost instead
-        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
-        /// combine with flashback, evoke, bestow, madness, miracle, escape, or other
-        /// alternative costs.
+        /// CR 702.81a: If using retrace, the ObjectId of a land card in the player's
+        /// hand to discard as an additional cost. Must be a card with `CardType::Land`
+        /// in the player's hand. `None` if not using retrace.
         ///
-        /// The card must be in exile with `is_foretold == true` and
-        /// `foretold_turn < current turn number`.
-        #[serde(default)]
-        cast_with_foretell: bool,
-        /// CR 702.27a: If true, pay the buyback additional cost when casting.
-        /// If the buyback cost was paid and the spell resolves, the card returns
-        /// to its owner's hand instead of going to the graveyard.
-        /// This is an additional cost (not alternative) -- can combine with
-        /// flashback, kicker, and other costs.
-        #[serde(default)]
-        cast_with_buyback: bool,
-        /// CR 702.96a: If true, cast this spell by paying its overload cost instead
-        /// of its mana cost. This is an alternative cost (CR 118.9) -- cannot
-        /// combine with flashback, evoke, bestow, madness, miracle, escape, foretell,
-        /// or other alternative costs.
-        ///
-        /// When true, the spell has no targets (do NOT pass any in `targets`).
-        /// The spell's effect will use the overloaded branch (affecting all valid
-        /// objects instead of a single target).
-        #[serde(default)]
-        cast_with_overload: bool,
-        /// CR 702.81a: If casting via retrace from the graveyard, the ObjectId of a
-        /// land card in the player's hand to discard as an additional cost.
-        /// Must be a card with `CardType::Land` in the player's hand.
-        /// `None` if not using retrace.
-        ///
-        /// Retrace is an additional cost (CR 118.8), NOT an alternative cost.
-        /// The player pays the card's normal mana cost PLUS discards this land card.
-        /// After resolution the card returns to the graveyard normally (not exiled).
+        /// Required when `alt_cost == Some(AltCostKind::Retrace)`.
         #[serde(default)]
         retrace_discard_land: Option<ObjectId>,
-        /// CR 702.133a: If true, cast this spell from graveyard using jump-start.
-        /// The card's regular mana cost is paid, plus the player must discard a card
-        /// (specified in `jump_start_discard`). This is NOT an alternative cost --
-        /// it can combine with other alternative costs per the 2018-10-05 ruling.
-        ///
-        /// If the spell resolves, is countered, or otherwise leaves the stack,
-        /// it is exiled instead of going to its normal destination.
-        #[serde(default)]
-        cast_with_jump_start: bool,
         /// CR 702.133a: The card to discard as the jump-start additional cost.
         /// Must be a card in the caster's hand (not the jump-start card itself,
-        /// which is in the graveyard). Required when `cast_with_jump_start` is true.
+        /// which is in the graveyard). Required when `alt_cost == Some(AltCostKind::JumpStart)`.
         #[serde(default)]
         jump_start_discard: Option<ObjectId>,
-        /// CR 702.127a: If true, cast the aftermath half of this split card from
-        /// the graveyard. The aftermath half's mana cost is paid instead of the
-        /// card's first-half mana cost. The aftermath half's spell effect is used
-        /// at resolution. The card is exiled when it leaves the stack.
-        ///
-        /// The card must be in the caster's graveyard and must have the
-        /// Aftermath keyword. This is an alternative cost (CR 118.9).
-        #[serde(default)]
-        cast_with_aftermath: bool,
-        /// CR 702.109a: If true, this spell is being cast by paying its dash cost
-        /// (an alternative cost). The permanent gains haste and returns to hand at end step.
-        #[serde(default)]
-        cast_with_dash: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

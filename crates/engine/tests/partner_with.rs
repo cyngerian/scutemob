@@ -661,7 +661,7 @@ fn test_partner_with_negative_no_keyword() {
     let has_pending = state
         .pending_triggers
         .iter()
-        .any(|t| t.is_partner_with_trigger);
+        .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::PartnerWith);
     assert!(
         !has_pending,
         "CR 702.124j: no pending partner-with trigger for vanilla creature"
@@ -712,7 +712,7 @@ fn test_partner_with_etb_trigger_generated_by_check_triggers() {
 
     // There should be a PartnerWith trigger in the results.
     let has_pw_trigger = new_triggers.iter().any(|t| {
-        t.is_partner_with_trigger
+        t.kind == mtg_engine::state::stubs::PendingTriggerKind::PartnerWith
             && t.partner_with_name.as_deref() == Some("Toothy, Imaginary Friend")
     });
     assert!(

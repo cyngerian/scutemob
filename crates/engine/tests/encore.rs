@@ -424,7 +424,7 @@ fn test_encore_sacrifice_at_end_step() {
     let has_encore_trigger = state
         .pending_triggers
         .iter()
-        .any(|t| t.is_encore_sacrifice_trigger);
+        .any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::EncoreSacrifice);
     assert!(
         has_encore_trigger,
         "CR 702.141a: end_step_actions should queue EncoreSacrificeTrigger for encore tokens"

@@ -86,19 +86,10 @@ pub fn process_command(
             improvise_artifacts,
             delve_cards,
             kicker_times,
-            cast_with_evoke,
-            cast_with_bestow,
-            cast_with_miracle,
-            cast_with_escape,
+            alt_cost,
             escape_exile_cards,
-            cast_with_foretell,
-            cast_with_buyback,
-            cast_with_overload,
             retrace_discard_land,
-            cast_with_jump_start,
             jump_start_discard,
-            cast_with_aftermath,
-            cast_with_dash,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -112,19 +103,10 @@ pub fn process_command(
                 improvise_artifacts,
                 delve_cards,
                 kicker_times,
-                cast_with_evoke,
-                cast_with_bestow,
-                cast_with_miracle,
-                cast_with_escape,
+                alt_cost,
                 escape_exile_cards,
-                cast_with_foretell,
-                cast_with_buyback,
-                cast_with_overload,
                 retrace_discard_land,
-                cast_with_jump_start,
                 jump_start_discard,
-                cast_with_aftermath,
-                cast_with_dash,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).

@@ -28,9 +28,10 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::{Characteristics, ManaCost, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::stack::{StackObject, StackObjectKind};
+use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
-use crate::state::types::{AffinityTarget, CardType, EnchantTarget, KeywordAbility, SubType};
+use crate::state::types::{AffinityTarget, AltCostKind, CardType, EnchantTarget, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
 
@@ -58,20 +59,22 @@ pub fn handle_cast_spell(
     improvise_artifacts: Vec<ObjectId>,
     delve_cards: Vec<ObjectId>,
     kicker_times: u32,
-    cast_with_evoke: bool,
-    cast_with_bestow: bool,
-    cast_with_miracle: bool,
-    cast_with_escape: bool,
+    alt_cost: Option<AltCostKind>,
     escape_exile_cards: Vec<ObjectId>,
-    cast_with_foretell: bool,
-    cast_with_buyback: bool,
-    cast_with_overload: bool,
     retrace_discard_land: Option<ObjectId>,
-    cast_with_jump_start: bool,
     jump_start_discard: Option<ObjectId>,
-    cast_with_aftermath: bool,
-    cast_with_dash: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
+    // Derive individual alternative-cost booleans from alt_cost for internal logic.
+    let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
+    let cast_with_bestow = alt_cost == Some(AltCostKind::Bestow);
+    let cast_with_miracle = alt_cost == Some(AltCostKind::Miracle);
+    let cast_with_escape = alt_cost == Some(AltCostKind::Escape);
+    let cast_with_foretell = alt_cost == Some(AltCostKind::Foretell);
+    let cast_with_buyback = alt_cost == Some(AltCostKind::Buyback);
+    let cast_with_overload = alt_cost == Some(AltCostKind::Overload);
+    let cast_with_jump_start = alt_cost == Some(AltCostKind::JumpStart);
+    let cast_with_aftermath = alt_cost == Some(AltCostKind::Aftermath);
+    let cast_with_dash = alt_cost == Some(AltCostKind::Dash);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -1326,52 +1329,31 @@ pub fn handle_cast_spell(
                 source: new_discard_id,
                 ability_index: 0,
                 controller: player,
+                kind: PendingTriggerKind::Madness,
                 triggering_event: None,
                 entering_object_id: None,
                 targeting_stack_id: None,
                 triggering_player: None,
                 exalted_attacker_id: None,
                 defending_player_id: None,
-                is_evoke_sacrifice: false,
-                is_madness_trigger: true,
                 madness_exiled_card: Some(new_discard_id),
                 madness_cost,
-                is_miracle_trigger: false,
                 miracle_revealed_card: None,
                 miracle_cost: None,
-                is_unearth_trigger: false,
-                is_exploit_trigger: false,
-                is_modular_trigger: false,
                 modular_counter_count: None,
-                is_evolve_trigger: false,
                 evolve_entering_creature: None,
-                is_myriad_trigger: false,
-                is_suspend_counter_trigger: false,
-                is_suspend_cast_trigger: false,
                 suspend_card_id: None,
-                is_hideaway_trigger: false,
                 hideaway_count: None,
-                is_partner_with_trigger: false,
                 partner_with_name: None,
-                is_ingest_trigger: false,
                 ingest_target_player: None,
-                is_flanking_trigger: false,
                 flanking_blocker_id: None,
-                is_rampage_trigger: false,
                 rampage_n: None,
-                is_provoke_trigger: false,
                 provoke_target_creature: None,
-                is_renown_trigger: false,
                 renown_n: None,
-                is_melee_trigger: false,
-                is_poisonous_trigger: false,
                 poisonous_n: None,
                 poisonous_target_player: None,
-                is_enlist_trigger: false,
                 enlist_enlisted_creature: None,
-                is_encore_sacrifice_trigger: false,
                 encore_activator: None,
-                is_dash_return_trigger: false,
             });
         }
     }

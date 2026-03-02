@@ -4,7 +4,7 @@ use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
 use super::player::{CardId, PlayerId};
-use super::types::{CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
+use super::types::{AltCostKind, CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
 use super::zone::ZoneId;
 
 /// Identifies a game object instance. Per CR 400.7, when an object changes
@@ -345,13 +345,21 @@ pub struct GameObject {
     /// "If you put a permanent onto the battlefield without casting it, you can't kick it.").
     #[serde(default)]
     pub kicker_times_paid: u32,
-    /// CR 702.74a: If true, this permanent was cast by paying its evoke cost.
-    /// The evoke sacrifice trigger checks this flag at ETB time.
+    /// CR 702.74a / CR 702.138b / CR 702.109a: Which alternative cost was paid when this
+    /// permanent was cast, if any.
+    ///
+    /// - `Some(AltCostKind::Evoke)` — cast by paying the evoke cost. The evoke sacrifice
+    ///   trigger checks this at ETB time.
+    /// - `Some(AltCostKind::Escape)` — cast via escape from the graveyard. Used by
+    ///   "escapes with [counter]" (CR 702.138c) and "escapes with [ability]" (CR 702.138d).
+    /// - `Some(AltCostKind::Dash)` — cast by paying the dash cost. The permanent gains
+    ///   haste and a delayed trigger returns it to hand at end step.
+    /// - `None` — not cast with any tracked alternative cost (or entered without being cast).
     ///
     /// Set during spell resolution when the permanent enters the battlefield.
-    /// Reset to false on zone changes (CR 400.7).
+    /// Reset to `None` on zone changes (CR 400.7).
     #[serde(default)]
-    pub was_evoked: bool,
+    pub cast_alt_cost: Option<AltCostKind>,
     /// CR 702.103b: If true, this permanent is currently bestowed. While bestowed,
     /// it is an Aura enchantment (NOT a creature) with enchant creature.
     /// CR 702.103f: When it becomes unattached, it ceases to be bestowed and
@@ -363,16 +371,6 @@ pub struct GameObject {
     /// changes (CR 400.7).
     #[serde(default)]
     pub is_bestowed: bool,
-    /// CR 702.138b: If true, this permanent "escaped" -- it entered the battlefield
-    /// from a spell that was cast from the graveyard using an escape ability.
-    ///
-    /// Used by "escapes with [counter]" (CR 702.138c) and "escapes with [ability]"
-    /// (CR 702.138d) effects at resolution time.
-    ///
-    /// Set during spell resolution when the permanent enters the battlefield.
-    /// Reset to false on zone changes (CR 400.7).
-    #[serde(default)]
-    pub was_escaped: bool,
     /// CR 702.143a: If true, this object in exile was foretold (exiled face-down
     /// via the foretell special action). Used to determine whether the card can be
     /// cast from exile for its foretell cost.
@@ -484,12 +482,4 @@ pub struct GameObject {
     /// zone changes (CR 400.7).
     #[serde(default)]
     pub encore_activated_by: Option<crate::state::player::PlayerId>,
-    /// CR 702.109a: If true, this permanent was cast by paying its dash cost.
-    /// Grants haste ("as long as this permanent's dash cost was paid, it has haste")
-    /// and triggers return-to-hand at end step.
-    ///
-    /// Set during spell resolution when the permanent enters the battlefield.
-    /// Reset to false on zone changes (CR 400.7).
-    #[serde(default)]
-    pub was_dashed: bool,
 }

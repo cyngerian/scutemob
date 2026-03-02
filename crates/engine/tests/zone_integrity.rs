@@ -188,9 +188,8 @@ fn test_add_object_to_state() {
         has_summoning_sickness: false,
         goaded_by: im::Vector::new(),
         kicker_times_paid: 0,
-        was_evoked: false,
+        cast_alt_cost: None,
         is_bestowed: false,
-        was_escaped: false,
         is_foretold: false,
         foretold_turn: 0,
         was_unearthed: false,
@@ -202,7 +201,6 @@ fn test_add_object_to_state() {
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
-        was_dashed: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

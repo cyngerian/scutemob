@@ -276,12 +276,10 @@ impl GameState {
             // CR 400.7: kicked status is not preserved across zone changes
             // (a permanent re-entering is not kicked).
             kicker_times_paid: 0,
-            // CR 400.7: evoke status is not preserved across zone changes.
-            was_evoked: false,
+            // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
+            cast_alt_cost: None,
             // CR 400.7: bestow status is not preserved across zone changes.
             is_bestowed: false,
-            // CR 400.7: escape status is not preserved across zone changes.
-            was_escaped: false,
             // CR 400.7: foretold status is not preserved across zone changes.
             is_foretold: false,
             foretold_turn: 0,
@@ -303,8 +301,6 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
-            // CR 400.7: dash flag is not preserved across zone changes (CR 702.109a).
-            was_dashed: false,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -375,12 +371,10 @@ impl GameState {
             goaded_by: im::Vector::new(),
             // CR 400.7: kicked status is not preserved across zone changes.
             kicker_times_paid: 0,
-            // CR 400.7: evoke status is not preserved across zone changes.
-            was_evoked: false,
+            // CR 400.7: alt-cost status (evoke/escape/dash) is not preserved across zone changes.
+            cast_alt_cost: None,
             // CR 400.7: bestow status is not preserved across zone changes.
             is_bestowed: false,
-            // CR 400.7: escape status is not preserved across zone changes.
-            was_escaped: false,
             // CR 400.7: foretold status is not preserved across zone changes.
             is_foretold: false,
             foretold_turn: 0,
@@ -402,8 +396,6 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
-            // CR 400.7: dash flag is not preserved across zone changes (CR 702.109a).
-            was_dashed: false,
         };
 
         // Insert at the front (= bottom) of the destination zone.

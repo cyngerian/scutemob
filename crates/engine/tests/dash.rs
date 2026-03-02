@@ -14,6 +14,7 @@
 //! - Copies of a dashed creature do NOT inherit was_dashed; no haste, no return trigger (Ruling 2014-11-24).
 //! - Commander tax applies on top of dash cost (CR 118.9d).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::types::SuperType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
@@ -153,19 +154,10 @@ fn test_dash_basic_cast_with_dash_cost() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -198,11 +190,11 @@ fn test_dash_basic_cast_with_dash_cost() {
         "CR 702.109a: dashed creature should be on battlefield after resolution"
     );
 
-    // was_dashed flag is set on the permanent.
+    // cast_alt_cost is set to Dash on the permanent.
     let bf_id = find_in_zone(&state, "Goblin Raider", ZoneId::Battlefield).unwrap();
     assert!(
-        state.objects[&bf_id].was_dashed,
-        "CR 702.109a: was_dashed should be true on battlefield permanent"
+        state.objects[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Dash),
+        "CR 702.109a: cast_alt_cost should be Some(Dash) on battlefield permanent"
     );
 
     // Haste is granted: permanent has the Haste keyword.
@@ -264,19 +256,10 @@ fn test_dash_normal_cast_no_return() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: None,
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -292,10 +275,10 @@ fn test_dash_normal_cast_no_return() {
 
     let bf_id = find_in_zone(&state, "Goblin Raider", ZoneId::Battlefield).unwrap();
 
-    // was_dashed is false (normal cast).
+    // cast_alt_cost is None (normal cast, not dashed).
     assert!(
-        !state.objects[&bf_id].was_dashed,
-        "CR 702.109a: was_dashed should be false for normally cast creature"
+        state.objects[&bf_id].cast_alt_cost.is_none(),
+        "CR 702.109a: cast_alt_cost should be None for normally cast creature"
     );
 
     // Advance to End step — no DashReturnTrigger should fire.
@@ -360,19 +343,10 @@ fn test_dash_return_to_hand_at_end_step() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -463,19 +437,10 @@ fn test_dash_creature_left_battlefield_before_end_step() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -626,19 +591,10 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     );
 
@@ -695,19 +651,10 @@ fn test_dash_cannot_combine_with_evoke() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     );
 
@@ -818,19 +765,10 @@ fn test_dash_commander_tax_applies() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     );
     assert!(
@@ -856,19 +794,10 @@ fn test_dash_commander_tax_applies() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Dash),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: true,
         },
     );
     assert!(

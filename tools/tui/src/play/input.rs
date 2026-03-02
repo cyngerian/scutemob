@@ -98,19 +98,10 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         improvise_artifacts: Vec::new(),
                         delve_cards: Vec::new(),
                         kicker_times: 0,
-                        cast_with_evoke: false,
-                        cast_with_bestow: false,
-                        cast_with_miracle: false,
-                        cast_with_escape: false,
+                        alt_cost: None,
                         escape_exile_cards: Vec::new(),
-                        cast_with_foretell: false,
-                        cast_with_buyback: false,
-                        cast_with_overload: false,
                         retrace_discard_land: None,
-                        cast_with_jump_start: false,
                         jump_start_discard: None,
-                        cast_with_aftermath: false,
-                        cast_with_dash: false,
                     };
                     app.execute_command(cmd)?;
                 } else {

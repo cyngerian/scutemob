@@ -12,6 +12,7 @@
 //! - CR 118.9a: Bestow cannot be combined with other alternative costs (flashback, evoke).
 //! - CR 118.9c: Mana value is unchanged when cast bestowed (printed mana cost).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     check_and_apply_sbas, process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry,
@@ -171,19 +172,10 @@ fn test_bestow_cast_as_aura_basic() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: true,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Bestow),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -364,19 +356,10 @@ fn test_bestow_cast_normally_as_creature() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: None,
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -511,19 +494,10 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: true,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Bestow),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -759,19 +733,10 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: true,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Bestow),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             },
         );
         assert!(
@@ -833,19 +798,10 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: true,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Bestow),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             },
         );
         assert!(
@@ -925,19 +881,10 @@ fn test_bestow_cannot_combine_with_flashback() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: true,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Bestow),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
     assert!(
@@ -1022,6 +969,14 @@ fn test_bestow_cannot_combine_with_evoke() {
 
     let card_id = find_object(&state, "Dual Card");
 
+    // CR 118.9a: Only one alternative cost may be applied at a time.
+    // The new API enforces this by design — alt_cost is a single Option<AltCostKind>.
+    // Casting with ONLY Evoke (alt_cost: Some(Evoke)) is valid — the card has Evoke.
+    // Casting with ONLY Bestow (alt_cost: Some(Bestow)) requires a valid target.
+    // There's no way to specify two alt costs simultaneously in the new API.
+    //
+    // Here we verify that casting with Evoke alone (without Bestow) is accepted,
+    // confirming the card can be cast with either alt cost independently.
     let result = process_command(
         state,
         Command::CastSpell {
@@ -1032,24 +987,17 @@ fn test_bestow_cannot_combine_with_evoke() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: true,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
+    // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
+    // alt costs is enforced by the API type — only one Option<AltCostKind> can be set.
     assert!(
-        matches!(result, Err(GameStateError::InvalidCommand(_))),
-        "CR 118.9a: Bestow + evoke should fail with InvalidCommand; result: {:?}",
+        result.is_ok(),
+        "CR 702.74a: Casting with Evoke (single alt cost) on a card with both Bestow+Evoke should succeed; result: {:?}",
         result
     );
 }
@@ -1103,19 +1051,10 @@ fn test_bestow_non_bestow_spell_rejected() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: true,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Bestow),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
     assert!(

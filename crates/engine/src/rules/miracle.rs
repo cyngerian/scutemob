@@ -21,7 +21,7 @@ use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{ManaCost, ObjectId};
 use crate::state::player::PlayerId;
-use crate::state::stubs::PendingTrigger;
+use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::types::KeywordAbility;
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -109,52 +109,31 @@ pub fn handle_choose_miracle(
         source,
         ability_index: 0, // unused for miracle triggers
         controller: player,
+        kind: PendingTriggerKind::Miracle,
         triggering_event: None,
         entering_object_id: None,
         targeting_stack_id: None,
         triggering_player: None,
         exalted_attacker_id: None,
         defending_player_id: None,
-        is_evoke_sacrifice: false,
-        is_madness_trigger: false,
         madness_exiled_card: None,
         madness_cost: None,
-        is_miracle_trigger: true,
         miracle_revealed_card: Some(card),
         miracle_cost: Some(miracle_cost),
-        is_unearth_trigger: false,
-        is_exploit_trigger: false,
-        is_modular_trigger: false,
         modular_counter_count: None,
-        is_evolve_trigger: false,
         evolve_entering_creature: None,
-        is_myriad_trigger: false,
-        is_suspend_counter_trigger: false,
-        is_suspend_cast_trigger: false,
         suspend_card_id: None,
-        is_hideaway_trigger: false,
         hideaway_count: None,
-        is_partner_with_trigger: false,
         partner_with_name: None,
-        is_ingest_trigger: false,
         ingest_target_player: None,
-        is_flanking_trigger: false,
         flanking_blocker_id: None,
-        is_rampage_trigger: false,
         rampage_n: None,
-        is_provoke_trigger: false,
         provoke_target_creature: None,
-        is_renown_trigger: false,
         renown_n: None,
-        is_melee_trigger: false,
-        is_poisonous_trigger: false,
         poisonous_n: None,
         poisonous_target_player: None,
-        is_enlist_trigger: false,
         enlist_enlisted_creature: None,
-        is_encore_sacrifice_trigger: false,
         encore_activator: None,
-        is_dash_return_trigger: false,
     });
 
     Ok(vec![])

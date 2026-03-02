@@ -91,6 +91,25 @@ pub enum ProtectionQuality {
     FromAll,
 }
 
+/// Which alternative casting cost was used to cast this spell.
+/// Used by CastSpell.alt_cost and GameObject.cast_alt_cost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AltCostKind {
+    Flashback,
+    Buyback,
+    Escape,
+    Evoke,
+    Bestow,
+    Miracle,
+    Foretell,
+    Overload,
+    Retrace,
+    JumpStart,
+    Aftermath,
+    Dash,
+    // Future: Blitz, Plot, Prototype, Impending (add as implemented)
+}
+
 /// Counter types that can be placed on objects or players (CR 122).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum CounterType {

@@ -19,7 +19,8 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, Color, CounterType, EnchantTarget, KeywordAbility, SubType};
+use crate::state::stubs::PendingTriggerKind;
+use crate::state::types::{AltCostKind, CardType, Color, CounterType, EnchantTarget, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -273,20 +274,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
                     obj.kicker_times_paid = stack_obj.kicker_times_paid;
-                    obj.was_evoked = stack_obj.was_evoked;
-                    // CR 702.138b: Transfer escaped status from stack to permanent.
-                    // A permanent "escaped" if the spell that became it was cast from
-                    // the graveyard using an escape ability. Used by "escapes with
-                    // [counter]" (CR 702.138c) and "escapes with [ability]" (CR 702.138d).
-                    obj.was_escaped = stack_obj.was_escaped;
+                    // CR 702.74a: Transfer evoked status from stack to permanent so the
+                    // ETB sacrifice trigger can check cast_alt_cost.
+                    // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
+                    // using an escape ability (CR 702.138c/d).
+                    // CR 702.109a: Transfer dashed status. "it has haste" and return at end step.
+                    obj.cast_alt_cost = if stack_obj.was_evoked {
+                        Some(AltCostKind::Evoke)
+                    } else if stack_obj.was_escaped {
+                        Some(AltCostKind::Escape)
+                    } else if stack_obj.was_dashed {
+                        Some(AltCostKind::Dash)
+                    } else {
+                        None
+                    };
                     // CR 702.103b: Transfer bestowed status from stack to permanent.
                     // If bestow_fallback is true, the spell reverted to creature mode;
                     // the permanent enters as a creature (not as a bestowed Aura).
                     obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
-                    // CR 702.109a: Transfer dashed status from stack to permanent.
-                    // "As long as this permanent's dash cost was paid, it has haste."
-                    // Also marks the permanent for end-step return trigger (turn_actions.rs).
-                    obj.was_dashed = stack_obj.was_dashed;
                     if stack_obj.was_dashed {
                         // CR 702.109a: "it has haste" -- grant haste keyword.
                         obj.characteristics.keywords.insert(KeywordAbility::Haste);
@@ -1286,9 +1291,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     has_summoning_sickness: true,
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
-                    was_evoked: false,
+                    cast_alt_cost: None,
                     is_bestowed: false,
-                    was_escaped: false,
                     is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
@@ -1302,7 +1306,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
-                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -1403,52 +1406,31 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 source: suspended_card,
                                 ability_index: 0,
                                 controller: owner,
+                                kind: PendingTriggerKind::SuspendCast,
                                 triggering_event: None,
                                 entering_object_id: None,
                                 targeting_stack_id: None,
                                 triggering_player: None,
                                 exalted_attacker_id: None,
                                 defending_player_id: None,
-                                is_evoke_sacrifice: false,
-                                is_madness_trigger: false,
                                 madness_exiled_card: None,
                                 madness_cost: None,
-                                is_miracle_trigger: false,
                                 miracle_revealed_card: None,
                                 miracle_cost: None,
-                                is_unearth_trigger: false,
-                                is_exploit_trigger: false,
-                                is_modular_trigger: false,
                                 modular_counter_count: None,
-                                is_evolve_trigger: false,
                                 evolve_entering_creature: None,
-                                is_myriad_trigger: false,
-                                is_suspend_counter_trigger: false,
-                                is_suspend_cast_trigger: true,
                                 suspend_card_id: Some(suspended_card),
-                                is_hideaway_trigger: false,
                                 hideaway_count: None,
-                                is_partner_with_trigger: false,
                                 partner_with_name: None,
-                                is_ingest_trigger: false,
                                 ingest_target_player: None,
-                                is_flanking_trigger: false,
                                 flanking_blocker_id: None,
-                                is_rampage_trigger: false,
                                 rampage_n: None,
-                                is_provoke_trigger: false,
                                 provoke_target_creature: None,
-                                is_renown_trigger: false,
                                 renown_n: None,
-                                is_melee_trigger: false,
-                                is_poisonous_trigger: false,
                                 poisonous_n: None,
                                 poisonous_target_player: None,
-                                is_enlist_trigger: false,
                                 enlist_enlisted_creature: None,
-                                is_encore_sacrifice_trigger: false,
                                 encore_activator: None,
-                                is_dash_return_trigger: false,
                             });
                     }
                 }
@@ -2381,9 +2363,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     has_summoning_sickness: true,
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
-                    was_evoked: false,
+                    cast_alt_cost: None,
                     is_bestowed: false,
-                    was_escaped: false,
                     is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
@@ -2395,7 +2376,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
-                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2564,9 +2544,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     has_summoning_sickness: true,
                     goaded_by: im::Vector::new(),
                     kicker_times_paid: 0,
-                    was_evoked: false,
+                    cast_alt_cost: None,
                     is_bestowed: false,
-                    was_escaped: false,
                     is_foretold: false,
                     foretold_turn: 0,
                     was_unearthed: false,
@@ -2578,7 +2557,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
-                    was_dashed: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2764,9 +2742,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         has_summoning_sickness: true,
                         goaded_by: im::Vector::new(),
                         kicker_times_paid: 0,
-                        was_evoked: false,
+                        cast_alt_cost: None,
                         is_bestowed: false,
-                        was_escaped: false,
                         is_foretold: false,
                         foretold_turn: 0,
                         was_unearthed: false,
@@ -2780,7 +2757,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Ruling 2020-11-10: track the original activator so the end-step
                         // sacrifice trigger can verify control hasn't changed.
                         encore_activated_by: Some(controller),
-                        was_dashed: false,
                     };
 
                     // Add the token to the battlefield.

@@ -14,6 +14,7 @@
 //! - Commander tax applies on top of evoke cost (CR 118.9d).
 //! - Sacrifice trigger checks source is still on battlefield (CR 400.7).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
 use mtg_engine::state::CardType;
 use mtg_engine::{
@@ -224,19 +225,10 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -271,8 +263,8 @@ fn test_evoke_basic_cast_with_evoke_cost() {
     );
     let bf_id = creature_bf.unwrap();
     assert!(
-        state.objects[&bf_id].was_evoked,
-        "CR 702.74a: was_evoked should be true on battlefield permanent"
+        state.objects[&bf_id].cast_alt_cost == Some(mtg_engine::state::types::AltCostKind::Evoke),
+        "CR 702.74a: cast_alt_cost should be Some(Evoke) on battlefield permanent"
     );
 
     // Evoke sacrifice trigger should be on the stack.
@@ -377,19 +369,10 @@ fn test_evoke_basic_cast_without_evoke() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: None,
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -484,19 +467,10 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -597,19 +571,10 @@ fn test_evoke_does_not_change_mana_value() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -742,19 +707,10 @@ fn test_evoke_cannot_combine_with_flashback() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -818,19 +774,10 @@ fn test_evoke_non_evoke_spell_rejected() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -904,19 +851,10 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
     assert!(
@@ -999,19 +937,10 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap();

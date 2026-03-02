@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
-    ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility,
+    LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -670,12 +670,10 @@ impl HashInto for GameObject {
         self.goaded_by.hash_into(hasher);
         // Kicker (CR 702.33d) — times kicker was paid when this permanent was cast
         self.kicker_times_paid.hash_into(hasher);
-        // Evoke (CR 702.74a) — permanent was cast by paying its evoke cost
-        self.was_evoked.hash_into(hasher);
+        // Alt cost (CR 702.74a / CR 702.138b / CR 702.109a) — which alternative cost was paid
+        self.cast_alt_cost.map(|k| k as u8).hash_into(hasher);
         // Bestow (CR 702.103b) — permanent is currently bestowed as an Aura
         self.is_bestowed.hash_into(hasher);
-        // Escape (CR 702.138b) — permanent was cast via escape from graveyard
-        self.was_escaped.hash_into(hasher);
         // Foretell (CR 702.143a) — card was foretold (exiled face-down from hand)
         self.is_foretold.hash_into(hasher);
         self.foretold_turn.hash_into(hasher);
@@ -697,8 +695,6 @@ impl HashInto for GameObject {
         self.encore_must_attack.hash_into(hasher);
         // Encore (CR 702.141a / Ruling 2020-11-10) — original activator identity
         self.encore_activated_by.hash_into(hasher);
-        // Dash (CR 702.109a) — permanent was cast by paying its dash cost
-        self.was_dashed.hash_into(hasher);
     }
 }
 
@@ -1110,6 +1106,8 @@ impl HashInto for PendingTrigger {
         self.source.hash_into(hasher);
         self.ability_index.hash_into(hasher);
         self.controller.hash_into(hasher);
+        // kind discriminant replaces all is_X_trigger boolean fields
+        (self.kind as u8).hash_into(hasher);
         // M9.4: triggering_event (CR 603.2d) — used for Panharmonicon doubling
         self.triggering_event.hash_into(hasher);
         // M9.4 fix session 3: entering_object_id — used by ArtifactOrCreatureETB filter
@@ -1122,69 +1120,39 @@ impl HashInto for PendingTrigger {
         self.exalted_attacker_id.hash_into(hasher);
         // CR 508.5 / CR 702.86a: defending_player_id — the defending player for SelfAttacks triggers
         self.defending_player_id.hash_into(hasher);
-        // CR 702.74a: is_evoke_sacrifice — evoke sacrifice trigger marker
-        self.is_evoke_sacrifice.hash_into(hasher);
-        // CR 702.35a: is_madness_trigger — madness trigger marker
-        self.is_madness_trigger.hash_into(hasher);
+        // CR 702.35a: madness-specific fields
         self.madness_exiled_card.hash_into(hasher);
         self.madness_cost.hash_into(hasher);
-        // CR 702.94a: is_miracle_trigger — miracle trigger marker
-        self.is_miracle_trigger.hash_into(hasher);
+        // CR 702.94a: miracle-specific fields
         self.miracle_revealed_card.hash_into(hasher);
         self.miracle_cost.hash_into(hasher);
-        // CR 702.141a: is_encore_sacrifice_trigger -- encore delayed sacrifice trigger marker
-        self.is_encore_sacrifice_trigger.hash_into(hasher);
-        // CR 702.141a: encore_activator -- player who activated the encore ability
+        // CR 702.141a: encore-specific fields
         self.encore_activator.hash_into(hasher);
-        // CR 702.84a: is_unearth_trigger -- unearth delayed exile trigger marker
-        self.is_unearth_trigger.hash_into(hasher);
-        // CR 702.110a: is_exploit_trigger -- exploit ETB trigger marker
-        self.is_exploit_trigger.hash_into(hasher);
-        // CR 702.43a: is_modular_trigger -- modular dies trigger marker
-        self.is_modular_trigger.hash_into(hasher);
+        // CR 702.43a: modular-specific field
         self.modular_counter_count.hash_into(hasher);
-        // CR 702.100a: is_evolve_trigger -- evolve ETB trigger marker
-        self.is_evolve_trigger.hash_into(hasher);
+        // CR 702.100a: evolve-specific field
         self.evolve_entering_creature.hash_into(hasher);
-        // CR 702.116a: is_myriad_trigger -- myriad attack trigger marker
-        self.is_myriad_trigger.hash_into(hasher);
-        // CR 702.62a: is_suspend_counter_trigger -- suspend upkeep trigger marker
-        self.is_suspend_counter_trigger.hash_into(hasher);
-        // CR 702.62a: is_suspend_cast_trigger -- suspend cast trigger marker
-        self.is_suspend_cast_trigger.hash_into(hasher);
+        // CR 702.62a: suspend-specific field
         self.suspend_card_id.hash_into(hasher);
-        // CR 702.75a: is_hideaway_trigger -- hideaway ETB trigger marker
-        self.is_hideaway_trigger.hash_into(hasher);
+        // CR 702.75a: hideaway-specific field
         self.hideaway_count.hash_into(hasher);
-        // CR 702.124j: is_partner_with_trigger -- partner with ETB trigger marker
-        self.is_partner_with_trigger.hash_into(hasher);
+        // CR 702.124j: partner-with-specific field
         self.partner_with_name.hash_into(hasher);
-        // CR 702.115a: is_ingest_trigger -- ingest combat damage trigger marker
-        self.is_ingest_trigger.hash_into(hasher);
+        // CR 702.115a: ingest-specific field
         self.ingest_target_player.hash_into(hasher);
-        // CR 702.25a: is_flanking_trigger -- flanking blocker trigger marker
-        self.is_flanking_trigger.hash_into(hasher);
+        // CR 702.25a: flanking-specific field
         self.flanking_blocker_id.hash_into(hasher);
-        // CR 702.23a: is_rampage_trigger -- rampage becomes-blocked trigger marker
-        self.is_rampage_trigger.hash_into(hasher);
+        // CR 702.23a: rampage-specific field
         self.rampage_n.hash_into(hasher);
-        // CR 702.39a: is_provoke_trigger -- provoke attack trigger marker
-        self.is_provoke_trigger.hash_into(hasher);
+        // CR 702.39a: provoke-specific field
         self.provoke_target_creature.hash_into(hasher);
-        // CR 702.112a: is_renown_trigger -- renown combat damage trigger marker
-        self.is_renown_trigger.hash_into(hasher);
+        // CR 702.112a: renown-specific field
         self.renown_n.hash_into(hasher);
-        // CR 702.121a: is_melee_trigger -- melee attack trigger marker
-        self.is_melee_trigger.hash_into(hasher);
-        // CR 702.70a: is_poisonous_trigger -- poisonous combat damage trigger marker
-        self.is_poisonous_trigger.hash_into(hasher);
+        // CR 702.70a: poisonous-specific fields
         self.poisonous_n.hash_into(hasher);
         self.poisonous_target_player.hash_into(hasher);
-        // CR 702.154a: is_enlist_trigger -- enlist attack trigger marker
-        self.is_enlist_trigger.hash_into(hasher);
+        // CR 702.154a: enlist-specific field
         self.enlist_enlisted_creature.hash_into(hasher);
-        // CR 702.109a: is_dash_return_trigger -- dash delayed return-to-hand trigger marker
-        self.is_dash_return_trigger.hash_into(hasher);
     }
 }
 
@@ -1652,6 +1620,8 @@ impl HashInto for StackObject {
         self.cast_with_aftermath.hash_into(hasher);
         // Dash (CR 702.109a) — alternative cost paid; permanent gains haste + return trigger
         self.was_dashed.hash_into(hasher);
+        // Note: StackObject retains its own individual boolean fields for now (separate from
+        // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
 }
 

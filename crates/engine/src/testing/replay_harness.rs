@@ -21,6 +21,7 @@ use crate::state::{ActivatedAbility, ActivationCost, CounterType};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
 };
+use crate::state::types::AltCostKind;
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, Color, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility,
@@ -285,19 +286,14 @@ pub fn translate_player_action(
                 improvise_artifacts: improvise_ids,
                 delve_cards: delve_ids,
                 kicker_times: if kicked { 1 } else { 0 },
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: if buyback {
+                    Some(AltCostKind::Buyback)
+                } else {
+                    None
+                },
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: buyback,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -317,19 +313,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: None,
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -346,19 +333,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: true,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Evoke),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -375,19 +353,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: true,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Bestow),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -405,19 +374,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: None,
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -435,19 +395,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: true,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Miracle),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -470,19 +421,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: true,
+                alt_cost: Some(AltCostKind::Escape),
                 escape_exile_cards: exile_ids,
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -762,19 +704,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Foretell),
                 escape_exile_cards: vec![],
-                cast_with_foretell: true,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -792,19 +725,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Overload),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: true,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -825,19 +749,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Retrace),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: Some(land_id),
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -858,19 +773,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::JumpStart),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: true,
                 jump_start_discard: Some(discard_id),
-                cast_with_aftermath: false,
-                cast_with_dash: false,
             })
         }
 
@@ -888,19 +794,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Aftermath),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: true,
-                cast_with_dash: false,
             })
         }
 
@@ -917,19 +814,10 @@ pub fn translate_player_action(
                 improvise_artifacts: vec![],
                 delve_cards: vec![],
                 kicker_times: 0,
-                cast_with_evoke: false,
-                cast_with_bestow: false,
-                cast_with_miracle: false,
-                cast_with_escape: false,
+                alt_cost: Some(AltCostKind::Dash),
                 escape_exile_cards: vec![],
-                cast_with_foretell: false,
-                cast_with_buyback: false,
-                cast_with_overload: false,
                 retrace_discard_land: None,
-                cast_with_jump_start: false,
                 jump_start_discard: None,
-                cast_with_aftermath: false,
-                cast_with_dash: true,
             })
         }
 

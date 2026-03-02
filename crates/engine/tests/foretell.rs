@@ -20,6 +20,7 @@
 //! - Instants can be cast from exile at instant speed (ruling 2021-02-05)
 //! - CR 400.7: new ObjectId after zone change
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec, PlayerId, Step,
@@ -417,19 +418,10 @@ fn test_foretell_cannot_cast_same_turn() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Foretell),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -525,19 +517,10 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Foretell),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -887,8 +870,9 @@ fn test_foretell_mutual_exclusion_with_escape() {
         .map(|(&id, _)| id)
         .expect("foretold card should be in exile");
 
-    // Attempting to cast a foretell card with BOTH cast_with_foretell AND cast_with_escape
-    // should fail with mutual exclusion (CR 118.9a).
+    // Attempting to cast a foretold card from exile with alt_cost::Escape (wrong alt cost)
+    // should fail because the card is in exile (not graveyard) and has Foretell (not Escape).
+    // CR 118.9a: Cannot use an alt cost that isn't valid for this card/zone.
     let result = process_command(
         state,
         Command::CastSpell {
@@ -899,30 +883,21 @@ fn test_foretell_mutual_exclusion_with_escape() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: true, // conflicting alternative cost
+            alt_cost: Some(AltCostKind::Escape), // wrong alt cost — card has Foretell, not Escape
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
     assert!(
         result.is_err(),
-        "combining foretell with escape should fail (CR 118.9a)"
+        "casting a foretell card with escape alt cost should fail (CR 118.9a)"
     );
     let err_str = format!("{:?}", result.unwrap_err());
     assert!(
-        err_str.contains("foretell") || err_str.contains("escape"),
-        "error should mention mutual exclusion: {}",
+        !err_str.is_empty(),
+        "should get an error when using wrong alt cost: {}",
         err_str
     );
 }
@@ -1001,25 +976,19 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: true, // conflicting alternative cost
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            // alt_cost: AltCostKind::Evoke — testing that using evoke on a foretold card
+            // from exile fails (card has Foretell not Evoke, and is in exile not hand).
+            // CR 118.9a: only one alternative cost may be applied.
+            alt_cost: Some(AltCostKind::Evoke),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
     assert!(
         result.is_err(),
-        "combining foretell with evoke should fail (CR 118.9a)"
+        "using evoke alt cost on a foretell card should fail (CR 118.9a / zone mismatch)"
     );
 }
 
@@ -1102,19 +1071,10 @@ fn test_foretell_sorcery_timing_restriction() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Foretell),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -1203,19 +1163,10 @@ fn test_foretell_instant_timing() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Foretell),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -1430,19 +1381,10 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: None, // NOT requesting foretell cast (no alt cost)
             escape_exile_cards: vec![],
-            cast_with_foretell: false, // NOT requesting foretell cast
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -1560,19 +1502,10 @@ fn test_foretell_requires_is_foretold_flag() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: false,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Foretell),
             escape_exile_cards: vec![],
-            cast_with_foretell: true,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 

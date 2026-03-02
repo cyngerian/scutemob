@@ -670,7 +670,7 @@ fn test_hideaway_negative_no_keyword() {
     );
 
     // No pending hideaway trigger either.
-    let has_pending = state.pending_triggers.iter().any(|t| t.is_hideaway_trigger);
+    let has_pending = state.pending_triggers.iter().any(|t| t.kind == mtg_engine::state::stubs::PendingTriggerKind::Hideaway);
     assert!(
         !has_pending,
         "Negative test: no pending hideaway trigger for vanilla creature"

@@ -19,6 +19,7 @@
 //! - Mana value is based on printed cost, not miracle cost (CR 118.9c).
 //! - Miracle works on any player's turn (e.g., during opponent's turn via draw effect).
 
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{
     AbilityDefinition, CardDefinition, Effect, EffectAmount, PlayerTarget,
 };
@@ -479,19 +480,10 @@ fn test_miracle_cast_for_miracle_cost() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: true,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Miracle),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     )
     .unwrap();
@@ -589,19 +581,10 @@ fn test_miracle_sorcery_ignores_timing() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: true,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Miracle),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
 
@@ -800,19 +783,10 @@ fn test_miracle_cannot_combine_with_flashback() {
             improvise_artifacts: vec![],
             delve_cards: vec![],
             kicker_times: 0,
-            cast_with_evoke: false,
-            cast_with_bestow: false,
-            cast_with_miracle: true,
-            cast_with_escape: false,
+            alt_cost: Some(AltCostKind::Miracle),
             escape_exile_cards: vec![],
-            cast_with_foretell: false,
-            cast_with_buyback: false,
-            cast_with_overload: false,
             retrace_discard_land: None,
-            cast_with_jump_start: false,
             jump_start_discard: None,
-            cast_with_aftermath: false,
-            cast_with_dash: false,
         },
     );
     assert!(
