@@ -1016,6 +1016,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.

@@ -26,8 +26,8 @@
 //! - Timing restrictions still apply from graveyard (ruling 2020-01-24).
 //! - Mana value is based on printed mana cost, not escape cost (CR 118.9c).
 
-use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
     CounterType, GameEvent, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ObjectSpec,

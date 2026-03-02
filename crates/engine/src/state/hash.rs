@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility,
-    LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
+    ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -524,6 +524,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Encore => 94u8.hash_into(hasher),
             // Dash (discriminant 95) -- CR 702.109
             KeywordAbility::Dash => 95u8.hash_into(hasher),
+            // Blitz (discriminant 96) -- CR 702.152
+            KeywordAbility::Blitz => 96u8.hash_into(hasher),
         }
     }
 }
@@ -1557,6 +1559,11 @@ impl HashInto for StackObjectKind {
                 31u8.hash_into(hasher);
                 source_object.hash_into(hasher);
             }
+            // BlitzSacrificeTrigger (discriminant 32) -- CR 702.152a
+            StackObjectKind::BlitzSacrificeTrigger { source_object } => {
+                32u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+            }
         }
     }
 }
@@ -1620,6 +1627,8 @@ impl HashInto for StackObject {
         self.cast_with_aftermath.hash_into(hasher);
         // Dash (CR 702.109a) — alternative cost paid; permanent gains haste + return trigger
         self.was_dashed.hash_into(hasher);
+        // Blitz (CR 702.152a) — alternative cost paid; haste + draw-on-death + sacrifice trigger
+        self.was_blitzed.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3148,6 +3157,11 @@ impl HashInto for AbilityDefinition {
             // Dash (discriminant 28) -- CR 702.109
             AbilityDefinition::Dash { cost } => {
                 28u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Blitz (discriminant 29) -- CR 702.152
+            AbilityDefinition::Blitz { cost } => {
+                29u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

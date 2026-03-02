@@ -25,7 +25,9 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind};
-use crate::state::stubs::{PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter};
+use crate::state::stubs::{
+    PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
+};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{CardType, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
@@ -345,6 +347,7 @@ pub fn handle_activate_ability(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -567,6 +570,7 @@ pub fn handle_cycle_card(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -743,6 +747,7 @@ pub fn handle_unearth_card(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -998,6 +1003,7 @@ pub fn handle_ninjutsu(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1190,6 +1196,7 @@ pub fn handle_embalm_card(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1391,6 +1398,7 @@ pub fn handle_eternalize_card(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1591,6 +1599,7 @@ pub fn handle_encore_card(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3448,6 +3457,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         cast_with_jump_start: false,
                         cast_with_aftermath: false,
                         was_dashed: false,
+                        was_blitzed: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -3635,6 +3645,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                     }
                 }
+                PendingTriggerKind::BlitzSacrifice => {
+                    // CR 702.152a: Blitz delayed sacrifice trigger -- "sacrifice the
+                    // permanent at the beginning of the next end step."
+                    StackObjectKind::BlitzSacrificeTrigger {
+                        source_object: trigger.source,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -3661,6 +3678,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 cast_with_jump_start: false,
                 cast_with_aftermath: false,
                 was_dashed: false,
+                was_blitzed: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4016,6 +4034,7 @@ pub fn handle_crew_vehicle(
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     };
     state.stack_objects.push_back(stack_obj);
 

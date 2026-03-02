@@ -18,9 +18,11 @@ use crate::effects::{execute_effect, EffectContext};
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::stack::StackObjectKind;
-use crate::state::targeting::{SpellTarget, Target};
 use crate::state::stubs::PendingTriggerKind;
-use crate::state::types::{AltCostKind, CardType, Color, CounterType, EnchantTarget, KeywordAbility, SubType};
+use crate::state::targeting::{SpellTarget, Target};
+use crate::state::types::{
+    AltCostKind, CardType, Color, CounterType, EnchantTarget, KeywordAbility, SubType,
+};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -285,6 +287,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         Some(AltCostKind::Escape)
                     } else if stack_obj.was_dashed {
                         Some(AltCostKind::Dash)
+                    } else if stack_obj.was_blitzed {
+                        Some(AltCostKind::Blitz)
                     } else {
                         None
                     };
@@ -295,6 +299,29 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if stack_obj.was_dashed {
                         // CR 702.109a: "it has haste" -- grant haste keyword.
                         obj.characteristics.keywords.insert(KeywordAbility::Haste);
+                    }
+                    if stack_obj.was_blitzed {
+                        // CR 702.152a: "it has haste" -- grant haste keyword.
+                        obj.characteristics.keywords.insert(KeywordAbility::Haste);
+                        // CR 702.152a: "'When this permanent is put into a graveyard
+                        // from the battlefield, draw a card.'" -- add SelfDies trigger.
+                        // Uses standard TriggeredAbilityDef with inline Effect::DrawCards.
+                        // Resolves through the standard TriggeredAbility resolution path
+                        // (resolution.rs:620-679) when the creature dies via any path.
+                        obj.characteristics.triggered_abilities.push(
+                            crate::state::game_object::TriggeredAbilityDef {
+                                trigger_on: crate::state::game_object::TriggerEvent::SelfDies,
+                                intervening_if: None,
+                                description: "Blitz (CR 702.152a): When this permanent is \
+                                              put into a graveyard from the battlefield, \
+                                              draw a card."
+                                    .to_string(),
+                                effect: Some(crate::cards::card_definition::Effect::DrawCards {
+                                    player: crate::cards::card_definition::PlayerTarget::Controller,
+                                    count: crate::cards::card_definition::EffectAmount::Fixed(1),
+                                }),
+                            },
+                        );
                     }
                     // CR 702.62a: If the spell was cast via suspend and the permanent
                     // is a creature, it gains haste (modelled as clearing summoning
@@ -1048,6 +1075,113 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.152a: Blitz delayed triggered ability resolves.
+        //
+        // "Sacrifice the permanent this spell becomes at the beginning of the
+        // next end step."
+        // If the source has left the battlefield by resolution time (CR 400.7),
+        // the trigger does nothing -- the creature is a new object elsewhere.
+        // Ruling 2022-04-29: "if it's still on the battlefield when that triggered
+        // ability resolves. If it dies or goes to another zone before then, it will
+        // stay where it is."
+        StackObjectKind::BlitzSacrificeTrigger { source_object } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source is still on the battlefield (CR 400.7).
+            let source_info = state.objects.get(&source_object).and_then(|obj| {
+                if obj.zone == ZoneId::Battlefield {
+                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
+                // Sacrifice: move to owner's graveyard.
+                // Sacrifice bypasses indestructible (CR 701.17a).
+                // Replacement effects (e.g., Rest in Peace) still apply.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    source_object,
+                    crate::state::zone::ZoneType::Battlefield,
+                    crate::state::zone::ZoneType::Graveyard,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, dest) {
+                            match dest {
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: owner,
+                                        object_id: source_object,
+                                        new_exile_id: new_id,
+                                    });
+                                }
+                                ZoneId::Command(_) => {
+                                    // Commander redirected -- no sacrifice event.
+                                }
+                                _ => {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: source_object,
+                                        new_grave_id: new_id,
+                                        controller: pre_death_controller,
+                                        pre_death_counters,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_grave_id, _old)) =
+                            state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                        {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: source_object,
+                                new_grave_id,
+                                controller: pre_death_controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        // CR 616.1: Multiple replacement effects -- defer to player choice.
+                        use crate::state::replacement_effect::PendingZoneChange;
+                        state.pending_zone_changes.push_back(PendingZoneChange {
+                            object_id: source_object,
+                            original_from: crate::state::zone::ZoneType::Battlefield,
+                            original_destination: crate::state::zone::ZoneType::Graveyard,
+                            affected_player: player,
+                            already_applied: Vec::new(),
+                        });
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                }
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- creature is a new object).
+            // Ruling 2022-04-29: "it will stay where it is"
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
         // a creature. Default (deterministic, no interactive choice): decline.
         //
@@ -1511,6 +1645,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             cast_with_aftermath: false,
                             // CR 702.109a: suspend casts are not dash casts.
                             was_dashed: false,
+                            // CR 702.152a: suspend casts are not blitz casts.
+                            was_blitzed: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -3053,12 +3189,15 @@ pub fn counter_stack_object(
         | StackObjectKind::EternalizeAbility { .. }
         | StackObjectKind::EncoreAbility { .. }
         | StackObjectKind::EncoreSacrificeTrigger { .. }
-        | StackObjectKind::DashReturnTrigger { .. } => {
+        | StackObjectKind::DashReturnTrigger { .. }
+        | StackObjectKind::BlitzSacrificeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
             // Note: For DashReturnTrigger, the creature stays on the battlefield
             // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
+            // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
+            // with haste and the draw-on-death trigger intact (CR 702.152a).
         }
     }
 

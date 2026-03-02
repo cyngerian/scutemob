@@ -67,6 +67,8 @@ pub enum PendingTriggerKind {
     EncoreSacrifice,
     /// CR 702.109a: Dash delayed return-to-hand trigger.
     DashReturn,
+    /// CR 702.152a: Blitz delayed sacrifice trigger.
+    BlitzSacrifice,
     // Add new trigger kinds here as abilities are implemented
 }
 

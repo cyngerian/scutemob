@@ -4,7 +4,9 @@ use im::{OrdMap, OrdSet, Vector};
 use serde::{Deserialize, Serialize};
 
 use super::player::{CardId, PlayerId};
-use super::types::{AltCostKind, CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType};
+use super::types::{
+    AltCostKind, CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType,
+};
 use super::zone::ZoneId;
 
 /// Identifies a game object instance. Per CR 400.7, when an object changes

@@ -18,8 +18,8 @@
 //! - Non-aftermath card in graveyard with cast_with_aftermath: true is rejected.
 //! - Full lifecycle: hand cast -> graveyard -> aftermath cast -> exile.
 
-use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{EffectAmount, ForEachTarget, PlayerTarget};
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,

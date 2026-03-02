@@ -156,6 +156,14 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_dashed: bool,
+    /// CR 702.152a: If true, this spell was cast by paying its blitz cost
+    /// (an alternative cost). When the permanent enters the battlefield,
+    /// it gains haste, gains "When this dies, draw a card," and a delayed
+    /// trigger sacrifices it at the beginning of the next end step.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_blitzed: bool,
 }
 
 /// The kind of object on the stack.
@@ -701,4 +709,20 @@ pub enum StackObjectKind {
     /// but retains haste (the haste is a static ability linked to was_dashed,
     /// not to this trigger).
     DashReturnTrigger { source_object: ObjectId },
+    /// CR 702.152a: Blitz delayed triggered ability on the stack.
+    ///
+    /// "Sacrifice the permanent this spell becomes at the beginning of the
+    /// next end step."
+    /// This is a delayed triggered ability created when the blitz spell resolves
+    /// and the permanent enters the battlefield.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the source is still on the battlefield (CR 400.7).
+    /// 2. If yes, sacrifice it (move to graveyard, which fires CreatureDied).
+    /// 3. If no (already died, blinked, bounced), do nothing.
+    ///
+    /// If countered (e.g., by Stifle), the permanent stays on the battlefield
+    /// but retains haste and the draw-on-death trigger (those are static
+    /// abilities linked to cast_alt_cost, not to this trigger -- CR 702.152a).
+    BlitzSacrificeTrigger { source_object: ObjectId },
 }

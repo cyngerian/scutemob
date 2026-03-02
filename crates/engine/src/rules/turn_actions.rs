@@ -6,8 +6,8 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
-use crate::state::types::AltCostKind;
 use crate::state::turn::Step;
+use crate::state::types::AltCostKind;
 use crate::state::types::{CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -214,8 +214,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         .objects
         .values()
         .filter(|obj| {
-            obj.zone == ZoneId::Battlefield
-                && obj.cast_alt_cost == Some(AltCostKind::Dash)
+            obj.zone == ZoneId::Battlefield && obj.cast_alt_cost == Some(AltCostKind::Dash)
         })
         .map(|obj| (obj.id, obj.controller))
         .collect();
@@ -226,6 +225,53 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             ability_index: 0, // unused for dash return triggers
             controller,
             kind: PendingTriggerKind::DashReturn,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            madness_exiled_card: None,
+            madness_cost: None,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            modular_counter_count: None,
+            evolve_entering_creature: None,
+            suspend_card_id: None,
+            hideaway_count: None,
+            partner_with_name: None,
+            ingest_target_player: None,
+            flanking_blocker_id: None,
+            rampage_n: None,
+            provoke_target_creature: None,
+            renown_n: None,
+            poisonous_n: None,
+            poisonous_target_player: None,
+            enlist_enlisted_creature: None,
+            encore_activator: None,
+        });
+    }
+
+    // CR 702.152a: Queue sacrifice triggers for all blitzed permanents.
+    // "Sacrifice the permanent this spell becomes at the beginning of the
+    // next end step."
+    // Each blitzed permanent has `cast_alt_cost == Some(AltCostKind::Blitz)` set when
+    // the blitz spell resolves (resolution.rs). At end step, we queue a BlitzSacrificeTrigger.
+    let blitzed_permanents: Vec<(ObjectId, crate::state::player::PlayerId)> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield && obj.cast_alt_cost == Some(AltCostKind::Blitz)
+        })
+        .map(|obj| (obj.id, obj.controller))
+        .collect();
+
+    for (obj_id, controller) in blitzed_permanents {
+        state.pending_triggers.push_back(PendingTrigger {
+            source: obj_id,
+            ability_index: 0, // unused for blitz sacrifice triggers
+            controller,
+            kind: PendingTriggerKind::BlitzSacrifice,
             triggering_event: None,
             entering_object_id: None,
             targeting_stack_id: None,

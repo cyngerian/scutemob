@@ -339,6 +339,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Dash)` for quick
     /// presence-checking without scanning all abilities.
     Dash { cost: ManaCost },
+    /// CR 702.152: Blitz [cost]. You may cast this card by paying [cost] rather
+    /// than its mana cost. If you do, the permanent gains haste, is sacrificed
+    /// at the beginning of the next end step, and gains "When this permanent is
+    /// put into a graveyard from the battlefield, draw a card."
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Blitz)` for quick
+    /// presence-checking without scanning all abilities.
+    Blitz { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

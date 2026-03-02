@@ -122,6 +122,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::DashReturnTrigger { source_object } => {
                     ("Dash return: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::BlitzSacrificeTrigger { source_object } => {
+                    ("Blitz sacrifice: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

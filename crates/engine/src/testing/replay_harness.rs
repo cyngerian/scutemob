@@ -17,11 +17,11 @@ use std::collections::HashMap;
 use im::OrdMap;
 
 use crate::state::combat::AttackTarget;
+use crate::state::types::AltCostKind;
 use crate::state::{ActivatedAbility, ActivationCost, CounterType};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
 };
-use crate::state::types::AltCostKind;
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
     CardRegistry, Color, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility,
@@ -815,6 +815,26 @@ pub fn translate_player_action(
                 delve_cards: vec![],
                 kicker_times: 0,
                 alt_cost: Some(AltCostKind::Dash),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+            })
+        }
+
+        // CR 702.152a: Cast a spell with blitz from the player's hand.
+        // The blitz cost (an alternative cost) is paid instead of the mana cost.
+        "cast_spell_blitz" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Blitz),
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,

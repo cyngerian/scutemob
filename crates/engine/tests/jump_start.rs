@@ -19,8 +19,8 @@
 //! - cast_with_jump_start flag is set on stack object; cast_with_flashback is not.
 //! - Insufficient mana rejected even with valid discard card (CR 601.2f-h).
 
-use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{EffectAmount, PlayerTarget};
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardEffectTarget, CardId, CardRegistry,

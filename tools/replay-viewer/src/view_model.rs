@@ -515,6 +515,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::DashReturnTrigger { source_object } => {
             ("dash_return_trigger", Some(*source_object))
         }
+        StackObjectKind::BlitzSacrificeTrigger { source_object } => {
+            ("blitz_sacrifice_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -747,5 +750,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Eternalize => "Eternalize".to_string(),
         KeywordAbility::Encore => "Encore".to_string(),
         KeywordAbility::Dash => "Dash".to_string(),
+        KeywordAbility::Blitz => "Blitz".to_string(),
     }
 }

@@ -19,11 +19,11 @@
 //! - Mana value is based on printed cost, not miracle cost (CR 118.9c).
 //! - Miracle works on any player's turn (e.g., during opponent's turn via draw effect).
 
-use mtg_engine::state::types::AltCostKind;
 use mtg_engine::cards::card_definition::{
     AbilityDefinition, CardDefinition, Effect, EffectAmount, PlayerTarget,
 };
 use mtg_engine::rules::turn_actions::draw_card;
+use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::CardType;
 use mtg_engine::{
     process_command, CardId, CardRegistry, Command, GameEvent, GameStateBuilder, KeywordAbility,
@@ -764,6 +764,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         cast_with_jump_start: false,
         cast_with_aftermath: false,
         was_dashed: false,
+        was_blitzed: false,
     });
 
     state.turn.priority_holder = Some(p1);

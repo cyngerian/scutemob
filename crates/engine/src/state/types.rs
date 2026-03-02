@@ -107,7 +107,8 @@ pub enum AltCostKind {
     JumpStart,
     Aftermath,
     Dash,
-    // Future: Blitz, Plot, Prototype, Impending (add as implemented)
+    Blitz,
+    // Future: Plot, Prototype, Impending (add as implemented)
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -845,6 +846,17 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The dash cost itself is stored in `AbilityDefinition::Dash { cost }`.
     Dash,
+    /// CR 702.152: Blitz [cost] -- alternative cost granting haste,
+    /// sacrifice at end step, and draw-a-card on death.
+    ///
+    /// "You may cast this card by paying [cost] rather than its mana cost.
+    /// If you do, the permanent gains haste, is sacrificed at the beginning
+    /// of the next end step, and gains 'When this permanent is put into a
+    /// graveyard from the battlefield, draw a card.'"
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The blitz cost itself is stored in `AbilityDefinition::Blitz { cost }`.
+    Blitz,
 }
 
 /// All creature subtypes from CR 205.3m.

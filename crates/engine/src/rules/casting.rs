@@ -31,7 +31,9 @@ use crate::state::stack::{StackObject, StackObjectKind};
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
-use crate::state::types::{AffinityTarget, AltCostKind, CardType, EnchantTarget, KeywordAbility, SubType};
+use crate::state::types::{
+    AffinityTarget, AltCostKind, CardType, EnchantTarget, KeywordAbility, SubType,
+};
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
 
@@ -75,6 +77,7 @@ pub fn handle_cast_spell(
     let cast_with_jump_start = alt_cost == Some(AltCostKind::JumpStart);
     let cast_with_aftermath = alt_cost == Some(AltCostKind::Aftermath);
     let cast_with_dash = alt_cost == Some(AltCostKind::Dash);
+    let cast_with_blitz = alt_cost == Some(AltCostKind::Blitz);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -776,6 +779,80 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1j: Validate blitz mutual exclusion (CR 702.152a / CR 118.9a).
+    // Blitz is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_blitz = if cast_with_blitz {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with flashback (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with foretell (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with aftermath (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_blitz_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have blitz".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
@@ -855,6 +932,10 @@ pub fn handle_cast_spell(
         // CR 702.109a: Pay dash cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_dash_cost(&card_id, &state.card_registry)
+    } else if casting_with_blitz {
+        // CR 702.152a: Pay blitz cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_blitz_cost(&card_id, &state.card_registry)
     } else {
         base_mana_cost
     };
@@ -1416,6 +1497,8 @@ pub fn handle_cast_spell(
         cast_with_aftermath: casting_with_aftermath,
         // CR 702.109a: Record whether this spell was cast by paying its dash cost.
         was_dashed: casting_with_dash,
+        // CR 702.152a: Record whether this spell was cast by paying its blitz cost.
+        was_blitzed: casting_with_blitz,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1524,6 +1607,7 @@ pub fn handle_cast_spell(
             cast_with_jump_start: false,
             cast_with_aftermath: false,
             was_dashed: false,
+            was_blitzed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1570,6 +1654,7 @@ pub fn handle_cast_spell(
             cast_with_jump_start: false,
             cast_with_aftermath: false,
             was_dashed: false,
+            was_blitzed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1826,6 +1911,27 @@ fn get_aftermath_card_type(
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Aftermath { card_type, .. } = a {
                     Some(*card_type)
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.152a: Look up the blitz cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Blitz { cost }`, or `None`
+/// if the card has no definition or no blitz ability defined.
+fn get_blitz_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Blitz { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }
