@@ -1256,6 +1256,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
                 };
 
                 // Add the token to the battlefield.
@@ -1399,6 +1402,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 poisonous_target_player: None,
                                 is_enlist_trigger: false,
                                 enlist_enlisted_creature: None,
+                                is_encore_sacrifice_trigger: false,
+                                encore_activator: None,
                             });
                     }
                 }
@@ -2340,6 +2345,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
                 };
 
                 // Add the token to the battlefield.
@@ -2519,6 +2527,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
                 };
 
                 // Add the token to the battlefield.
@@ -2577,6 +2588,318 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 events.extend(etb_trigger_evts);
             }
             // If no card definition found, ability does nothing (shouldn't happen in practice).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.141a: Encore activated ability resolves.
+        //
+        // "For each opponent, create a token that's a copy of this card that
+        // attacks that opponent this turn if able. The tokens gain haste.
+        // Sacrifice them at the beginning of the next end step."
+        //
+        // The card was already exiled as part of the activation cost (CR 702.141a:
+        // "[Cost], Exile this card from your graveyard"). The token's characteristics
+        // are derived from the CardDefinition looked up via source_card_id.
+        //
+        // CR 702.141a ruling: "opponents who have left the game aren't counted."
+        // Only active opponents (not eliminated/conceded) get a token.
+        StackObjectKind::EncoreAbility {
+            source_card_id,
+            activator,
+        } => {
+            let controller = stack_obj.controller;
+            let registry = state.card_registry.clone();
+
+            // Look up the card definition for token characteristics.
+            let def_opt = source_card_id
+                .as_ref()
+                .and_then(|cid| registry.get(cid.clone()));
+
+            if let Some(def) = def_opt {
+                // Collect active opponents (players who haven't lost or conceded).
+                // CR 702.141a: "for each opponent" -- only active opponents.
+                let opponent_ids: Vec<crate::state::player::PlayerId> = state
+                    .players
+                    .values()
+                    .filter(|p| !p.has_lost && !p.has_conceded && p.id != activator)
+                    .map(|p| p.id)
+                    .collect();
+
+                // Build token keywords from card definition's printed abilities.
+                // CR 702.141a: "tokens gain haste" -- add Haste to whatever the card has.
+                let mut base_keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
+                for ability in &def.abilities {
+                    if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) = ability {
+                        base_keywords.insert(kw.clone());
+                    }
+                }
+                base_keywords.insert(KeywordAbility::Haste);
+
+                // Build token card types from card definition.
+                let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
+                for ct in &def.types.card_types {
+                    card_types.insert(*ct);
+                }
+
+                // Build token subtypes from card definition.
+                let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
+                for st in &def.types.subtypes {
+                    subtypes.insert(st.clone() as SubType);
+                }
+
+                // Build token colors from card definition (copies original colors).
+                // CR 707.2: copiable values include color.
+                let mut colors: im::OrdSet<Color> = im::OrdSet::new();
+                if let Some(ref mc) = def.mana_cost {
+                    if mc.white > 0 {
+                        colors.insert(Color::White);
+                    }
+                    if mc.blue > 0 {
+                        colors.insert(Color::Blue);
+                    }
+                    if mc.black > 0 {
+                        colors.insert(Color::Black);
+                    }
+                    if mc.red > 0 {
+                        colors.insert(Color::Red);
+                    }
+                    if mc.green > 0 {
+                        colors.insert(Color::Green);
+                    }
+                }
+
+                for opponent_id in opponent_ids {
+                    let keywords = base_keywords.clone();
+
+                    let characteristics = crate::state::game_object::Characteristics {
+                        name: def.name.clone(),
+                        mana_cost: def.mana_cost.clone(), // copies original mana cost
+                        colors: colors.clone(),
+                        color_indicator: None,
+                        supertypes: def.types.supertypes.clone(),
+                        card_types: card_types.clone(),
+                        subtypes: subtypes.clone(),
+                        rules_text: def.oracle_text.clone(),
+                        abilities: im::Vector::new(),
+                        keywords,
+                        mana_abilities: im::Vector::new(),
+                        activated_abilities: Vec::new(),
+                        triggered_abilities: Vec::new(),
+                        power: def.power,
+                        toughness: def.toughness,
+                        loyalty: None,
+                        defense: None,
+                    };
+
+                    let token_obj = crate::state::game_object::GameObject {
+                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                        card_id: source_card_id.clone(),
+                        characteristics,
+                        controller,
+                        owner: controller,
+                        zone: ZoneId::Battlefield,
+                        status: crate::state::game_object::ObjectStatus::default(),
+                        counters: im::OrdMap::new(),
+                        attachments: im::Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: true,
+                        timestamp: 0, // replaced by add_object
+                        // CR 302.6: Tokens have summoning sickness when they enter.
+                        // Has Haste so can attack despite summoning sickness.
+                        has_summoning_sickness: true,
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        was_evoked: false,
+                        is_bestowed: false,
+                        was_escaped: false,
+                        is_foretold: false,
+                        foretold_turn: 0,
+                        was_unearthed: false,
+                        myriad_exile_at_eoc: false,
+                        decayed_sacrifice_at_eoc: false,
+                        is_suspended: false,
+                        exiled_by_hideaway: None,
+                        is_renowned: false,
+                        encore_sacrifice_at_end_step: true, // sacrificed at end step
+                        encore_must_attack: Some(opponent_id), // must attack this opponent
+                        // Ruling 2020-11-10: track the original activator so the end-step
+                        // sacrifice trigger can verify control hasn't changed.
+                        encore_activated_by: Some(controller),
+                    };
+
+                    // Add the token to the battlefield.
+                    let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
+
+                    // Set controller (add_object uses a default; enforce it here).
+                    if let Some(obj) = state.objects.get_mut(&token_id) {
+                        obj.controller = controller;
+                    }
+
+                    // Run the full ETB pipeline for the token.
+                    let self_evts = super::replacement::apply_self_etb_from_definition(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(self_evts);
+                    let etb_evts =
+                        super::replacement::apply_etb_replacements(state, token_id, controller);
+                    events.extend(etb_evts);
+
+                    super::replacement::register_permanent_replacement_abilities(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    super::replacement::register_static_continuous_effects(
+                        state,
+                        token_id,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: token_id,
+                    });
+
+                    // Fire WhenEntersBattlefield triggered effects from card definition.
+                    let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                        state,
+                        token_id,
+                        controller,
+                        source_card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(etb_trigger_evts);
+                }
+            }
+            // If no card definition found, ability does nothing.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.141a: Encore delayed sacrifice trigger resolves.
+        //
+        // "Sacrifice them at the beginning of the next end step."
+        // This delayed triggered ability was created when the encore tokens entered
+        // the battlefield. At resolution:
+        // 1. Check the token is still on the battlefield (CR 400.7).
+        // 2. Check the token is still controlled by the encore activator
+        //    (ruling 2020-11-10: can't sacrifice if under another player's control).
+        // 3. If both checks pass, sacrifice the token.
+        StackObjectKind::EncoreSacrificeTrigger {
+            source_object,
+            activator,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if the token is still on the battlefield (CR 400.7).
+            let token_info = state
+                .objects
+                .get(&source_object)
+                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .map(|obj| (obj.owner, obj.controller));
+
+            if let Some((owner, current_controller)) = token_info {
+                // Ruling 2020-11-10: "If one of the tokens is under another player's
+                // control as the delayed triggered ability resolves, you can't sacrifice
+                // that token." Only sacrifice if still controlled by the activator.
+                if current_controller == activator {
+                    let pre_death_counters = state
+                        .objects
+                        .get(&source_object)
+                        .map(|o| o.counters.clone())
+                        .unwrap_or_default();
+
+                    // Check replacement effects before moving to graveyard.
+                    let action = crate::rules::replacement::check_zone_change_replacement(
+                        state,
+                        source_object,
+                        crate::state::zone::ZoneType::Battlefield,
+                        crate::state::zone::ZoneType::Graveyard,
+                        owner,
+                        &std::collections::HashSet::new(),
+                    );
+
+                    match action {
+                        crate::rules::replacement::ZoneChangeAction::Redirect {
+                            to,
+                            events: repl_events,
+                            ..
+                        } => {
+                            events.extend(repl_events);
+                            if let Ok((new_id, _old)) = state.move_object_to_zone(source_object, to)
+                            {
+                                match to {
+                                    ZoneId::Exile => {
+                                        events.push(GameEvent::ObjectExiled {
+                                            player: current_controller,
+                                            object_id: source_object,
+                                            new_exile_id: new_id,
+                                        });
+                                    }
+                                    ZoneId::Command(_) => {
+                                        // Commander redirected -- no CreatureDied.
+                                    }
+                                    _ => {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: source_object,
+                                            new_grave_id: new_id,
+                                            controller: current_controller,
+                                            pre_death_counters,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        crate::rules::replacement::ZoneChangeAction::Proceed => {
+                            if let Ok((new_id, _old)) =
+                                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                            {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: source_object,
+                                    new_grave_id: new_id,
+                                    controller: current_controller,
+                                    pre_death_counters,
+                                });
+                            }
+                        }
+                        crate::rules::replacement::ZoneChangeAction::ChoiceRequired { .. } => {
+                            // Multiple replacements -- fall back to Proceed (graveyard).
+                            if let Ok((new_id, _old)) =
+                                state.move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                            {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: source_object,
+                                    new_grave_id: new_id,
+                                    controller: current_controller,
+                                    pre_death_counters,
+                                });
+                            }
+                        }
+                    }
+                }
+                // else: token under another player's control -- do nothing (stays).
+            }
+            // If not on battlefield, do nothing (already gone).
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -2701,10 +3024,12 @@ pub fn counter_stack_object(
         | StackObjectKind::EnlistTrigger { .. }
         | StackObjectKind::NinjutsuAbility { .. }
         | StackObjectKind::EmbalmAbility { .. }
-        | StackObjectKind::EternalizeAbility { .. } => {
+        | StackObjectKind::EternalizeAbility { .. }
+        | StackObjectKind::EncoreAbility { .. }
+        | StackObjectKind::EncoreSacrificeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
-            // Note: For EmbalmAbility/EternalizeAbility, the card is already in
-            // exile (exiled as cost during activation). Countering does not return the card.
+            // Note: For EncoreAbility, the card is already in exile (exiled as cost
+            // during activation). Countering does not return the card (CR 702.141a).
         }
     }
 

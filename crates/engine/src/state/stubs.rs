@@ -337,6 +337,21 @@ pub struct PendingTrigger {
     /// time to read the enlisted creature's power for the +X/+0 bonus.
     #[serde(default)]
     pub enlist_enlisted_creature: Option<ObjectId>,
+    /// CR 702.141a: If true, this pending trigger is an Encore sacrifice trigger.
+    ///
+    /// When flushed to the stack, creates a `StackObjectKind::EncoreSacrificeTrigger`
+    /// instead of the normal `StackObjectKind::TriggeredAbility`. The
+    /// `encore_activator` field carries the player who activated encore (to verify
+    /// control at resolution). The `ability_index` field is unused when this is true.
+    #[serde(default)]
+    pub is_encore_sacrifice_trigger: bool,
+    /// CR 702.141a: The player who activated the encore ability.
+    ///
+    /// Only meaningful when `is_encore_sacrifice_trigger` is true. Used at
+    /// resolution time to verify the token is still under this player's control
+    /// before sacrificing.
+    #[serde(default)]
+    pub encore_activator: Option<PlayerId>,
 }
 
 // StackObject has moved to `state/stack.rs` (M3-A).

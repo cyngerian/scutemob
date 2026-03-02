@@ -448,4 +448,40 @@ pub struct GameObject {
     /// NOT an ability -- persists even if abilities are removed (e.g., Humility).
     #[serde(default)]
     pub is_renowned: bool,
+    /// CR 702.141a: If true, this token was created by an encore ability and
+    /// must be sacrificed at the beginning of the next end step.
+    ///
+    /// Unlike Unearth (which exiles and uses a replacement effect), encore
+    /// tokens are simply sacrificed -- no replacement effect is involved.
+    ///
+    /// Set when the EncoreAbility resolves and creates the token. Checked in
+    /// `end_step_actions()` in turn_actions.rs. Reset on zone changes (CR 400.7).
+    ///
+    /// Ruling 2020-11-10: "If one of the tokens is under another player's
+    /// control as the delayed triggered ability resolves, you can't sacrifice
+    /// that token." -- sacrifice only if controller == encore activator.
+    #[serde(default)]
+    pub encore_sacrifice_at_end_step: bool,
+    /// CR 702.141a: If set, this token was created by encore and must attack
+    /// the specified player this turn if able.
+    ///
+    /// Enforced during declare-attackers validation in `combat.rs`. The token
+    /// must attack this player if able; if it can't attack that player (tapped,
+    /// Propaganda cost not paid, etc.), it can attack any player or not attack.
+    ///
+    /// Cleared at end of turn. Also cleared on zone changes (CR 400.7).
+    #[serde(default)]
+    pub encore_must_attack: Option<crate::state::player::PlayerId>,
+    /// CR 702.141a / Ruling 2020-11-10: The player who originally activated the
+    /// encore ability that created this token.
+    ///
+    /// Used by the end-step sacrifice trigger to verify that the current
+    /// controller of the token is still the original activator. Per the ruling:
+    /// "If one of the tokens is under another player's control as the delayed
+    /// triggered ability resolves, you can't sacrifice that token."
+    ///
+    /// Set during `EncoreAbility` resolution in `resolution.rs`. Cleared on
+    /// zone changes (CR 400.7).
+    #[serde(default)]
+    pub encore_activated_by: Option<crate::state::player::PlayerId>,
 }

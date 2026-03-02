@@ -2022,6 +2022,8 @@ fn execute_effect_inner(
                                         poisonous_target_player: None,
                                         is_enlist_trigger: false,
                                         enlist_enlisted_creature: None,
+                                        is_encore_sacrifice_trigger: false,
+                                        encore_activator: None,
                                     });
                                 }
                             }
@@ -2481,6 +2483,9 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_suspended: false,
         exiled_by_hideaway: None,
         is_renowned: false,
+        encore_sacrifice_at_end_step: false,
+        encore_must_attack: None,
+        encore_activated_by: None,
     }
 }
 
@@ -2653,6 +2658,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         poisonous_target_player: None,
                         is_enlist_trigger: false,
                         enlist_enlisted_creature: None,
+                        is_encore_sacrifice_trigger: false,
+                        encore_activator: None,
                     });
                 }
             }

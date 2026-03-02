@@ -505,6 +505,13 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             // No source_object -- card was already exiled as cost (CR 702.129a, CR 400.7).
             ("eternalize_ability", None)
         }
+        StackObjectKind::EncoreAbility { .. } => {
+            // No source_object -- card was already exiled as cost (CR 702.141a, CR 400.7).
+            ("encore_ability", None)
+        }
+        StackObjectKind::EncoreSacrificeTrigger { source_object, .. } => {
+            ("encore_sacrifice_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -735,5 +742,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Aftermath => "Aftermath".to_string(),
         KeywordAbility::Embalm => "Embalm".to_string(),
         KeywordAbility::Eternalize => "Eternalize".to_string(),
+        KeywordAbility::Encore => "Encore".to_string(),
     }
 }

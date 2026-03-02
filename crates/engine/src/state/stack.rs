@@ -646,4 +646,36 @@ pub enum StackObjectKind {
         source_card_id: Option<crate::state::player::CardId>,
         source_name: String,
     },
+    /// CR 702.141a: Encore activated ability on the stack.
+    ///
+    /// When this ability resolves: for each active opponent, create a token
+    /// copy of the exiled card with haste, tagged `encore_sacrifice_at_end_step = true`
+    /// and `encore_must_attack = Some(opponent_id)`.
+    ///
+    /// `source_card_id` is the CardId of the exiled creature card (needed
+    /// to look up the card definition for copying, since the GameObject was
+    /// exiled as a cost and may have a new ObjectId in exile).
+    /// `activator` is the player who activated the encore ability.
+    EncoreAbility {
+        source_card_id: Option<crate::state::player::CardId>,
+        activator: crate::state::player::PlayerId,
+    },
+    /// CR 702.141a: Encore delayed triggered ability on the stack.
+    ///
+    /// "Sacrifice them at the beginning of the next end step."
+    /// This is a delayed triggered ability created when the encore tokens
+    /// are created. Each token gets its own sacrifice trigger.
+    ///
+    /// When this trigger resolves:
+    /// 1. Check if the token is still on the battlefield (CR 400.7).
+    /// 2. Check if the token is still controlled by the encore activator
+    ///    (ruling 2020-11-10: can't sacrifice if under another player's control).
+    /// 3. If both checks pass, sacrifice the token (move to graveyard via
+    ///    replacement effects).
+    ///
+    /// If countered (e.g., by Stifle), the token stays on the battlefield.
+    EncoreSacrificeTrigger {
+        source_object: ObjectId,
+        activator: crate::state::player::PlayerId,
+    },
 }

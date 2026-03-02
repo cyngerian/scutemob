@@ -297,6 +297,12 @@ impl GameState {
             exiled_by_hideaway: None,
             // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
             is_renowned: false,
+            // CR 400.7: encore sacrifice flag is not preserved across zone changes.
+            encore_sacrifice_at_end_step: false,
+            // CR 400.7: encore mandatory attack target is not preserved across zone changes.
+            encore_must_attack: None,
+            // CR 400.7: encore original activator is not preserved across zone changes.
+            encore_activated_by: None,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -388,6 +394,12 @@ impl GameState {
             exiled_by_hideaway: None,
             // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
             is_renowned: false,
+            // CR 400.7: encore sacrifice flag is not preserved across zone changes.
+            encore_sacrifice_at_end_step: false,
+            // CR 400.7: encore mandatory attack target is not preserved across zone changes.
+            encore_must_attack: None,
+            // CR 400.7: encore original activator is not preserved across zone changes.
+            encore_activated_by: None,
         };
 
         // Insert at the front (= bottom) of the destination zone.

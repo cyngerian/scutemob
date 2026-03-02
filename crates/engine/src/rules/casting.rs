@@ -1296,6 +1296,8 @@ pub fn handle_cast_spell(
                 poisonous_target_player: None,
                 is_enlist_trigger: false,
                 enlist_enlisted_creature: None,
+                is_encore_sacrifice_trigger: false,
+                encore_activator: None,
             });
         }
     }

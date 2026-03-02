@@ -112,6 +112,13 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     // No source_object -- card was already exiled as cost (CR 702.129a).
                     (format!("Eternalize: {}", source_name), None)
                 }
+                StackObjectKind::EncoreAbility { .. } => {
+                    // No source_object -- card was already exiled as cost (CR 702.141a).
+                    ("Encore: ".to_string(), None)
+                }
+                StackObjectKind::EncoreSacrificeTrigger { source_object, .. } => {
+                    ("Encore sacrifice: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

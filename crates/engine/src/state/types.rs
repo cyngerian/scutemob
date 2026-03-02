@@ -807,6 +807,15 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The eternalize cost itself is stored in `AbilityDefinition::Eternalize { cost }`.
     Eternalize,
+    /// CR 702.141: Encore [cost] -- activated ability from graveyard.
+    /// "[Cost], Exile this card from your graveyard: For each opponent, create
+    /// a token that's a copy of this card that attacks that opponent this turn
+    /// if able. The tokens gain haste. Sacrifice them at the beginning of the
+    /// next end step. Activate only as a sorcery."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The encore cost itself is stored in `AbilityDefinition::Encore { cost }`.
+    Encore,
 }
 
 /// All creature subtypes from CR 205.3m.

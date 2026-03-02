@@ -585,6 +585,17 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.141a: Activate an encore ability from the graveyard.
+        // card_name is the name of the card with encore in the player's graveyard.
+        // The card is exiled immediately as cost (CR 702.141a); tokens are created on resolution.
+        "encore_card" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            Some(Command::EncoreCard {
+                player,
+                card: card_id,
+            })
+        }
+
         // CR 702.62a: Suspend a card from the player's hand. card_name is the card
         // to suspend. The player pays the suspend cost; the card is exiled with N time
         // counters (as defined by the card's AbilityDefinition::Suspend).

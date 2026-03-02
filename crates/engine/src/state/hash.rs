@@ -520,6 +520,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Embalm => 92u8.hash_into(hasher),
             // Eternalize (discriminant 93) -- CR 702.129
             KeywordAbility::Eternalize => 93u8.hash_into(hasher),
+            // Encore (discriminant 94) -- CR 702.141
+            KeywordAbility::Encore => 94u8.hash_into(hasher),
         }
     }
 }
@@ -687,6 +689,12 @@ impl HashInto for GameObject {
         self.exiled_by_hideaway.hash_into(hasher);
         // Renowned (CR 702.112b) — designation flag
         self.is_renowned.hash_into(hasher);
+        // Encore (CR 702.141a) — token must be sacrificed at beginning of next end step
+        self.encore_sacrifice_at_end_step.hash_into(hasher);
+        // Encore (CR 702.141a) — mandatory attack target for this turn
+        self.encore_must_attack.hash_into(hasher);
+        // Encore (CR 702.141a / Ruling 2020-11-10) — original activator identity
+        self.encore_activated_by.hash_into(hasher);
     }
 }
 
@@ -1120,6 +1128,10 @@ impl HashInto for PendingTrigger {
         self.is_miracle_trigger.hash_into(hasher);
         self.miracle_revealed_card.hash_into(hasher);
         self.miracle_cost.hash_into(hasher);
+        // CR 702.141a: is_encore_sacrifice_trigger -- encore delayed sacrifice trigger marker
+        self.is_encore_sacrifice_trigger.hash_into(hasher);
+        // CR 702.141a: encore_activator -- player who activated the encore ability
+        self.encore_activator.hash_into(hasher);
         // CR 702.84a: is_unearth_trigger -- unearth delayed exile trigger marker
         self.is_unearth_trigger.hash_into(hasher);
         // CR 702.110a: is_exploit_trigger -- exploit ETB trigger marker
@@ -1547,6 +1559,24 @@ impl HashInto for StackObjectKind {
                 28u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
                 source_name.hash_into(hasher);
+            }
+            // EncoreAbility (discriminant 29) -- CR 702.141a
+            StackObjectKind::EncoreAbility {
+                source_card_id,
+                activator,
+            } => {
+                29u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                activator.hash_into(hasher);
+            }
+            // EncoreSacrificeTrigger (discriminant 30) -- CR 702.141a
+            StackObjectKind::EncoreSacrificeTrigger {
+                source_object,
+                activator,
+            } => {
+                30u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                activator.hash_into(hasher);
             }
         }
     }
@@ -3125,6 +3155,11 @@ impl HashInto for AbilityDefinition {
             // Eternalize (discriminant 26) -- CR 702.129
             AbilityDefinition::Eternalize { cost } => {
                 26u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Encore (discriminant 27) -- CR 702.141
+            AbilityDefinition::Encore { cost } => {
+                27u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

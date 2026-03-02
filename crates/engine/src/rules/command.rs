@@ -453,6 +453,21 @@ pub enum Command {
     /// when the ability resolves.
     EternalizeCard { player: PlayerId, card: ObjectId },
 
+    // -- Encore (CR 702.141) ------------------------------------------------
+    /// Activate a card's encore ability from the graveyard (CR 702.141a).
+    ///
+    /// The card must be in the player's graveyard with `KeywordAbility::Encore`.
+    /// The card is exiled as a cost, the encore cost is paid, and the encore
+    /// ability is placed on the stack. When it resolves, for each opponent,
+    /// a token copy of the exiled card is created with haste, tagged for
+    /// attack this turn and sacrifice at the next end step.
+    ///
+    /// "Activate only as a sorcery" -- main phase, stack empty, active player.
+    ///
+    /// Unlike `UnearthCard`, the card is exiled as part of the cost (before
+    /// the ability goes on the stack), not moved to the battlefield.
+    EncoreCard { player: PlayerId, card: ObjectId },
+
     // -- Ninjutsu (CR 702.49) -----------------------------------------------
     /// Activate a card's ninjutsu ability from hand (or command zone for
     /// commander ninjutsu).

@@ -137,6 +137,9 @@ fn test_clone_independence_object_modification() {
                 is_suspended: false,
                 exiled_by_hideaway: None,
                 is_renowned: false,
+                encore_sacrifice_at_end_step: false,
+                encore_must_attack: None,
+                encore_activated_by: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

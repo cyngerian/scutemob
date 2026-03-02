@@ -15,6 +15,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Embalm),
             AbilityDefinition::Embalm { cost: ManaCost { white: 1, ..Default::default() } },
         ],
-        ..Default::default()
     }
 }

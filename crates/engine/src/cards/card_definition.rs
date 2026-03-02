@@ -294,6 +294,16 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Eternalize)` for quick
     /// presence-checking without scanning all abilities.
     Eternalize { cost: ManaCost },
+    /// CR 702.141: Encore [cost]. The card's encore ability can be activated
+    /// from its owner's graveyard by paying this cost and exiling the card.
+    /// When the ability resolves, for each opponent, create a token copy of
+    /// this card that attacks that opponent this turn if able. Tokens gain
+    /// haste. Sacrifice them at the beginning of the next end step.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Encore)` for quick
+    /// presence-checking without scanning all abilities.
+    Encore { cost: ManaCost },
     /// CR 702.127: Aftermath. The second half of a split card. Can only be cast
     /// from the graveyard. When it leaves the stack after being cast from graveyard,
     /// it is exiled instead of going anywhere else.
