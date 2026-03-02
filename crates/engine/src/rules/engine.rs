@@ -19,6 +19,7 @@ use super::lands;
 use super::loop_detection;
 use super::mana;
 use super::miracle;
+use super::plot;
 use super::priority::{self, PriorityResult};
 use super::replacement;
 use super::resolution;
@@ -305,6 +306,17 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let events = foretell::handle_foretell_card(&mut state, player, card)?;
             all_events.extend(events);
+        }
+
+        // ── Plot (CR 702.170) ─────────────────────────────────────────────
+        Command::PlotCard { player, card } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: plotting is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let events = plot::handle_plot_card(&mut state, player, card)?;
+            all_events.extend(events);
+            // CR 116.3: Special action => player receives priority afterward.
+            // Priority is already set to the player since they have priority.
         }
 
         // ── Suspend (CR 702.62) ───────────────────────────────────────────

@@ -526,6 +526,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Dash => 95u8.hash_into(hasher),
             // Blitz (discriminant 96) -- CR 702.152
             KeywordAbility::Blitz => 96u8.hash_into(hasher),
+            // Plot (discriminant 97) -- CR 702.170
+            KeywordAbility::Plot => 97u8.hash_into(hasher),
         }
     }
 }
@@ -697,6 +699,9 @@ impl HashInto for GameObject {
         self.encore_must_attack.hash_into(hasher);
         // Encore (CR 702.141a / Ruling 2020-11-10) — original activator identity
         self.encore_activated_by.hash_into(hasher);
+        // Plot (CR 702.170a) — card was plotted (exiled face-up via plot special action)
+        self.is_plotted.hash_into(hasher);
+        self.plotted_turn.hash_into(hasher);
     }
 }
 
@@ -1629,6 +1634,8 @@ impl HashInto for StackObject {
         self.was_dashed.hash_into(hasher);
         // Blitz (CR 702.152a) — alternative cost paid; haste + draw-on-death + sacrifice trigger
         self.was_blitzed.hash_into(hasher);
+        // Plot (CR 702.170d) — spell was cast from exile as a plotted card
+        self.was_plotted.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -2384,6 +2391,17 @@ impl HashInto for GameEvent {
                 source.hash_into(hasher);
                 exiled_card.hash_into(hasher);
                 remaining_count.hash_into(hasher);
+            }
+            // CR 702.170a: CardPlotted (discriminant 88)
+            GameEvent::CardPlotted {
+                player,
+                object_id,
+                new_exile_id,
+            } => {
+                88u8.hash_into(hasher);
+                player.hash_into(hasher);
+                object_id.hash_into(hasher);
+                new_exile_id.hash_into(hasher);
             }
         }
     }
@@ -3162,6 +3180,11 @@ impl HashInto for AbilityDefinition {
             // Blitz (discriminant 29) -- CR 702.152
             AbilityDefinition::Blitz { cost } => {
                 29u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Plot (discriminant 30) -- CR 702.170
+            AbilityDefinition::Plot { cost } => {
+                30u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

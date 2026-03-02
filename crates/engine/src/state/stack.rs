@@ -164,6 +164,12 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_blitzed: bool,
+    /// CR 702.170d: If true, this spell was cast from exile as a plotted card
+    /// (without paying its mana cost). Used for tracking that this was a plot-cast.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_plotted: bool,
 }
 
 /// The kind of object on the stack.

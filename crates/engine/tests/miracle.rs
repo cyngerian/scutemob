@@ -765,6 +765,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     });
 
     state.turn.priority_holder = Some(p1);

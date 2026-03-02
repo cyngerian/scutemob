@@ -351,6 +351,14 @@ pub enum Command {
     /// The card can be cast for its foretell cost on a future turn.
     ForetellCard { player: PlayerId, card: ObjectId },
 
+    // -- Plot (CR 702.170) -----------------------------------------------
+    /// Plot a card from hand (CR 702.170a / CR 116.2k).
+    ///
+    /// Special action: pay [plot cost], exile a card with plot from your hand face up.
+    /// This does not use the stack. Legal during your main phase while stack is empty.
+    /// The card can be cast without paying its mana cost on a future turn.
+    PlotCard { player: PlayerId, card: ObjectId },
+
     // -- Suspend (CR 702.62) -----------------------------------------------
     /// Suspend a card from hand (CR 702.62a / CR 116.2f).
     ///

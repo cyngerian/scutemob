@@ -301,6 +301,9 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: plot status is not preserved across zone changes.
+            is_plotted: false,
+            plotted_turn: 0,
         };
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
@@ -396,6 +399,9 @@ impl GameState {
             encore_must_attack: None,
             // CR 400.7: encore original activator is not preserved across zone changes.
             encore_activated_by: None,
+            // CR 400.7: plot status is not preserved across zone changes.
+            is_plotted: false,
+            plotted_turn: 0,
         };
 
         // Insert at the front (= bottom) of the destination zone.

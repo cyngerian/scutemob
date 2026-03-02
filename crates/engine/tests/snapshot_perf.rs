@@ -139,6 +139,8 @@ fn test_clone_independence_object_modification() {
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,
+                is_plotted: false,
+                plotted_turn: 0,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

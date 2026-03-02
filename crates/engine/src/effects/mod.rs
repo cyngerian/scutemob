@@ -2465,6 +2465,8 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
+        is_plotted: false,
+        plotted_turn: 0,
     }
 }
 

@@ -1908,6 +1908,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     });
 
     assert_eq!(

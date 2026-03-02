@@ -108,7 +108,8 @@ pub enum AltCostKind {
     Aftermath,
     Dash,
     Blitz,
-    // Future: Plot, Prototype, Impending (add as implemented)
+    Plot,
+    // Future: Prototype, Impending (add as implemented)
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -857,6 +858,16 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The blitz cost itself is stored in `AbilityDefinition::Blitz { cost }`.
     Blitz,
+    /// CR 702.170: Plot [cost] -- special action from hand; cast from exile for free.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The plot cost itself is stored in `AbilityDefinition::Plot { cost }`.
+    ///
+    /// During the owner's main phase with empty stack, they may pay the plot cost
+    /// and exile this card face up (special action, CR 116.2k). On a later turn,
+    /// during their main phase with empty stack, they may cast it without paying
+    /// its mana cost (alternative cost, CR 702.170d).
+    Plot,
 }
 
 /// All creature subtypes from CR 205.3m.

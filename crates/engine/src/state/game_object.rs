@@ -484,4 +484,20 @@ pub struct GameObject {
     /// zone changes (CR 400.7).
     #[serde(default)]
     pub encore_activated_by: Option<crate::state::player::PlayerId>,
+    /// CR 702.170a: If true, this card was plotted -- exiled face-up via the plot
+    /// special action. The card can be cast from exile without paying its mana cost
+    /// on any later turn (CR 702.170d).
+    ///
+    /// Unlike `is_foretold`, the card is face-up in exile (public information).
+    /// Zone changes (CR 400.7) clear this -- since plotted cards are in exile,
+    /// any zone change from exile clears this.
+    #[serde(default)]
+    pub is_plotted: bool,
+    /// CR 702.170d: The turn number when this card was plotted.
+    ///
+    /// The card can only be cast "during any turn after the turn in which it became
+    /// plotted" -- i.e., on any turn where `state.turn.turn_number > plotted_turn`.
+    /// Zero means not plotted. Set alongside `is_plotted`.
+    #[serde(default)]
+    pub plotted_turn: u32,
 }

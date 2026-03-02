@@ -348,6 +348,14 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Blitz)` for quick
     /// presence-checking without scanning all abilities.
     Blitz { cost: ManaCost },
+    /// CR 702.170: Plot [cost]. During your main phase with empty stack, pay [cost]
+    /// and exile this card from your hand face up. On a later turn, during your main
+    /// phase with empty stack, cast it without paying its mana cost (CR 702.170d).
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Plot)` for quick
+    /// presence-checking without scanning all abilities.
+    Plot { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

@@ -898,6 +898,7 @@ fn test_ninjutsu_split_second_blocks() {
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 

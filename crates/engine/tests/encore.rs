@@ -568,6 +568,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(fake_stack_obj);
 

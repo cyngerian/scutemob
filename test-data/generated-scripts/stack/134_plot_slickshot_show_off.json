@@ -1,0 +1,288 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_134",
+    "name": "Slickshot Show-Off — plot on turn 1, cast for free from exile on turn 3",
+    "description": "Two-turn-advance scenario demonstrating the Plot keyword (CR 702.170). Turn 1 precombat main: p1 pays {1}{R} and exiles Slickshot Show-Off from hand via the plot special action (CR 702.170a/b — does NOT use the stack; card becomes a plotted card face-up in exile). The turn then advances through the remaining steps of turn 1 and all of turn 2 (p2's turn). Turn 3 precombat main (p1's next turn): p1 casts Slickshot Show-Off from exile for free using AltCostKind::Plot (CR 702.170d — 'without paying its mana cost'). After both players pass priority the spell resolves, Slickshot Show-Off enters the battlefield under p1's control with Flying and Haste. The exile zone no longer contains the card. Casting is only legal because plotted_turn (1) < current_turn (3), satisfying the 'any turn after the turn in which it became plotted' restriction (CR 702.170d).",
+    "cr_sections_tested": ["702.170", "702.170a", "702.170b", "702.170d", "116.2k", "601.2", "601.2b", "608.2"],
+    "corner_case_ref": null,
+    "tags": ["plot", "special-action", "exile", "alternative-cost", "creature", "two-turn", "haste", "flying"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Slickshot Show-Off oracle text: '{1}{R} Creature — Bird Wizard. Flying, haste. Whenever you cast a noncreature spell, this creature gets +2/+0 until end of turn. Plot {1}{R}.' P/T: 1/2. The plot special action (CR 702.170b / CR 116.2k) costs {1}{R} and exiles the card face-up from hand; it does NOT use the stack and cannot be responded to (CR 702.170b, CR 116.2k). The plotted card records plotted_turn=1 and is_plotted=true. It cannot be cast on turn 1 (same turn restriction, CR 702.170d). On turn 3 (p1's next turn, plotted_turn=1 < current_turn=3), p1 casts Slickshot Show-Off from exile via 'cast_spell_plot' (AltCostKind::Plot), paying zero mana (CR 702.170d: 'without paying its mana cost'). Only legal during p1's own main phase with empty stack (CR 702.170d / sorcery speed). On resolution (CR 608.2) the card moves from stack to battlefield with Flying and Haste. Exile zone is empty after resolution. Turn advancement: From precombat_main turn 1 the script uses priority_rounds to advance step by step through BeginningOfCombat, DeclareAttackers (no attackers — auto-skips to EndOfCombat per CR 508.8), EndOfCombat, PostCombatMain, End, Cleanup (auto), then through p2's full turn 2 (Upkeep, Draw, main, combat, main, End), then through p1's Upkeep and Draw on turn 3 to reach PreCombatMain. p2 has Plains in library for their Draw step. p1 has Plains in library for the turn-3 Draw step. p1's mana pool starts at {1}{R} (colorless:1, red:1) to pay the plot cost; both are consumed by the special action, and the free cast requires no mana.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Slickshot Show-Off", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Plains", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Turn 1, p1's precombat main: p1 takes the plot special action, paying {1}{R} to exile Slickshot Show-Off face-up as a plotted card.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Slickshot Show-Off in p1 hand, exile empty, p1 has {1}{R} in pool",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.exile": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Turn 1 precombat main. Slickshot Show-Off is in p1's hand. p1 has {1}{R} ready to pay the plot cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "plot_card",
+          "card": "Slickshot Show-Off",
+          "targets": [],
+          "mana_paid": { "colorless": 1, "red": 1 },
+          "mana_source": [],
+          "cr_ref": "702.170a",
+          "note": "CR 702.170a / CR 116.2k: p1 takes the plot special action. Pays {1}{R} (colorless + red) from pool, exiles Slickshot Show-Off from hand face-up. Card is now a plotted card in exile with is_plotted=true and plotted_turn=1. This is a special action — does NOT use the stack (CR 702.170b)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After plot: Slickshot Show-Off in exile (plotted, face-up), p1 hand empty, mana pool empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.exile": { "includes": ["Slickshot Show-Off"] }
+          },
+          "note": "CR 702.170a: Slickshot Show-Off is now in exile as a plotted card (is_plotted=true, plotted_turn=1). It cannot be cast this turn. p1's mana pool was emptied by the plot cost payment."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PreCombatMain with empty stack. Step advances to BeginningOfCombat."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in BeginningOfCombat with empty stack. Step advances to DeclareAttackers."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3 + CR 508.8: p1 declares no attackers; both pass. No attackers → skip DeclareBlockers and CombatDamage; step advances to EndOfCombat."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in EndOfCombat with empty stack. Step advances to PostCombatMain."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PostCombatMain with empty stack. Step advances to End step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in End step with empty stack. Step advances to Cleanup (auto-advances, no priority) then to turn 2 (p2 active). Untap step fires automatically."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Turn 2, p2's turn: advance through p2's full turn. Slickshot Show-Off remains in exile (plotted). p2 cannot cast it (not p2's card).",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Upkeep step (turn 2, p2 active). Step advances to Draw step. p2 draws Plains from library (turn-based action CR 504.1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Draw step (turn 2) after p2 draws. Step advances to PreCombatMain."
+        },
+        {
+          "type": "assert_state",
+          "description": "Turn 2 precombat main: Slickshot Show-Off still in exile, both players at 40 life",
+          "assertions": {
+            "zones.exile": { "includes": ["Slickshot Show-Off"] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Slickshot Show-Off persists in exile as a plotted card across turns. Cannot be cast by p2 (plotted cards may only be cast by their owner)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PreCombatMain (turn 2). Step advances to BeginningOfCombat."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in BeginningOfCombat (turn 2). Step advances to DeclareAttackers."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3 + CR 508.8: p2 declares no attackers; both pass. Step advances to EndOfCombat."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in EndOfCombat (turn 2). Step advances to PostCombatMain."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in PostCombatMain (turn 2). Step advances to End step."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in End step (turn 2). Step advances to Cleanup (auto) then turn 3 (p1 active). Untap step fires automatically."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Turn 3, p1's precombat main: p1 casts Slickshot Show-Off from exile for free (plotted_turn=1 < current_turn=3).",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Upkeep step (turn 3, p1 active). p1 draws Plains from library (turn-based action CR 504.1). Step advances to Draw."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in Draw step (turn 3) after p1 draws. Step advances to PreCombatMain."
+        },
+        {
+          "type": "assert_state",
+          "description": "Turn 3 precombat main: Slickshot Show-Off in exile, p1's battlefield empty, ready for free cast",
+          "assertions": {
+            "zones.exile": { "includes": ["Slickshot Show-Off"] },
+            "zones.battlefield.p1.count": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.170d: plotted_turn=1 < current_turn=3 — the 'later turn' restriction is satisfied. p1 may now cast Slickshot Show-Off from exile without paying its mana cost during this main phase while the stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_plot",
+          "card": "Slickshot Show-Off",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "702.170d",
+          "note": "CR 702.170d + CR 601.2b: p1 casts Slickshot Show-Off from exile without paying its mana cost (alternative cost: Plot, AltCostKind::Plot). Zero mana paid. Card moves from exile to the stack. Legal because plotted_turn=1 < current_turn=3, and it is p1's main phase with empty stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After plot cast: Slickshot Show-Off on stack, exile no longer contains it",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.exile": { "excludes": ["Slickshot Show-Off"] }
+          },
+          "note": "Slickshot Show-Off moved from exile to the stack. Exile zone no longer contains it. Stack has 1 object."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves. Slickshot Show-Off (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Slickshot Show-Off",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": null,
+              "amount": null,
+              "card": "Slickshot Show-Off",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Slickshot Show-Off resolves. As a creature spell, it enters the battlefield under p1's control. It retains its Flying and Haste keywords. Haste means it is not subject to summoning sickness (CR 702.10a)."
+            }
+          ],
+          "note": "CR 608.2: Spell resolves; Slickshot Show-Off enters p1's battlefield with Flying and Haste. Card is no longer in exile."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Slickshot Show-Off on p1's battlefield, exile empty, stack empty, both players at 40 life",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.exile": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Slickshot Show-Off" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Full plot lifecycle complete: plotted on turn 1 for {1}{R}, cast for free from exile on turn 3. Slickshot Show-Off is now a 1/2 Flying Haste creature on p1's battlefield. Exile zone is empty. Stack is empty."
+        }
+      ]
+    }
+  ]
+}

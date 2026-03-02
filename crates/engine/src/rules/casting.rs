@@ -78,6 +78,7 @@ pub fn handle_cast_spell(
     let cast_with_aftermath = alt_cost == Some(AltCostKind::Aftermath);
     let cast_with_dash = alt_cost == Some(AltCostKind::Dash);
     let cast_with_blitz = alt_cost == Some(AltCostKind::Blitz);
+    let cast_with_plot = alt_cost == Some(AltCostKind::Plot);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -198,6 +199,27 @@ pub fn handle_cast_spell(
             }
         }
 
+        // CR 702.170d: Plot -- allowed if cast_with_plot is true.
+        // Card must be in ZoneId::Exile with is_plotted == true and plotted on a prior turn.
+        // CR 702.170d: "during any turn after the turn in which it became plotted"
+        if cast_with_plot {
+            if card_obj.zone != ZoneId::Exile {
+                return Err(GameStateError::InvalidCommand(
+                    "plot: card must be in exile (CR 702.170d)".into(),
+                ));
+            }
+            if !card_obj.is_plotted {
+                return Err(GameStateError::InvalidCommand(
+                    "plot: card was not plotted (CR 702.170d)".into(),
+                ));
+            }
+            if card_obj.plotted_turn >= state.turn.turn_number {
+                return Err(GameStateError::InvalidCommand(
+                    "plot: cannot cast plotted card on the same turn it was plotted (CR 702.170d: 'any turn after the turn in which it became plotted')".into(),
+                ));
+            }
+        }
+
         // CR 702.81a: Retrace — allowed if card has the Retrace keyword and is in graveyard,
         // AND the player is providing a land card to discard (retrace_discard_land.is_some()).
         // Retrace is an additional cost (CR 118.8), NOT an alternative cost — it does not
@@ -271,6 +293,7 @@ pub fn handle_cast_spell(
             && !casting_with_escape_auto
             && !cast_with_escape
             && !cast_with_foretell
+            && !cast_with_plot // CR 702.170d: Plot allows exile cast
             && !casting_with_retrace
             && !casting_with_jump_start
             && !casting_with_aftermath
@@ -853,6 +876,98 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1k: Validate plot mutual exclusion (CR 702.170d / CR 118.9a).
+    // Plot is an alternative cost -- cannot combine with other alternative costs.
+    // Also enforces sorcery-speed timing for the free-cast (CR 702.170d).
+    let casting_with_plot = if cast_with_plot {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with flashback (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with foretell (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with jump-start (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with aftermath (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // CR 702.170d: Plot free-cast timing = main phase + empty stack (sorcery speed).
+        // Even instants can only be plot-cast at sorcery speed.
+        if state.turn.active_player != player {
+            return Err(GameStateError::InvalidCommand(
+                "plot: plotted cards can only be cast during your turn (CR 702.170d)".into(),
+            ));
+        }
+        if !matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain) {
+            return Err(GameStateError::InvalidCommand(
+                "plot: plotted cards can only be cast during your main phase (CR 702.170d)".into(),
+            ));
+        }
+        if !state.stack_objects.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "plot: plotted cards can only be cast while the stack is empty (CR 702.170d)"
+                    .into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
@@ -936,6 +1051,11 @@ pub fn handle_cast_spell(
         // CR 702.152a: Pay blitz cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_blitz_cost(&card_id, &state.card_registry)
+    } else if casting_with_plot {
+        // CR 702.170d: Cast without paying mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // Cost is zero -- free cast. Additional costs (kicker) still apply.
+        Some(ManaCost::default())
     } else {
         base_mana_cost
     };
@@ -1499,6 +1619,8 @@ pub fn handle_cast_spell(
         was_dashed: casting_with_dash,
         // CR 702.152a: Record whether this spell was cast by paying its blitz cost.
         was_blitzed: casting_with_blitz,
+        // CR 702.170d: Record whether this spell was cast from exile as a plotted card.
+        was_plotted: casting_with_plot,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1608,6 +1730,7 @@ pub fn handle_cast_spell(
             cast_with_aftermath: false,
             was_dashed: false,
             was_blitzed: false,
+            was_plotted: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1655,6 +1778,7 @@ pub fn handle_cast_spell(
             cast_with_aftermath: false,
             was_dashed: false,
             was_blitzed: false,
+            was_plotted: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

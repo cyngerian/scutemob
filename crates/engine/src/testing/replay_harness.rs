@@ -711,6 +711,39 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.170a / CR 116.2k: Plot a card from the player's hand.
+        // The player pays the plot cost and exiles the named card face-up.
+        // Legal during the player's own main phase with empty stack.
+        "plot_card" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::PlotCard {
+                player,
+                card: card_id,
+            })
+        }
+
+        // CR 702.170d: Cast a plotted card from exile without paying its mana cost.
+        // The card must have been plotted on a prior turn (is_plotted == true,
+        // plotted_turn < current turn). Uses AltCostKind::Plot.
+        // Legal during the player's own main phase with empty stack.
+        "cast_spell_plot" => {
+            let card_id = find_plotted_in_exile(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Plot),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+            })
+        }
+
         // CR 702.96a: Cast a spell with overload from the player's hand.
         // The overload cost (an alternative cost) is paid instead of the mana cost.
         // The spell has no targets -- it affects all valid objects.
@@ -1319,6 +1352,28 @@ fn find_foretold_in_exile(
         if obj.characteristics.name == name
             && obj.zone == ZoneId::Exile
             && obj.is_foretold
+            && obj.owner == player
+        {
+            Some(id)
+        } else {
+            None
+        }
+    })
+}
+
+/// CR 702.170a: Find a named plotted card in exile owned by the given player.
+///
+/// Plotted cards are in ZoneId::Exile with is_plotted == true. Unlike general
+/// exile (which is a shared zone), plotted cards are filtered by owner.
+fn find_plotted_in_exile(
+    state: &GameState,
+    player: PlayerId,
+    name: &str,
+) -> Option<crate::state::ObjectId> {
+    state.objects.iter().find_map(|(&id, obj)| {
+        if obj.characteristics.name == name
+            && obj.zone == ZoneId::Exile
+            && obj.is_plotted
             && obj.owner == player
         {
             Some(id)

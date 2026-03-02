@@ -16,6 +16,7 @@ pub mod layers;
 pub mod loop_detection;
 pub mod mana;
 pub mod miracle;
+pub mod plot;
 pub mod priority;
 pub mod protection;
 pub mod replacement;

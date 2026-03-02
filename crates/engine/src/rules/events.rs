@@ -775,6 +775,21 @@ pub enum GameEvent {
         new_exile_id: ObjectId,
     },
 
+    // ── Plot events (CR 702.170) ──────────────────────────────────────────
+    /// CR 702.170a / CR 116.2k: A card was plotted -- exiled face-up from hand via
+    /// the plot special action. The plot cost was paid.
+    ///
+    /// `new_exile_id` is the ObjectId of the card in the exile zone (new per CR 400.7).
+    /// Unlike foretell (face-down), plotted cards are face-up (public information),
+    /// so this event does NOT reveal hidden info to the owner differently than opponents.
+    CardPlotted {
+        player: PlayerId,
+        /// The card's ObjectId before exile (now retired per CR 400.7).
+        object_id: ObjectId,
+        /// New ObjectId in the exile zone.
+        new_exile_id: ObjectId,
+    },
+
     // ── Suspend events (CR 702.62) ────────────────────────────────────────
     /// CR 702.62a / CR 116.2f: A card was exiled from hand via the suspend special
     /// action. The suspend cost was paid and the card was exiled with N time counters.

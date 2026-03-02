@@ -1440,6 +1440,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    is_plotted: false,
+                    plotted_turn: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -1647,6 +1649,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_dashed: false,
                             // CR 702.152a: suspend casts are not blitz casts.
                             was_blitzed: false,
+                            // CR 702.170d: suspend casts are not plot casts.
+                            was_plotted: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -2512,6 +2516,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    is_plotted: false,
+                    plotted_turn: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -2693,6 +2699,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
+                    is_plotted: false,
+                    plotted_turn: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -2893,6 +2901,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // Ruling 2020-11-10: track the original activator so the end-step
                         // sacrifice trigger can verify control hasn't changed.
                         encore_activated_by: Some(controller),
+                        is_plotted: false,
+                        plotted_turn: 0,
                     };
 
                     // Add the token to the battlefield.

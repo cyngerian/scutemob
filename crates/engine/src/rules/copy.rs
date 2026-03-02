@@ -199,6 +199,8 @@ pub fn copy_spell_on_stack(
         was_dashed: false,
         // CR 702.152a: Copies are never cast, so was_blitzed is always false.
         was_blitzed: false,
+        // CR 702.170d: Copies are never cast, so was_plotted is always false.
+        was_plotted: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -383,6 +385,8 @@ pub fn resolve_cascade(
                 was_dashed: false,
                 // CR 702.152a: cascade free-cast spells are not blitz casts.
                 was_blitzed: false,
+                // CR 702.170d: cascade free-cast spells are not plot casts.
+                was_plotted: false,
             };
             state.stack_objects.push_back(stack_obj);
 

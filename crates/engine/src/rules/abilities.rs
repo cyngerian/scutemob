@@ -348,6 +348,7 @@ pub fn handle_activate_ability(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -571,6 +572,7 @@ pub fn handle_cycle_card(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -748,6 +750,7 @@ pub fn handle_unearth_card(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1004,6 +1007,7 @@ pub fn handle_ninjutsu(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1197,6 +1201,7 @@ pub fn handle_embalm_card(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1399,6 +1404,7 @@ pub fn handle_eternalize_card(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1600,6 +1606,7 @@ pub fn handle_encore_card(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3458,6 +3465,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         cast_with_aftermath: false,
                         was_dashed: false,
                         was_blitzed: false,
+                        was_plotted: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -3679,6 +3687,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 cast_with_aftermath: false,
                 was_dashed: false,
                 was_blitzed: false,
+                was_plotted: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4035,6 +4044,7 @@ pub fn handle_crew_vehicle(
         cast_with_aftermath: false,
         was_dashed: false,
         was_blitzed: false,
+        was_plotted: false,
     };
     state.stack_objects.push_back(stack_obj);
 
