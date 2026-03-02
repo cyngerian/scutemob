@@ -2404,6 +2404,185 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.129a: Eternalize activated ability resolves.
+        //
+        // "Create a token that's a copy of this card, except it's black, it's 4/4,
+        // it has no mana cost, and it's a Zombie in addition to its other types."
+        //
+        // The card was already exiled as part of the activation cost (CR 702.129a:
+        // "[Cost], Exile this card from your graveyard"). The token's characteristics
+        // are derived from the CardDefinition looked up via source_card_id.
+        //
+        // CR 707.9b: Color override to Black (replaces all original colors).
+        // CR 707.9b: P/T override to 4/4 (replaces original power/toughness).
+        // CR 707.9d: No mana cost; mana value is 0.
+        // CR 702.129a: Zombie subtype added to existing subtypes.
+        StackObjectKind::EternalizeAbility {
+            source_card_id,
+            source_name: _,
+        } => {
+            let controller = stack_obj.controller;
+            let registry = state.card_registry.clone();
+
+            // Look up the card definition for token characteristics.
+            let def_opt = source_card_id
+                .as_ref()
+                .and_then(|cid| registry.get(cid.clone()));
+
+            if let Some(def) = def_opt {
+                // Build token subtypes: copy from card definition, add Zombie.
+                // CR 702.129a: "Zombie in addition to its other types"
+                let mut subtypes: im::OrdSet<SubType> = im::OrdSet::new();
+                for st in &def.types.subtypes {
+                    subtypes.insert(st.clone() as SubType);
+                }
+                subtypes.insert(SubType("Zombie".to_string()));
+
+                // Build token card types from card definition.
+                let mut card_types: im::OrdSet<CardType> = im::OrdSet::new();
+                for ct in &def.types.card_types {
+                    card_types.insert(*ct);
+                }
+
+                // Build token keywords from card definition's printed abilities.
+                let mut keywords: im::OrdSet<KeywordAbility> = im::OrdSet::new();
+                for ability in &def.abilities {
+                    if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) = ability {
+                        keywords.insert(kw.clone());
+                    }
+                }
+
+                // CR 702.129a: "except it's black" -- replace all colors with Black.
+                // CR 707.9b: This color override becomes the copiable value.
+                let mut colors: im::OrdSet<Color> = im::OrdSet::new();
+                colors.insert(Color::Black);
+
+                // CR 702.129a: "it has no mana cost" -- mana cost is None (mana value 0).
+                // CR 702.129a: "it's 4/4" -- P/T overridden to 4/4.
+                // CR 707.9d: The CDA that might define color from mana cost is not copied.
+                let characteristics = crate::state::game_object::Characteristics {
+                    name: def.name.clone(),
+                    mana_cost: None, // CR 702.129a: no mana cost
+                    colors,
+                    color_indicator: None,
+                    // CR 707.2: supertypes are copiable values; copy from card definition.
+                    // CR 702.129a does not list supertypes among the exceptions, so they
+                    // must be preserved (e.g., a Legendary eternalize token stays Legendary).
+                    supertypes: def.types.supertypes.clone(),
+                    card_types,
+                    subtypes,
+                    rules_text: def.oracle_text.clone(),
+                    abilities: im::Vector::new(),
+                    keywords,
+                    mana_abilities: im::Vector::new(),
+                    // TODO(eternalize-review-finding-1): Non-keyword triggered/activated
+                    // abilities from the card definition are not populated on runtime-created
+                    // tokens. This is the same gap as Embalm (ability-review-embalm.md #2).
+                    // Fix: extract builder conversion into a shared fn callable at both build
+                    // time and token-creation time.
+                    activated_abilities: Vec::new(),
+                    triggered_abilities: Vec::new(),
+                    power: Some(4),     // CR 702.129a: 4/4
+                    toughness: Some(4), // CR 702.129a: 4/4
+                    loyalty: None,
+                    defense: None,
+                };
+
+                let token_obj = crate::state::game_object::GameObject {
+                    id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                    card_id: source_card_id.clone(),
+                    characteristics,
+                    controller,
+                    owner: controller,
+                    zone: ZoneId::Battlefield,
+                    status: crate::state::game_object::ObjectStatus::default(),
+                    counters: im::OrdMap::new(),
+                    attachments: im::Vector::new(),
+                    attached_to: None,
+                    damage_marked: 0,
+                    deathtouch_damage: false,
+                    is_token: true,
+                    timestamp: 0, // replaced by add_object
+                    // CR 302.6: Tokens have summoning sickness when they enter the battlefield.
+                    has_summoning_sickness: true,
+                    goaded_by: im::Vector::new(),
+                    kicker_times_paid: 0,
+                    was_evoked: false,
+                    is_bestowed: false,
+                    was_escaped: false,
+                    is_foretold: false,
+                    foretold_turn: 0,
+                    was_unearthed: false,
+                    myriad_exile_at_eoc: false,
+                    decayed_sacrifice_at_eoc: false,
+                    is_suspended: false,
+                    exiled_by_hideaway: None,
+                    is_renowned: false,
+                };
+
+                // Add the token to the battlefield.
+                let token_id = state.add_object(token_obj, ZoneId::Battlefield)?;
+
+                // Set controller (add_object uses a default; enforce it here).
+                if let Some(obj) = state.objects.get_mut(&token_id) {
+                    obj.controller = controller;
+                }
+
+                // Run the full ETB pipeline for the token.
+                // (ETB replacements, static continuous effects, ETB triggers.)
+                let self_evts = super::replacement::apply_self_etb_from_definition(
+                    state,
+                    token_id,
+                    controller,
+                    source_card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(self_evts);
+                let etb_evts =
+                    super::replacement::apply_etb_replacements(state, token_id, controller);
+                events.extend(etb_evts);
+
+                super::replacement::register_permanent_replacement_abilities(
+                    state,
+                    token_id,
+                    controller,
+                    source_card_id.as_ref(),
+                    &registry,
+                );
+                super::replacement::register_static_continuous_effects(
+                    state,
+                    token_id,
+                    source_card_id.as_ref(),
+                    &registry,
+                );
+
+                events.push(GameEvent::TokenCreated {
+                    player: controller,
+                    object_id: token_id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: token_id,
+                });
+
+                // Fire WhenEntersBattlefield triggered effects from card definition.
+                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                    state,
+                    token_id,
+                    controller,
+                    source_card_id.as_ref(),
+                    &registry,
+                );
+                events.extend(etb_trigger_evts);
+            }
+            // If no card definition found, ability does nothing (shouldn't happen in practice).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -2521,10 +2700,11 @@ pub fn counter_stack_object(
         | StackObjectKind::PoisonousTrigger { .. }
         | StackObjectKind::EnlistTrigger { .. }
         | StackObjectKind::NinjutsuAbility { .. }
-        | StackObjectKind::EmbalmAbility { .. } => {
+        | StackObjectKind::EmbalmAbility { .. }
+        | StackObjectKind::EternalizeAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
-            // Note: For EmbalmAbility, the card is already in exile (exiled as
-            // cost during activation). Countering does not return the card.
+            // Note: For EmbalmAbility/EternalizeAbility, the card is already in
+            // exile (exiled as cost during activation). Countering does not return the card.
         }
     }
 

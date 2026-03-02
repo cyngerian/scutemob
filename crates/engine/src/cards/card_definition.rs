@@ -285,6 +285,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Embalm)` for quick
     /// presence-checking without scanning all abilities.
     Embalm { cost: ManaCost },
+    /// CR 702.129: Eternalize [cost]. The card's eternalize ability can be activated
+    /// from its owner's graveyard by paying this cost plus exiling the card. When the
+    /// ability resolves, create a token copy of the card that is black, 4/4, has no
+    /// mana cost, and is a Zombie in addition to its other types.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Eternalize)` for quick
+    /// presence-checking without scanning all abilities.
+    Eternalize { cost: ManaCost },
     /// CR 702.127: Aftermath. The second half of a split card. Can only be cast
     /// from the graveyard. When it leaves the stack after being cast from graveyard,
     /// it is exiled instead of going anywhere else.

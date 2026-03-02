@@ -441,6 +441,18 @@ pub enum Command {
     /// when the ability resolves.
     EmbalmCard { player: PlayerId, card: ObjectId },
 
+    // -- Eternalize (CR 702.129) ---------------------------------------------
+    /// Activate a card's eternalize ability from the graveyard (CR 702.129a).
+    ///
+    /// The card must be in the player's graveyard with `KeywordAbility::Eternalize`.
+    /// The eternalize cost is paid, the card is exiled (as part of the cost), and
+    /// the eternalize ability is placed on the stack. When it resolves, a token copy
+    /// of the card is created (black, 4/4, no mana cost, Zombie added to types).
+    ///
+    /// Unlike Unearth, the card is exiled as part of the activation cost, NOT
+    /// when the ability resolves.
+    EternalizeCard { player: PlayerId, card: ObjectId },
+
     // -- Ninjutsu (CR 702.49) -----------------------------------------------
     /// Activate a card's ninjutsu ability from hand (or command zone for
     /// commander ninjutsu).

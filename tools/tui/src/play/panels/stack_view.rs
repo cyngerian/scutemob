@@ -108,6 +108,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     // No source_object -- card was already exiled as cost (CR 702.128a).
                     ("Embalm: ".to_string(), None)
                 }
+                StackObjectKind::EternalizeAbility { source_name, .. } => {
+                    // No source_object -- card was already exiled as cost (CR 702.129a).
+                    (format!("Eternalize: {}", source_name), None)
+                }
             };
 
             let (name, name_color) = source_id

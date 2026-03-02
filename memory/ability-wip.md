@@ -1,27 +1,27 @@
-# Ability WIP: Embalm
+# Ability WIP: Eternalize
 
-ability: Embalm
-cr: 702.128
+ability: Eternalize
+cr: 702.129
 priority: P4
 started: 2026-03-01
-phase: fix
-plan_file: memory/abilities/ability-plan-embalm.md
+phase: closed
+plan_file: memory/abilities/ability-plan-eternalize.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:794 (KeywordAbility::Embalm), card_definition.rs:280 (AbilityDefinition::Embalm), stack.rs:630 (StackObjectKind::EmbalmAbility), command.rs:432 (Command::EmbalmCard), hash.rs (disc 92/27/25)
-- [x] 2. Rule enforcement — abilities.rs: handle_embalm_card() + get_embalm_cost(); resolution.rs: EmbalmAbility arm; engine.rs: Command::EmbalmCard dispatch; replay_harness.rs: "embalm_card" action; view_model.rs + stack_view.rs: EmbalmAbility match arms
-- [x] 3. Trigger wiring — n/a (no triggers needed for embalm)
-- [x] 4. Unit tests — tests/embalm.rs: 12 tests all passing
-- [x] 5. Card definition — Sacred Cat (crates/engine/src/cards/defs/sacred_cat.rs)
-- [x] 6. Game script — 129_embalm_sacred_cat.json (stack/)
-- [x] 7. Coverage doc update — Embalm row → validated (P4: 23/88)
+- [x] 1. Enum variant — `state/types.rs:802` (KeywordAbility::Eternalize), `cards/card_definition.rs:288` (AbilityDefinition::Eternalize), `state/stack.rs:645` (StackObjectKind::EternalizeAbility), `rules/command.rs:454` (Command::EternalizeCard), `state/hash.rs` (discs 93/26/28)
+- [x] 2. Rule enforcement — `rules/abilities.rs` (handle_eternalize_card, get_eternalize_cost), `rules/engine.rs` (dispatch arm), `rules/resolution.rs` (EternalizeAbility arm + counter arm), `testing/replay_harness.rs` (eternalize_card action), `tools/tui/stack_view.rs` (match arm), `tools/replay-viewer/view_model.rs` (match arm + keyword)
+- [x] 3. Trigger wiring — n/a (not trigger-based; card exiled as cost at activation time)
+- [x] 4. Unit tests — `crates/engine/tests/eternalize.rs` (12 tests, all passing)
+- [x] 5. Card definition — Proven Combatant (crates/engine/src/cards/defs/proven_combatant.rs)
+- [x] 6. Game script — 130_eternalize_proven_combatant.json (stack/)
+- [x] 7. Coverage doc update — Eternalize row → validated (P4: 24/88)
 
 ## Review
-findings: 6 (2 MEDIUM, 4 LOW)
-review_file: memory/abilities/ability-review-embalm.md
+findings: 7 (1 MEDIUM, 6 LOW)
+review_file: memory/abilities/ability-review-eternalize.md
+fix_applied: LOW #2 (renamed test fn), LOW #3 (fixed mana comment); MEDIUM deferred (TODO in place); LOW #4, #5 deferred; LOW #6, #7 no-action
 
-## Fix Phase (complete)
-- [x] MEDIUM #1 — resolution.rs:2286: `supertypes: def.types.supertypes.clone()` (was `im::OrdSet::new()`)
-- [x] MEDIUM #2 — resolution.rs:2290-2294: Added TODO comment documenting systemic gap (no code change)
-- LOW #3, #4, #5 deferred per review guidance; LOW #6 no action needed
-phase: closed
+## Discriminants (confirmed after Embalm)
+- KeywordAbility::Eternalize = 93
+- AbilityDefinition::Eternalize = 26
+- StackObjectKind::EternalizeAbility = 28

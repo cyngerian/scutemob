@@ -799,6 +799,14 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The embalm cost itself is stored in `AbilityDefinition::Embalm { cost }`.
     Embalm,
+    /// CR 702.129: Eternalize [cost] -- activated ability from graveyard.
+    /// "[Cost], Exile this card from your graveyard: Create a token that's a copy
+    /// of this card, except it's black, it's 4/4, it has no mana cost, and it's a
+    /// Zombie in addition to its other types. Activate only as a sorcery."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The eternalize cost itself is stored in `AbilityDefinition::Eternalize { cost }`.
+    Eternalize,
 }
 
 /// All creature subtypes from CR 205.3m.

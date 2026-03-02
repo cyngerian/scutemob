@@ -518,6 +518,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Aftermath => 91u8.hash_into(hasher),
             // Embalm (discriminant 92) -- CR 702.128
             KeywordAbility::Embalm => 92u8.hash_into(hasher),
+            // Eternalize (discriminant 93) -- CR 702.129
+            KeywordAbility::Eternalize => 93u8.hash_into(hasher),
         }
     }
 }
@@ -1536,6 +1538,15 @@ impl HashInto for StackObjectKind {
             StackObjectKind::EmbalmAbility { source_card_id } => {
                 27u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
+            }
+            // EternalizeAbility (discriminant 28) -- CR 702.129a
+            StackObjectKind::EternalizeAbility {
+                source_card_id,
+                source_name,
+            } => {
+                28u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                source_name.hash_into(hasher);
             }
         }
     }
@@ -3109,6 +3120,11 @@ impl HashInto for AbilityDefinition {
             // Embalm (discriminant 25) -- CR 702.128
             AbilityDefinition::Embalm { cost } => {
                 25u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Eternalize (discriminant 26) -- CR 702.129
+            AbilityDefinition::Eternalize { cost } => {
+                26u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

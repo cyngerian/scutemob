@@ -1,0 +1,21 @@
+// Proven Combatant — {U}, Creature — Human Warrior 1/1; Eternalize {4}{U}{U}
+use crate::cards::helpers::*;
+
+pub fn card() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("proven-combatant"),
+        name: "Proven Combatant".to_string(),
+        mana_cost: Some(ManaCost { blue: 1, ..Default::default() }),
+        types: creature_types(&["Human", "Warrior"]),
+        oracle_text: "Eternalize {4}{U}{U} ({4}{U}{U}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie Human Warrior with no mana cost. Eternalize only as a sorcery.)".to_string(),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Eternalize),
+            AbilityDefinition::Eternalize {
+                cost: ManaCost { generic: 4, blue: 2, ..Default::default() },
+            },
+        ],
+        ..Default::default()
+    }
+}

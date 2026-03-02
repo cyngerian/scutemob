@@ -553,6 +553,17 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.129a: Activate an eternalize ability from the graveyard.
+        // card_name is the name of the card with eternalize in the player's graveyard.
+        // The card is exiled immediately as cost (CR 702.129a); token is created on resolution.
+        "eternalize_card" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            Some(Command::EternalizeCard {
+                player,
+                card: card_id,
+            })
+        }
+
         // CR 702.49a: Activate ninjutsu from hand (or command zone for commander
         // ninjutsu, CR 702.49d). `card_name` is the ninja card; `attacker_name` is
         // the unblocked attacking creature to return to its owner's hand.

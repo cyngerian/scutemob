@@ -630,4 +630,20 @@ pub enum StackObjectKind {
     EmbalmAbility {
         source_card_id: Option<crate::state::player::CardId>,
     },
+    /// CR 702.129a: Eternalize activated ability on the stack.
+    ///
+    /// When this ability resolves: create a token that's a copy of the source card,
+    /// except it's black, it's 4/4, has no mana cost, and is a Zombie in addition
+    /// to its other types (CR 702.129a).
+    ///
+    /// `source_card_id` is the CardId (registry key) of the card that was exiled as cost.
+    /// The original card was exiled during activation (cost payment), so no ObjectId is
+    /// available at resolution time (CR 400.7). The token's characteristics come from
+    /// the CardDefinition in the registry.
+    /// `source_name` is the name of the source card, stored for display in the TUI
+    /// (since the card is already in exile at activation time).
+    EternalizeAbility {
+        source_card_id: Option<crate::state::player::CardId>,
+        source_name: String,
+    },
 }
