@@ -195,7 +195,19 @@ Task tool:
    - Check off step 7 in `ability-wip.md`
    - Set `phase: closed` in `ability-wip.md`
 
-3. Report a summary:
+3. **Update CLAUDE.md Current State** (inline — no agent needed):
+   - Run `~/.cargo/bin/cargo test --workspace 2>&1 | grep "^test result" | grep -oP '\d+ passed' | awk '{s+=$1} END {print s}'` to get the current test count
+   - Read the `## Current State` section of `CLAUDE.md`
+   - Update the `Status:` line: bump test count, validated count, and P<N> count to match current reality
+   - Update `Last Updated:` to today's date
+
+4. **Update MEMORY.md** (inline — no agent needed):
+   - Read the `## Milestone Review Tracking` section of `memory/MEMORY.md` (the auto-memory file at `/home/airbaggie/.claude/projects/-home-airbaggie-scutemob/memory/MEMORY.md`)
+   - Find the most recent "Batch N complete" line
+   - If this ability belongs to the same batch: update the test count, validated count, and P4 count in that line
+   - If this ability closes a new batch: prepend a new "Batch N complete" line with current stats
+
+5. Report a summary:
 
 ```
 ## Ability Complete: <Name>
@@ -207,6 +219,8 @@ Task tool:
 **Card defined**: <card name>
 **Script**: <script path>
 **Coverage status**: validated
+**CLAUDE.md**: updated (tests: <N>, validated: <N>, P<X>: <N>/<total>)
+**MEMORY.md**: updated
 ```
 
 ## Important Notes
