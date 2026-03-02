@@ -289,6 +289,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         Some(AltCostKind::Dash)
                     } else if stack_obj.was_blitzed {
                         Some(AltCostKind::Blitz)
+                    } else if stack_obj.was_impended {
+                        Some(AltCostKind::Impending)
                     } else {
                         None
                     };
@@ -351,6 +353,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             obj.characteristics.colors =
                                 crate::rules::casting::colors_from_mana_cost(&proto_cost);
                             obj.characteristics.mana_cost = Some(proto_cost);
+                        }
+                    }
+                    // CR 702.176a: "If you chose to pay this permanent's impending cost,
+                    // it enters with N time counters on it."
+                    // This is a replacement effect on ETB -- the permanent enters WITH
+                    // the counters, not as a triggered ability after entering.
+                    if stack_obj.was_impended {
+                        let impending_count = crate::rules::casting::get_impending_count(
+                            &obj.card_id,
+                            &state.card_registry,
+                        )
+                        .unwrap_or(0);
+                        if impending_count > 0 {
+                            let current =
+                                obj.counters.get(&CounterType::Time).copied().unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::Time, current + impending_count);
                         }
                     }
                 }
@@ -1203,6 +1223,61 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.176a: Impending counter-removal trigger resolves.
+        //
+        // "At the beginning of your end step, if this permanent's impending cost
+        // was paid and it has a time counter on it, remove a time counter from it."
+        //
+        // Intervening-if re-check (CR 603.4): permanent must still be on the
+        // battlefield, must have cast_alt_cost == Impending, and must have at
+        // least one time counter.
+        StackObjectKind::ImpendingCounterTrigger {
+            source_object: _,
+            impending_permanent,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if condition at resolution.
+            let current_counters = state
+                .objects
+                .get(&impending_permanent)
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.cast_alt_cost == Some(AltCostKind::Impending)
+                })
+                .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
+
+            if let Some(count) = current_counters {
+                if count > 0 {
+                    // Remove one time counter (CR 702.176a).
+                    if let Some(obj) = state.objects.get_mut(&impending_permanent) {
+                        let new_count = count - 1;
+                        if new_count == 0 {
+                            obj.counters.remove(&CounterType::Time);
+                        } else {
+                            obj.counters.insert(CounterType::Time, new_count);
+                        }
+                    }
+                    events.push(GameEvent::CounterRemoved {
+                        object_id: impending_permanent,
+                        counter: CounterType::Time,
+                        count: 1,
+                    });
+                    // No follow-up trigger when last counter removed -- the
+                    // permanent simply becomes a creature because the Layer 4
+                    // type-removal effect in calculate_characteristics stops
+                    // applying (no time counters => condition is false).
+                }
+            }
+            // If not on battlefield, or no impending status, or no counters,
+            // the trigger does nothing (CR 603.4).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
         // a creature. Default (deterministic, no interactive choice): decline.
         //
@@ -1674,6 +1749,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.170d: suspend casts are not plot casts.
                             was_plotted: false,
                             was_prototyped: false,
+                            // CR 702.176a: suspend casts are not impending casts.
+                            was_impended: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -3226,7 +3303,8 @@ pub fn counter_stack_object(
         | StackObjectKind::EncoreAbility { .. }
         | StackObjectKind::EncoreSacrificeTrigger { .. }
         | StackObjectKind::DashReturnTrigger { .. }
-        | StackObjectKind::BlitzSacrificeTrigger { .. } => {
+        | StackObjectKind::BlitzSacrificeTrigger { .. }
+        | StackObjectKind::ImpendingCounterTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
@@ -3234,6 +3312,8 @@ pub fn counter_stack_object(
             // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
             // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
             // with haste and the draw-on-death trigger intact (CR 702.152a).
+            // Note: For ImpendingCounterTrigger, if countered (e.g. by Stifle), the
+            // permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
         }
     }
 

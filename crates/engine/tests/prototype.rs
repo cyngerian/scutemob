@@ -648,7 +648,10 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
         "CR 718.4: mana value should revert to 7 in hand"
     );
     assert!(
-        hand_state.objects[&hand_id].characteristics.colors.is_empty(),
+        hand_state.objects[&hand_id]
+            .characteristics
+            .colors
+            .is_empty(),
         "CR 718.4: colors should revert to colorless in hand"
     );
 }

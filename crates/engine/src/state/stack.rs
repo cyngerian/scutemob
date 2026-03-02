@@ -182,6 +182,14 @@ pub struct StackObject {
     /// spell (copies inherit was_prototyped via copy system).
     #[serde(default)]
     pub was_prototyped: bool,
+    /// CR 702.176a: If true, this spell was cast by paying its impending cost
+    /// (an alternative cost). When the permanent enters the battlefield, it
+    /// enters with N time counters and is not a creature while it has time
+    /// counters.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_impended: bool,
 }
 
 /// The kind of object on the stack.
@@ -743,4 +751,23 @@ pub enum StackObjectKind {
     /// but retains haste and the draw-on-death trigger (those are static
     /// abilities linked to cast_alt_cost, not to this trigger -- CR 702.152a).
     BlitzSacrificeTrigger { source_object: ObjectId },
+    /// CR 702.176a: Impending end-step counter-removal trigger.
+    ///
+    /// "At the beginning of your end step, if this permanent's impending cost
+    /// was paid and it has a time counter on it, remove a time counter from it."
+    ///
+    /// When this trigger resolves:
+    /// 1. Re-check intervening-if: permanent must still be on battlefield,
+    ///    must have `cast_alt_cost == Some(AltCostKind::Impending)`, and must
+    ///    have at least one time counter (CR 603.4).
+    /// 2. If yes, remove one time counter.
+    /// 3. If no (conditions no longer met), do nothing.
+    ///
+    /// Unlike Suspend, there is no follow-up trigger when the last counter is
+    /// removed -- the permanent simply becomes a creature because the Layer 4
+    /// type-removal effect in calculate_characteristics stops applying.
+    ImpendingCounterTrigger {
+        source_object: ObjectId,
+        impending_permanent: ObjectId,
+    },
 }

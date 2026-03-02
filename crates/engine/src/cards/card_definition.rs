@@ -380,6 +380,15 @@ pub enum AbilityDefinition {
         /// The prototype toughness (replaces the card's printed toughness while prototyped).
         toughness: i32,
     },
+    /// CR 702.176: Impending N--[cost]. You may cast this spell by paying [cost]
+    /// rather than its mana cost. If you do, it enters with N time counters and
+    /// isn't a creature while it has time counters. At the beginning of your end
+    /// step, remove a time counter from it.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Impending)` for quick
+    /// presence-checking without scanning all abilities.
+    Impending { cost: ManaCost, count: u32 },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

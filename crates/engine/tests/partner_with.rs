@@ -117,6 +117,7 @@ fn make_partner_with_trigger_stack_obj(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     }
 }
 

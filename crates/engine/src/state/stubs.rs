@@ -69,6 +69,8 @@ pub enum PendingTriggerKind {
     DashReturn,
     /// CR 702.152a: Blitz delayed sacrifice trigger.
     BlitzSacrifice,
+    /// CR 702.176a: Impending end-step counter-removal trigger.
+    ImpendingCounter,
     // Add new trigger kinds here as abilities are implemented
 }
 

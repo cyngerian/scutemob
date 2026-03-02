@@ -911,6 +911,27 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.176a: Cast a spell with impending from the player's hand.
+        // The impending cost (an alternative cost) is paid instead of the mana cost.
+        "cast_spell_impending" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Impending),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+            })
+        }
+
         _ => {
             // Unrecognized action — skip without error.
             None
@@ -962,6 +983,7 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
         "loyalty" => Some(CounterType::Loyalty),
         "poison" => Some(CounterType::Poison),
         "charge" => Some(CounterType::Charge),
+        "time" => Some(CounterType::Time),
         _ => None,
     }
 }

@@ -125,6 +125,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::BlitzSacrificeTrigger { source_object } => {
                     ("Blitz sacrifice: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::ImpendingCounterTrigger { impending_permanent, .. } => {
+                    ("Impending tick: ".to_string(), Some(*impending_permanent))
+                }
             };
 
             let (name, name_color) = source_id

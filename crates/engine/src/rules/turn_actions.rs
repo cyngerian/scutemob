@@ -299,6 +299,62 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         });
     }
 
+    // CR 702.176a: Queue counter-removal triggers for all impending permanents.
+    // "At the beginning of your end step, if this permanent's impending cost was
+    // paid and it has a time counter on it, remove a time counter from it."
+    //
+    // Only fires for permanents whose controller matches the active player
+    // (the player whose end step it is). The trigger has an intervening-if
+    // condition (CR 603.4): checked here and again at resolution time.
+    //
+    // In multiplayer, each player's impending permanents tick down only on THEIR
+    // own end step, not on other players' end steps (CR 702.176a: "your end step").
+    let active = state.turn.active_player;
+    let impending_permanents: Vec<ObjectId> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.controller == active
+                && obj.cast_alt_cost == Some(AltCostKind::Impending)
+                && obj.counters.get(&CounterType::Time).copied().unwrap_or(0) > 0
+        })
+        .map(|obj| obj.id)
+        .collect();
+
+    for obj_id in impending_permanents {
+        state.pending_triggers.push_back(PendingTrigger {
+            source: obj_id,
+            ability_index: 0, // unused for impending counter triggers
+            controller: active,
+            kind: PendingTriggerKind::ImpendingCounter,
+            triggering_event: None,
+            entering_object_id: None,
+            targeting_stack_id: None,
+            triggering_player: None,
+            exalted_attacker_id: None,
+            defending_player_id: None,
+            madness_exiled_card: None,
+            madness_cost: None,
+            miracle_revealed_card: None,
+            miracle_cost: None,
+            modular_counter_count: None,
+            evolve_entering_creature: None,
+            suspend_card_id: None,
+            hideaway_count: None,
+            partner_with_name: None,
+            ingest_target_player: None,
+            flanking_blocker_id: None,
+            rampage_n: None,
+            provoke_target_creature: None,
+            renown_n: None,
+            poisonous_n: None,
+            poisonous_target_player: None,
+            enlist_enlisted_creature: None,
+            encore_activator: None,
+        });
+    }
+
     Vec::new() // No direct events; the triggers will be flushed by enter_step
 }
 

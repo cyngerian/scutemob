@@ -1,0 +1,287 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_136",
+    "name": "Impending — Overlord of the Hauntwoods cast for impending cost {1}{G}{G}",
+    "description": "P1 casts Overlord of the Hauntwoods ({3}{G}{G}, Legendary Enchantment Creature — Avatar Horror 6/5, Impending 4—{1}{G}{G}) for its impending cost {1}{G}{G}. Per CR 702.176a the spell is cast as an alternative cost: the permanent enters with 4 time counters and is not a creature until the last counter is removed. The script verifies: (1) the cast places the spell on the stack, (2) the permanent enters the battlefield under P1's control (as an Enchantment, not yet a Creature), (3) the ETB trigger fires creating a tapped Everywhere land token, and (4) the end-step counter-removal lifecycle across 4 turns is documented (each controller end step removes one time counter; after the 4th the permanent becomes a 6/5 Creature). Three harness/engine gaps are documented in the disputes array; the end-step lifecycle is fully covered by unit tests in crates/engine/tests/impending.rs.",
+    "cr_sections_tested": [
+      "702.176a",
+      "601.2",
+      "601.2b",
+      "608.2",
+      "116.3",
+      "111.1",
+      "111.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "impending",
+      "alternative-cost",
+      "time-counter",
+      "enchantment-creature",
+      "non-creature-while-counters",
+      "etb-trigger",
+      "token"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Overlord of the Hauntwoods card definition (crates/engine/src/cards/defs/overlord_of_the_hauntwoods.rs): mana_cost {3}{G}{G}, types Legendary Enchantment Creature — Avatar Horror, power 6, toughness 5. Abilities: AbilityDefinition::Keyword(Impending), AbilityDefinition::Impending { cost: ManaCost { generic:1, green:2 }, count: 4 }, ETB trigger creating Everywhere token, attack trigger creating Everywhere token. CR 702.176a: Impending is a keyword representing four abilities: (a) alternative cost — pay {1}{G}{G} instead of {3}{G}{G}; (b) replacement effect — enters with 4 time counters; (c) type-removal — not a creature while impending cost was paid AND time counters > 0 (Layer 4); (d) triggered ability — at beginning of controller's end step, if impending cost paid and time counters > 0, remove one time counter. CR 601.2b: Impending cost is an alternative cost. mana_paid: { colorless: 1, green: 2 } represents {1}{G}{G}. ETB trigger fires regardless of creature status — the trigger condition is 'WhenEntersBattlefield' on the permanent, not 'WhenCreatureEntersBattlefield'. The Everywhere token is a tapped colorless land with all basic land types (Plains/Island/Swamp/Mountain/Forest) and all five mana abilities. HARNESS GAP 1: No 'cast_spell_impending' action type in replay_harness.rs translate_player_action(); the fix mirrors 'cast_spell_dash'/'cast_spell_blitz' by adding an arm that builds Command::CastSpell { alt_cost: Some(AltCostKind::Impending), ... }. HARNESS GAP 2: parse_counter_type() does not map 'time' to CounterType::Time, so permanent.*.counters.time assertions cannot be used. ENGINE COMPILE ERROR: overlord_of_the_hauntwoods.rs uses ManaColor without importing it (error[E0433]: use of undeclared type ManaColor in the everywhere_token_spec() function, lines 31-35). The card definition references ManaColor::Green/White/Blue/Black/Red without 'use crate::ManaColor;'. This prevents the engine from compiling and executing the script. All three gaps are documented in disputes. The full end-step lifecycle (4 turns -> 0 counters -> becomes 6/5 Creature) is validated by test_impending_multiple_end_steps, test_impending_becomes_creature_when_last_counter_removed, and test_impending_counter_removed_at_end_step in crates/engine/tests/impending.rs (11 tests).",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Engine compile error: crates/engine/src/cards/defs/overlord_of_the_hauntwoods.rs fails to compile with error[E0433]: 'failed to resolve: use of undeclared type ManaColor' at lines 31-35 in everywhere_token_spec(). The function references ManaColor::Green, ManaColor::White, ManaColor::Blue, ManaColor::Black, ManaColor::Red but does not import ManaColor. The file uses 'use crate::cards::helpers::*;' but ManaColor is not re-exported through helpers.rs. The fix is to add 'use crate::ManaColor;' at line 5 of overlord_of_the_hauntwoods.rs (alongside the existing helpers::* import), or to add ManaColor to the helpers.rs wildcard re-exports. This prevents the harness from running: 'error: could not compile mtg-engine (lib) due to 10 previous errors'. The script content and CR citations are correct; this is a pre-existing engine bug not introduced by this script.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      },
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness gap: 'cast_spell_impending' is not a recognized action type in replay_harness.rs translate_player_action(). The match arm for impending casting does not exist. The engine Command::CastSpell has an alt_cost field of type Option<AltCostKind> and AltCostKind::Impending exists in state/types.rs. The fix is to add a 'cast_spell_impending' arm to translate_player_action() analogous to 'cast_spell_dash' and 'cast_spell_blitz', building Command::CastSpell { alt_cost: Some(AltCostKind::Impending), prototype: false, ... } with mana_paid reflecting the impending cost {1}{G}{G} (colorless:1, green:2). The script action and its CR 702.176a citations are correct; only the harness execution path is missing.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      },
+      {
+        "step_index": 0,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness gap: parse_counter_type() in replay_harness.rs does not map 'time' to CounterType::Time. The function handles '+1/+1', '-1/-1', 'loyalty', 'poison', and 'charge' but not 'time'. As a result, assertions of the form 'permanent.Overlord of the Hauntwoods.counters.time: 4' cannot be evaluated and would silently return 0. The fix is to add '\"time\" => Some(CounterType::Time)' to the match arm in parse_counter_type(). This gap also affects suspend scripts that might want to assert counter counts on suspended permanents. The full time-counter lifecycle (4 -> 3 -> 2 -> 1 -> 0 across end steps) is validated by unit tests in crates/engine/tests/impending.rs.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "green": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Overlord of the Hauntwoods", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Overlord of the Hauntwoods for its impending cost {1}{G}{G} (CR 702.176a alternative cost). Both players pass priority. The spell resolves: Overlord enters the battlefield with 4 time counters. Because the impending cost was paid and time counters remain, Layer 4 removes the Creature type — the permanent is an Enchantment only (CR 702.176a type-removal condition). The ETB trigger fires, creating a tapped Everywhere token (all five basic land types, all five mana abilities).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Overlord of the Hauntwoods in P1 hand; battlefield empty; P1 has {1}{G}{G} (colorless:1, green:2) in mana pool; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Overlord of the Hauntwoods ({3}{G}{G}, Legendary Enchantment Creature — Avatar Horror, 6/5, Impending 4—{1}{G}{G}) is in P1's hand. P1 has the impending cost {1}{G}{G} ready in the mana pool (colorless:1 for the generic {1}, green:2 for {G}{G})."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_impending",
+          "card": "Overlord of the Hauntwoods",
+          "targets": [],
+          "mana_paid": { "colorless": 1, "green": 2 },
+          "mana_source": [],
+          "cr_ref": "702.176a",
+          "note": "CR 702.176a: P1 pays the impending cost {1}{G}{G} (colorless:1, green:2) instead of the normal mana cost {3}{G}{G}. CR 601.2b: Impending is an alternative cost. The spell is still a creature spell while on the stack (CR 702.176 ruling 2024-09-20: 'it is still a creature spell on the stack'). CR 601.2: Overlord moves from P1's hand to the stack. The engine receives Command::CastSpell { alt_cost: Some(AltCostKind::Impending), ... } — when it resolves, the replacement effect (CR 702.176a ability 2) will add 4 time counters."
+        },
+        {
+          "type": "assert_state",
+          "description": "After impending cast: Overlord on stack (count 1); P1 hand empty; mana pool depleted",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 601.2: Casting moves Overlord of the Hauntwoods from P1's hand to the stack. The impending cost {1}{G}{G} has been paid from the mana pool. P1's hand is now empty."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Overlord of the Hauntwoods (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Overlord of the Hauntwoods",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": {
+                "type": "permanent",
+                "card": "Overlord of the Hauntwoods",
+                "controller": "p1"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.176a",
+              "note": "CR 702.176a ability 2 (replacement effect): Because the impending cost was paid, Overlord enters with 4 time counters on it. CR 702.176a ability 3 (Layer 4 type-removal): As long as the impending cost was paid AND time counters remain, the permanent is not a Creature. Overlord enters as a Legendary Enchantment (not a Creature) with 4 time counters."
+            },
+            {
+              "effect": "trigger_etb",
+              "target": {
+                "type": "trigger",
+                "card": "Overlord of the Hauntwoods",
+                "controller": "p1"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "111.1",
+              "note": "CR 111.1, 111.5: The ETB trigger ('Whenever this permanent enters') fires as Overlord enters the battlefield. The trigger creates 1 tapped colorless Everywhere land token with all five basic land types (Plains, Island, Swamp, Mountain, Forest) and all five mana abilities. The trigger fires regardless of creature status — it conditions on the permanent entering, not on it being a creature."
+            }
+          ],
+          "note": "CR 608.2: Spell resolves — permanent enters battlefield under P1's control. CR 702.176a: Enters with 4 time counters; Layer 4 removes Creature type while counters exist."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Overlord on P1 battlefield (as non-creature Enchantment with 4 time counters); Everywhere land token on P1 battlefield (tapped); P1/P2 life unchanged",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "zones.hand.p1.count": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.176a: Overlord of the Hauntwoods is on the battlefield as a Legendary Enchantment (Creature type removed by Layer 4 while 4 time counters remain and impending cost was paid). It has 4 time counters (entered via replacement effect, CR 702.176a ability 2). The ETB trigger has fired creating an Everywhere token. Life totals unchanged. CR 111.5: The Everywhere token is a tapped colorless land on the battlefield."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority to allow ETB trigger to resolve (creates Everywhere token) and advance to ending phase."
+        }
+      ]
+    },
+    {
+      "step": "ending_step",
+      "step_note": "P1's first end step (turn 1). CR 702.176a ability 4: at the beginning of the controller's end step, if impending cost was paid and time counters remain, remove one time counter. This trigger fires and removes 1 time counter (4 -> 3). After this end step, Overlord still has 3 time counters and remains a non-creature Enchantment.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority in the ending step. CR 702.176a ability 4: The ImpendingCounter triggered ability fires at the beginning of P1's end step. Removing one time counter: 4 -> 3. With 3 remaining counters, Layer 4 still applies — Overlord is still not a Creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After end step 1: Overlord still on battlefield (non-creature Enchantment); 3 time counters remain (cannot assert via harness due to gap — see disputes); P1/P2 life unchanged",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.176a: One time counter removed at P1's end step (4 -> 3). Overlord still has 3 time counters. Layer 4 type-removal condition still true (impending cost paid AND counters > 0) — still not a Creature. NOTE: Cannot assert 'permanent.Overlord of the Hauntwoods.counters.time: 3' due to harness gap (parse_counter_type does not support 'time' — see disputes). Full counter lifecycle tested in crates/engine/tests/impending.rs."
+        }
+      ]
+    },
+    {
+      "step": "ending_step",
+      "step_note": "P1's second end step (turn 2). CR 702.176a ability 4 fires again: removes 1 time counter (3 -> 2). Overlord still non-creature with 2 counters remaining.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 702.176a ability 4: ImpendingCounter trigger fires at beginning of P1's end step. Removes one time counter: 3 -> 2. Two counters remain; Layer 4 still removes Creature type."
+        },
+        {
+          "type": "assert_state",
+          "description": "After end step 2: Overlord still on battlefield; 2 time counters remain; still non-creature Enchantment",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.176a: 3 -> 2 time counters after second end step. Still a non-Creature Enchantment."
+        }
+      ]
+    },
+    {
+      "step": "ending_step",
+      "step_note": "P1's third end step (turn 3). CR 702.176a ability 4 fires: removes 1 time counter (2 -> 1). Overlord still non-creature with 1 counter remaining.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 702.176a ability 4: ImpendingCounter trigger fires at beginning of P1's end step. Removes one time counter: 2 -> 1. One counter remains; Layer 4 still removes Creature type."
+        },
+        {
+          "type": "assert_state",
+          "description": "After end step 3: Overlord still on battlefield; 1 time counter remains; still non-creature Enchantment",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.176a: 2 -> 1 time counter after third end step. Still a non-Creature Enchantment with 1 time counter."
+        }
+      ]
+    },
+    {
+      "step": "ending_step",
+      "step_note": "P1's fourth (final) end step (turn 4). CR 702.176a ability 4 fires: removes the last time counter (1 -> 0). After removal, the Layer 4 condition is false (counters no longer > 0) — Overlord becomes a 6/5 Legendary Enchantment Creature — Avatar Horror.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 702.176a ability 4: ImpendingCounter trigger fires at beginning of P1's end step. Removes the last time counter: 1 -> 0. The Layer 4 type-removal condition is now false (requires counters > 0 AND impending cost paid; first condition no longer met). Overlord gains back the Creature type — it is now a 6/5 Legendary Enchantment Creature — Avatar Horror."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Overlord on P1 battlefield (now a 6/5 Legendary Enchantment Creature — Avatar Horror with 0 time counters); P1/P2 life unchanged at 40; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Overlord of the Hauntwoods" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.176a: After the fourth end step removes the last time counter, the type-removal condition (ability 3) is no longer satisfied (it requires BOTH impending cost paid AND time counters > 0). Overlord regains its Creature type — it is now a 6/5 Legendary Enchantment Creature — Avatar Horror. The cast_alt_cost is still AltCostKind::Impending on the object, but since counters are 0 the Layer 4 effect no longer applies. The stack is empty. Life totals unchanged throughout the scenario. The full lifecycle validates CR 702.176a: (b) enters with N counters, (c) not a creature while counters remain, (d) triggers every controller end step to remove one counter."
+        }
+      ]
+    }
+  ]
+}

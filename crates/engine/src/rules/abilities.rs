@@ -350,6 +350,7 @@ pub fn handle_activate_ability(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -575,6 +576,7 @@ pub fn handle_cycle_card(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -754,6 +756,7 @@ pub fn handle_unearth_card(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1012,6 +1015,7 @@ pub fn handle_ninjutsu(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1207,6 +1211,7 @@ pub fn handle_embalm_card(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1411,6 +1416,7 @@ pub fn handle_eternalize_card(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1614,6 +1620,7 @@ pub fn handle_encore_card(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3474,6 +3481,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         was_blitzed: false,
                         was_plotted: false,
                         was_prototyped: false,
+                        was_impended: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -3668,6 +3676,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                     }
                 }
+                PendingTriggerKind::ImpendingCounter => {
+                    // CR 702.176a: Impending end-step counter-removal trigger.
+                    // "At the beginning of your end step, if this permanent's impending
+                    // cost was paid and it has a time counter on it, remove a time
+                    // counter from it."
+                    StackObjectKind::ImpendingCounterTrigger {
+                        source_object: trigger.source,
+                        impending_permanent: trigger.source,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -3697,6 +3715,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 was_blitzed: false,
                 was_plotted: false,
                 was_prototyped: false,
+                was_impended: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4055,6 +4074,7 @@ pub fn handle_crew_vehicle(
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     };
     state.stack_objects.push_back(stack_obj);
 

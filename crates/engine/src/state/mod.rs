@@ -311,22 +311,18 @@ impl GameState {
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values. The prototype-modified P/T, mana_cost, and colors were written
         // into the base characteristics at cast time and must be undone here.
-        if old_object.is_prototyped
-            && to != ZoneId::Battlefield
-            && to != ZoneId::Stack
-        {
+        if old_object.is_prototyped && to != ZoneId::Battlefield && to != ZoneId::Stack {
             if let Some(ref cid) = new_object.card_id {
                 if let Some(def) = self.card_registry.get(cid.clone()) {
                     new_object.characteristics.power = def.power;
                     new_object.characteristics.toughness = def.toughness;
                     new_object.characteristics.mana_cost = def.mana_cost.clone();
                     // CR 105.2: colors are derived from the printed mana cost.
-                    new_object.characteristics.colors =
-                        if let Some(ref mc) = def.mana_cost {
-                            crate::rules::casting::colors_from_mana_cost(mc)
-                        } else {
-                            im::OrdSet::new()
-                        };
+                    new_object.characteristics.colors = if let Some(ref mc) = def.mana_cost {
+                        crate::rules::casting::colors_from_mana_cost(mc)
+                    } else {
+                        im::OrdSet::new()
+                    };
                 }
             }
         }
@@ -433,22 +429,18 @@ impl GameState {
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
         // printed values.
-        if old_object.is_prototyped
-            && to != ZoneId::Battlefield
-            && to != ZoneId::Stack
-        {
+        if old_object.is_prototyped && to != ZoneId::Battlefield && to != ZoneId::Stack {
             if let Some(ref cid) = new_object.card_id {
                 if let Some(def) = self.card_registry.get(cid.clone()) {
                     new_object.characteristics.power = def.power;
                     new_object.characteristics.toughness = def.toughness;
                     new_object.characteristics.mana_cost = def.mana_cost.clone();
                     // CR 105.2: colors are derived from the printed mana cost.
-                    new_object.characteristics.colors =
-                        if let Some(ref mc) = def.mana_cost {
-                            crate::rules::casting::colors_from_mana_cost(mc)
-                        } else {
-                            im::OrdSet::new()
-                        };
+                    new_object.characteristics.colors = if let Some(ref mc) = def.mana_cost {
+                        crate::rules::casting::colors_from_mana_cost(mc)
+                    } else {
+                        im::OrdSet::new()
+                    };
                 }
             }
         }

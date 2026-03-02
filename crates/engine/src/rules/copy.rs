@@ -203,6 +203,11 @@ pub fn copy_spell_on_stack(
         was_plotted: false,
         // CR 718.3c: If a prototyped spell is copied, the copy is also a prototyped spell.
         was_prototyped: original.was_prototyped,
+        // CR 702.176a: Copies are never cast, so was_impended is always false.
+        // Ruling 2024-09-20: "If an object enters as a copy of a permanent that was
+        // cast with its impending cost, it won't enter with time counters, and it
+        // will be a creature."
+        was_impended: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -390,6 +395,8 @@ pub fn resolve_cascade(
                 // CR 702.170d: cascade free-cast spells are not plot casts.
                 was_plotted: false,
                 was_prototyped: false,
+                // CR 702.176a: cascade free-cast spells are not impending casts.
+                was_impended: false,
             };
             state.stack_objects.push_back(stack_obj);
 

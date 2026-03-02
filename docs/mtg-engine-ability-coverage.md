@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-02 (Prototype validated; CR 702.160 + CR 718; KeywordAbility::Prototype disc 98; AbilityDefinition::Prototype{cost,power,toughness} disc 31; CastSpell.prototype: bool (NOT an alt cost per CR 118.9); GameObject.is_prototyped; StackObject.was_prototyped; casting.rs prototype cost selection + stack char overwrite; resolution.rs ETB char application; state/mod.rs CR 718.4 zone-change revert; copy.rs CR 718.3c was_prototyped propagation; commander.rs prototype cost in color identity; replay_harness cast_spell_prototype action; 10 tests in tests/prototype.rs; Blitz Automaton card def; game script stack/135; P4 validated 28->29, total validated 120->121)
+> Last audited: 2026-03-02 (Impending validated; CR 702.176 (was incorrectly listed as 702.168); AbilityDefinition::Impending{cost,count}; KeywordAbility::Impending disc 99; AltCostKind::Impending; StackObjectKind::ImpendingCounterTrigger disc 33; casting.rs alt cost validation + mutual exclusion with 14 alt-cost keywords; resolution.rs ETB time counters + counter-removal trigger; layers.rs Layer 4 type removal; turn_actions.rs end-step trigger queuing; abilities.rs trigger dispatch; copy.rs cascade interaction; replay_harness cast_spell_impending action; 11 tests in tests/impending.rs; Overlord of the Hauntwoods card def; game script stack/136; P4 validated 29->30, total validated 121->122)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 29        | 0        | 0       | 60   | 12  |
-| **Total**| **200**| **121**  | **2**    | **0**   | **65**| **12** |
+| P4       | 101   | 30        | 0        | 0       | 59   | 12  |
+| **Total**| **200**| **122**  | **2**    | **0**   | **64**| **12** |
 
 ---
 
@@ -323,7 +323,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Discover | 702.161 | P4 | `none` | — | — | — | Cascade | Cascade variant without the free cast restriction |
 | Forage | 701.55 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
 | Offspring | 702.167 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |
-| Impending | 702.168 | P4 | `none` | — | — | — | — | Cast for less as non-creature with time counters |
+| Impending | 702.176 | P4 | `validated` | `cards/card_definition.rs:383` (AbilityDefinition::Impending), `state/types.rs:112,890` (KeywordAbility::Impending, AltCostKind::Impending), `rules/casting.rs:83,876-1073,1190-1193,1767-1768,3171-3203` (alt cost validation, mutual exclusion, cost payment, get_impending_cost/count), `rules/resolution.rs:293,358-373,1226-1272` (ETB time counters, counter-removal trigger resolution), `rules/layers.rs:85-95` (Layer 4 type removal while impending+counters), `rules/turn_actions.rs:302-328` (end-step trigger queuing), `rules/abilities.rs:3679-3686` (trigger dispatch), `state/stack.rs:185,754-771` (was_impended, ImpendingCounterTrigger), `state/hash.rs` (hash arms disc 99/33/32), `rules/copy.rs:208,398` (cascade/copy interaction), `testing/replay_harness.rs:914-927` (cast_spell_impending action) | Overlord of the Hauntwoods | `stack/136` | — | CR 702.176a: 4 sub-abilities (alt cost, ETB time counters, Layer 4 type removal, end-step counter removal); 11 unit tests in `tests/impending.rs`; alt-cost mutual exclusion with all 14 other alt-cost keywords; commander tax interaction tested |
 | Gift | 702.169 | P4 | `none` | — | — | — | — | Choose an opponent to receive a gift |
 | Collect evidence | 701.53 | P4 | `none` | — | — | — | — | Exile cards from graveyard with total MV >= N |
 | Suspect | 701.52 | P4 | `none` | — | — | — | — | Menace + can't block |

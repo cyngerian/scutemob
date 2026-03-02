@@ -82,6 +82,32 @@ pub fn calculate_characteristics(
             chars.colors = OrdSet::new();
         }
 
+        // CR 702.176a: Impending -- "As long as this permanent's impending cost was paid
+        // and it has a time counter on it, it's not a creature."
+        // Applied at Layer 4 (TypeChange) inline, after CDAs, before non-CDA Layer 4 effects.
+        // This is a static ability of the permanent (not a CDA), but it functions only on
+        // the battlefield and is conditional on both impending cost paid AND time counters
+        // present. Uses `cast_alt_cost` (a game-state marker, not an ability) so it persists
+        // even if the Impending keyword is removed by Layer 6 effects (e.g., Humility).
+        if layer == EffectLayer::TypeChange {
+            if let Some(obj_ref) = state.objects.get(&object_id) {
+                if obj_ref.zone == ZoneId::Battlefield
+                    && obj_ref.cast_alt_cost == Some(crate::state::types::AltCostKind::Impending)
+                    && obj_ref
+                        .counters
+                        .get(&CounterType::Time)
+                        .copied()
+                        .unwrap_or(0)
+                        > 0
+                {
+                    chars.card_types.remove(&CardType::Creature);
+                    // CR 702.176a: "it's not a creature" -- removes the Creature card type.
+                    // Creature subtypes are NOT removed (they're simply non-functional while
+                    // the permanent isn't a creature; they return when counters are gone).
+                }
+            }
+        }
+
         // Gather effects for this layer that apply to this object.
         // The filter is evaluated against `chars` as modified by earlier layers —
         // this is correct because type changes from layer 4 affect whether "AllCreatures"

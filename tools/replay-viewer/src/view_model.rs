@@ -518,6 +518,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::BlitzSacrificeTrigger { source_object } => {
             ("blitz_sacrifice_trigger", Some(*source_object))
         }
+        StackObjectKind::ImpendingCounterTrigger { impending_permanent, .. } => {
+            ("impending_counter_trigger", Some(*impending_permanent))
+        }
     }
 }
 
@@ -753,5 +756,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Blitz => "Blitz".to_string(),
         KeywordAbility::Plot => "Plot".to_string(),
         KeywordAbility::Prototype => "Prototype".to_string(),
+        KeywordAbility::Impending => "Impending".to_string(),
     }
 }

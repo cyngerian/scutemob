@@ -1918,6 +1918,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     });
 
     assert_eq!(

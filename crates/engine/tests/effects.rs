@@ -1023,6 +1023,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.

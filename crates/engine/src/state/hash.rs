@@ -530,6 +530,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Plot => 97u8.hash_into(hasher),
             // Prototype (discriminant 98) -- CR 702.160
             KeywordAbility::Prototype => 98u8.hash_into(hasher),
+            // Impending (discriminant 99) -- CR 702.176
+            KeywordAbility::Impending => 99u8.hash_into(hasher),
         }
     }
 }
@@ -1573,6 +1575,15 @@ impl HashInto for StackObjectKind {
                 32u8.hash_into(hasher);
                 source_object.hash_into(hasher);
             }
+            // ImpendingCounterTrigger (discriminant 33) -- CR 702.176a
+            StackObjectKind::ImpendingCounterTrigger {
+                source_object,
+                impending_permanent,
+            } => {
+                33u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                impending_permanent.hash_into(hasher);
+            }
         }
     }
 }
@@ -1642,6 +1653,8 @@ impl HashInto for StackObject {
         self.was_plotted.hash_into(hasher);
         // Prototype (CR 718.3b) — spell was cast as a prototyped spell
         self.was_prototyped.hash_into(hasher);
+        // Impending (CR 702.176a) — alternative cost paid; enters with time counters
+        self.was_impended.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3203,6 +3216,12 @@ impl HashInto for AbilityDefinition {
                 cost.hash_into(hasher);
                 power.hash_into(hasher);
                 toughness.hash_into(hasher);
+            }
+            // Impending (discriminant 32) -- CR 702.176
+            AbilityDefinition::Impending { cost, count } => {
+                32u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                count.hash_into(hasher);
             }
         }
     }

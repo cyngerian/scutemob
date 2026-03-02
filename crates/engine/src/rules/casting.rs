@@ -80,6 +80,7 @@ pub fn handle_cast_spell(
     let cast_with_dash = alt_cost == Some(AltCostKind::Dash);
     let cast_with_blitz = alt_cost == Some(AltCostKind::Blitz);
     let cast_with_plot = alt_cost == Some(AltCostKind::Plot);
+    let cast_with_impending = alt_cost == Some(AltCostKind::Impending);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -793,6 +794,11 @@ pub fn handle_cast_spell(
                 "cannot combine dash with aftermath (CR 118.9a: only one alternative cost)".into(),
             ));
         }
+        if cast_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with impending (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
         if get_dash_cost(&card_id, &state.card_registry).is_none() {
             return Err(GameStateError::InvalidCommand(
                 "spell does not have dash".into(),
@@ -865,6 +871,11 @@ pub fn handle_cast_spell(
         if casting_with_dash {
             return Err(GameStateError::InvalidCommand(
                 "cannot combine blitz with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with impending (CR 118.9a: only one alternative cost)".into(),
             ));
         }
         if get_blitz_cost(&card_id, &state.card_registry).is_none() {
@@ -946,6 +957,11 @@ pub fn handle_cast_spell(
                 "cannot combine plot with blitz (CR 118.9a: only one alternative cost)".into(),
             ));
         }
+        if cast_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with impending (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
         // CR 702.170d: Plot free-cast timing = main phase + empty stack (sorcery speed).
         // Even instants can only be plot-cast at sorcery speed.
         if state.turn.active_player != player {
@@ -962,6 +978,99 @@ pub fn handle_cast_spell(
             return Err(GameStateError::InvalidCommand(
                 "plot: plotted cards can only be cast while the stack is empty (CR 702.170d)"
                     .into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
+    // Step 1m: Validate impending mutual exclusion (CR 702.176a / CR 118.9a).
+    // Impending is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_impending = if cast_with_impending {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with bestow (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with madness (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with miracle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with escape (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with foretell (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with overload (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with retrace (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with aftermath (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_plot {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with plot (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_impending_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has no impending cost defined (CR 702.176a)".into(),
             ));
         }
         true
@@ -1078,6 +1187,10 @@ pub fn handle_cast_spell(
         // CR 702.152a: Pay blitz cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_blitz_cost(&card_id, &state.card_registry)
+    } else if casting_with_impending {
+        // CR 702.176a: Pay impending cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_impending_cost(&card_id, &state.card_registry)
     } else if casting_with_plot {
         // CR 702.170d: Cast without paying mana cost (alternative cost, CR 118.9).
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -1651,6 +1764,8 @@ pub fn handle_cast_spell(
         // CR 718.3b: Record whether this spell was cast as a prototyped spell.
         // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
         was_prototyped: prototype,
+        // CR 702.176a: Record whether this spell was cast by paying its impending cost.
+        was_impended: casting_with_impending,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1781,6 +1896,7 @@ pub fn handle_cast_spell(
             was_blitzed: false,
             was_plotted: false,
             was_prototyped: false,
+            was_impended: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1830,6 +1946,7 @@ pub fn handle_cast_spell(
             was_blitzed: false,
             was_plotted: false,
             was_prototyped: false,
+            was_impended: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3049,4 +3166,46 @@ pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state:
         colors.insert(crate::state::types::Color::Green);
     }
     colors
+}
+
+/// CR 702.176a: Look up the impending cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Impending { cost, .. }`, or `None`
+/// if the card has no definition or no impending ability defined.
+fn get_impending_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Impending { cost, .. } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.176a: Look up the impending counter count from the card's `AbilityDefinition`.
+///
+/// Returns the `count` stored in `AbilityDefinition::Impending { count, .. }`, or `None`
+/// if the card has no definition or no impending ability defined.
+pub(crate) fn get_impending_count(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<u32> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Impending { count, .. } = a {
+                    Some(*count)
+                } else {
+                    None
+                }
+            })
+        })
+    })
 }

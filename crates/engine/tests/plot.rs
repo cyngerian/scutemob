@@ -642,6 +642,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     });
 
     let result = process_command(
@@ -1176,6 +1177,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         was_blitzed: false,
         was_plotted: false,
         was_prototyped: false,
+        was_impended: false,
     });
 
     let result = process_command(

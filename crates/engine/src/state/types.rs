@@ -109,7 +109,7 @@ pub enum AltCostKind {
     Dash,
     Blitz,
     Plot,
-    // Future: Prototype, Impending (add as implemented)
+    Impending,
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -880,6 +880,14 @@ pub enum KeywordAbility {
     /// Marker for quick presence-checking (`keywords.contains`).
     /// The prototype data (cost, power, toughness) is stored in `AbilityDefinition::Prototype`.
     Prototype,
+    /// CR 702.176: Impending N--[cost]. Alternative cost; enters with N time counters;
+    /// not a creature while it has time counters and was cast for impending cost;
+    /// remove a time counter at beginning of controller's end step.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The impending cost and counter count are stored in
+    /// `AbilityDefinition::Impending { cost, count }`.
+    Impending,
 }
 
 /// All creature subtypes from CR 205.3m.
