@@ -419,6 +419,7 @@ fn test_investigate_clue_can_be_activated() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

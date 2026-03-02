@@ -65,6 +65,7 @@ pub fn handle_cast_spell(
     escape_exile_cards: Vec<ObjectId>,
     retrace_discard_land: Option<ObjectId>,
     jump_start_discard: Option<ObjectId>,
+    prototype: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -968,7 +969,33 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1l: Validate prototype (CR 702.160a / CR 718.3).
+    // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14) -- it can combine
+    // with any alternative cost. We validate that the card has AbilityDefinition::Prototype
+    // and extract the prototype data for use in Step 2 cost selection.
+    let prototype_data: Option<(ManaCost, i32, i32)> = if prototype {
+        let data = get_prototype_data(&card_id, &state.card_registry);
+        if data.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "prototype: card does not have the Prototype ability (CR 702.160a)".into(),
+            ));
+        }
+        data
+    } else {
+        None
+    };
+
     // Step 2: Select the base cost (alternative cost takes precedence over mana cost).
+    // CR 718.3a: When prototype is true, the prototype mana cost REPLACES the card's
+    // normal mana cost as the base. The alt-cost chain then operates on this base.
+    // For example, "prototype + without paying mana cost" → pay {0} but still prototyped.
+    let base_mana_cost = if let Some((ref proto_cost, _, _)) = prototype_data {
+        // CR 718.3a: Use only the prototype mana cost when evaluating what can be paid.
+        Some(proto_cost.clone())
+    } else {
+        base_mana_cost
+    };
+
     let base_cost_before_tax: Option<ManaCost> = if casting_with_evoke {
         // CR 702.74a: Pay evoke cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -1621,6 +1648,9 @@ pub fn handle_cast_spell(
         was_blitzed: casting_with_blitz,
         // CR 702.170d: Record whether this spell was cast from exile as a plotted card.
         was_plotted: casting_with_plot,
+        // CR 718.3b: Record whether this spell was cast as a prototyped spell.
+        // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+        was_prototyped: prototype,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1645,6 +1675,25 @@ pub fn handle_cast_spell(
                 .characteristics
                 .keywords
                 .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
+        }
+    }
+
+    // CR 718.3b: When cast as a prototyped spell, apply prototype characteristics to
+    // the source object on the stack. The spell uses the alternative P/T, mana cost,
+    // and color (derived from prototype mana cost, CR 718.3b / CR 105.2).
+    //
+    // IMPORTANT: This is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+    // The prototype flag is orthogonal to alt_cost — both can be set simultaneously.
+    // CR 718.2a: These values become part of the copiable values while on the stack.
+    if let Some((ref proto_cost, proto_power, proto_toughness)) = prototype_data {
+        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+            // CR 718.3b: Set alternative mana cost (replaces the card's normal cost).
+            stack_source.characteristics.mana_cost = Some(proto_cost.clone());
+            // CR 718.3b: Set alternative P/T.
+            stack_source.characteristics.power = Some(proto_power);
+            stack_source.characteristics.toughness = Some(proto_toughness);
+            // CR 718.3b / CR 105.2: Set color from prototype mana cost symbols.
+            stack_source.characteristics.colors = colors_from_mana_cost(proto_cost);
         }
     }
 
@@ -1731,6 +1780,7 @@ pub fn handle_cast_spell(
             was_dashed: false,
             was_blitzed: false,
             was_plotted: false,
+            was_prototyped: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1779,6 +1829,7 @@ pub fn handle_cast_spell(
             was_dashed: false,
             was_blitzed: false,
             was_plotted: false,
+            was_prototyped: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -2948,4 +2999,54 @@ fn apply_undaunted_reduction(
     reduced.generic -= reduction;
 
     Some(reduced)
+}
+
+/// CR 702.160a: Extract prototype data (cost, power, toughness) from a card definition.
+///
+/// Returns `Some((cost, power, toughness))` if the card has `AbilityDefinition::Prototype`,
+/// or `None` if the card has no definition or no prototype ability defined.
+pub(crate) fn get_prototype_data(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(ManaCost, i32, i32)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Prototype {
+                    cost,
+                    power,
+                    toughness,
+                } = a
+                {
+                    Some((cost.clone(), *power, *toughness))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 105.2: Derive the colors of an object from its mana cost.
+///
+/// An object is the color or colors of the mana symbols in its mana cost.
+/// Used to compute the colors of a prototyped permanent (CR 718.3b).
+pub(crate) fn colors_from_mana_cost(cost: &ManaCost) -> im::OrdSet<crate::state::types::Color> {
+    let mut colors = im::OrdSet::new();
+    if cost.white > 0 {
+        colors.insert(crate::state::types::Color::White);
+    }
+    if cost.blue > 0 {
+        colors.insert(crate::state::types::Color::Blue);
+    }
+    if cost.black > 0 {
+        colors.insert(crate::state::types::Color::Black);
+    }
+    if cost.red > 0 {
+        colors.insert(crate::state::types::Color::Red);
+    }
+    if cost.green > 0 {
+        colors.insert(crate::state::types::Color::Green);
+    }
+    colors
 }

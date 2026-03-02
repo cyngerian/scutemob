@@ -426,6 +426,7 @@ fn test_702_18_shroud_prevents_targeting() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -491,6 +492,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1126,6 +1128,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("casting Wrath of God failed");

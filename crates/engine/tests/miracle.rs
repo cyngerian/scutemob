@@ -484,6 +484,7 @@ fn test_miracle_cast_for_miracle_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -585,6 +586,7 @@ fn test_miracle_sorcery_ignores_timing() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -766,6 +768,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -789,6 +792,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(

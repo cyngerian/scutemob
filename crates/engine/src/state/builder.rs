@@ -921,6 +921,7 @@ impl GameStateBuilder {
                 encore_activated_by: None,
                 is_plotted: false,
                 plotted_turn: 0,
+                is_prototyped: false,
             };
 
             state.add_object(object, zone)?;

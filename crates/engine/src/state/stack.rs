@@ -170,6 +170,18 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_plotted: bool,
+    /// CR 718.3b: If true, this spell was cast as a prototyped spell.
+    ///
+    /// The spell uses its alternative power, toughness, mana cost, and color
+    /// (derived from the prototype mana cost) instead of the card's normal values.
+    ///
+    /// IMPORTANT: This is NOT mutually exclusive with other alt-cost flags (CR 118.9,
+    /// ruling 2022-10-14). A spell can be both prototyped AND cast with flashback.
+    ///
+    /// CR 718.3c: If a prototyped spell is copied, the copy is also a prototyped
+    /// spell (copies inherit was_prototyped via copy system).
+    #[serde(default)]
+    pub was_prototyped: bool,
 }
 
 /// The kind of object on the stack.

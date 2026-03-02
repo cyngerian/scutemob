@@ -247,6 +247,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -344,6 +345,7 @@ fn test_flashback_exile_on_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -458,6 +460,7 @@ fn test_flashback_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -498,6 +501,7 @@ fn test_flashback_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -595,6 +599,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -659,6 +664,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -739,6 +745,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -824,6 +831,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -920,6 +928,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -999,6 +1008,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1071,6 +1081,7 @@ fn test_flashback_mana_value_unchanged() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

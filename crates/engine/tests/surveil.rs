@@ -198,6 +198,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -297,6 +298,7 @@ fn test_surveil_zero_no_event() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -390,6 +392,7 @@ fn test_surveil_empty_library_still_emits_event() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -471,6 +474,7 @@ fn test_surveil_library_fewer_than_n() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -574,6 +578,7 @@ fn test_surveil_then_draw_sequence() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -702,6 +707,7 @@ fn test_whenever_you_surveil_trigger() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -803,6 +809,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

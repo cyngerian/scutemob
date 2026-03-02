@@ -171,6 +171,7 @@ fn test_split_second_blocks_casting_spells() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -202,6 +203,7 @@ fn test_split_second_blocks_casting_spells() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -278,6 +280,7 @@ fn test_split_second_blocks_activated_abilities() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -367,6 +370,7 @@ fn test_split_second_blocks_cycling() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -449,6 +453,7 @@ fn test_split_second_allows_mana_abilities() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -538,6 +543,7 @@ fn test_split_second_allows_pass_priority() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -614,6 +620,7 @@ fn test_split_second_blocks_caster_too() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -638,6 +645,7 @@ fn test_split_second_blocks_caster_too() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -714,6 +722,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -752,6 +761,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -822,6 +832,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

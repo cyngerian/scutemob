@@ -136,6 +136,7 @@ fn test_storm_creates_copies() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -250,6 +251,7 @@ fn test_storm_copies_resolve_independently() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -374,6 +376,7 @@ fn test_storm_count_resets_each_turn() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -470,6 +473,7 @@ fn test_spell_copy_is_not_cast() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

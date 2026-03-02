@@ -395,6 +395,7 @@ fn test_plot_cannot_cast_same_turn() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -456,6 +457,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -527,6 +529,7 @@ fn test_plot_free_cast_costs_zero() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -638,6 +641,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     });
 
     let result = process_command(
@@ -705,6 +709,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -948,6 +953,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1081,6 +1087,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1168,6 +1175,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     });
 
     let result = process_command(
@@ -1184,6 +1192,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1242,6 +1251,7 @@ fn test_plot_free_cast_requires_own_turn() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1307,6 +1317,7 @@ fn test_plot_normal_cast_still_works() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1365,6 +1376,7 @@ fn test_plot_cast_postcombat_main_phase() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1479,6 +1491,7 @@ fn test_plot_turn_tracking_boundary() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(
@@ -1502,6 +1515,7 @@ fn test_plot_turn_tracking_boundary() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(

@@ -121,6 +121,7 @@ fn cast_spell(
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
 }
@@ -535,6 +536,7 @@ fn test_affinity_combined_with_improvise() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect(

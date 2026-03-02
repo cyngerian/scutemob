@@ -201,6 +201,8 @@ pub fn copy_spell_on_stack(
         was_blitzed: false,
         // CR 702.170d: Copies are never cast, so was_plotted is always false.
         was_plotted: false,
+        // CR 718.3c: If a prototyped spell is copied, the copy is also a prototyped spell.
+        was_prototyped: original.was_prototyped,
     };
 
     // Push the copy onto the stack (above the original).
@@ -387,6 +389,7 @@ pub fn resolve_cascade(
                 was_blitzed: false,
                 // CR 702.170d: cascade free-cast spells are not plot casts.
                 was_plotted: false,
+                was_prototyped: false,
             };
             state.stack_objects.push_back(stack_obj);
 

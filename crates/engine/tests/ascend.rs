@@ -517,6 +517,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CastSpell should succeed");

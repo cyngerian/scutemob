@@ -1,0 +1,391 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_135",
+    "name": "Prototype \u2014 Blitz Automaton cast with prototype cost {2}{R}, enters as 3/2 red with Haste, attacks for 3",
+    "description": "P1 casts Blitz Automaton using its Prototype cost {2}{R} (CR 702.160, CR 718.3). Per CR 718.3b the spell has the prototype's power and toughness (3/2) and the prototype's colors (red) in addition to its normal types and abilities. The permanent enters the battlefield as a 3/2 red Artifact Creature with Haste. P1 then attacks with it \u2014 P2 has no blockers \u2014 and the unblocked 3/2 deals 3 combat damage to P2 (life 40 to 37). Key rule: Prototype is NOT an alternative cost (CR 718.3); the engine signals it via Command::CastSpell { prototype: true }. The script documents the harness gap (no 'cast_spell_prototype' action type) in the disputes array.",
+    "cr_sections_tested": [
+      "702.160",
+      "718.3",
+      "718.3b",
+      "601.2",
+      "608.2",
+      "702.10b",
+      "508.1",
+      "508.1f",
+      "509.1",
+      "509.1h",
+      "510.1",
+      "510.1b",
+      "120.3",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "prototype",
+      "alternative-characteristics",
+      "haste",
+      "combat",
+      "declare-attackers",
+      "declare-blockers",
+      "artifact-creature",
+      "color-change",
+      "power-toughness"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Blitz Automaton card definition (crates/engine/src/cards/defs/blitz_automaton.rs): mana_cost {7}, types Artifact+Creature (Construct), power 6 / toughness 4. Abilities: AbilityDefinition::Keyword(Prototype) + AbilityDefinition::Prototype { cost: ManaCost { generic: 2, red: 1 }, power: 3, toughness: 2 } + AbilityDefinition::Keyword(Haste). CR 702.160: 'Prototype' is a static ability that lets you cast the spell with different mana cost and characteristics. CR 718.3: When cast using the prototype cost, the spell's base power and toughness are the prototype values, and the spell's color is determined by the prototype cost. CR 718.3b: The permanent that enters the battlefield has the prototype power, toughness, and color. Per CR 718.3 (important): Prototype is NOT an alternative cost (CR 601.2b); it is a separate casting option that modifies the spell's characteristics. The engine uses Command::CastSpell { prototype: true } to signal prototype casting. The harness action type needed is 'cast_spell_prototype' \u2014 analogous to 'cast_spell_blitz', 'cast_spell_evoke', etc. HARNESS GAP: As of this script's generation, replay_harness.rs has no 'cast_spell_prototype' match arm in translate_player_action(); the prototype field is always false. The script models the correct CR behavior; the harness gap is documented as a dispute. mana_paid: { colorless: 2, red: 1 } (prototype cost {2}{R} = 2 generic + 1 red). After resolution: 3/2 red Artifact Creature with Haste on P1's battlefield. P1 attacks; P2 has no creatures; unblocked 3/2 deals 3 damage to P2 (life 40 to 37). Haste (CR 702.10b) means the creature can attack the turn it entered. Combat steps follow the blitz/dash/Riveteers pattern established in script_stack_133.",
+    "disputes": [
+      {
+        "step_index": 0,
+        "action_index": 1,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness gap: 'cast_spell_prototype' is not a recognized action type in replay_harness.rs translate_player_action(). The match arm for prototype casting does not exist; all paths set prototype: false. The engine Command::CastSpell has a prototype field (bool) that the casting subsystem uses to apply CR 718.3 characteristic modifications. The fix is to add a 'cast_spell_prototype' arm to translate_player_action() that finds the card in the player's hand and builds Command::CastSpell { prototype: true, alt_cost: None, ... } with mana_paid reflecting the prototype cost. The script action and its CR citations are correct per CR 702.160 and CR 718.3; only the harness execution path is missing.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 2,
+          "red": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Blitz Automaton",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Blitz Automaton using its Prototype cost {2}{R} (CR 702.160, CR 718.3). Per CR 718.3b the spell is 3/2 and red while on the stack. Both players pass priority. The spell resolves: Blitz Automaton enters the battlefield as a 3/2 red Artifact Creature with Haste (prototype characteristics). Both players pass priority with empty stack to advance to beginning_of_combat.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Blitz Automaton in P1 hand; no permanents on battlefield; P1 has {2}{R} in mana pool; P2 at 40 life; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Blitz Automaton"
+                }
+              ]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [
+                {
+                  "card": "Blitz Automaton"
+                }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "Blitz Automaton ({7}, 6/4 Artifact Creature \u2014 Construct, Haste, Prototype {2}{R} \u2014 3/2) is in P1's hand. P1 has {2}{R} (colorless:2, red:1) to pay the prototype cost. No permanents in play."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_prototype",
+          "card": "Blitz Automaton",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 2,
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "702.160",
+          "note": "CR 702.160: P1 casts Blitz Automaton using its Prototype ability. CR 718.3: The prototype cost {2}{R} is paid (colorless:2 + red:1). The spell is NOT treated as an alternative cost (CR 718.3 explicitly: prototype is not an alternative cost per CR 601.2b). CR 718.3b: While on the stack and when it resolves, the permanent has power 3, toughness 2, and color red (from the prototype cost). The card's other characteristics (type: Artifact Creature \u2014 Construct, Haste keyword) are unchanged. CR 601.2: Spell moves from P1's hand to the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After prototype cast: Blitz Automaton on stack (count 1); P1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 601.2: Casting moves Blitz Automaton from P1's hand to the stack. The prototype cost {2}{R} has been paid. P1's hand is now empty."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Blitz Automaton (top of stack) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Blitz Automaton",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": {
+                "type": "permanent",
+                "card": "Blitz Automaton",
+                "controller": "p1"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "718.3b",
+              "note": "CR 718.3b: Blitz Automaton enters the battlefield with its prototype characteristics: power 3, toughness 2, color red. It retains its card types (Artifact Creature \u2014 Construct), its name, and all abilities including Haste. CR 702.10b: Haste means the permanent is not affected by summoning sickness and may attack this turn."
+            }
+          ],
+          "note": "CR 608.2: Creature spell resolves \u2014 permanent enters battlefield under P1's control. CR 718.3b: The permanent has prototype P/T (3/2) and prototype color (red) for as long as the Prototype effect applies. CR 702.10b: Haste is active."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Blitz Automaton (3/2, red, Haste) on P1 battlefield; stack empty; life totals unchanged",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Blitz Automaton"
+                }
+              ]
+            },
+            "zones.hand.p1.count": 0,
+            "zones.stack": {
+              "is_empty": true
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 718.3b: Blitz Automaton is on the battlefield as a 3/2 red Artifact Creature \u2014 Construct with Haste. The prototype cost was paid so the permanent uses the prototype's power (3), toughness (2), and color (red) rather than the original {7} card's 6/4 colorless. Haste (CR 702.10b) allows it to attack the turn it entered."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack \u2014 advance from precombat_main to beginning_of_combat step."
+        }
+      ]
+    },
+    {
+      "step": "beginning_of_combat",
+      "step_note": "Beginning of combat step. No triggered abilities fire. Both players pass priority to advance to declare_attackers.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in beginning_of_combat with empty stack \u2014 advance to declare_attackers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_attackers",
+      "step_note": "P1 declares Blitz Automaton as an attacker targeting P2. The 3/2 has Haste so it may attack the turn it entered (CR 702.10b). It taps (CR 508.1f). Both players pass priority to advance to declare_blockers.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            {
+              "card": "Blitz Automaton",
+              "target_player": "p2",
+              "target_planeswalker": null
+            }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: P1 declares Blitz Automaton as an attacking creature targeting P2. CR 702.10b: Haste granted by the card's Haste keyword \u2014 summoning sickness does not apply (Blitz Automaton has Haste regardless of whether it was cast with the prototype cost). CR 508.1f: Creature taps as a side effect of attacking. CR 508.1k: Becomes an attacking creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Blitz Automaton tapped (attacking P2); stack empty",
+          "assertions": {
+            "permanent.Blitz Automaton.tapped": true,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 508.1f: Blitz Automaton tapped as part of the attack declaration. It is now an attacking creature targeting P2."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority \u2014 advance to declare_blockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "P2 declares no blockers (P2 controls no creatures). Blitz Automaton is unblocked (CR 509.1h). Both players pass priority \u2014 advance to combat_damage.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: P2 declares no blockers \u2014 P2 controls no creatures. CR 509.1h: Blitz Automaton has no blockers declared; it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority \u2014 advance to combat_damage step."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "Blitz Automaton (3/2, unblocked) assigns 3 combat damage to P2 (CR 510.1b). P2 life: 40 to 37. No triggered abilities from damage. Both players pass priority to advance to end_of_combat.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "assign_damage",
+          "card": "Blitz Automaton",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": null,
+          "mana_source": [],
+          "cr_ref": "510.1",
+          "note": "CR 510.1: P1 assigns all 3 points of combat damage from Blitz Automaton (prototype power 3) to P2 \u2014 it is unblocked (CR 510.1b). CR 718.3b: The prototype power 3 is used for combat damage (not the original 6/4). CR 120.3: P2 loses 3 life."
+        },
+        {
+          "type": "assert_state",
+          "description": "After combat damage: P2 at 37 life; Blitz Automaton on P1 battlefield (tapped); stack empty",
+          "assertions": {
+            "players.p2.life": 37,
+            "players.p1.life": 40,
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Blitz Automaton"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": "CR 510.1b: Blitz Automaton (prototype power 3, unblocked) dealt 3 combat damage to P2. P2 life: 40 to 37. CR 718.3b: The 3/2 prototype characteristics \u2014 not the 6/4 base card \u2014 determine combat damage. No triggered abilities from damage. Stack is empty."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack \u2014 advance to end_of_combat step."
+        }
+      ]
+    },
+    {
+      "step": "end_of_combat",
+      "step_note": "End of combat step. No triggered abilities fire (Blitz Automaton has no end-of-combat triggers). Both players pass priority to conclude combat.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority in end_of_combat with empty stack \u2014 combat phase ends. Unlike Blitz or Dash, Prototype does not create a sacrifice trigger at the end step (CR 718.3). The permanent remains on the battlefield after combat."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Blitz Automaton still on P1 battlefield (tapped); P2 at 37 life; P1 at 40 life; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Blitz Automaton"
+                }
+              ]
+            },
+            "zones.stack": {
+              "is_empty": true
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 37
+          },
+          "note": "CR 718.3b: Blitz Automaton (cast with prototype {2}{R}) remains on the battlefield as a 3/2 red Artifact Creature \u2014 Construct with Haste. It is tapped (attacked this turn). Prototype does NOT cause it to return to hand or be sacrificed; unlike Dash (CR 702.109a) and Blitz (CR 702.152a), there is no end-of-step trigger (CR 718.3). P2 is at 37 life (lost 3 from combat damage). The scenario validates: (1) prototype casting uses the prototype cost, (2) the permanent enters with prototype P/T and color, and (3) prototype power determines combat damage."
+        }
+      ]
+    }
+  ],
+  "review_status": "approved"
+}

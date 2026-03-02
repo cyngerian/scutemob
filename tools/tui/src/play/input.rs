@@ -102,6 +102,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         escape_exile_cards: Vec::new(),
                         retrace_discard_land: None,
                         jump_start_discard: None,
+                        prototype: false,
                     };
                     app.execute_command(cmd)?;
                 } else {

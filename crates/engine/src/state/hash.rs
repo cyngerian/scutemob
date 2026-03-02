@@ -528,6 +528,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Blitz => 96u8.hash_into(hasher),
             // Plot (discriminant 97) -- CR 702.170
             KeywordAbility::Plot => 97u8.hash_into(hasher),
+            // Prototype (discriminant 98) -- CR 702.160
+            KeywordAbility::Prototype => 98u8.hash_into(hasher),
         }
     }
 }
@@ -702,6 +704,8 @@ impl HashInto for GameObject {
         // Plot (CR 702.170a) — card was plotted (exiled face-up via plot special action)
         self.is_plotted.hash_into(hasher);
         self.plotted_turn.hash_into(hasher);
+        // Prototype (CR 718.3b) — whether this permanent was cast prototyped
+        self.is_prototyped.hash_into(hasher);
     }
 }
 
@@ -1636,6 +1640,8 @@ impl HashInto for StackObject {
         self.was_blitzed.hash_into(hasher);
         // Plot (CR 702.170d) — spell was cast from exile as a plotted card
         self.was_plotted.hash_into(hasher);
+        // Prototype (CR 718.3b) — spell was cast as a prototyped spell
+        self.was_prototyped.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3186,6 +3192,17 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Plot { cost } => {
                 30u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Prototype (discriminant 31) -- CR 702.160 / CR 718
+            AbilityDefinition::Prototype {
+                cost,
+                power,
+                toughness,
+            } => {
+                31u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                power.hash_into(hasher);
+                toughness.hash_into(hasher);
             }
         }
     }

@@ -57,6 +57,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -122,6 +123,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(result.is_ok());
@@ -174,6 +176,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -225,6 +228,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(
@@ -279,6 +283,7 @@ fn test_cast_spell_lifo_stack_order() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -306,6 +311,7 @@ fn test_cast_spell_lifo_stack_order() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -359,6 +365,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(
@@ -407,6 +414,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -449,6 +457,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -508,6 +517,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -534,6 +544,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -574,6 +585,7 @@ fn test_cast_spell_land_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -617,6 +629,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -664,6 +677,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

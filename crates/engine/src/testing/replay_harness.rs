@@ -294,6 +294,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -317,6 +318,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -337,6 +339,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -357,6 +360,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -378,6 +382,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -399,6 +404,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -425,6 +431,7 @@ pub fn translate_player_action(
                 escape_exile_cards: exile_ids,
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -708,6 +715,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -741,6 +749,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -762,6 +771,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -786,6 +796,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: Some(land_id),
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -810,6 +821,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: Some(discard_id),
+                prototype: false,
             })
         }
 
@@ -831,6 +843,29 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
+            })
+        }
+
+        // CR 702.160 / CR 718: Cast a spell using its prototype cost from the player's hand.
+        // Prototype is NOT an alternative cost (CR 118.9 / 2022-10-14 ruling) — orthogonal
+        // to alt_cost and can be combined with alternative costs like Flashback or Escape.
+        "cast_spell_prototype" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: true,
             })
         }
 
@@ -851,6 +886,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 
@@ -871,6 +907,7 @@ pub fn translate_player_action(
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             })
         }
 

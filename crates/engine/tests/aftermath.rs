@@ -233,6 +233,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -336,6 +337,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -439,6 +441,7 @@ fn test_aftermath_exile_on_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -553,6 +556,7 @@ fn test_aftermath_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -590,6 +594,7 @@ fn test_aftermath_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -688,6 +693,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -760,6 +766,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -844,6 +851,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -935,6 +943,7 @@ fn test_aftermath_pays_aftermath_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1018,6 +1027,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1099,6 +1109,7 @@ fn test_aftermath_uses_aftermath_effect() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1198,6 +1209,7 @@ fn test_aftermath_full_lifecycle() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1264,6 +1276,7 @@ fn test_aftermath_full_lifecycle() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1360,6 +1373,7 @@ fn test_aftermath_insufficient_mana_rejected() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 

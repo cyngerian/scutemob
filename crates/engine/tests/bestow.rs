@@ -176,6 +176,7 @@ fn test_bestow_cast_as_aura_basic() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -360,6 +361,7 @@ fn test_bestow_cast_normally_as_creature() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -498,6 +500,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -737,6 +740,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             },
         );
         assert!(
@@ -802,6 +806,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 escape_exile_cards: vec![],
                 retrace_discard_land: None,
                 jump_start_discard: None,
+                prototype: false,
             },
         );
         assert!(
@@ -885,6 +890,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(
@@ -991,6 +997,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1055,6 +1062,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(

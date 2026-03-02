@@ -130,6 +130,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -223,6 +224,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -305,6 +307,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -385,6 +388,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -444,6 +448,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -498,6 +503,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -1006,6 +1012,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1084,6 +1091,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1909,6 +1917,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     });
 
     assert_eq!(
@@ -2208,6 +2217,7 @@ fn test_full_four_player_commander_game() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

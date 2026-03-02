@@ -170,6 +170,7 @@ fn test_extort_basic_drain_on_spell_cast() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -285,6 +286,7 @@ fn test_extort_triggers_on_creature_spell() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -364,6 +366,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -454,6 +457,7 @@ fn test_extort_multiple_instances_trigger_separately() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -572,6 +576,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -655,6 +660,7 @@ fn test_extort_resolves_before_triggering_spell() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -753,6 +759,7 @@ fn test_extort_multiplayer_4_player_drain() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

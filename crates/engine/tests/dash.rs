@@ -158,6 +158,7 @@ fn test_dash_basic_cast_with_dash_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -260,6 +261,7 @@ fn test_dash_normal_cast_no_return() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -347,6 +349,7 @@ fn test_dash_return_to_hand_at_end_step() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -441,6 +444,7 @@ fn test_dash_creature_left_battlefield_before_end_step() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -595,6 +599,7 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -655,6 +660,7 @@ fn test_dash_cannot_combine_with_evoke() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -769,6 +775,7 @@ fn test_dash_commander_tax_applies() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(
@@ -798,6 +805,7 @@ fn test_dash_commander_tax_applies() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
     assert!(

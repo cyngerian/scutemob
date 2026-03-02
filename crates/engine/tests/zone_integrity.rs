@@ -203,6 +203,7 @@ fn test_add_object_to_state() {
         encore_activated_by: None,
         is_plotted: false,
         plotted_turn: 0,
+        is_prototyped: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

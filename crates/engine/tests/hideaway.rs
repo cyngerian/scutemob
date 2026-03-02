@@ -102,6 +102,7 @@ fn make_hideaway_trigger_stack_obj(
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     }
 }
 

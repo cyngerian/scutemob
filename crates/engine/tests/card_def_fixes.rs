@@ -112,6 +112,7 @@ fn test_read_the_bones_scry_then_draw() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -285,6 +286,7 @@ fn test_path_to_exile_optional_search() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -776,6 +778,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("casting Rest in Peace failed");

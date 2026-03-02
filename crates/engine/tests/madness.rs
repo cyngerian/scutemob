@@ -446,6 +446,7 @@ fn test_madness_cast_from_exile() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -540,6 +541,7 @@ fn test_madness_sorcery_ignores_timing() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -668,6 +670,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -740,6 +743,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -891,6 +895,7 @@ fn test_madness_mana_value_unchanged() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1015,6 +1020,7 @@ fn test_madness_effect_discard_goes_to_exile() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

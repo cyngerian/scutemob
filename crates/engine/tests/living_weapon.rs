@@ -142,6 +142,7 @@ fn cast_and_enter_battlefield(
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

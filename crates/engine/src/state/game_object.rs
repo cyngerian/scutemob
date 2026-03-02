@@ -500,4 +500,19 @@ pub struct GameObject {
     /// Zero means not plotted. Set alongside `is_plotted`.
     #[serde(default)]
     pub plotted_turn: u32,
+    /// CR 718.3b: If true, this permanent was cast as a prototyped spell.
+    ///
+    /// The permanent uses its alternative power, toughness, mana cost, and
+    /// color (derived from the prototype mana cost, CR 718.3b / CR 105.2)
+    /// instead of its normal values. These values are written into the
+    /// permanent's base characteristics at resolution time (CR 718.2a).
+    ///
+    /// Reset to false on zone changes (CR 400.7 / CR 718.4). In every zone
+    /// except the stack or the battlefield when cast as a prototyped spell,
+    /// the card has only its normal characteristics.
+    ///
+    /// Part of copiable values (CR 718.2a, 718.3c, 718.3d): copies of a
+    /// prototyped permanent retain the prototype characteristics.
+    #[serde(default)]
+    pub is_prototyped: bool,
 }

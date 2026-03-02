@@ -341,6 +341,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

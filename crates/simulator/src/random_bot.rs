@@ -146,6 +146,7 @@ pub(crate) fn action_to_command(
             retrace_discard_land: None,
             jump_start_discard: None,
             alt_cost: None,
+            prototype: false,
         },
         LegalAction::TapForMana {
             source,

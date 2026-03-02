@@ -147,6 +147,20 @@ pub enum Command {
         /// which is in the graveyard). Required when `alt_cost == Some(AltCostKind::JumpStart)`.
         #[serde(default)]
         jump_start_discard: Option<ObjectId>,
+        /// CR 702.160 / CR 718.3: If true, the spell is cast as a prototyped spell.
+        ///
+        /// When prototyped, the prototype mana cost (from `AbilityDefinition::Prototype`)
+        /// is used for payment instead of the card's normal mana cost, and the
+        /// spell and the permanent it becomes have only the alternative P/T, color,
+        /// and mana cost (CR 718.3b).
+        ///
+        /// IMPORTANT: Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+        /// It can be combined with `alt_cost` (e.g., prototype + flashback). The `prototype`
+        /// flag is orthogonal to `alt_cost`.
+        ///
+        /// Validation: card must have `AbilityDefinition::Prototype` in its definition.
+        #[serde(default)]
+        prototype: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

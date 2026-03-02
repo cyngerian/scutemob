@@ -356,6 +356,30 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Plot)` for quick
     /// presence-checking without scanning all abilities.
     Plot { cost: ManaCost },
+    /// CR 702.160 / CR 718: Prototype [cost] -- [power]/[toughness].
+    ///
+    /// The player may cast this spell with the prototype mana cost, power, and
+    /// toughness instead of the card's normal values (CR 718.3). When prototyped,
+    /// the spell and the permanent it becomes have only the alternative P/T, color
+    /// (derived from prototype mana cost, CR 718.3b / CR 105.2), and mana cost.
+    ///
+    /// IMPORTANT: This is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+    /// Prototype changes the spell's characteristics, not just the payment. It can
+    /// be combined with alternative costs (Flashback, Escape, etc.).
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Prototype)` for quick
+    /// presence-checking without scanning all abilities.
+    Prototype {
+        /// The prototype mana cost (paid instead of the card's normal cost when
+        /// choosing to cast prototyped). Also determines the prototyped permanent's
+        /// color (CR 718.3b / CR 105.2).
+        cost: ManaCost,
+        /// The prototype power (replaces the card's printed power while prototyped).
+        power: i32,
+        /// The prototype toughness (replaces the card's printed toughness while prototyped).
+        toughness: i32,
+    },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

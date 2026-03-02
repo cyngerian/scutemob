@@ -141,6 +141,7 @@ fn test_clone_independence_object_modification() {
                 encore_activated_by: None,
                 is_plotted: false,
                 plotted_turn: 0,
+                is_prototyped: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

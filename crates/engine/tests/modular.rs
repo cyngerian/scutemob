@@ -191,6 +191,7 @@ fn test_modular_etb_counters() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -285,6 +286,7 @@ fn test_modular_etb_counters_n() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -675,6 +677,7 @@ fn test_modular_multiple_instances_etb() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -751,6 +754,7 @@ fn test_modular_0_0_base_stats_survives_etb() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

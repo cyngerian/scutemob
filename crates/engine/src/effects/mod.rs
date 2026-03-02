@@ -2467,6 +2467,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         encore_activated_by: None,
         is_plotted: false,
         plotted_turn: 0,
+        is_prototyped: false,
     }
 }
 

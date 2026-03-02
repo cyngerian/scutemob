@@ -233,6 +233,7 @@ fn test_retrace_basic_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -354,6 +355,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -463,6 +465,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -499,6 +502,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -591,6 +595,7 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -668,6 +673,7 @@ fn test_retrace_discard_must_be_land() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(non_land_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -744,6 +750,7 @@ fn test_retrace_discard_must_be_in_hand() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -820,6 +827,7 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -893,6 +901,7 @@ fn test_retrace_pays_normal_mana_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -970,6 +979,7 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None, // No land provided = no retrace permission
+            prototype: false,
         },
     );
 
@@ -1037,6 +1047,7 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None, // No land required for hand cast
+            prototype: false,
         },
     );
 
@@ -1137,6 +1148,7 @@ fn test_retrace_recast_after_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain1_id),
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .expect("First retrace cast should succeed");
@@ -1175,6 +1187,7 @@ fn test_retrace_recast_after_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: Some(mountain2_id),
             jump_start_discard: None,
+            prototype: false,
         },
     );
 

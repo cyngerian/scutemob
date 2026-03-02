@@ -752,5 +752,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Dash => "Dash".to_string(),
         KeywordAbility::Blitz => "Blitz".to_string(),
         KeywordAbility::Plot => "Plot".to_string(),
+        KeywordAbility::Prototype => "Prototype".to_string(),
     }
 }

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-02 (Plot validated; KeywordAbility::Plot disc 97; AbilityDefinition::Plot{cost} disc 30; AltCostKind::Plot; Command::PlotCard; GameEvent::CardPlotted; rules/plot.rs special action handler (CR 702.170a/116.2k); casting.rs AltCostKind::Plot free-cast path (sorcery-speed, zero cost, mutual exclusion with 14 alt costs); game_object.rs is_plotted + plotted_turn; stack.rs was_plotted; 20 unit tests in tests/plot.rs; Slickshot Show-Off card def at defs/slickshot_show_off.rs; game script stack/134; P4 validated 27->28, total validated 119->120)
+> Last audited: 2026-03-02 (Prototype validated; CR 702.160 + CR 718; KeywordAbility::Prototype disc 98; AbilityDefinition::Prototype{cost,power,toughness} disc 31; CastSpell.prototype: bool (NOT an alt cost per CR 118.9); GameObject.is_prototyped; StackObject.was_prototyped; casting.rs prototype cost selection + stack char overwrite; resolution.rs ETB char application; state/mod.rs CR 718.4 zone-change revert; copy.rs CR 718.3c was_prototyped propagation; commander.rs prototype cost in color identity; replay_harness cast_spell_prototype action; 10 tests in tests/prototype.rs; Blitz Automaton card def; game script stack/135; P4 validated 28->29, total validated 120->121)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 28        | 0        | 0       | 61   | 12  |
-| **Total**| **200**| **120**  | **2**    | **0**   | **66**| **12** |
+| P4       | 101   | 29        | 0        | 0       | 60   | 12  |
+| **Total**| **200**| **121**  | **2**    | **0**   | **65**| **12** |
 
 ---
 
@@ -275,7 +275,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Changeling | 702.73 | P2 | `validated` | `state/types.rs:286-293` (KeywordAbility::Changeling + ALL_CREATURE_TYPES:296-376), `state/hash.rs:360-361`, `state/continuous_effect.rs:139-145` (AddAllCreatureTypes), `rules/layers.rs:61-76` (inline CDA check + apply arm:326-334), `tools/replay-viewer/src/view_model.rs:602` | Universal Automaton | `layers/072` | — | CR 702.73a CDA: "This object is every creature type." Applied in Layer 4 before non-CDA effects (CR 613.3); functions in all zones (CR 604.3); ALL_CREATURE_TYPES lazy static (~290+ subtypes from CR 205.3m); LayerModification::AddAllCreatureTypes for Maskwood Nexus-style effects; 7 unit tests in `tests/changeling.rs`; game script pending_review |
 | Crew | 702.122 | P2 | `validated` | `state/types.rs:302`, `rules/command.rs:245`, `rules/engine.rs:234`, `rules/abilities.rs:1246`, `testing/replay_harness.rs:408` | Smuggler's Copter | `combat/075` | 15 tests in `crew.rs`; script `pending_review` (multi-turn attack gap, same as 069/070) |
 | Saddle | 702.163 | P4 | `none` | — | — | — | Crew | Crew variant for Mounts |
-| Prototype | 702.157 | P4 | `none` | — | — | — | — | Alternative smaller casting |
+| Prototype | 702.160 | P4 | `validated` | `state/types.rs:882` (KeywordAbility::Prototype disc 98), `cards/card_definition.rs:373` (AbilityDefinition::Prototype{cost,power,toughness} disc 31), `rules/command.rs:163` (CastSpell.prototype: bool), `state/game_object.rs:517` (is_prototyped), `state/stack.rs:184` (was_prototyped), `rules/casting.rs:68,972-993` (prototype cost selection + stack char overwrite), `rules/resolution.rs:335-346` (ETB prototype char application), `state/mod.rs:310-316,433-438` (CR 718.4 zone-change revert), `rules/copy.rs:204-205` (CR 718.3c was_prototyped propagation), `rules/commander.rs:210-216` (prototype cost in color identity), `testing/replay_harness.rs:853` (cast_spell_prototype action) | Blitz Automaton | `stack/135` | 10 tests in `tests/prototype.rs` | CR 702.160 + CR 718; NOT an alternative cost (CR 118.9); prototype changes P/T, mana cost, color on stack+battlefield only; reverts to printed chars on zone change (CR 718.4); copies inherit was_prototyped (CR 718.3c); abilities/name/types unchanged (CR 718.5) |
 | Living Metal | — | P4 | `none` | — | — | — | — | Artifact is also a creature on your turn |
 | Totem Armor | 702.89 | P4 | `none` | — | — | — | Enchant | Aura destroyed instead of enchanted permanent |
 | Soulbond | 702.95 | P4 | `none` | — | — | — | — | Pair with another creature for shared abilities |

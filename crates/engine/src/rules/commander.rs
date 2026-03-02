@@ -207,6 +207,17 @@ pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
     // Scan for `{...}` symbols and add any colored mana they contain.
     add_colors_from_oracle_text(&def.oracle_text, &mut colors);
 
+    // CR 903.4 / CR 702.160: Scan prototype costs for colored mana symbols.
+    // A prototype card's color identity includes colors from its prototype mana cost,
+    // since the prototype ability text contains colored mana symbols.
+    // (oracle_text scanning handles this if oracle_text is set, but we scan abilities
+    // directly as a defense-in-depth measure for cards defined without full oracle text.)
+    for ability in &def.abilities {
+        if let crate::cards::AbilityDefinition::Prototype { cost, .. } = ability {
+            add_colors_from_mana_cost(cost, &mut colors);
+        }
+    }
+
     // Deduplicate and sort for determinism
     colors.sort();
     colors.dedup();

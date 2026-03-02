@@ -199,6 +199,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -295,6 +296,7 @@ fn test_convoke_colored_mana_match() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -384,6 +386,7 @@ fn test_convoke_generic_mana_any_creature() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -458,6 +461,7 @@ fn test_convoke_reject_no_keyword() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -514,6 +518,7 @@ fn test_convoke_reject_tapped_creature() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -569,6 +574,7 @@ fn test_convoke_reject_not_creature() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -625,6 +631,7 @@ fn test_convoke_reject_not_controlled() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -692,6 +699,7 @@ fn test_convoke_reject_too_many_creatures() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -799,6 +807,7 @@ fn test_convoke_with_commander_tax() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -886,6 +895,7 @@ fn test_convoke_no_summoning_sickness() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -948,6 +958,7 @@ fn test_convoke_zero_creatures() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1025,6 +1036,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

@@ -431,6 +431,7 @@ fn test_commander_damage_survives_zone_change() {
                 encore_activated_by: None,
                 is_plotted: false,
                 plotted_turn: 0,
+                is_prototyped: false,
             },
             ZoneId::Battlefield,
         )

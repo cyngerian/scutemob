@@ -273,6 +273,7 @@ fn test_play_land_stack_nonempty_fails() {
         was_dashed: false,
         was_blitzed: false,
         was_plotted: false,
+        was_prototyped: false,
     });
 
     let result = mtg_engine::process_command(

@@ -265,6 +265,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     )
     .unwrap();
@@ -384,6 +385,7 @@ fn test_jump_start_exile_on_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     )
     .unwrap();
@@ -496,6 +498,7 @@ fn test_jump_start_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     )
     .unwrap();
@@ -533,6 +536,7 @@ fn test_jump_start_exile_on_counter() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -629,6 +633,7 @@ fn test_jump_start_sorcery_timing() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 
@@ -701,6 +706,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 
@@ -786,6 +792,7 @@ fn test_jump_start_pays_normal_mana_cost() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 
@@ -867,6 +874,7 @@ fn test_jump_start_discard_required() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None, // No discard card provided — should fail
+            prototype: false,
         },
     );
 
@@ -946,6 +954,7 @@ fn test_jump_start_discard_must_be_in_hand() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 
@@ -1031,6 +1040,7 @@ fn test_jump_start_discard_any_card() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 
@@ -1110,6 +1120,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -1206,6 +1217,7 @@ fn test_jump_start_flag_set_on_stack() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     )
     .unwrap();
@@ -1287,6 +1299,7 @@ fn test_jump_start_insufficient_mana_rejected() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
+            prototype: false,
         },
     );
 

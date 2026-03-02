@@ -253,7 +253,7 @@ impl GameState {
 
         // Create new object with fresh ID (CR 400.7)
         let new_id = self.next_object_id();
-        let new_object = GameObject {
+        let mut new_object = GameObject {
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),
@@ -304,7 +304,32 @@ impl GameState {
             // CR 400.7: plot status is not preserved across zone changes.
             is_plotted: false,
             plotted_turn: 0,
+            is_prototyped: false,
         };
+
+        // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
+        // that is not the stack or battlefield, revert characteristics to the card's
+        // printed values. The prototype-modified P/T, mana_cost, and colors were written
+        // into the base characteristics at cast time and must be undone here.
+        if old_object.is_prototyped
+            && to != ZoneId::Battlefield
+            && to != ZoneId::Stack
+        {
+            if let Some(ref cid) = new_object.card_id {
+                if let Some(def) = self.card_registry.get(cid.clone()) {
+                    new_object.characteristics.power = def.power;
+                    new_object.characteristics.toughness = def.toughness;
+                    new_object.characteristics.mana_cost = def.mana_cost.clone();
+                    // CR 105.2: colors are derived from the printed mana cost.
+                    new_object.characteristics.colors =
+                        if let Some(ref mc) = def.mana_cost {
+                            crate::rules::casting::colors_from_mana_cost(mc)
+                        } else {
+                            im::OrdSet::new()
+                        };
+                }
+            }
+        }
 
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
         let to_zone = self
@@ -355,7 +380,7 @@ impl GameState {
 
         // Create new object with fresh ID (CR 400.7).
         let new_id = self.next_object_id();
-        let new_object = GameObject {
+        let mut new_object = GameObject {
             id: new_id,
             card_id: old_object.card_id.clone(),
             characteristics: old_object.characteristics.clone(),
@@ -402,7 +427,31 @@ impl GameState {
             // CR 400.7: plot status is not preserved across zone changes.
             is_plotted: false,
             plotted_turn: 0,
+            is_prototyped: false,
         };
+
+        // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
+        // that is not the stack or battlefield, revert characteristics to the card's
+        // printed values.
+        if old_object.is_prototyped
+            && to != ZoneId::Battlefield
+            && to != ZoneId::Stack
+        {
+            if let Some(ref cid) = new_object.card_id {
+                if let Some(def) = self.card_registry.get(cid.clone()) {
+                    new_object.characteristics.power = def.power;
+                    new_object.characteristics.toughness = def.toughness;
+                    new_object.characteristics.mana_cost = def.mana_cost.clone();
+                    // CR 105.2: colors are derived from the printed mana cost.
+                    new_object.characteristics.colors =
+                        if let Some(ref mc) = def.mana_cost {
+                            crate::rules::casting::colors_from_mana_cost(mc)
+                        } else {
+                            im::OrdSet::new()
+                        };
+                }
+            }
+        }
 
         // Insert at the front (= bottom) of the destination zone.
         let to_zone = self

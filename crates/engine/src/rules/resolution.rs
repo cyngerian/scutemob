@@ -332,6 +332,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     {
                         obj.has_summoning_sickness = false;
                     }
+                    // CR 718.3b: Transfer prototyped status from stack to permanent.
+                    // The permanent uses the alternative P/T, mana cost, and color
+                    // while on the battlefield (CR 718.4). These values were already
+                    // set on the stack object's source card in casting.rs, and they
+                    // carry over via move_object_to_zone (the characteristics are
+                    // preserved). We also write them again here for correctness and to
+                    // handle any edge cases where characteristics might be reset.
+                    if stack_obj.was_prototyped {
+                        obj.is_prototyped = true;
+                        if let Some(proto_data) = crate::rules::casting::get_prototype_data(
+                            &obj.card_id,
+                            &state.card_registry,
+                        ) {
+                            let (proto_cost, proto_power, proto_toughness) = proto_data;
+                            obj.characteristics.power = Some(proto_power);
+                            obj.characteristics.toughness = Some(proto_toughness);
+                            obj.characteristics.colors =
+                                crate::rules::casting::colors_from_mana_cost(&proto_cost);
+                            obj.characteristics.mana_cost = Some(proto_cost);
+                        }
+                    }
                 }
 
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
@@ -1442,6 +1463,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_activated_by: None,
                     is_plotted: false,
                     plotted_turn: 0,
+                    is_prototyped: false,
                 };
 
                 // Add the token to the battlefield.
@@ -1651,6 +1673,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_blitzed: false,
                             // CR 702.170d: suspend casts are not plot casts.
                             was_plotted: false,
+                            was_prototyped: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -2518,6 +2541,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_activated_by: None,
                     is_plotted: false,
                     plotted_turn: 0,
+                    is_prototyped: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2701,6 +2725,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     encore_activated_by: None,
                     is_plotted: false,
                     plotted_turn: 0,
+                    is_prototyped: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2903,6 +2928,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         encore_activated_by: Some(controller),
                         is_plotted: false,
                         plotted_turn: 0,
+                        is_prototyped: false,
                     };
 
                     // Add the token to the battlefield.

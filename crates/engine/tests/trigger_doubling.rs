@@ -208,6 +208,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -364,6 +365,7 @@ fn test_two_panharmonicons_triple_triggers() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -502,6 +504,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -638,6 +641,7 @@ fn test_panharmonicon_registration_via_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();
@@ -689,6 +693,7 @@ fn test_panharmonicon_registration_via_resolution() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     )
     .unwrap();

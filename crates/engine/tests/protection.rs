@@ -81,6 +81,7 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -154,6 +155,7 @@ fn test_protection_from_red_allows_green_spell() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -237,6 +239,7 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 
@@ -303,6 +306,7 @@ fn test_protection_from_all_blocks_all_targeting() {
             escape_exile_cards: vec![],
             retrace_discard_land: None,
             jump_start_discard: None,
+            prototype: false,
         },
     );
 

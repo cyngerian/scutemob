@@ -868,6 +868,18 @@ pub enum KeywordAbility {
     /// during their main phase with empty stack, they may cast it without paying
     /// its mana cost (alternative cost, CR 702.170d).
     Plot,
+    /// CR 702.160: Prototype [mana cost] -- [power]/[toughness].
+    ///
+    /// Static ability on prototype cards. When casting, the player may choose to
+    /// cast the card "prototyped" using the alternative mana cost, power, and
+    /// toughness (CR 718.3).
+    ///
+    /// IMPORTANT: Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14).
+    /// It can combine with alternative costs like Flashback or Escape.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The prototype data (cost, power, toughness) is stored in `AbilityDefinition::Prototype`.
+    Prototype,
 }
 
 /// All creature subtypes from CR 205.3m.
