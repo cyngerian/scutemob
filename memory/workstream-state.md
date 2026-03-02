@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending) | ACTIVE | 2026-03-01 | Batch 4 complete; now on Batch 5 |
+| W1: Abilities | — | available | — | Batch 5 complete; Batch 6 next |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | Phase 0 complete; T2 done; Phase 1 (abilities) next |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -21,23 +21,27 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-01 (session end)
-**Workstream**: W1: Abilities — Batch 4
-**Task**: Implement Batch 4: Alt-cast graveyard (6 abilities)
+**Date**: 2026-03-02 (session end)
+**Workstream**: W1: Abilities — Batch 5
+**Task**: Implement Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending)
 **Completed**:
-- Retrace (CR 702.81): additional cost (discard land), returns to graveyard (not exile), escape auto-detection fix, disc 89, 11 tests, Flame Jab, script 126 — commit 04565a6
-- Jump-Start (CR 702.133): discard-any-card cost, exile on resolve, Madness-aware discard routing, disc 90, 12 tests, Radical Idea, script 127 — commit 27107db
-- Aftermath (CR 702.127): AbilityDefinition::Aftermath{name,cost,card_type,effect,targets} (disc 24), cast_with_aftermath flag, first-half hand-only / second-half graveyard-only, disc 91, 12 tests, Cut // Ribbons, script 128 — commit cada8d5
-- Embalm (CR 702.128): exile-as-cost (vs. Unearth's resolve-time exile), CardId stored (not ObjectId, CR 400.7), White token + Zombie, supertypes preserved (review fix), disc 92, 12 tests, Sacred Cat, script 129 — commit 4a7757d
-- Eternalize (CR 702.129): Black token + 4/4 P/T override + Zombie, source_name in StackObjectKind for TUI, disc 93, 12 tests, Proven Combatant, script 130 — commit 87390ca
-- Encore (CR 702.141): per-opponent token creation with Haste, EncoreSacrificeTrigger EOC pattern, encore_activated_by field (control-change ruling fix), 2 new StackObjectKinds (discs 29/30), disc 94, 10 tests, Briarblade Adept, script 131 — commit 3991065
-- Harness fix: card_name_to_id strips " // " for split card names
-- 1336 tests passing; 117 abilities validated total; P4 25/88
-**Next**: Batch 5 — Claim W1-B5. Check docs/ability-batch-plan.md for Batch 5 contents.
-**Hazards**: Encore LOW #1 deferred (encore_must_attack not cleared at EOT if sacrifice countered). Discriminant chain: KeywordAbility 89-94, AbilityDefinition 24-27, StackObjectKind 27-30.
-**Commit prefix used**: `W1-B4:`
+- W3 structural refactor: CastSpell 13 booleans → `alt_cost: Option<AltCostKind>`, PendingTrigger 21 booleans → `kind: PendingTriggerKind`, GameObject `was_evoked/was_escaped/was_dashed` → `cast_alt_cost: Option<AltCostKind>` — commit 201bc48
+- Dash (CR 702.109): ETB haste, EOT return trigger, 7 tests, Zurgo Bellstriker, script 132 — commit 54f6ea9
+- Blitz (CR 702.152): ETB haste + EOT sacrifice + inline draw-on-death, 9 tests (SBA lethal path), Riveteers Requisitioner, script 133 — commit 4499bda
+- Plot (CR 702.170): new Command::PlotCard special action + free cast (AltCostKind::Plot), 20 tests, Slickshot Show-Off, script 134 — commit 9750a51
+- Prototype (CR 702.160/718): NOT an AltCost — separate `prototype: bool` on CastSpell; zone-change revert (CR 718.4), copy propagation (CR 718.3c); 2 HIGH fixes; 10 tests, Blitz Automaton, script 135 — commit aa46447
+- Impending (CR 702.176): AltCostKind::Impending, Layer 4 type-removal inline, time counter ETB + end-step removal; clean review (4 LOW test gaps); 11 tests, Overlord of the Hauntwoods, script 136 — commit c2d30fd
+- helpers.rs: added ManaColor + ManaAbility to DSL prelude (enables Everywhere token mana_abilities)
+- replay_harness.rs: cast_spell_impending action type + "time" in parse_counter_type
+- 1421 tests passing; 122 validated total; P4 30/88
+**Next**: Claim W1-B6. Check docs/ability-batch-plan.md for Batch 6 contents.
+**Hazards**: Discriminant chain: KeywordAbility 95-99, AbilityDefinition 28-32, StackObjectKind 31-33. StackObject still has per-ability was_X fields (was_dashed, was_blitzed etc.) — not consolidated, deferred. Prototype's `prototype: bool` on CastSpell still causes ~85-file update when new Prototype cards added — could use Default+struct-update eventually.
+**Commit prefix used**: `W1-B5:`, `W3:` (structural refactor)
 
 ## Handoff History
+
+### 2026-03-01 (session end) — W1: Abilities — Batch 4
+- Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore; 1336 tests; 117 validated; P4 25/88; scripts 126-131; cards: Flame Jab, Radical Idea, Cut//Ribbons, Sacred Cat, Proven Combatant, Briarblade Adept; commits cada8d5–3991065
 
 ### 2026-03-01 (session end) — W1: Abilities — Batch 3
 - Melee, Poisonous, Toxic, Enlist, Ninjutsu/CommanderNinjutsu; 1295 tests; P4 19/88; scripts 121-125; cards: Wings of the Guard, Poisonous Viper, Pestilent Syphoner, Coalition Skyknight, Ninja of the Deep Hours; commits 3e695b4–17e19fd
@@ -50,6 +54,3 @@
 
 ### 2026-02-28 (session end) — W1: Abilities — Batch 0
 - Bolster, Adapt, Shadow, Partner With, Overload; 1166 tests; scripts 104-108; P3 36/40, P4 1/88; commit 2729c3d
-
-### 2026-02-28 (late night) — W5: Card Authoring (second batch)
-- 7 cards (Demonic Tutor, Worldly Tutor, Vampiric Tutor, Mana Confluence, Phyrexian Altar, Impact Tremors, Skullclamp); 3 new DSL gaps identified; commit `c3e80e0`
