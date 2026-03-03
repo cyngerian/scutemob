@@ -64,6 +64,14 @@ pub fn validate_deck(
 ) -> DeckValidationResult {
     let mut violations = Vec::new();
 
+    // MR-M9-17: reject decks submitted with zero commanders.
+    if commander_card_ids.is_empty() {
+        violations.push(DeckViolation::InvalidCommander {
+            name: "no commander".to_string(),
+            reason: "a Commander deck must have exactly 1 or 2 commanders".to_string(),
+        });
+    }
+
     // CR 902.124h / CR 903.5: if 2 commanders, both must have partner keyword.
     // A single commander needs no partner check.
     if commander_card_ids.len() == 2 {

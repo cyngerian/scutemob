@@ -523,6 +523,12 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
 
     // Discard to hand size (CR 514.1)
     // Skip entirely if the player has no maximum hand size.
+    // MR-M2-09: active player must always be in the players map; assert in debug.
+    debug_assert!(
+        state.players.contains_key(&active),
+        "cleanup_actions: active player {:?} not in players map",
+        active
+    );
     let no_max = state
         .players
         .get(&active)

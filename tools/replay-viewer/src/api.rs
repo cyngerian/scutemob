@@ -133,7 +133,9 @@ pub async fn get_session(State(state): State<SharedState>) -> Json<SessionRespon
             run_result: None,
         }),
         Some(session) => {
-            let players: Vec<String> = session.player_map.keys().cloned().collect();
+            // MR-M9.5-11: sort for deterministic API response ordering.
+            let mut players: Vec<String> = session.player_map.keys().cloned().collect();
+            players.sort();
             let review_status =
                 review_status_str(&session.script.metadata.review_status).to_string();
             let run_result = compute_run_result(session);
@@ -316,7 +318,9 @@ pub async fn post_load(
             )
         })?;
 
-    let players: Vec<String> = session.player_map.keys().cloned().collect();
+    // MR-M9.5-11: sort for deterministic API response ordering.
+    let mut players: Vec<String> = session.player_map.keys().cloned().collect();
+    players.sort();
     let review_status = review_status_str(&session.script.metadata.review_status).to_string();
     let run_result = compute_run_result(&session);
     let response = SessionResponse {

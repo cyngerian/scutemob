@@ -39,7 +39,6 @@
 //! will always recur. 3 occurrences of the exact same state indicates a mandatory loop.
 
 use crate::rules::events::GameEvent;
-use crate::state::game_object::ObjectId;
 use crate::state::hash::HashInto;
 use crate::state::GameState;
 use blake3::Hasher;
@@ -113,19 +112,17 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     state.turn.step.hash_into(&mut hasher);
     state.turn.active_player.hash_into(&mut hasher);
 
-    // 2. All game objects (board state) — sorted by ObjectId for determinism
-    let mut obj_ids: Vec<ObjectId> = state.objects.keys().copied().collect();
-    obj_ids.sort();
-    for id in &obj_ids {
-        if let Some(obj) = state.objects.get(id) {
-            // Only hash objects in public zones (battlefield, graveyard, exile, command)
-            // Skip library/hand (hidden info)
-            use crate::state::zone::ZoneId;
-            match obj.zone {
-                ZoneId::Hand(_) | ZoneId::Library(_) => continue,
-                _ => {
-                    obj.hash_into(&mut hasher);
-                }
+    // 2. All game objects (board state) — sorted by ObjectId for determinism.
+    // MR-M9.4-09: state.objects is an im::OrdMap which iterates in key order,
+    // so no manual collect+sort is needed.
+    for obj in state.objects.values() {
+        // Only hash objects in public zones (battlefield, graveyard, exile, command)
+        // Skip library/hand (hidden info)
+        use crate::state::zone::ZoneId;
+        match obj.zone {
+            ZoneId::Hand(_) | ZoneId::Library(_) => continue,
+            _ => {
+                obj.hash_into(&mut hasher);
             }
         }
     }

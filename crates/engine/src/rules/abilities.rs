@@ -3746,7 +3746,15 @@ pub fn apnap_order(state: &GameState) -> Vec<PlayerId> {
     let active = state.turn.active_player;
     let order = &state.turn.turn_order;
     let n = order.len();
-    let start = order.iter().position(|&p| p == active).unwrap_or(0);
+    // MR-M3-11: active player must always be in turn_order; assert in debug builds.
+    let start_pos = order.iter().position(|&p| p == active);
+    debug_assert!(
+        start_pos.is_some(),
+        "apnap_order: active player {:?} not found in turn_order {:?}",
+        active,
+        order
+    );
+    let start = start_pos.unwrap_or(0);
     (0..n).map(|i| order[(start + i) % n]).collect()
 }
 

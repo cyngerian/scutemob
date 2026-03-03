@@ -103,6 +103,12 @@ impl GameStateBuilder {
 
     /// Add a player with Commander starting life (40).
     pub fn add_player(mut self, id: PlayerId) -> Self {
+        // MR-M1-17: catch duplicate PlayerId in debug/test builds.
+        debug_assert!(
+            !self.players.iter().any(|p| p.id == id),
+            "add_player: duplicate PlayerId {:?}",
+            id
+        );
         self.players.push(PlayerConfig {
             id,
             life_total: 40,
@@ -128,41 +134,58 @@ impl GameStateBuilder {
 
     /// Set a player's life total.
     pub fn player_life(mut self, id: PlayerId, life: i32) -> Self {
+        // MR-M1-16: catch typo'd PlayerId in debug/test builds.
+        let mut found = false;
         for p in &mut self.players {
             if p.id == id {
                 p.life_total = life;
+                found = true;
             }
         }
+        debug_assert!(found, "player_life: PlayerId {:?} not found in builder", id);
         self
     }
 
     /// Set a player's poison counters.
     pub fn player_poison(mut self, id: PlayerId, counters: u32) -> Self {
+        let mut found = false;
         for p in &mut self.players {
             if p.id == id {
                 p.poison_counters = counters;
+                found = true;
             }
         }
+        debug_assert!(found, "player_poison: PlayerId {:?} not found in builder", id);
         self
     }
 
     /// Set a player's mana pool.
     pub fn player_mana(mut self, id: PlayerId, pool: ManaPool) -> Self {
+        let mut found = false;
         for p in &mut self.players {
             if p.id == id {
                 p.mana_pool = pool.clone();
+                found = true;
             }
         }
+        debug_assert!(found, "player_mana: PlayerId {:?} not found in builder", id);
         self
     }
 
     /// Register a commander for a player.
     pub fn player_commander(mut self, id: PlayerId, card_id: CardId) -> Self {
+        let mut found = false;
         for p in &mut self.players {
             if p.id == id {
                 p.commander_ids.push(card_id.clone());
+                found = true;
             }
         }
+        debug_assert!(
+            found,
+            "player_commander: PlayerId {:?} not found in builder",
+            id
+        );
         self
     }
 

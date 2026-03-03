@@ -528,7 +528,10 @@ fn check_planeswalker_sbas(
             let loyalty_counter = obj.counters.get(&CounterType::Loyalty).copied();
             match loyalty_counter {
                 Some(counter_value) => counter_value == 0,
-                None => chars.loyalty.unwrap_or(1) <= 0,
+                // MR-M4-11: unwrap_or(0) — a planeswalker with no printed loyalty
+                // and no loyalty counter has effective loyalty 0 and dies (CR 704.5i).
+                // unwrap_or(1) was incorrect: it allowed misconfigured planeswalkers to survive.
+                None => chars.loyalty.unwrap_or(0) <= 0,
             }
         })
         .map(|(id, _)| *id)
@@ -731,6 +734,8 @@ pub(crate) fn matches_enchant_target(
 /// 4. CR 702.16c: target has protection from a quality the aura matches → illegal.
 fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
+    // MR-M4-10: hoist SubType to avoid per-object-per-SBA-pass String allocation.
+    let subtype_aura = SubType("Aura".to_string());
 
     let illegal_auras: Vec<ObjectId> = state
         .objects
@@ -742,7 +747,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             if !obj
                 .characteristics
                 .subtypes
-                .contains(&SubType("Aura".to_string()))
+                .contains(&subtype_aura)
             {
                 return false;
             }
@@ -842,7 +847,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             // Remove Aura subtype and enchant creature keyword.
             obj.characteristics
                 .subtypes
-                .remove(&SubType("Aura".to_string()));
+                .remove(&subtype_aura);
             obj.characteristics
                 .keywords
                 .remove(&KeywordAbility::Enchant(EnchantTarget::Creature));
@@ -883,6 +888,9 @@ fn check_equipment_sbas(
     chars_map: &HashMap<ObjectId, Characteristics>,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
+    // MR-M4-10: hoist SubType values to avoid per-object-per-SBA-pass String allocations.
+    let subtype_equipment = SubType("Equipment".to_string());
+    let subtype_fortification = SubType("Fortification".to_string());
 
     // MR-M5-02: use layer-computed characteristics for both the equipment's own
     // subtypes (could be added by effects) and the target's card types (e.g., a
@@ -897,10 +905,8 @@ fn check_equipment_sbas(
             let Some(chars) = chars_map.get(id) else {
                 return false;
             };
-            let is_equipment = chars.subtypes.contains(&SubType("Equipment".to_string()));
-            let is_fortification = chars
-                .subtypes
-                .contains(&SubType("Fortification".to_string()));
+            let is_equipment = chars.subtypes.contains(&subtype_equipment);
+            let is_fortification = chars.subtypes.contains(&subtype_fortification);
             if !is_equipment && !is_fortification {
                 return false;
             }

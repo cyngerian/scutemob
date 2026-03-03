@@ -10,6 +10,7 @@
 //! characteristics of any game object after applying all active continuous effects.
 
 use im::OrdSet;
+use std::collections::VecDeque;
 
 use crate::state::{
     continuous_effect::{
@@ -518,19 +519,20 @@ fn toposort_with_timestamp_fallback(mut effects: Vec<&ContinuousEffect>) -> Vec<
     }
 
     // Kahn's algorithm: process nodes with in-degree 0, in index order (= timestamp order).
-    let mut ready: Vec<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
+    // MR-M5-06: use VecDeque so pop_front() is O(1) instead of Vec::remove(0) O(n).
+    let mut ready: VecDeque<usize> = (0..n).filter(|&i| in_degree[i] == 0).collect();
     let mut result: Vec<&ContinuousEffect> = Vec::with_capacity(n);
 
     while !ready.is_empty() {
         // Take the first ready node (already in timestamp/index order).
-        let i = ready.remove(0);
+        let i = ready.pop_front().unwrap();
         result.push(effects[i]);
 
         for &j in &adj[i] {
             in_degree[j] -= 1;
             if in_degree[j] == 0 {
                 // Insert maintaining sorted order (by index = by timestamp).
-                let pos = ready.partition_point(|&k| k < j);
+                let pos = ready.make_contiguous().partition_point(|&k| k < j);
                 ready.insert(pos, j);
             }
         }

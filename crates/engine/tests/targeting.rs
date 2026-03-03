@@ -535,16 +535,14 @@ fn test_601_mana_cost_deducted_on_cast() {
         .in_zone(ZoneId::Hand(p1));
 
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| {
-            b.mana(ManaPool {
+        .player_mana(
+            p1,
+            ManaPool {
                 black: 1,
                 colorless: 2,
                 ..ManaPool::default()
-            })
-        })
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
+            },
+        )
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
@@ -604,15 +602,13 @@ fn test_601_mana_cost_colored_and_generic() {
 
     // Player has exactly {U}{U}.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| {
-            b.mana(ManaPool {
+        .player_mana(
+            p1,
+            ManaPool {
                 blue: 2,
                 ..ManaPool::default()
-            })
-        })
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
+            },
+        )
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
@@ -665,15 +661,13 @@ fn test_601_insufficient_mana_fails() {
 
     // Player has only {W} — not enough.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| {
-            b.mana(ManaPool {
+        .player_mana(
+            p1,
+            ManaPool {
                 white: 1,
                 ..ManaPool::default()
-            })
-        })
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
+            },
+        )
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(sorcery)
@@ -728,17 +722,15 @@ fn test_601_generic_paid_from_any_color() {
 
     // Pay {U} + {R} + {G} (red and green satisfy generic {2}).
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| {
-            b.mana(ManaPool {
+        .player_mana(
+            p1,
+            ManaPool {
                 blue: 1,
                 red: 1,
                 green: 1,
                 ..ManaPool::default()
-            })
-        })
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
+            },
+        )
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(spell)
@@ -791,16 +783,14 @@ fn test_601_colorless_requirement_must_use_colorless() {
 
     // Player has {R}{G} but no colorless — cannot pay {C}{C}.
     let state = GameStateBuilder::four_player()
-        .add_player_with(p1, |b| {
-            b.mana(ManaPool {
+        .player_mana(
+            p1,
+            ManaPool {
                 red: 1,
                 green: 1,
                 ..ManaPool::default()
-            })
-        })
-        .add_player(p(2))
-        .add_player(p(3))
-        .add_player(p(4))
+            },
+        )
         .active_player(p1)
         .at_step(Step::PreCombatMain)
         .object(spell)

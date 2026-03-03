@@ -80,11 +80,12 @@ pub fn handle_play_land(
 
     // 8. Player must own (and thereby control) the card in hand.
     //    Cards in hand are always controlled by their owner.
+    // MR-M3-12: this is an ownership check, not a controller check — use InvalidCommand.
     if card_obj.owner != player {
-        return Err(GameStateError::NotController {
-            player,
-            object_id: card,
-        });
+        return Err(GameStateError::InvalidCommand(format!(
+            "cannot play land {:?}: owned by {:?}, not player {:?}",
+            card, card_obj.owner, player
+        )));
     }
 
     // 9. Move the land from Hand to Battlefield (CR 305.1, CR 400.7).
