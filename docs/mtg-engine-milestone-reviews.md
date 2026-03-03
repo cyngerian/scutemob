@@ -13,7 +13,7 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-02-23 (M9.5 reviewed)
+> **Last Updated**: 2026-03-03 (W3 T1+T2 LOWs closed; MR-W3-01 overlord clippy finding)
 
 ---
 
@@ -1847,27 +1847,60 @@ All findings across all milestones, sorted by severity then milestone.
 
 ---
 
+## W3 Remediation — LOW Issues Closed (2026-03-03)
+
+**Workstream**: W3 (LOW remediation) — commit `08c7b32` (`W3: apply T1+T2 LOW remediation`)
+
+### T1 + T2 Issues Closed (30 total)
+
+All T1 (zero-risk) and T2 (cosmetic-risk) issues from `docs/mtg-engine-low-issues-remediation.md`
+have been addressed. See that doc for full descriptions of each fix.
+
+**T1 — Zero risk (19 issues closed)**:
+MR-M1-06, MR-M1-14, MR-M1-19, MR-M1-20, MR-M2-07, MR-M2-08, MR-M2-17,
+MR-M4-13, MR-M5-08, MR-M6-08, MR-M7-16, MR-M8-15, MR-M9-14, MR-M9-15,
+MR-M9.4-11, MR-M9.4-13, MR-M9.4-14, MR-M9.4-15, MR-M9.5-08
+
+**T2 — Cosmetic risk (11 issues closed)**:
+MR-M1-16, MR-M1-17, MR-M2-09, MR-M3-11, MR-M3-12, MR-M4-10, MR-M4-11,
+MR-M5-06, MR-M9-17, MR-M9.4-09, MR-M9.5-11
+
+**Bugs found by debug_assert additions**: The MR-M1-16 and MR-M1-17 `debug_assert!` additions
+immediately caught 5 real test construction bugs in `crates/engine/tests/targeting.rs`. Five
+tests called `GameStateBuilder::four_player()` (which adds P1-P4) and then re-added those same
+players via `add_player_with(p1, ...)` and `add_player(p(2/3/4))`, creating duplicate `PlayerId`
+entries. All 5 were fixed by replacing the chain with `.player_mana(p1, ManaPool { ... })`.
+This validates the T2 strategy of "treat debug_assert failures as bugs found, not regressions."
+
+### New Finding
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-W3-01 | **LOW** | `cards/defs/overlord_of_the_hauntwoods.rs:83` | **Pre-existing clippy warning: "struct update has no effect, all the fields in the struct have already been specified."** The `..Default::default()` tail on the inner struct literal at line 83 is redundant — all fields are explicitly specified. Confirmed pre-existing before T2 changes via `git stash && cargo clippy && git stash pop`. **Fix:** Remove the trailing `..Default::default()`. | OPEN |
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 232 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5) |
+| Total unique issue IDs | 233 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
-| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12) |
+| MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
 | MEDIUM (CLOSED) | 49 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 68 (36 pre-M8 + 6 M8: MR-M8-11 through MR-M8-16 + 9 M9: MR-M9-09 through MR-M9-17 + 7 M9.4: MR-M9.4-09 through MR-M9.4-15 + 1 Checkpoint: MR-CKP-01 + 9 M9.5: MR-M9.5-05 through MR-M9.5-13) |
-| LOW (CLOSED) | 6 (MR-M3-09, MR-M3-10 -- fix session 7; MR-M7-17 -- fix session 3; MR-M7-13, MR-M7-14, MR-M4-07 -- resolved by M9.4) |
+| LOW (OPEN) | 39 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01) |
+| LOW (CLOSED) | 36 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03: see "W3 Remediation" section above) |
 | LOW (DEFERRED) | 5 |
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
 | Milestones reviewed | 12 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed |
 
 **Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
 **Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)
 **Replay viewer LOC (M9.5)**: ~2,200 Rust + ~2,400 Svelte/JS = ~4,600 lines
-**Total test count**: 544 (all passing, as of M9.5 completion)
+**Total test count**: 1421 (all passing, as of W1-B5 + W3 T1+T2 completion)

@@ -32,6 +32,9 @@ These changes are purely additive or subtractive. They cannot alter runtime beha
 
 ### New tests (fill coverage gaps)
 
+> **[DONE — Phase 0 complete 2026-03-03]** All 10 tests below were added as part of the W3 T1
+> remediation pass (Phase 0). Tests are in `crates/engine/tests/`.
+
 | ID | File | What to add | Why it matters |
 |----|------|-------------|----------------|
 | MR-M1-19 | `tests/` | Test same-zone move (battlefield → battlefield) produces new ObjectId | Protects CR 400.7 invariant — the most critical rule in the engine |
@@ -49,6 +52,8 @@ These changes are purely additive or subtractive. They cannot alter runtime beha
 
 ### Strengthen existing tests
 
+> **[DONE — Phase 0 complete 2026-03-03]** All 4 test improvements below were applied.
+
 | ID | File | What to change | Notes |
 |----|------|----------------|-------|
 | MR-M2-07 | `tests/turn_invariants.rs` | Add 10+ library cards per player in `run_pass_sequence` proptest | More turn cycles exercised before empty-library loss |
@@ -65,13 +70,26 @@ These changes are purely additive or subtractive. They cannot alter runtime beha
 | ~~MR-M1-14~~ | `state/error.rs` | ~~Remove `InvalidZoneTransition` variant~~ | DONE — variant deleted |
 | ~~MR-M9.4-11~~ | `casting.rs:232-234` | ~~Add comment explaining `spells_cast_this_turn` increment ordering dependency~~ | DONE — comment added |
 | ~~MR-M9.5-08~~ | `Counter.svelte` | ~~Delete unused scaffold component~~ | DONE — file deleted |
-| MR-M1-06 | `structural_sharing.rs` | Consider deleting test file (real structural sharing tested in `snapshot_perf.rs`) | Optional — redundant but not harmful |
+| ~~MR-M1-06~~ | ~~`structural_sharing.rs`~~ | ~~Consider deleting test file (real structural sharing tested in `snapshot_perf.rs`)~~ | DONE — file deleted 2026-03-03 |
 
 **Estimated effort**: 15 minutes.
 
 ---
 
 ## Tier 2 — Cosmetic Risk (mechanical code changes, no behavior change)
+
+> **[DONE — Phase 3 T2 complete 2026-03-03]** All T2 items below were applied in commit
+> `08c7b32` (`W3: apply T1+T2 LOW remediation`). 1421 tests pass. Clippy passes.
+>
+> **Bugs found by T2 work**: The `debug_assert!` additions (MR-M1-16, MR-M1-17) caught
+> 5 real test construction bugs in `targeting.rs` — tests re-adding players already added
+> by `GameStateBuilder::four_player()`. Fixed by replacing `add_player_with(p1, ...)` +
+> `add_player(p(2/3/4))` with `.player_mana(p1, ManaPool { ... })`. This is the intended
+> behavior of T2: treat debug_assert failures as bugs found, not regressions.
+>
+> **New LOW found**: `overlord_of_the_hauntwoods.rs:83` has a pre-existing clippy warning
+> ("struct update has no effect — all fields already specified"). Confirmed pre-existing via
+> `git stash`. Tracked as `MR-W3-01` in `docs/mtg-engine-milestone-reviews.md`.
 
 These touch runtime code but in paths that are either unreachable in normal play
 or where the change is purely mechanical. **Implement between milestones** when the
@@ -207,38 +225,35 @@ opportunistically.** Each should be a deliberate decision with a plan.
 Based on the project state (M9.5 complete, M10 networking layer ahead), here is the
 recommended order of operations:
 
-### Phase 1 — Immediate (before M10 work begins)
+### Phase 1 — Immediate (before M10 work begins) — **DONE 2026-03-03**
 
 **Goal**: Expand test coverage without touching runtime code. Zero regression risk.
 
-1. Write all Tier 1 tests (10 new tests + 4 test improvements)
-2. Delete dead code (MR-M1-14, MR-M9.5-08)
-3. Add comments (MR-M9.4-11)
-4. Run full suite: `cargo test --all && cargo clippy -- -D warnings`
-5. Commit: `chore: fill LOW test gaps and remove dead code`
+1. ~~Write all Tier 1 tests (10 new tests + 4 test improvements)~~ ✓
+2. ~~Delete dead code (MR-M1-06, MR-M1-14, MR-M9.5-08)~~ ✓
+3. ~~Add comments (MR-M9.4-11)~~ ✓
+4. ~~Run full suite: `cargo test --all && cargo clippy -- -D warnings`~~ ✓
+5. Committed as part of W3 T1+T2 pass.
 
-**Estimated effort**: 2-3 hours.
-**Regression risk**: Zero. Only additive changes.
-**Value**: 14 new/improved tests protecting critical paths (CR 400.7, combat, concede,
-mulligans, companions, ETB replacements).
+**Result**: 19 LOW issues closed. 1421 tests passing.
 
-### Phase 2 — Early M10 (while setting up network crate)
+### Phase 2 — Early M10 (while setting up network crate) — **DONE 2026-03-03**
 
 **Goal**: Harden defensive checks. These are the `debug_assert!` and `unwrap_or` → `.ok_or()`
 changes that make bugs loud instead of silent.
 
-1. Add all `debug_assert!` additions (MR-M1-16, MR-M1-17)
-2. Fix silent defaults (MR-M2-09, MR-M3-11, MR-M9-17)
-3. Fix error name (MR-M3-12)
-4. Fix planeswalker loyalty default (MR-M4-11)
-5. Apply performance micro-optimizations (MR-M9.4-09, MR-M4-10, MR-M5-06)
-6. Sort replay-viewer player keys (MR-M9.5-11)
-7. Run full suite after each individual change
-8. Commit: `fix: harden defensive checks and silence LOWs (14 issues)`
+1. ~~Add all `debug_assert!` additions (MR-M1-16, MR-M1-17)~~ ✓
+2. ~~Fix silent defaults (MR-M2-09, MR-M3-11, MR-M9-17)~~ ✓
+3. ~~Fix error name (MR-M3-12)~~ ✓
+4. ~~Fix planeswalker loyalty default (MR-M4-11)~~ ✓
+5. ~~Apply performance micro-optimizations (MR-M9.4-09, MR-M4-10, MR-M5-06)~~ ✓
+6. ~~Sort replay-viewer player keys (MR-M9.5-11)~~ ✓
+7. ~~Run full suite after each individual change~~ ✓
+8. Committed as `W3: apply T1+T2 LOW remediation` (commit `08c7b32`).
 
-**Estimated effort**: 1-2 hours.
-**Regression risk**: Low. Each change is individually small. The `debug_assert!` additions
-might expose existing test construction bugs — treat those as bugs found, not regressions introduced.
+**Result**: 11 LOW issues closed. 5 real targeting.rs bugs found and fixed.
+**Note**: MR-M2-09 and MR-M3-11 used `debug_assert!` instead of `.ok_or()?` — the functions
+return `Vec<_>` not `Result`, so the approach was adjusted. Same protective effect.
 
 ### Phase 3 — Mid-M10 (with networking context)
 
@@ -282,19 +297,17 @@ Address when touching the relevant subsystem for other reasons:
 
 ## Summary
 
-| Tier | Issues | Risk | When | Effort |
-|------|--------|------|------|--------|
-| T1 — Zero risk | 28 | None | Before M10 | 2-3 hours |
-| T2 — Cosmetic | 17 | Low | Early M10 | 1-2 hours |
-| T3 — Behavioral | 4 | Medium | With prerequisites | 2-3 hours each |
-| T4 — Architectural | 3 | High | Deliberate planning | Half-day each |
-| Permanently deferred | 6 | — | Never | — |
-| Opportunistic | 10 | Varies | When touching subsystem | Minutes each |
+| Tier | Issues | Risk | Status |
+|------|--------|------|--------|
+| T1 — Zero risk | 28 | None | **DONE** (2026-03-03) — 19 unique IDs closed |
+| T2 — Cosmetic | 17 | Low | **DONE** (2026-03-03) — 11 unique IDs closed |
+| T3 — Behavioral | 4 | Medium | Pending — ManaPool::spend() is next |
+| T4 — Architectural | 3 | High | Pending — deliberate planning required |
+| Permanently deferred | 6 | — | Never |
+| Opportunistic | 10 | Varies | Address when touching subsystem |
 
-**Total active issues**: 68 OPEN + 5 DEFERRED = 73
-**Addressable without behavioral risk**: 45 (T1 + T2) in ~4 hours
-**Requiring careful work**: 7 (T3 + T4) — each with explicit prerequisites
-
-The key insight: **45 of 68 open issues can be resolved with effectively zero risk**
-to the existing 1,033-test baseline. The remaining issues each have clear prerequisites
-(usually "write the test first") that serve as built-in safety nets.
+**Current status (2026-03-03)**: 30 issues closed by W3 T1+T2 pass (commit `08c7b32`).
+**LOW OPEN**: 39 (was 68) — 17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 CKP + 7 M9.5 + 1 W3
+**LOW CLOSED**: 36 (was 6) — 30 new closures + 6 pre-existing
+**Bonus**: 5 real targeting.rs bugs found by debug_assert. 1 new LOW (MR-W3-01) found.
+**Next**: T3 (ManaPool::spend) — defer until M10 networking context; T4 opportunistic.

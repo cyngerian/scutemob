@@ -275,7 +275,7 @@ Track progress across sessions by checking these off:
 - [x] Batch 2: Combat triggers — blocking (Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training)
 - [x] Batch 3: Combat modifiers & Ninjutsu (Melee, Enlist, Poisonous, Toxic, Ninjutsu)
 - [x] Batch 4: Alt-cast graveyard (Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore)
-- [ ] Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending)
+- [x] Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending)
 - [ ] Batch 6: Cost modification (Bargain, Emerge, Spectacle, Surge, Casualty, Assist)
 - [ ] Batch 7: Spell modifiers (Replicate, Gravestorm, Overload, Cleave, Splice, Entwine*, Escalate*)
 - [ ] Batch 8: Upkeep, time & Phasing (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, **Phasing**)
@@ -297,11 +297,11 @@ Track progress across sessions by checking these off:
 - [ ] TUI can play a full 10-turn game without crashes
 
 #### Phase 3: LOW Hardening
-- [ ] W3 T2: debug_assert additions (3 items)
-- [ ] W3 T2: Silent-default hardening (3 items)
-- [ ] W3 T2: Performance micro-optimizations (3 items)
+- [x] W3 T2: debug_assert additions (MR-M1-16, MR-M1-17, MR-M4-11)
+- [x] W3 T2: Silent-default hardening (MR-M2-09, MR-M3-11, MR-M3-12, MR-M9-17)
+- [x] W3 T2: Performance micro-optimizations (MR-M4-10, MR-M5-06, MR-M9.4-09, MR-M9.5-11)
 - [ ] W3 T3: ManaPool::spend() encapsulated
-- [ ] Committed
+- [ ] Committed (T3 pending)
 
 #### Phase 4: M10
 - [ ] Session plan created (`/start-milestone 10`)
