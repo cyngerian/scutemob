@@ -248,6 +248,11 @@ fn test_flashback_basic_cast_from_graveyard() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -346,6 +351,11 @@ fn test_flashback_exile_on_resolution() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -461,6 +471,11 @@ fn test_flashback_exile_on_counter() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -502,6 +517,11 @@ fn test_flashback_exile_on_counter() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -600,6 +620,11 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -665,6 +690,11 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -746,6 +776,11 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -832,6 +867,11 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -929,6 +969,11 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1009,6 +1054,11 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -1082,6 +1132,11 @@ fn test_flashback_mana_value_unchanged() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();

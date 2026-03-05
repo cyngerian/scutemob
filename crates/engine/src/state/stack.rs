@@ -190,6 +190,31 @@ pub struct StackObject {
     /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
     #[serde(default)]
     pub was_impended: bool,
+    /// CR 702.166b: If true, this spell was cast with its bargain cost paid
+    /// (sacrificed an artifact, enchantment, or token as an additional cost).
+    /// Used by `Condition::WasBargained` to check at resolution time.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    /// Note: Copies of a bargained spell are also bargained (CR 707.2), so
+    /// this should be propagated to copies in the copy system.
+    #[serde(default)]
+    pub was_bargained: bool,
+    /// CR 702.117a: If true, this spell was cast by paying its surge cost
+    /// (an alternative cost). Used to enable "if surge cost was paid" conditional
+    /// effects on permanents (e.g., Crush of Tentacles, Reckless Bushwhacker).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_surged: bool,
+    /// CR 702.153a: If true, this spell was cast with its casualty cost paid
+    /// (sacrificed a creature with power >= N as an additional cost).
+    /// Used to drive the CasualtyTrigger that creates a copy of this spell.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    /// Note: Unlike Bargain, this flag does NOT propagate to the permanent
+    /// because no permanent cares whether casualty was paid after resolution.
+    #[serde(default)]
+    pub was_casualty_paid: bool,
 }
 
 /// The kind of object on the stack.
@@ -751,6 +776,29 @@ pub enum StackObjectKind {
     /// but retains haste and the draw-on-death trigger (those are static
     /// abilities linked to cast_alt_cost, not to this trigger -- CR 702.152a).
     BlitzSacrificeTrigger { source_object: ObjectId },
+    /// CR 702.153a: Casualty triggered ability on the stack.
+    ///
+    /// "When you cast this spell, if a casualty cost was paid for it, copy it."
+    /// This trigger fires after the casualty cost has been paid and the spell
+    /// is on the stack. When this trigger resolves, one copy of the original
+    /// spell is created on the stack above the original (LIFO order means the
+    /// copy resolves first).
+    ///
+    /// `source_object` is the ObjectId of the card now in ZoneId::Stack.
+    /// `original_stack_id` is the id of the spell StackObject to copy.
+    ///
+    /// The copy is NOT cast (CR 707.10 / ruling 2022-04-29) — it does not
+    /// trigger "whenever you cast a spell" abilities, and it does not
+    /// increment `spells_cast_this_turn`.
+    ///
+    /// CR 702.153b: Multiple instances of casualty each trigger separately
+    /// and produce their own copy. (Not yet supported — no cards have multiple
+    /// instances in initial implementation.)
+    CasualtyTrigger {
+        source_object: ObjectId,
+        original_stack_id: ObjectId,
+    },
+
     /// CR 702.176a: Impending end-step counter-removal trigger.
     ///
     /// "At the beginning of your end step, if this permanent's impending cost

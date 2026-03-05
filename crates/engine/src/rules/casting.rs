@@ -66,6 +66,11 @@ pub fn handle_cast_spell(
     retrace_discard_land: Option<ObjectId>,
     jump_start_discard: Option<ObjectId>,
     prototype: bool,
+    bargain_sacrifice: Option<ObjectId>,
+    emerge_sacrifice: Option<ObjectId>,
+    casualty_sacrifice: Option<ObjectId>,
+    assist_player: Option<PlayerId>,
+    assist_amount: u32,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -81,6 +86,9 @@ pub fn handle_cast_spell(
     let cast_with_blitz = alt_cost == Some(AltCostKind::Blitz);
     let cast_with_plot = alt_cost == Some(AltCostKind::Plot);
     let cast_with_impending = alt_cost == Some(AltCostKind::Impending);
+    let cast_with_emerge = alt_cost == Some(AltCostKind::Emerge);
+    let cast_with_spectacle = alt_cost == Some(AltCostKind::Spectacle);
+    let cast_with_surge = alt_cost == Some(AltCostKind::Surge);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -799,6 +807,21 @@ pub fn handle_cast_spell(
                 "cannot combine dash with impending (CR 118.9a: only one alternative cost)".into(),
             ));
         }
+        if cast_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with spectacle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine dash with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
         if get_dash_cost(&card_id, &state.card_registry).is_none() {
             return Err(GameStateError::InvalidCommand(
                 "spell does not have dash".into(),
@@ -876,6 +899,21 @@ pub fn handle_cast_spell(
         if cast_with_impending {
             return Err(GameStateError::InvalidCommand(
                 "cannot combine blitz with impending (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with spectacle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine blitz with surge (CR 118.9a: only one alternative cost)".into(),
             ));
         }
         if get_blitz_cost(&card_id, &state.card_registry).is_none() {
@@ -960,6 +998,21 @@ pub fn handle_cast_spell(
         if cast_with_impending {
             return Err(GameStateError::InvalidCommand(
                 "cannot combine plot with impending (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with spectacle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine plot with surge (CR 118.9a: only one alternative cost)".into(),
             ));
         }
         // CR 702.170d: Plot free-cast timing = main phase + empty stack (sorcery speed).
@@ -1068,9 +1121,439 @@ pub fn handle_cast_spell(
                 "cannot combine impending with plot (CR 118.9a: only one alternative cost)".into(),
             ));
         }
+        if cast_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with emerge (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with spectacle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine impending with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
         if get_impending_cost(&card_id, &state.card_registry).is_none() {
             return Err(GameStateError::InvalidCommand(
                 "card has no impending cost defined (CR 702.176a)".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
+    // Step 1n: Validate emerge mutual exclusion (CR 702.119a / CR 118.9a).
+    // Emerge is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_emerge = if cast_with_emerge {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with foretell (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with aftermath (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_plot {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with plot (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with impending (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with spectacle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine emerge with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if get_emerge_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has no emerge cost defined (CR 702.119a)".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
+    // CR 702.119a / CR 601.2b,f: Emerge -- validate the sacrifice target and compute
+    // the creature's mana value for cost reduction.
+    // Emerge is an alternative cost: `alt_cost` must be `Some(AltCostKind::Emerge)`.
+    // The sacrifice is mandatory when using emerge; `emerge_sacrifice` must be `Some`.
+    // This validation must occur BEFORE base cost selection (emerge_creature_mv is used there).
+    let (emerge_sacrifice_id, emerge_creature_mv): (Option<ObjectId>, Option<u32>) =
+        if let Some(sac_id) = emerge_sacrifice {
+            // Validate the spell is being cast with emerge alt cost.
+            if !casting_with_emerge {
+                return Err(GameStateError::InvalidCommand(
+                    "emerge_sacrifice provided but alt_cost is not Emerge (CR 702.119a)".into(),
+                ));
+            }
+            // Validate the sacrifice target is on the battlefield.
+            let (sac_zone, sac_controller) = {
+                let sac_obj = state.object(sac_id)?;
+                (sac_obj.zone, sac_obj.controller)
+            };
+            if sac_zone != ZoneId::Battlefield {
+                return Err(GameStateError::InvalidCommand(
+                    "emerge: sacrifice target must be on the battlefield (CR 702.119a)".into(),
+                ));
+            }
+            if sac_controller != player {
+                return Err(GameStateError::InvalidCommand(
+                    "emerge: sacrifice target must be controlled by the caster (CR 702.119a)"
+                        .into(),
+                ));
+            }
+            // Must be a creature (by layer-resolved characteristics).
+            let sac_chars = calculate_characteristics(state, sac_id)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&sac_id)
+                        .map(|o| o.characteristics.clone())
+                })
+                .unwrap_or_default();
+            if !sac_chars.card_types.contains(&CardType::Creature) {
+                return Err(GameStateError::InvalidCommand(
+                    "emerge: sacrifice target must be a creature (CR 702.119a)".into(),
+                ));
+            }
+            // Compute the creature's mana value for cost reduction (CR 702.119a).
+            // MV is derived from the layer-resolved mana cost; tokens and face-down creatures
+            // have no mana cost and thus MV = 0 (providing no reduction).
+            let mv = sac_chars
+                .mana_cost
+                .as_ref()
+                .map(|mc| mc.mana_value())
+                .unwrap_or(0);
+            (Some(sac_id), Some(mv))
+        } else if casting_with_emerge {
+            // Emerge requires a sacrifice — cannot cast with emerge without sacrificing a creature.
+            return Err(GameStateError::InvalidCommand(
+                "emerge: alt_cost is Emerge but no creature was provided to sacrifice (CR 702.119a)"
+                    .into(),
+            ));
+        } else {
+            (None, None)
+        };
+
+    // Step 1o: Validate spectacle mutual exclusion and precondition (CR 702.137a / CR 118.9a).
+    // Spectacle is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_spectacle = if cast_with_spectacle {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with bestow (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with madness (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with miracle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with escape (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with foretell (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with overload (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with retrace (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with aftermath (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_plot {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with plot (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with impending (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with emerge (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if cast_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine spectacle with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Validate the card has the Spectacle keyword.
+        if !chars.keywords.contains(&KeywordAbility::Spectacle) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have spectacle (CR 702.137a)".into(),
+            ));
+        }
+        // Validate the card has a spectacle cost defined.
+        if get_spectacle_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Spectacle keyword but no spectacle cost defined (CR 702.137a)".into(),
+            ));
+        }
+        // CR 702.137a: Validate that an opponent of the caster lost life this turn.
+        // CR 800.4a / CR 102.3: Eliminated players (has_lost or has_conceded) are no
+        // longer opponents, so their life loss does not enable spectacle.
+        let any_opponent_lost_life = state.players.iter().any(|(pid, ps)| {
+            *pid != player && !ps.has_lost && !ps.has_conceded && ps.life_lost_this_turn > 0
+        });
+        if !any_opponent_lost_life {
+            return Err(GameStateError::InvalidCommand(
+                "spectacle: no opponent has lost life this turn (CR 702.137a)".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
+    // Step 1p: Validate surge mutual exclusion and precondition (CR 702.117a / CR 118.9a).
+    // Surge is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_surge = if cast_with_surge {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with flashback (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with foretell (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with aftermath (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_plot {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with plot (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with impending (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine surge with spectacle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Validate the card has the Surge keyword.
+        if !chars.keywords.contains(&KeywordAbility::Surge) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have surge (CR 702.117a)".into(),
+            ));
+        }
+        // Validate the card has a surge cost defined.
+        if get_surge_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Surge keyword but no surge cost defined (CR 702.117a)".into(),
+            ));
+        }
+        // CR 702.117a: Validate that the caster has cast another spell this turn.
+        // spells_cast_this_turn is incremented AFTER the spell enters the stack,
+        // so at this point it reflects spells cast BEFORE this one.
+        // >= 1 means at least one other spell was already cast this turn.
+        let caster_cast_count = state
+            .players
+            .get(&player)
+            .map(|ps| ps.spells_cast_this_turn)
+            .unwrap_or(0);
+        if caster_cast_count < 1 {
+            return Err(GameStateError::InvalidCommand(
+                "surge: you have not cast another spell this turn (CR 702.117a)".into(),
             ));
         }
         true
@@ -1191,6 +1674,25 @@ pub fn handle_cast_spell(
         // CR 702.176a: Pay impending cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_impending_cost(&card_id, &state.card_registry)
+    } else if casting_with_emerge {
+        // CR 702.119a: Pay emerge cost instead of mana cost, reduced by sacrificed creature's MV.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let emerge_cost = get_emerge_cost(&card_id, &state.card_registry);
+        if let (Some(cost), Some(sac_mv)) = (emerge_cost, emerge_creature_mv) {
+            Some(reduce_cost_by_mv(&cost, sac_mv))
+        } else {
+            return Err(GameStateError::InvalidCommand(
+                "emerge: card has Emerge keyword but no emerge cost defined (CR 702.119a)".into(),
+            ));
+        }
+    } else if casting_with_spectacle {
+        // CR 702.137a: Pay spectacle cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_spectacle_cost(&card_id, &state.card_registry)
+    } else if casting_with_surge {
+        // CR 702.117a: Pay surge cost instead of mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_surge_cost(&card_id, &state.card_registry)
     } else if casting_with_plot {
         // CR 702.170d: Cast without paying mana cost (alternative cost, CR 118.9).
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -1360,6 +1862,116 @@ pub fn handle_cast_spell(
             }
         }
         Some(discard_id)
+    } else {
+        None
+    };
+
+    // CR 702.166a / CR 601.2b,f: Bargain -- validate the sacrifice target.
+    // Bargain is an optional additional cost: the player MAY sacrifice an artifact,
+    // enchantment, or token as an additional cost to cast this spell. The sacrifice
+    // is paid during cost payment (CR 601.2h), after mana payment.
+    let bargain_sacrifice_id: Option<ObjectId> = if let Some(sac_id) = bargain_sacrifice {
+        // Validate the spell has Bargain keyword.
+        if !chars.keywords.contains(&KeywordAbility::Bargain) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have bargain (CR 702.166a)".into(),
+            ));
+        }
+        // Validate the sacrifice target is on the battlefield.
+        let (sac_zone, sac_controller, sac_is_token) = {
+            let sac_obj = state.object(sac_id)?;
+            (sac_obj.zone, sac_obj.controller, sac_obj.is_token)
+        };
+        if sac_zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "bargain: sacrifice target must be on the battlefield (CR 702.166a)".into(),
+            ));
+        }
+        if sac_controller != player {
+            return Err(GameStateError::InvalidCommand(
+                "bargain: sacrifice target must be controlled by the caster (CR 702.166a)".into(),
+            ));
+        }
+        // Must be an artifact, enchantment, or token.
+        let sac_chars = calculate_characteristics(state, sac_id)
+            .or_else(|| {
+                state
+                    .objects
+                    .get(&sac_id)
+                    .map(|o| o.characteristics.clone())
+            })
+            .unwrap_or_default();
+        let is_artifact = sac_chars.card_types.contains(&CardType::Artifact);
+        let is_enchantment = sac_chars.card_types.contains(&CardType::Enchantment);
+        if !is_artifact && !is_enchantment && !sac_is_token {
+            return Err(GameStateError::InvalidCommand(
+                "bargain: sacrifice target must be an artifact, enchantment, or token (CR 702.166a)".into(),
+            ));
+        }
+        Some(sac_id)
+    } else {
+        None
+    };
+
+    // CR 702.153a / CR 601.2b,f: Casualty -- validate the sacrifice target.
+    // Casualty N is an optional additional cost: the player MAY sacrifice a creature
+    // with power N or greater as an additional cost to cast this spell.
+    // The sacrifice is paid during cost payment (CR 601.2h), after mana payment.
+    let casualty_sacrifice_id: Option<ObjectId> = if let Some(sac_id) = casualty_sacrifice {
+        // Validate the spell has Casualty keyword (any N value).
+        let casualty_n = chars.keywords.iter().find_map(|kw| {
+            if let KeywordAbility::Casualty(n) = kw {
+                Some(*n)
+            } else {
+                None
+            }
+        });
+        let casualty_n = match casualty_n {
+            Some(n) => n,
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell does not have casualty (CR 702.153a)".into(),
+                ));
+            }
+        };
+        // Validate the sacrifice target is on the battlefield.
+        let (sac_zone, sac_controller) = {
+            let sac_obj = state.object(sac_id)?;
+            (sac_obj.zone, sac_obj.controller)
+        };
+        if sac_zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "casualty: sacrifice target must be on the battlefield (CR 702.153a)".into(),
+            ));
+        }
+        if sac_controller != player {
+            return Err(GameStateError::InvalidCommand(
+                "casualty: sacrifice target must be controlled by the caster (CR 702.153a)".into(),
+            ));
+        }
+        // Must be a creature (by layer-resolved characteristics).
+        let sac_chars = calculate_characteristics(state, sac_id)
+            .or_else(|| {
+                state
+                    .objects
+                    .get(&sac_id)
+                    .map(|o| o.characteristics.clone())
+            })
+            .unwrap_or_default();
+        if !sac_chars.card_types.contains(&CardType::Creature) {
+            return Err(GameStateError::InvalidCommand(
+                "casualty: sacrifice target must be a creature (CR 702.153a)".into(),
+            ));
+        }
+        // Must have power >= N (use layer-resolved power, not raw).
+        let sac_power = sac_chars.power.unwrap_or(0);
+        if sac_power < casualty_n as i32 {
+            return Err(GameStateError::InvalidCommand(format!(
+                "casualty: sacrificed creature power {} is less than required {} (CR 702.153a)",
+                sac_power, casualty_n
+            )));
+        }
+        Some(sac_id)
     } else {
         None
     };
@@ -1557,6 +2169,71 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.132a: Apply assist — another player pays generic mana in the total cost.
+    // Assist applies AFTER all other cost reductions (convoke, improvise, delve) and
+    // BEFORE the caster pays. Pipeline order:
+    //   base_mana_cost → alt_cost → commander_tax → kicker → affinity → undaunted →
+    //   convoke → improvise → delve → ASSIST → pay.
+    let mut assist_events: Vec<GameEvent> = Vec::new();
+    let mana_cost = if let Some(assist_pid) = assist_player {
+        // Validate: spell must have Assist keyword.
+        if !chars.keywords.contains(&KeywordAbility::Assist) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have assist".into(),
+            ));
+        }
+        // Validate: assisting player is not the caster (CR 702.132a: "another player").
+        if assist_pid == player {
+            return Err(GameStateError::InvalidCommand(
+                "cannot assist yourself — must choose another player".into(),
+            ));
+        }
+        // Validate: assisting player is active (not eliminated, CR 800.4a).
+        if !state.active_players().contains(&assist_pid) {
+            return Err(GameStateError::InvalidCommand(
+                "assisting player is not active".into(),
+            ));
+        }
+        // Validate: assist_amount <= generic mana remaining in total cost.
+        let generic_remaining = mana_cost.as_ref().map_or(0, |c| c.generic);
+        if assist_amount > generic_remaining {
+            return Err(GameStateError::InvalidCommand(format!(
+                "assist amount {} exceeds generic mana {} in total cost",
+                assist_amount, generic_remaining
+            )));
+        }
+        if assist_amount > 0 {
+            // Deduct generic mana from assisting player's pool.
+            let assist_pool_total = state.player(assist_pid)?.mana_pool.total();
+            if assist_pool_total < assist_amount {
+                return Err(GameStateError::InsufficientMana);
+            }
+            let assist_cost = crate::state::game_object::ManaCost {
+                generic: assist_amount,
+                ..Default::default()
+            };
+            // can_pay_cost verifies the assisting player can actually pay.
+            let assist_pool = &state.player(assist_pid)?.mana_pool;
+            if !can_pay_cost(assist_pool, &assist_cost) {
+                return Err(GameStateError::InsufficientMana);
+            }
+            let assist_player_state = state.player_mut(assist_pid)?;
+            pay_cost(&mut assist_player_state.mana_pool, &assist_cost);
+            assist_events.push(GameEvent::ManaCostPaid {
+                player: assist_pid,
+                cost: assist_cost,
+            });
+            // Reduce the generic component the caster still owes.
+            let mut reduced = mana_cost.unwrap_or_default();
+            reduced.generic = reduced.generic.saturating_sub(assist_amount);
+            Some(reduced)
+        } else {
+            mana_cost
+        }
+    } else {
+        mana_cost
+    };
+
     // CR 702.138a: Validate and exile cards for escape cost (CR 601.2h).
     // The escape exile cards are validated and exiled BEFORE the card moves to the stack
     // (the card hasn't moved yet at this point -- it will move below via move_object_to_zone).
@@ -1604,6 +2281,10 @@ pub fn handle_cast_spell(
     // CR 702.126a / CR 601.2h: Emit PermanentTapped events for improvise artifacts.
     // Tapping happens as part of cost payment (CR 601.2h), after the mana payment.
     events.extend(improvise_events);
+
+    // CR 702.132a / CR 601.2h: Emit ManaCostPaid events for the assisting player.
+    // Assist payment happens as part of cost payment (CR 601.2h).
+    events.extend(assist_events);
 
     // CR 702.66a / CR 601.2h: Emit ObjectExiled events for delve cards.
     // Exile happens as part of cost payment (CR 601.2h), after the mana payment.
@@ -1699,6 +2380,50 @@ pub fn handle_cast_spell(
         }
     }
 
+    // CR 702.166a / CR 601.2f-h: Pay the bargain additional cost -- sacrifice
+    // an artifact, enchantment, or token. The sacrifice is a real sacrifice
+    // (CR 701.17): the permanent goes from battlefield to the owner's graveyard.
+    // This happens as part of cost payment (CR 601.2h), after mana payment.
+    // Bargain is optional -- only execute if bargain_sacrifice_id is Some.
+    if let Some(sac_id) = bargain_sacrifice_id {
+        let sac_owner = state.object(sac_id)?.owner;
+        let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
+        events.push(GameEvent::ObjectPutInGraveyard {
+            player,
+            object_id: sac_id,
+            new_grave_id: new_sac_id,
+        });
+    }
+
+    // CR 702.119a / CR 601.2f-h: Pay the emerge alternative cost -- sacrifice a creature.
+    // The sacrifice is part of cost payment (CR 601.2h): the creature goes from the
+    // battlefield to the owner's graveyard before the spell goes on the stack.
+    // Die triggers fire; if the spell is later countered, the creature is still gone.
+    if let Some(sac_id) = emerge_sacrifice_id {
+        let sac_owner = state.object(sac_id)?.owner;
+        let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
+        events.push(GameEvent::ObjectPutInGraveyard {
+            player,
+            object_id: sac_id,
+            new_grave_id: new_sac_id,
+        });
+    }
+
+    // CR 702.153a / CR 601.2f-h: Pay the casualty additional cost -- sacrifice a creature
+    // with power >= N. The sacrifice is a real sacrifice (CR 701.17): the permanent goes
+    // from battlefield to the owner's graveyard.
+    // This happens as part of cost payment (CR 601.2h), after mana payment.
+    // Casualty is optional -- only execute if casualty_sacrifice_id is Some.
+    if let Some(sac_id) = casualty_sacrifice_id {
+        let sac_owner = state.object(sac_id)?.owner;
+        let (new_sac_id, _) = state.move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))?;
+        events.push(GameEvent::ObjectPutInGraveyard {
+            player,
+            object_id: sac_id,
+            new_grave_id: new_sac_id,
+        });
+    }
+
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
 
@@ -1766,6 +2491,13 @@ pub fn handle_cast_spell(
         was_prototyped: prototype,
         // CR 702.176a: Record whether this spell was cast by paying its impending cost.
         was_impended: casting_with_impending,
+        // CR 702.166b: Record whether this spell was cast with its bargain cost paid.
+        was_bargained: bargain_sacrifice_id.is_some(),
+        // CR 702.117a: Record whether this spell was cast by paying its surge cost.
+        was_surged: casting_with_surge,
+        // CR 702.153a: Record whether this spell was cast with its casualty cost paid
+        // (sacrificed a creature with power >= N as an additional cost).
+        was_casualty_paid: casualty_sacrifice_id.is_some(),
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1897,6 +2629,9 @@ pub fn handle_cast_spell(
             was_plotted: false,
             was_prototyped: false,
             was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -1947,6 +2682,56 @@ pub fn handle_cast_spell(
             was_plotted: false,
             was_prototyped: false,
             was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+        };
+        state.stack_objects.push_back(trigger_obj);
+        events.push(GameEvent::AbilityTriggered {
+            controller: player,
+            source_object_id: new_card_id,
+            stack_object_id: trigger_id,
+        });
+    }
+
+    // CR 702.153a: Casualty -- "When you cast this spell, if a casualty cost was paid
+    // for it, copy it." This is a triggered ability (CR 702.153a). It goes on the stack
+    // above the original spell and resolves through normal priority.
+    // The copy is NOT cast (ruling 2022-04-29) — it does not trigger "whenever you
+    // cast a spell" abilities and does not increment spells_cast_this_turn.
+    if casualty_sacrifice_id.is_some() {
+        let trigger_id = state.next_object_id();
+        let trigger_obj = StackObject {
+            id: trigger_id,
+            controller: player,
+            kind: StackObjectKind::CasualtyTrigger {
+                source_object: new_card_id,
+                original_stack_id: stack_entry_id,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3208,4 +3993,114 @@ pub(crate) fn get_impending_count(
             })
         })
     })
+}
+
+/// CR 702.119a: Look up the emerge cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Emerge { cost }`, or `None`
+/// if the card has no definition or no emerge ability defined.
+fn get_emerge_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Emerge { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.137a: Look up the spectacle cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Spectacle { cost }`, or `None`
+/// if the card has no definition or no spectacle ability defined.
+fn get_spectacle_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Spectacle { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.117a: Look up the surge cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Surge { cost }`, or `None`
+/// if the card has no definition or no surge ability defined.
+fn get_surge_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Surge { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.119a: Reduce a mana cost by a creature's mana value.
+///
+/// Reduces generic mana first, then colorless, then colored pips (WUBRG order)
+/// if generic and colorless are fully exhausted. The cost cannot go below zero
+/// in any component.
+fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
+    let mut reduced = cost.clone();
+    let mut remaining_reduction = mv;
+
+    // Reduce generic first.
+    let generic_reduction = remaining_reduction.min(reduced.generic);
+    reduced.generic -= generic_reduction;
+    remaining_reduction -= generic_reduction;
+
+    if remaining_reduction == 0 {
+        return reduced;
+    }
+
+    // Then reduce colorless.
+    let colorless_reduction = remaining_reduction.min(reduced.colorless);
+    reduced.colorless -= colorless_reduction;
+    remaining_reduction -= colorless_reduction;
+
+    if remaining_reduction == 0 {
+        return reduced;
+    }
+
+    // Then reduce colored pips (WUBRG order).
+    let fields = [
+        &mut reduced.white,
+        &mut reduced.blue,
+        &mut reduced.black,
+        &mut reduced.red,
+        &mut reduced.green,
+    ];
+    for field in fields {
+        let reduction = remaining_reduction.min(*field);
+        *field -= reduction;
+        remaining_reduction -= reduction;
+        if remaining_reduction == 0 {
+            break;
+        }
+    }
+
+    reduced
 }

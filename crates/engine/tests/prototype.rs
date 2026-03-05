@@ -209,6 +209,11 @@ fn test_prototype_basic_cast() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with prototype failed: {:?}", e));
@@ -322,6 +327,11 @@ fn test_prototype_normal_cast() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -428,6 +438,11 @@ fn test_prototype_color_change() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -508,6 +523,11 @@ fn test_prototype_mana_value() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -587,6 +607,11 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -826,6 +851,11 @@ fn test_prototype_retains_keyword_ability() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -905,6 +935,11 @@ fn test_prototype_negative_not_prototype_keyword() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -1027,6 +1062,11 @@ fn test_prototype_stack_characteristics() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: true,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();

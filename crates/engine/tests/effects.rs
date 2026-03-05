@@ -193,6 +193,11 @@ fn test_effect_deal_damage_to_player() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -275,6 +280,11 @@ fn test_effect_deal_damage_to_creature() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -360,6 +370,11 @@ fn test_effect_exile_and_gain_life() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -462,6 +477,11 @@ fn test_effect_draw_cards() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1024,6 +1044,9 @@ fn test_effect_counter_spell_removes_from_stack() {
         was_plotted: false,
         was_prototyped: false,
         was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1151,6 +1174,11 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1257,6 +1285,11 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1364,6 +1397,11 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1498,6 +1536,11 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1598,6 +1641,11 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1722,6 +1770,11 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();

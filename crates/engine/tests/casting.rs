@@ -58,6 +58,11 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -124,6 +129,11 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(result.is_ok());
@@ -177,6 +187,11 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -229,6 +244,11 @@ fn test_cast_spell_flash_at_instant_speed() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -284,6 +304,11 @@ fn test_cast_spell_lifo_stack_order() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -312,6 +337,11 @@ fn test_cast_spell_lifo_stack_order() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -366,6 +396,11 @@ fn test_cast_spell_not_priority_holder_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(
@@ -415,6 +450,11 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -458,6 +498,11 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -518,6 +563,11 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -545,6 +595,11 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -586,6 +641,11 @@ fn test_cast_spell_land_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -630,6 +690,11 @@ fn test_cast_spell_card_not_in_hand_fails() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -678,6 +743,11 @@ fn test_cast_spell_priority_resets_to_active_player() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();

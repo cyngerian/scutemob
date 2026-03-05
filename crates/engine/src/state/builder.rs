@@ -155,7 +155,11 @@ impl GameStateBuilder {
                 found = true;
             }
         }
-        debug_assert!(found, "player_poison: PlayerId {:?} not found in builder", id);
+        debug_assert!(
+            found,
+            "player_poison: PlayerId {:?} not found in builder",
+            id
+        );
         self
     }
 
@@ -281,6 +285,7 @@ impl GameStateBuilder {
                 cards_drawn_this_turn: 0,
                 spells_cast_this_turn: 0,
                 has_citys_blessing: false,
+                life_lost_this_turn: 0,
             };
             players.insert(config.id, player_state);
         }
@@ -945,6 +950,7 @@ impl GameStateBuilder {
                 is_plotted: false,
                 plotted_turn: 0,
                 is_prototyped: false,
+                was_bargained: false,
             };
 
             state.add_object(object, zone)?;

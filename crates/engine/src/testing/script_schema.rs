@@ -277,6 +277,35 @@ pub enum ScriptAction {
         /// Example: "Lightning Bolt"
         #[serde(default)]
         discard_card: Option<String>,
+        /// CR 702.166a: For `cast_spell_bargain`. Name of the artifact,
+        /// enchantment, or token to sacrifice as the bargain additional cost.
+        /// `None` means the player chose not to bargain.
+        /// Example: "Clue Token"
+        #[serde(default)]
+        bargain_sacrifice: Option<String>,
+        /// CR 702.119a: For `cast_spell_emerge`. Name of the creature on the
+        /// battlefield to sacrifice as the emerge alternative cost.
+        /// Required when action is `cast_spell_emerge`.
+        /// Example: "Llanowar Elves"
+        #[serde(default)]
+        emerge_sacrifice: Option<String>,
+        /// CR 702.153a: For `cast_spell_casualty`. Name of the creature on the
+        /// battlefield to sacrifice as the casualty additional cost.
+        /// `None` means the player chose not to pay the casualty cost (casualty is optional).
+        /// Example: "Llanowar Elves"
+        #[serde(default)]
+        casualty_sacrifice: Option<String>,
+        /// CR 702.132a: For `cast_spell_assist`. Name of the player who pays generic
+        /// mana as part of the assist cost.
+        /// `None` means the caster chose not to use assist (assist is optional).
+        /// Example: "p2"
+        #[serde(default)]
+        assist_player: Option<String>,
+        /// CR 702.132a: For `cast_spell_assist`. Amount of generic mana the assisting
+        /// player pays. Must be <= the generic component of the spell's total cost.
+        /// Ignored when `assist_player` is `None`. Defaults to 0.
+        #[serde(default)]
+        assist_amount: u32,
         cr_ref: Option<String>,
         note: Option<String>,
     },

@@ -266,6 +266,11 @@ fn test_jump_start_basic_cast_from_graveyard() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -386,6 +391,11 @@ fn test_jump_start_exile_on_resolution() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -499,6 +509,11 @@ fn test_jump_start_exile_on_counter() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -537,6 +552,11 @@ fn test_jump_start_exile_on_counter() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -634,6 +654,11 @@ fn test_jump_start_sorcery_timing() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -707,6 +732,11 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -793,6 +823,11 @@ fn test_jump_start_pays_normal_mana_cost() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -875,6 +910,11 @@ fn test_jump_start_discard_required() {
             retrace_discard_land: None,
             jump_start_discard: None, // No discard card provided — should fail
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -955,6 +995,11 @@ fn test_jump_start_discard_must_be_in_hand() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -1041,6 +1086,11 @@ fn test_jump_start_discard_any_card() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -1121,6 +1171,11 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1218,6 +1273,11 @@ fn test_jump_start_flag_set_on_stack() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -1300,6 +1360,11 @@ fn test_jump_start_insufficient_mana_rejected() {
             retrace_discard_land: None,
             jump_start_discard: Some(discard_id),
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 

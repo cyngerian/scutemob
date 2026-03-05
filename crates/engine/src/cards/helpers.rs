@@ -5,12 +5,12 @@
 
 pub use im::OrdSet;
 
+pub use crate::state::game_object::ManaAbility;
 pub use crate::state::player::PlayerId;
 pub use crate::state::{
     AffinityTarget, CardId, CardType, Color, CounterType, EnchantTarget, KeywordAbility,
-    LandwalkType, ManaCost, ManaColor, ManaPool, SubType, SuperType,
+    LandwalkType, ManaColor, ManaCost, ManaPool, SubType, SuperType,
 };
-pub use crate::state::game_object::ManaAbility;
 
 pub use super::card_definition::{
     food_token_spec, treasure_token_spec, AbilityDefinition, CardDefinition, Condition,

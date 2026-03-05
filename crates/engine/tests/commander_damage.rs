@@ -432,6 +432,7 @@ fn test_commander_damage_survives_zone_change() {
                 is_plotted: false,
                 plotted_turn: 0,
                 is_prototyped: false,
+                was_bargained: false,
             },
             ZoneId::Battlefield,
         )

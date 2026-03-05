@@ -103,6 +103,11 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         retrace_discard_land: None,
                         jump_start_discard: None,
                         prototype: false,
+                        bargain_sacrifice: None,
+                        emerge_sacrifice: None,
+                        casualty_sacrifice: None,
+                        assist_player: None,
+                        assist_amount: 0,
                     };
                     app.execute_command(cmd)?;
                 } else {

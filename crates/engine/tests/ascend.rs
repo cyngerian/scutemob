@@ -518,6 +518,11 @@ fn test_ascend_instant_sorcery_on_resolution() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .expect("CastSpell should succeed");

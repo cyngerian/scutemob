@@ -275,6 +275,9 @@ fn test_play_land_stack_nonempty_fails() {
         was_plotted: false,
         was_prototyped: false,
         was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
     });
 
     let result = mtg_engine::process_command(

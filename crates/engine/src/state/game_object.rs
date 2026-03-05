@@ -515,4 +515,10 @@ pub struct GameObject {
     /// prototyped permanent retain the prototype characteristics.
     #[serde(default)]
     pub is_prototyped: bool,
+    /// CR 702.166b: If true, this permanent was cast with its bargain cost paid.
+    /// Used by ETB triggers that check "if this permanent was bargained" (e.g.,
+    /// Hylda's Crown of Winter). Propagated from `StackObject.was_bargained`
+    /// at resolution time when the permanent enters the battlefield.
+    #[serde(default)]
+    pub was_bargained: bool,
 }

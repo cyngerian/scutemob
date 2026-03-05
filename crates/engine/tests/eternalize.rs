@@ -978,6 +978,9 @@ fn test_eternalize_split_second_blocks() {
         was_plotted: false,
         was_prototyped: false,
         was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

@@ -93,6 +93,11 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -144,6 +149,11 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -195,6 +205,11 @@ fn test_702_5_enchant_land_targets_land_valid() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -244,6 +259,11 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .expect("CastSpell should succeed");
@@ -420,6 +440,11 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             },
         );
         assert!(
@@ -462,6 +487,11 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             },
         );
         assert!(
@@ -509,6 +539,11 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -563,6 +598,11 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(
@@ -616,6 +656,11 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .expect("CastSpell should succeed");

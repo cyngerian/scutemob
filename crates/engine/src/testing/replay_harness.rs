@@ -246,6 +246,25 @@ pub fn translate_player_action(
     // CR 702.133a: For `cast_spell_jump_start`, the name of any card in the player's
     // hand to discard as the jump-start additional cost. `None` for all other action types.
     discard_card_name: Option<&str>,
+    // CR 702.166a: For `cast_spell_bargain`, the name of an artifact, enchantment, or token
+    // on the battlefield to sacrifice as the bargain additional cost. `None` for all other
+    // action types or when the player chooses not to bargain.
+    bargain_sacrifice_name: Option<&str>,
+    // CR 702.119a: For `cast_spell_emerge`, the name of the creature on the battlefield to
+    // sacrifice as the emerge alternative cost. Required for `cast_spell_emerge`; `None` for
+    // all other action types.
+    emerge_sacrifice_name: Option<&str>,
+    // CR 702.153a: For `cast_spell_casualty`, the name of a creature on the battlefield to
+    // sacrifice as the casualty additional cost. `None` for all other action types or when
+    // the player chooses not to pay the casualty cost (casualty is optional).
+    casualty_sacrifice_name: Option<&str>,
+    // CR 702.132a: For `cast_spell_assist`, the name of the player who will pay part of
+    // the generic mana cost. `None` for all other action types or when the caster
+    // chooses not to use assist.
+    assist_player_name: Option<&str>,
+    // CR 702.132a: For `cast_spell_assist`, the amount of generic mana the assisting
+    // player pays. Ignored when `assist_player_name` is `None`.
+    assist_amount: u32,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -295,6 +314,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -319,6 +343,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -340,6 +369,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -361,6 +395,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -383,6 +422,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -405,6 +449,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -432,6 +481,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -716,6 +770,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -750,6 +809,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -772,6 +836,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -797,6 +866,11 @@ pub fn translate_player_action(
                 retrace_discard_land: Some(land_id),
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -822,6 +896,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: Some(discard_id),
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -844,6 +923,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -866,6 +950,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: true,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -887,6 +976,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -908,6 +1002,11 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
             })
         }
 
@@ -929,6 +1028,184 @@ pub fn translate_player_action(
                 retrace_discard_land: None,
                 jump_start_discard: None,
                 prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        // CR 702.166a: Cast a spell with bargain from the player's hand, sacrificing
+        // an artifact, enchantment, or token as the optional additional cost.
+        // Bargain is an additional cost (CR 118.8), not an alternative cost -- the
+        // spell's normal mana cost is still paid.
+        "cast_spell_bargain" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let bargain_sac_id =
+                bargain_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: bargain_sac_id,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        // CR 702.119a: Cast a spell with emerge from the player's hand, sacrificing
+        // a creature as part of the emerge alternative cost. The total mana cost is
+        // reduced by the sacrificed creature's mana value.
+        "cast_spell_emerge" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let emerge_sac_name = emerge_sacrifice_name?;
+            let emerge_sac_id = find_on_battlefield(state, player, emerge_sac_name)?;
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Emerge),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: Some(emerge_sac_id),
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        // CR 702.137a: Cast a spell with spectacle from the player's hand.
+        // The spectacle cost (an alternative cost) is paid instead of the mana cost.
+        // Precondition: an opponent of the casting player must have lost life this turn.
+        "cast_spell_spectacle" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Spectacle),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        "cast_spell_surge" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Surge),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        // CR 702.153a: Cast a spell with casualty from the player's hand, optionally
+        // sacrificing a creature with power >= N as the casualty additional cost.
+        // Casualty is an additional cost (CR 118.8), not an alternative cost -- the
+        // spell's normal mana cost is still paid.
+        // If `casualty_sacrifice_name` is Some, the named creature is looked up on
+        // the battlefield and sacrificed as the additional cost.
+        "cast_spell_casualty" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let casualty_sac_id =
+                casualty_sacrifice_name.and_then(|name| find_on_battlefield(state, player, name));
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: casualty_sac_id,
+                assist_player: None,
+                assist_amount: 0,
+            })
+        }
+
+        // CR 702.132a: Cast a spell with assist from the player's hand. The assist player
+        // pays some amount of the generic mana cost from their own mana pool. The caster
+        // pays the remainder. Assist is not an alternative cost — the caster still pays
+        // any colored mana pips plus whatever generic remains after assist.
+        // `assist_player_name` identifies the assisting player; `assist_amount` is the
+        // number of generic mana they pay.
+        "cast_spell_assist" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let assist_pid = assist_player_name.and_then(|name| players.get(name).copied());
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: assist_pid,
+                assist_amount,
             })
         }
 

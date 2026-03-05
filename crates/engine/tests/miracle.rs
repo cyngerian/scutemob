@@ -485,6 +485,11 @@ fn test_miracle_cast_for_miracle_cost() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     )
     .unwrap();
@@ -587,6 +592,11 @@ fn test_miracle_sorcery_ignores_timing() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
 
@@ -770,6 +780,9 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_plotted: false,
         was_prototyped: false,
         was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -794,6 +807,11 @@ fn test_miracle_cannot_combine_with_flashback() {
             retrace_discard_land: None,
             jump_start_discard: None,
             prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
         },
     );
     assert!(

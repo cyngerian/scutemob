@@ -532,6 +532,21 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Prototype => 98u8.hash_into(hasher),
             // Impending (discriminant 99) -- CR 702.176
             KeywordAbility::Impending => 99u8.hash_into(hasher),
+            // Bargain (discriminant 100) -- CR 702.166
+            KeywordAbility::Bargain => 100u8.hash_into(hasher),
+            // Emerge (discriminant 101) -- CR 702.119
+            KeywordAbility::Emerge => 101u8.hash_into(hasher),
+            // Spectacle (discriminant 102) -- CR 702.137
+            KeywordAbility::Spectacle => 102u8.hash_into(hasher),
+            // Surge (discriminant 103) -- CR 702.117
+            KeywordAbility::Surge => 103u8.hash_into(hasher),
+            // Casualty (discriminant 104) -- CR 702.153
+            KeywordAbility::Casualty(n) => {
+                104u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Assist (discriminant 105) -- CR 702.132
+            KeywordAbility::Assist => 105u8.hash_into(hasher),
         }
     }
 }
@@ -708,6 +723,10 @@ impl HashInto for GameObject {
         self.plotted_turn.hash_into(hasher);
         // Prototype (CR 718.3b) — whether this permanent was cast prototyped
         self.is_prototyped.hash_into(hasher);
+        // Bargain (CR 702.166b) — permanent was cast with bargain cost paid
+        self.was_bargained.hash_into(hasher);
+        // Note: Surge's "was_surged" is tracked via cast_alt_cost == Some(AltCostKind::Surge),
+        // which is already hashed as part of cast_alt_cost above.
     }
 }
 
@@ -733,6 +752,8 @@ impl HashInto for PlayerState {
         // M9.4: spells_cast_this_turn (CR 702.40a)
         self.spells_cast_this_turn.hash_into(hasher);
         self.has_citys_blessing.hash_into(hasher);
+        // CR 702.137a: per-turn life-loss counter for Spectacle eligibility.
+        self.life_lost_this_turn.hash_into(hasher);
     }
 }
 
@@ -1584,6 +1605,15 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 impending_permanent.hash_into(hasher);
             }
+            // CasualtyTrigger (discriminant 34) -- CR 702.153a
+            StackObjectKind::CasualtyTrigger {
+                source_object,
+                original_stack_id,
+            } => {
+                34u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -1655,6 +1685,12 @@ impl HashInto for StackObject {
         self.was_prototyped.hash_into(hasher);
         // Impending (CR 702.176a) — alternative cost paid; enters with time counters
         self.was_impended.hash_into(hasher);
+        // Bargain (CR 702.166b) — spell was cast with bargain cost paid
+        self.was_bargained.hash_into(hasher);
+        // Surge (CR 702.117a) — spell was cast by paying its surge cost
+        self.was_surged.hash_into(hasher);
+        // Casualty (CR 702.153a) — spell was cast with casualty cost paid
+        self.was_casualty_paid.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -2725,6 +2761,8 @@ impl HashInto for Condition {
             }
             // Overload condition (discriminant 9) — CR 702.96a
             Condition::WasOverloaded => 9u8.hash_into(hasher),
+            // Bargain condition (discriminant 10) — CR 702.166b
+            Condition::WasBargained => 10u8.hash_into(hasher),
         }
     }
 }
@@ -3222,6 +3260,21 @@ impl HashInto for AbilityDefinition {
                 32u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            // Emerge (discriminant 33) -- CR 702.119
+            AbilityDefinition::Emerge { cost } => {
+                33u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Spectacle (discriminant 34) -- CR 702.137
+            AbilityDefinition::Spectacle { cost } => {
+                34u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Surge (discriminant 35) -- CR 702.117
+            AbilityDefinition::Surge { cost } => {
+                35u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

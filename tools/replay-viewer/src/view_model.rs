@@ -518,8 +518,12 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::BlitzSacrificeTrigger { source_object } => {
             ("blitz_sacrifice_trigger", Some(*source_object))
         }
-        StackObjectKind::ImpendingCounterTrigger { impending_permanent, .. } => {
-            ("impending_counter_trigger", Some(*impending_permanent))
+        StackObjectKind::ImpendingCounterTrigger {
+            impending_permanent,
+            ..
+        } => ("impending_counter_trigger", Some(*impending_permanent)),
+        StackObjectKind::CasualtyTrigger { source_object, .. } => {
+            ("casualty_trigger", Some(*source_object))
         }
     }
 }
@@ -757,5 +761,11 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Plot => "Plot".to_string(),
         KeywordAbility::Prototype => "Prototype".to_string(),
         KeywordAbility::Impending => "Impending".to_string(),
+        KeywordAbility::Bargain => "Bargain".to_string(),
+        KeywordAbility::Emerge => "Emerge".to_string(),
+        KeywordAbility::Spectacle => "Spectacle".to_string(),
+        KeywordAbility::Surge => "Surge".to_string(),
+        KeywordAbility::Casualty(n) => format!("Casualty {}", n),
+        KeywordAbility::Assist => "Assist".to_string(),
     }
 }

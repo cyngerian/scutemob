@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_138",
+    "name": "Emerge — Elder Deep-Fiend cast by sacrificing Scroll Thief (MV 3)",
+    "description": "P1 casts Elder Deep-Fiend ({8}, Emerge {5}{U}{U}) using the Emerge alternative cost (CR 702.119a), sacrificing Scroll Thief ({2}{U}, MV 3) to reduce the Emerge cost by 3. The reduced cost is {5}{U}{U} minus 3 generic = {2}{U}{U}. CR 702.119b: the total cost is reduced by the sacrificed creature's mana value. The sacrifice occurs at cost-payment time (CR 601.2f-h) — Scroll Thief moves to p1's graveyard before Elder Deep-Fiend goes on the stack. Both players pass priority; Elder Deep-Fiend resolves and enters the battlefield as a 5/6 Eldrazi Octopus under p1's control. The cast trigger ('tap up to four target permanents') is stubbed in the card def (TODO: WhenCast trigger not yet implemented) and therefore does not fire. Script confirms: sacrifice at cast time, cost reduction, ETB into correct zone, stack empty after resolution.",
+    "cr_sections_tested": [
+      "702.119a",
+      "702.119b",
+      "118.9",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "emerge",
+      "alternative-cost",
+      "cost-reduction",
+      "sacrifice",
+      "eldrazi",
+      "enter-battlefield"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Elder Deep-Fiend card def (crates/engine/src/cards/defs/elder_deep_fiend.rs): mana_cost {8} (generic: 8), Emerge {5}{U}{U} (AbilityDefinition::Emerge { cost: ManaCost { generic: 5, blue: 2 } }), Flash (KeywordAbility::Flash), cast trigger stubbed as TODO. Power 5, Toughness 6.\n\nEmerge (CR 702.119a): alternative cost — you may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value. CR 702.119b: the cost reduction equals the sacrificed creature's mana value (not converted mana cost of a noncreature — it's the same thing for creatures).\n\nCost calculation: emerge cost = {5}{U}{U}. Scroll Thief MV = 3 ({2}{U}). Reduced cost = {5}{U}{U} - 3 generic = {2}{U}{U}. mana_paid in script = { colorless: 2, blue: 2 }.\n\nCost payment (CR 601.2f-h): sacrificing Scroll Thief is part of paying the emerge alternative cost. The engine executes this at casting.rs:1957-1965 — move_object_to_zone(sac_id, Graveyard(owner)) before the spell object is placed on the stack. Therefore AFTER the cast action, Scroll Thief is in the graveyard and the stack has 1 object (Elder Deep-Fiend).\n\nHarness action 'cast_spell_emerge': handled in replay_harness.rs:1007-1028. Sets alt_cost: Some(AltCostKind::Emerge), emerge_sacrifice: Some(emerge_sac_id). The 'emerge_sacrifice' JSON field (script_schema.rs:291) is the creature name on the battlefield.\n\nFlash (CR 702.8a): Elder Deep-Fiend has Flash, so it can be cast at any time an instant could be cast. In this script p1 casts during precombat_main phase — Flash is not exercised as a special case here (casting during main phase is also legal for Flash creatures), but it's noted in the card definition.\n\nCast trigger (tap up to four permanents): stubbed in card def with a TODO comment. The trigger condition WhenCast and multi-target tap effect are not yet implemented. Script does NOT include this tap action and does NOT assert any tapping. See disputes entry.\n\nWhy Scroll Thief as sacrifice: MV=3 gives a clean reduction from {5}{U}{U} to {2}{U}{U}, matching the scenario specification. Scroll Thief is a registered CardDefinition (crates/engine/src/cards/defs/scroll_thief.rs) with mana_cost { generic:2, blue:1 }, so enrich_spec_from_def populates it correctly and find_on_battlefield resolves it by name match.\n\nScenario: turn 4 (flavor — p1 has been ramping), active player p1, precombat_main phase. p1 has {2}{U}{U} in mana pool (colorless:2, blue:2). Scroll Thief on p1 battlefield, Elder Deep-Fiend in p1 hand.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Elder Deep-Fiend's cast trigger ('When you cast this spell, tap up to four target permanents') is not implemented in the card def (TODO comment at elder_deep_fiend.rs:23-26). The trigger requires TriggerCondition::WhenCast (self-cast trigger) and a multi-target tap effect, neither of which exists in the current DSL. Script does not test this trigger. Will need a separate script once WhenCast triggers are implemented.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "blue": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Scroll Thief", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Elder Deep-Fiend", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Elder Deep-Fiend using Emerge, sacrificing Scroll Thief (MV 3) to reduce the cost from {5}{U}{U} to {2}{U}{U}.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Elder Deep-Fiend in p1 hand; Scroll Thief on p1 battlefield; stack empty; both players at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Scroll Thief" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "P1 has {2}{U}{U} in pool (colorless:2, blue:2). Scroll Thief ({2}{U}, MV=3) is available to sacrifice as the Emerge cost. Elder Deep-Fiend ({8}, Emerge {5}{U}{U}) is in hand."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_emerge",
+          "card": "Elder Deep-Fiend",
+          "emerge_sacrifice": "Scroll Thief",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 2 },
+          "mana_source": [],
+          "cr_ref": "702.119a",
+          "note": "CR 702.119a: P1 casts Elder Deep-Fiend using the Emerge alternative cost. CR 702.119b: total cost is {5}{U}{U} reduced by Scroll Thief's MV of 3 = {2}{U}{U}. CR 601.2f-h: Scroll Thief is sacrificed as part of cost payment — it moves to p1's graveyard before Elder Deep-Fiend goes on the stack. CR 118.9: alternative cost replaces the normal mana cost {8}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Elder Deep-Fiend on stack; Scroll Thief in p1 graveyard (sacrificed at cast time); p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": { "includes": [{ "card": "Scroll Thief" }] },
+            "zones.battlefield.p1.count": 0
+          },
+          "note": "CR 601.2f-h: Scroll Thief was sacrificed as part of the Emerge cost payment — it is in p1's graveyard before the spell lands on the stack. Elder Deep-Fiend is on the stack. P1's battlefield is empty."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack (Elder Deep-Fiend) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Elder Deep-Fiend",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Elder Deep-Fiend",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. The cast trigger (tap up to four permanents) is stubbed as TODO in the card def and does not fire."
+            }
+          ],
+          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. No on-cast trigger fires (WhenCast not yet implemented). Stack becomes empty."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Elder Deep-Fiend on p1 battlefield (5/6); Scroll Thief in p1 graveyard; stack empty; both players at 40 life",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Elder Deep-Fiend" }] },
+            "zones.battlefield.p1.count": 1,
+            "zones.graveyard.p1": { "includes": [{ "card": "Scroll Thief" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Elder Deep-Fiend (5/6) is on p1's battlefield. Scroll Thief was consumed as the Emerge cost sacrifice. Life totals unchanged — no combat or damage occurred. Confirms: Emerge alternative cost (CR 702.119a), MV-based cost reduction (CR 702.119b), sacrifice-at-cost-payment (CR 601.2f-h), creature resolution onto battlefield (CR 608.2)."
+        }
+      ]
+    }
+  ]
+}

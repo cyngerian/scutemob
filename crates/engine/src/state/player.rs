@@ -121,4 +121,12 @@ pub struct PlayerState {
     /// keep it for the rest of the game (never removed). Set by Ascend checks.
     #[serde(default)]
     pub has_citys_blessing: bool,
+    /// Amount of life this player has lost this turn (CR 702.137a, CR 118.4).
+    ///
+    /// Incremented whenever this player's life total decreases due to damage
+    /// or life loss effects. Reset to 0 at the start of each turn in
+    /// `reset_turn_state`. Used by Spectacle to check if an opponent
+    /// lost life this turn.
+    #[serde(default)]
+    pub life_lost_this_turn: u32,
 }

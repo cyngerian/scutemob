@@ -208,6 +208,16 @@ pub fn copy_spell_on_stack(
         // cast with its impending cost, it won't enter with time counters, and it
         // will be a creature."
         was_impended: false,
+        // CR 702.166b: Copies of a bargained spell are also bargained (CR 707.2 —
+        // copies copy choices made during casting). Propagate from original.
+        was_bargained: original.was_bargained,
+        // CR 702.117a: Copies of a surged spell are also considered to have had the
+        // surge cost paid (ruling 2016-01-22 / CR 707.2). Propagate from original.
+        was_surged: original.was_surged,
+        // CR 702.153a: Copies are not cast, so was_casualty_paid is always false.
+        // The casualty cost is an additional cost paid during casting (CR 601.2h).
+        // Copies are created by the trigger and never go through the casting process.
+        was_casualty_paid: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -397,6 +407,12 @@ pub fn resolve_cascade(
                 was_prototyped: false,
                 // CR 702.176a: cascade free-cast spells are not impending casts.
                 was_impended: false,
+                // CR 702.166b: cascade free-cast spells are not bargain casts.
+                was_bargained: false,
+                // CR 702.117a: cascade free-cast spells are not surge casts.
+                was_surged: false,
+                // CR 702.153a: cascade free-cast spells are not casualty casts.
+                was_casualty_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 

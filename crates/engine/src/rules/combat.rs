@@ -1435,6 +1435,8 @@ pub fn apply_combat_damage(state: &mut GameState, first_strike_step: bool) -> Ve
                     // CR 120.3a: normal damage causes life loss.
                     if let Some(player) = state.players.get_mut(player_id) {
                         player.life_total -= final_dmg as i32;
+                        // CR 702.137a: track life lost this turn for Spectacle.
+                        player.life_lost_this_turn += final_dmg;
                     }
                 }
                 // CR 702.164c / CR 120.3g: Toxic -- give poison counters equal to the

@@ -744,11 +744,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             if obj.zone != ZoneId::Battlefield {
                 return false;
             }
-            if !obj
-                .characteristics
-                .subtypes
-                .contains(&subtype_aura)
-            {
+            if !obj.characteristics.subtypes.contains(&subtype_aura) {
                 return false;
             }
             // CR 303.4d: An Aura that's also a creature can't enchant anything.
@@ -845,9 +841,7 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
             obj.attached_to = None;
             obj.is_bestowed = false;
             // Remove Aura subtype and enchant creature keyword.
-            obj.characteristics
-                .subtypes
-                .remove(&subtype_aura);
+            obj.characteristics.subtypes.remove(&subtype_aura);
             obj.characteristics
                 .keywords
                 .remove(&KeywordAbility::Enchant(EnchantTarget::Creature));

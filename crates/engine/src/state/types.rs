@@ -110,6 +110,14 @@ pub enum AltCostKind {
     Blitz,
     Plot,
     Impending,
+    /// CR 702.119a: Emerge alternative cost — pay [emerge cost] and sacrifice a creature.
+    Emerge,
+    /// CR 702.137a: Spectacle alternative cost — pay spectacle cost instead of mana cost
+    /// if an opponent lost life this turn.
+    Spectacle,
+    /// CR 702.117a: Surge alternative cost -- pay surge cost instead of mana cost
+    /// if you or a teammate has cast another spell this turn.
+    Surge,
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -888,6 +896,59 @@ pub enum KeywordAbility {
     /// The impending cost and counter count are stored in
     /// `AbilityDefinition::Impending { cost, count }`.
     Impending,
+    /// CR 702.166: Bargain -- optional additional cost: sacrifice an artifact,
+    /// enchantment, or token.
+    ///
+    /// "As an additional cost to cast this spell, you may sacrifice an artifact,
+    /// enchantment, or token."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// No `AbilityDefinition::Bargain` needed -- bargain has no per-card cost
+    /// to store. The sacrifice target is provided via `CastSpell.bargain_sacrifice`.
+    ///
+    /// Cards check "if this spell was bargained" via `Condition::WasBargained`.
+    /// CR 702.166c: Multiple instances are redundant.
+    Bargain,
+    /// CR 702.119: Emerge [cost] -- alternative cost: pay [cost] and sacrifice a creature.
+    /// The total cost is reduced by the sacrificed creature's mana value.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The emerge cost is stored in `AbilityDefinition::Emerge { cost }`.
+    /// The sacrifice target is provided via `CastSpell.emerge_sacrifice`.
+    Emerge,
+    /// CR 702.137a: Spectacle [cost] -- alternative cost if an opponent lost life this turn.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The spectacle cost is stored in `AbilityDefinition::Spectacle { cost }`.
+    Spectacle,
+    /// CR 702.117a: Surge [cost] -- alternative cost if you or a teammate cast another spell this turn.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The surge cost is stored in `AbilityDefinition::Surge { cost }`.
+    Surge,
+    /// CR 702.153a: Casualty N -- optional additional cost: sacrifice a creature with power N or
+    /// greater. If paid, when you cast this spell, copy it.
+    ///
+    /// "As an additional cost to cast this spell, you may sacrifice a creature with power N or
+    /// greater." and "When you cast this spell, if a casualty cost was paid for it, copy it."
+    ///
+    /// The `u32` value is N (the minimum power of the sacrificed creature).
+    /// The sacrifice target is provided via `CastSpell.casualty_sacrifice`.
+    ///
+    /// CR 702.153b: Multiple instances are each paid separately.
+    Casualty(u32),
+    /// CR 702.132: Assist -- another player may pay generic mana in the spell's total cost.
+    /// "If the total cost to cast a spell with assist includes a generic mana component,
+    /// before you activate mana abilities while casting it, you may choose another player.
+    /// [...] the player you chose may pay for any amount of the generic mana in the spell's
+    /// total cost."
+    ///
+    /// Static ability. Marker for quick presence-checking (`keywords.contains`).
+    /// No `AbilityDefinition::Assist` needed -- assist has no per-card data to store.
+    /// The assisting player and amount are provided via `CastSpell.assist_player` and
+    /// `CastSpell.assist_amount`.
+    /// CR 702.132a: Multiple instances are redundant.
+    Assist,
 }
 
 /// All creature subtypes from CR 205.3m.

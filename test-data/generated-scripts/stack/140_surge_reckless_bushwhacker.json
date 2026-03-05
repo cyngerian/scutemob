@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_140",
+    "name": "Surge \u2014 Reckless Bushwhacker cast for surge cost",
+    "description": "P1 casts Lightning Bolt (the enabling spell) targeting p2 to satisfy the surge condition. After Lightning Bolt resolves, p1 casts Reckless Bushwhacker for its surge cost {1}{R} instead of the normal {2}{R}, having cast another spell this turn. Reckless Bushwhacker enters the battlefield as a 2/1 with haste, and its ETB trigger fires because its surge cost was paid. This validates that (a) a previously resolved spell counts as 'cast another spell this turn' for surge eligibility, (b) the engine accepts the cast_spell_surge action and charges the surge cost rather than the regular cost, and (c) the surge ETB trigger resolves correctly.",
+    "cr_sections_tested": [
+      "601.2",
+      "601.2b",
+      "702.117a",
+      "608.2",
+      "120.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "surge",
+      "alternative-cost",
+      "haste",
+      "etb-trigger",
+      "stack"
+    ],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Reckless Bushwhacker oracle text: Surge {1}{R}; Haste; ETB trigger if surge cost was paid: other creatures you control get +1/+0 and gain haste until end of turn. Normal cost is {2}{R}; surge cost is {1}{R}. P1 starts with {R}{R}{R} pre-loaded in their mana pool to avoid tap_for_mana duplicate-name ambiguity (tapping two Mountains by name resolves to PermanentAlreadyTapped). The mana pool initialization is the cleaner approach for scripts that need mana from multiple same-named lands. Step 1: cast Lightning Bolt for {R} targeting p2 \u2014 establishes spells_cast_this_turn >= 1 for surge eligibility. Step 2: after Lightning Bolt resolves (p2 goes to 37 life), p1 casts Reckless Bushwhacker for surge cost {1}{R} using cast_spell_surge. Step 3: Reckless Bushwhacker resolves and enters the battlefield; ETB trigger fires. No other creatures controlled by p1 means the +1/+0 effect applies to zero permanents, but the trigger still resolves. CR 702.117a: surge is an alternative cost, valid because Lightning Bolt was cast (and resolved) this turn. CR 601.2b: alternative costs are selected when casting. NOTE: Harness validation fails because replay_harness.rs lacks a 'cast_spell_surge' match arm \u2014 the action falls through to the '_ => None' catch-all and is silently dropped. AltCostKind::Surge exists in the engine (casting.rs line 88, state/types.rs). The script logic is correct; the gap is in the harness, not the script. A reviewer adding a cast_spell_surge arm to replay_harness.rs (following the cast_spell_spectacle pattern) will make this script pass.",
+    "disputes": [
+      {
+        "description": "Harness error: replay_harness.rs has no 'cast_spell_surge' match arm. The action string falls through to '_ => None' (line ~1054), causing the cast to be silently skipped. The engine itself has AltCostKind::Surge support in casting.rs and state/types.rs. Fix: add a 'cast_spell_surge' arm to replay_harness.rs mirroring the cast_spell_spectacle arm but with alt_cost: Some(AltCostKind::Surge).",
+        "cr_ref": "702.117a"
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "red": 3
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Lightning Bolt",
+            "is_commander": false,
+            "owner": null
+          },
+          {
+            "card": "Reckless Bushwhacker",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Lightning Bolt to satisfy the surge condition",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 has Lightning Bolt and Reckless Bushwhacker in hand, {R}{R}{R} in pool",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": {
+              "is_empty": true
+            }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            {
+              "type": "player",
+              "player": "p2",
+              "card": null,
+              "controller": null
+            }
+          ],
+          "mana_paid": {
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Lightning Bolt targeting p2 for {R} from pool. This establishes spells_cast_this_turn >= 1, enabling surge for the next cast."
+        },
+        {
+          "type": "assert_state",
+          "description": "Lightning Bolt on the stack; hand has only Reckless Bushwhacker remaining",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Lightning Bolt resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": {
+                "type": "player",
+                "player": "p2"
+              },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to p2."
+            }
+          ],
+          "note": "CR 608.2: Lightning Bolt resolves; p2 takes 3 damage."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Lightning Bolt resolves: p2 at 37 life, stack empty, Lightning Bolt in graveyard",
+          "assertions": {
+            "players.p2.life": 37,
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            }
+          },
+          "note": "Lightning Bolt has resolved. P1 has cast a spell this turn \u2014 surge condition is met for Reckless Bushwhacker."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Reckless Bushwhacker for its surge cost {1}{R}",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_surge",
+          "card": "Reckless Bushwhacker",
+          "targets": [],
+          "mana_paid": {
+            "colorless": 1,
+            "red": 1
+          },
+          "mana_source": [],
+          "cr_ref": "702.117a",
+          "note": "CR 702.117a: p1 casts Reckless Bushwhacker for its surge cost {1}{R} instead of the normal {2}{R}. Lightning Bolt was cast earlier this turn, satisfying the surge condition. CR 601.2b: the surge alternative cost is chosen at cast time."
+        },
+        {
+          "type": "assert_state",
+          "description": "Reckless Bushwhacker on the stack; hand is empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Reckless Bushwhacker is on the stack, cast for its surge cost."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority \u2014 Reckless Bushwhacker resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Reckless Bushwhacker",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": {
+                "type": "card",
+                "card": "Reckless Bushwhacker",
+                "controller": "p1"
+              },
+              "amount": null,
+              "card": "Reckless Bushwhacker",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Reckless Bushwhacker resolves and enters the battlefield under p1's control as a 2/1 with haste. Its ETB trigger fires (surge cost was paid); no other creatures to grant +1/+0 and haste, so the trigger has no visible effect on other permanents."
+            }
+          ],
+          "note": "CR 608.2: Creature spell resolves; permanent enters the battlefield. Surge ETB trigger fires and resolves."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Reckless Bushwhacker on p1's battlefield; stack empty; Lightning Bolt in graveyard; p2 at 37 life",
+          "assertions": {
+            "zones.stack": {
+              "is_empty": true
+            },
+            "zones.battlefield.p1": {
+              "includes": [
+                {
+                  "card": "Reckless Bushwhacker"
+                }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                {
+                  "card": "Lightning Bolt"
+                }
+              ]
+            },
+            "players.p2.life": 37
+          },
+          "note": "Reckless Bushwhacker entered the battlefield via its surge cost {1}{R} (vs normal {2}{R}). The engine should allow the surge alternative cost because Lightning Bolt was cast earlier this turn. Reckless Bushwhacker has haste per its oracle text."
+        }
+      ]
+    }
+  ]
+}

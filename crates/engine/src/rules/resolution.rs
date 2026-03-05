@@ -205,6 +205,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 stack_obj.kicker_times_paid,
                             );
                             ctx.was_overloaded = stack_obj.was_overloaded;
+                            // CR 702.166b: Pass bargained status so Condition::WasBargained works.
+                            ctx.was_bargained = stack_obj.was_bargained;
                             let effect_events = execute_effect(state, &effect, &mut ctx);
                             events.extend(effect_events);
                         }
@@ -276,6 +278,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
                     obj.kicker_times_paid = stack_obj.kicker_times_paid;
+                    // CR 702.166b: Transfer bargained status from stack to permanent so ETB
+                    // triggers can check Condition::WasBargained.
+                    obj.was_bargained = stack_obj.was_bargained;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -291,6 +296,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         Some(AltCostKind::Blitz)
                     } else if stack_obj.was_impended {
                         Some(AltCostKind::Impending)
+                    } else if stack_obj.was_surged {
+                        // CR 702.117a: Transfer surge status to permanent for "if surge cost was paid" effects.
+                        Some(AltCostKind::Surge)
                     } else {
                         None
                     };
@@ -776,6 +784,41 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 storm_count,
             );
             events.extend(copy_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.153a: Casualty trigger resolves — create one copy of the original spell.
+        //
+        // "When you cast this spell, if a casualty cost was paid for it, copy it."
+        // The copy is NOT cast (ruling 2022-04-29 / CR 707.10) — it does not trigger
+        // "whenever you cast a spell" abilities.
+        //
+        // The copy is pushed onto the stack above the original and resolves first (LIFO).
+        // If the original spell is no longer on the stack at resolution time (was countered,
+        // etc.), `copy_spell_on_stack` returns Err and no copy is created (graceful no-op).
+        StackObjectKind::CasualtyTrigger {
+            source_object: _,
+            original_stack_id,
+        } => {
+            let controller = stack_obj.controller;
+            match crate::rules::copy::copy_spell_on_stack(
+                state,
+                original_stack_id,
+                controller,
+                false,
+            ) {
+                Ok((_, copy_evt)) => {
+                    events.push(copy_evt);
+                }
+                Err(_) => {
+                    // Original spell is no longer on the stack (e.g., was countered).
+                    // The trigger does nothing (CR 400.7 — the original is a dead object).
+                }
+            }
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -1539,6 +1582,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
+                    was_bargained: false,
                 };
 
                 // Add the token to the battlefield.
@@ -1751,6 +1795,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_prototyped: false,
                             // CR 702.176a: suspend casts are not impending casts.
                             was_impended: false,
+                            // CR 702.166b: suspend casts are not bargain casts.
+                            was_bargained: false,
+                            // CR 702.117a: suspend casts are not surge casts.
+                            was_surged: false,
+                            // CR 702.153a: suspend casts are not casualty casts.
+                            was_casualty_paid: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -2619,6 +2669,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
+                    was_bargained: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2803,6 +2854,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_plotted: false,
                     plotted_turn: 0,
                     is_prototyped: false,
+                    was_bargained: false,
                 };
 
                 // Add the token to the battlefield.
@@ -3006,6 +3058,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_plotted: false,
                         plotted_turn: 0,
                         is_prototyped: false,
+                        was_bargained: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3304,7 +3357,8 @@ pub fn counter_stack_object(
         | StackObjectKind::EncoreSacrificeTrigger { .. }
         | StackObjectKind::DashReturnTrigger { .. }
         | StackObjectKind::BlitzSacrificeTrigger { .. }
-        | StackObjectKind::ImpendingCounterTrigger { .. } => {
+        | StackObjectKind::ImpendingCounterTrigger { .. }
+        | StackObjectKind::CasualtyTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
@@ -3314,6 +3368,8 @@ pub fn counter_stack_object(
             // with haste and the draw-on-death trigger intact (CR 702.152a).
             // Note: For ImpendingCounterTrigger, if countered (e.g. by Stifle), the
             // permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
+            // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
+            // spell stays on the stack but no copy is made (CR 702.153a).
         }
     }
 

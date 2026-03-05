@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_142",
+    "name": "Assist — Huddle Up with p2 paying {2} of the generic cost",
+    "description": "Tests the Assist mechanic (CR 702.132a). P1 holds Huddle Up ({2}{U} Sorcery, Assist), but has only {U} in their mana pool — not enough to cast it alone. P2 has {2} colorless in their mana pool and agrees to pay the {2} generic portion. P1 pays {U} for the colored pip. Assist is not an alternative cost; p1 still pays all non-generic portions and any generic remainder. Huddle Up targets both p1 and p2 as the two target players, and each draws a card upon resolution. The script asserts that both players' hand counts increase by 1 after resolution.",
+    "cr_sections_tested": [
+      "702.132a",
+      "702.132b",
+      "601.2",
+      "608.2",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "assist",
+      "cooperative-cost",
+      "sorcery",
+      "draw",
+      "multi-target"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Huddle Up (crates/engine/src/cards/defs/huddle_up.rs): mana_cost {2}{U} (generic: 2, blue: 1), Sorcery, Assist. Oracle effect: Effect::Sequence([DrawCards { player: DeclaredTarget{0}, count: Fixed(1) }, DrawCards { player: DeclaredTarget{1}, count: Fixed(1) }]). Targets: [TargetPlayer, TargetPlayer].\n\nAssist (CR 702.132a): Another player may pay up to the generic portion of the spell's mana cost. The caster still pays all colored pips and any unpaid generic mana. Assist is NOT an alternative cost (CR 702.132b) — the spell's total mana cost is unchanged; only who pays part of the generic portion shifts.\n\nMana split: Huddle Up total cost = {2}{U}. P2 (assist player) pays {2} colorless (the full generic portion). P1 pays {U} (the colored pip). Total paid = {2}{U} = the full mana cost. CR 702.132a: assist_amount=2 satisfies the full generic cost so p1 pays nothing generic.\n\nSchema fields: action='cast_spell_assist', assist_player='p2', assist_amount=2. mana_paid reflects p1's contribution only: {blue: 1}. P2's mana pool starts with {colorless: 2}.\n\nTargets: p1 and p2 are both TargetPlayer targets (indices 0 and 1). Effect draws one card for each. Both players need cards in their libraries — each library has one card so the draws succeed.\n\nHand count math: p1 starts with Huddle Up in hand (count=1). After casting, hand count=0. After resolution, DeclaredTarget{0}=p1 draws 1, DeclaredTarget{1}=p2 draws 1. p1 hand count: 0+1=1. p2 hand count: 0+1=1.\n\nAssert design: assert initial state (p1 hand=1, p2 hand=0, stack empty), assert post-cast (stack=1, p1 hand=0), assert post-resolution (stack empty, p1 hand=1, p2 hand=1).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Huddle Up", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Huddle Up with Assist; p2 pays {2} of the generic cost; p1 pays {U}. Both players draw a card on resolution.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Huddle Up in p1 hand; p1 mana pool {U}; p2 mana pool {2} colorless; both players at 40 life; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "P1 has only {U} — insufficient to cast Huddle Up ({2}{U}) alone. P2 has {2} colorless available to contribute via Assist (CR 702.132a)."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_assist",
+          "card": "Huddle Up",
+          "targets": [
+            { "type": "player", "player": "p1", "card": null, "controller": null },
+            { "type": "player", "player": "p2", "card": null, "controller": null }
+          ],
+          "mana_paid": { "blue": 1 },
+          "mana_source": [],
+          "assist_player": "p2",
+          "assist_amount": 2,
+          "cr_ref": "702.132a",
+          "note": "CR 702.132a: p1 casts Huddle Up ({2}{U}) using Assist. p2 (the assist player) pays {2} of the generic mana cost from their mana pool. p1 pays {U} (the colored pip). Total paid: {2}{U} = full mana cost. CR 601.2: Huddle Up is placed on the stack. Both players are declared as target players (indices 0 and 1)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Huddle Up on the stack; p1 hand empty; stack count 1",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Huddle Up moved from p1's hand to the stack. P1's hand is now empty. The assist cost was split: p2 paid {2} generic, p1 paid {U}."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — the top of stack (Huddle Up) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Huddle Up",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Huddle Up resolves. Effect::Sequence step 1: DeclaredTarget{0} (p1) draws 1 card."
+            },
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Effect::Sequence step 2: DeclaredTarget{1} (p2) draws 1 card."
+            }
+          ],
+          "note": "CR 608.2: Huddle Up resolves. Both target players draw a card. Spell moves to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: both players drew a card; stack empty; Huddle Up in p1 graveyard",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Huddle Up" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "P1 drew Forest from their library (hand: 0 + 1 = 1). P2 drew Island from their library (hand: 0 + 1 = 1). Huddle Up resolved and went to p1's graveyard (CR 701.5a does not apply — spell resolved normally). Life totals unchanged. CR 702.132a: Assist did not alter the spell's effect, only the payment."
+        }
+      ]
+    }
+  ]
+}

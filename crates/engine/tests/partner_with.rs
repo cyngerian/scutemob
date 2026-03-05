@@ -118,6 +118,9 @@ fn make_partner_with_trigger_stack_obj(
         was_plotted: false,
         was_prototyped: false,
         was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
     }
 }
 

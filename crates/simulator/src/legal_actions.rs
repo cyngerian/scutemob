@@ -55,6 +55,12 @@ pub trait LegalActionProvider: Send + Sync {
 /// Basic legal action enumeration — enough to play games, but misses
 /// edge cases (flashback, escape, foretell, activated abilities on
 /// permanents, etc.) that the full engine implementation will catch.
+///
+/// **B6 update (2026-03-05)**: Batch 6 alt-cost keywords (Bargain, Emerge, Spectacle,
+/// Surge, Casualty, Assist) are fully implemented in the engine. The random_bot passes
+/// `alt_cost: None` and `bargain_sacrifice/emerge_sacrifice/etc: None` — it never
+/// attempts alt-cost casts. Full behavioral support (bot deciding to use alt costs based
+/// on game state) is a W2 TUI task; see `docs/workstream-coordination.md` Phase 2.
 pub struct StubProvider;
 
 impl LegalActionProvider for StubProvider {

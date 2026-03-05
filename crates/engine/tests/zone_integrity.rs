@@ -204,6 +204,7 @@ fn test_add_object_to_state() {
         is_plotted: false,
         plotted_turn: 0,
         is_prototyped: false,
+        was_bargained: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

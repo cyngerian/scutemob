@@ -67,6 +67,10 @@ pub struct EffectContext {
     /// Used by `Condition::WasOverloaded`. Set from `StackObject.was_overloaded`
     /// at spell resolution.
     pub was_overloaded: bool,
+    /// CR 702.166b: If true, this spell was cast with its bargain cost paid.
+    /// Used by `Condition::WasBargained`. Set from `StackObject.was_bargained`
+    /// at spell resolution.
+    pub was_bargained: bool,
 }
 
 impl EffectContext {
@@ -79,6 +83,7 @@ impl EffectContext {
             target_remaps: HashMap::new(),
             kicker_times_paid: 0,
             was_overloaded: false,
+            was_bargained: false,
         }
     }
 
@@ -96,6 +101,7 @@ impl EffectContext {
             target_remaps: HashMap::new(),
             kicker_times_paid,
             was_overloaded: false,
+            was_bargained: false,
         }
     }
 
@@ -184,6 +190,8 @@ fn execute_effect_inner(
                                 // CR 120.3a: normal damage causes life loss.
                                 if let Some(player) = state.players.get_mut(&p) {
                                     player.life_total -= final_dmg as i32;
+                                    // CR 702.137a: track life lost this turn for Spectacle.
+                                    player.life_lost_this_turn += final_dmg;
                                 }
                                 events.push(GameEvent::DamageDealt {
                                     source: ctx.source,
@@ -326,6 +334,8 @@ fn execute_effect_inner(
             for p in players {
                 if let Some(ps) = state.players.get_mut(&p) {
                     ps.life_total -= loss as i32;
+                    // CR 702.137a: track life lost this turn for Spectacle.
+                    ps.life_lost_this_turn += loss;
                 }
                 events.push(GameEvent::LifeLost {
                     player: p,
@@ -356,6 +366,8 @@ fn execute_effect_inner(
                     // Actual loss = pre-loss total minus post-loss total, clamped to >=0.
                     let actual = (before - ps.life_total).max(0) as u32;
                     total_lost += actual;
+                    // CR 702.137a: track life lost this turn for Spectacle.
+                    ps.life_lost_this_turn += actual;
                 }
                 events.push(GameEvent::LifeLost {
                     player: p,
@@ -1342,6 +1354,7 @@ fn execute_effect_inner(
                             target_remaps: HashMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
+                            was_bargained: ctx.was_bargained,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1360,6 +1373,7 @@ fn execute_effect_inner(
                             target_remaps: HashMap::new(),
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
+                            was_bargained: ctx.was_bargained,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2468,6 +2482,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_plotted: false,
         plotted_turn: 0,
         is_prototyped: false,
+        was_bargained: false,
     }
 }
 
@@ -2764,6 +2779,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
         Condition::WasKicked => ctx.kicker_times_paid > 0,
         // CR 702.96a: "if this spell's overload cost was paid" — true when overloaded.
         Condition::WasOverloaded => ctx.was_overloaded,
+        // CR 702.166b: "if this spell was bargained" — true when bargain cost was paid.
+        Condition::WasBargained => ctx.was_bargained,
     }
 }
 

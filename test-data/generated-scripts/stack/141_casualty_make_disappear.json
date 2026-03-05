@@ -1,0 +1,200 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_141",
+    "name": "Casualty — Make Disappear with Llanowar Elves sacrifice",
+    "description": "Tests the Casualty mechanic (CR 702.153) end-to-end. P1 has Llanowar Elves (1/1) on the battlefield and Make Disappear ({1}{U}) in hand. P1 casts Make Disappear using the 'cast_spell_casualty' action, sacrificing Llanowar Elves (power 1 >= Casualty 1 threshold) as the optional additional cost (CR 702.153a). At cast time: (1) Llanowar Elves is moved to p1's graveyard as part of cost payment (CR 601.2h), (2) Make Disappear is placed on the stack, (3) a CasualtyTrigger is immediately placed on top of the stack above the original spell. Stack state: [Make Disappear (bottom), CasualtyTrigger (top)]. Both players pass priority — the CasualtyTrigger resolves, creating a copy of Make Disappear on the stack (CR 702.153b, CR 707.10). Stack state: [Make Disappear (bottom), Make Disappear copy (top)]. Both players pass priority — the copy resolves first (LIFO, CR 405.5). The copy has no implemented effect (counter-unless-pays is stubbed in this card definition). Both players pass again — the original Make Disappear resolves (also stubbed). Final state: stack empty, Llanowar Elves in p1 graveyard, Make Disappear in p1 graveyard.",
+    "cr_sections_tested": [
+      "702.153a",
+      "702.153b",
+      "601.2",
+      "601.2h",
+      "116.3",
+      "405.5",
+      "608.2",
+      "603.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "casualty",
+      "additional-cost",
+      "copy-spell",
+      "trigger",
+      "lifo",
+      "stack",
+      "instant"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Make Disappear (crates/engine/src/cards/defs/make_disappear.rs): mana_cost {1}{U} (generic:1, blue:1), Instant. Card definition has only AbilityDefinition::Keyword(KeywordAbility::Casualty(1)) — the counter-unless-{2} effect is not yet in the DSL (stubbed, TODO comment in the def). No SpellAbility with targets is encoded, so the spell can be cast with no targets and resolves doing nothing.\n\nCasualty implementation in casting.rs:2626-2671: When casualty_sacrifice_id.is_some(), a CasualtyTrigger StackObject is pushed onto the stack ABOVE the original spell immediately after the spell is placed on the stack (still in the same cast_spell processing step, not via a separate trigger check). Stack after cast: [Make Disappear (index 0, bottom), CasualtyTrigger (index 1, top)].\n\nCasualtyTrigger resolution in resolution.rs:803-827: Calls copy::copy_spell_on_stack(state, original_stack_id, controller, false) to create a spell copy on the stack. The copy is NOT cast (ruling 2022-04-29 / CR 707.10). Copy is pushed above the original. Stack after trigger resolves: [Make Disappear (bottom), Make Disappear copy (top)].\n\nThe harness action type is 'cast_spell_casualty' (replay_harness.rs:1106-1128). The 'casualty_sacrifice' JSON field is Option<String> in script_schema.rs:297 and is looked up via find_on_battlefield(state, player, name). Llanowar Elves is a valid sacrifice: it is a creature, controlled by p1, and has power 1 >= Casualty threshold of 1 (CR 702.153a).\n\nMana: Make Disappear costs {1}{U}. P1 starts with {colorless:1, blue:1} so both can be paid in one cast. No land plays needed.\n\nWhy no target for Make Disappear: The card's abilities list contains only the Casualty keyword — no AbilityDefinition::Spell with TargetRequirement. The counter-unless effect is completely stubbed. The harness's resolve_targets() call will receive an empty targets array, and the spell resolves without attempting any targeting validation.\n\nStack count assertions: After cast, stack has 2 objects (Make Disappear + CasualtyTrigger). After CasualtyTrigger resolves, stack has 2 objects (Make Disappear + copy). After copy resolves, stack has 1 object (Make Disappear). After original resolves, stack is empty.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Make Disappear", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Make Disappear with casualty, sacrificing Llanowar Elves. CasualtyTrigger is placed on the stack. Both players pass — trigger resolves, creating a copy. Both players pass — copy resolves. Both players pass — original resolves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Make Disappear in p1 hand; Llanowar Elves on p1 battlefield; stack empty; both players at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {1}{U} in pool (colorless:1, blue:1) to pay Make Disappear's mana cost. Llanowar Elves (1/1) is on the battlefield as the casualty sacrifice."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_casualty",
+          "card": "Make Disappear",
+          "casualty_sacrifice": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "colorless": 1, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "702.153a",
+          "note": "CR 702.153a: p1 pays the casualty cost by sacrificing Llanowar Elves (power 1 >= Casualty 1 threshold). Sacrifice happens as part of cost payment (CR 601.2h) before the spell enters the stack. Then Make Disappear is placed on the stack, followed immediately by a CasualtyTrigger above it."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting with casualty: Llanowar Elves in graveyard (sacrificed at cast time); Make Disappear gone from hand; stack has 2 objects (Make Disappear + CasualtyTrigger)",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 0,
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack.count": 2
+          },
+          "note": "CR 601.2h: Llanowar Elves is sacrificed as the casualty additional cost at cast time — it is in p1's graveyard. CR 702.153a + CR 603.3: CasualtyTrigger is on top of Make Disappear on the stack (LIFO: trigger resolves before the spell it was cast with)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack (CasualtyTrigger) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "CasualtyTrigger",
+          "resolution": [
+            {
+              "effect": "copy_spell",
+              "target": { "type": "player", "player": null },
+              "amount": 1,
+              "card": "Make Disappear",
+              "owner": "p1",
+              "cr_ref": "702.153b",
+              "note": "CR 702.153b: CasualtyTrigger resolves — copy_spell_on_stack() copies the original Make Disappear. The copy is placed on the stack above the original. The copy is NOT cast (CR 707.10 / ruling 2022-04-29), so it does not trigger 'whenever you cast a spell' abilities."
+            }
+          ],
+          "note": "CR 608.2: CasualtyTrigger resolves. copy::copy_spell_on_stack() creates a copy of Make Disappear on the stack. Stack now has 2 objects: [Make Disappear (bottom, original), Make Disappear copy (top)]."
+        },
+        {
+          "type": "assert_state",
+          "description": "After CasualtyTrigger resolves: stack has 2 objects (original Make Disappear + copy); Llanowar Elves still in graveyard",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "CR 405.5: LIFO — the copy is on top of the stack and will resolve before the original. Both are Make Disappear instances (the copy has is_copy=true per copy.rs)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack (Make Disappear copy) resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Make Disappear",
+          "resolution": [],
+          "note": "CR 608.2: Make Disappear copy resolves. The counter-unless-{2} effect is stubbed in this card definition (no AbilityDefinition::Spell in the card's abilities list). No game effect is produced. Copy is put into p1's graveyard (copies of spells go to graveyard on resolution, CR 707.10b)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After copy resolves: stack has 1 object (original Make Disappear); Make Disappear copy in graveyard",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "The copy resolved and went to graveyard. Only the original Make Disappear remains on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — original Make Disappear resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Make Disappear",
+          "resolution": [],
+          "note": "CR 608.2: Original Make Disappear resolves. Counter-unless-{2} is stubbed — no game effect. Card moves to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: stack empty; Llanowar Elves in p1 graveyard; Make Disappear in p1 graveyard; both players at 40 life",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Make Disappear" }] },
+            "zones.battlefield.p1.count": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Full casualty sequence complete: sacrifice at cost payment, CasualtyTrigger placed on stack, trigger resolves creating a copy, copy resolves (LIFO, no effect), original resolves (no effect). All per CR 702.153a-b. Life totals unchanged since Make Disappear's counter effect is stubbed."
+        }
+      ]
+    }
+  ]
+}

@@ -389,6 +389,28 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Impending)` for quick
     /// presence-checking without scanning all abilities.
     Impending { cost: ManaCost, count: u32 },
+    /// CR 702.119: Emerge [cost]. The card may be cast by paying this cost and
+    /// sacrificing a creature (alternative cost, CR 118.9). The total cost is
+    /// reduced by the sacrificed creature's mana value.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Emerge)` for quick
+    /// presence-checking without scanning all abilities.
+    Emerge { cost: ManaCost },
+    /// CR 702.137: Spectacle [cost]. The card may be cast by paying this cost
+    /// instead of its mana cost if an opponent lost life this turn.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Spectacle)` for quick
+    /// presence-checking without scanning all abilities.
+    Spectacle { cost: ManaCost },
+    /// CR 702.117: Surge [cost]. The card may be cast by paying this cost
+    /// instead of its mana cost if you or a teammate has cast another spell this turn.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Surge)` for quick
+    /// presence-checking without scanning all abilities.
+    Surge { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -947,6 +969,12 @@ pub enum Condition {
     /// Checked at resolution time. Used in card definitions to branch between
     /// single-target and all-matching-permanents effects (analogous to WasKicked).
     WasOverloaded,
+    /// CR 702.166b: "if this spell was bargained" — true when
+    /// `was_bargained` is set on the EffectContext or StackObject.
+    ///
+    /// Checked at resolution time. Used in card definitions to branch between
+    /// base and enhanced effects (analogous to WasKicked).
+    WasBargained,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

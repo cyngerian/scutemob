@@ -305,6 +305,8 @@ impl GameState {
             is_plotted: false,
             plotted_turn: 0,
             is_prototyped: false,
+            // CR 400.7: bargained status is not preserved across zone changes.
+            was_bargained: false,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
@@ -424,6 +426,8 @@ impl GameState {
             is_plotted: false,
             plotted_turn: 0,
             is_prototyped: false,
+            // CR 400.7: bargained status is not preserved across zone changes.
+            was_bargained: false,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone

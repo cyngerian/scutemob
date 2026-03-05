@@ -161,6 +161,54 @@ pub enum Command {
         /// Validation: card must have `AbilityDefinition::Prototype` in its definition.
         #[serde(default)]
         prototype: bool,
+        /// CR 702.166a: The ObjectId of an artifact, enchantment, or token on the
+        /// battlefield to sacrifice as the bargain additional cost.
+        /// `None` means the player chose not to bargain (bargain is optional).
+        ///
+        /// When `Some`, the identified permanent must be:
+        /// - On the battlefield, controlled by the caster
+        /// - An artifact OR an enchantment OR a token
+        ///
+        /// Validated in `handle_cast_spell`. Ignored for spells without bargain.
+        #[serde(default)]
+        bargain_sacrifice: Option<ObjectId>,
+        /// CR 702.119a: The ObjectId of a creature on the battlefield to sacrifice
+        /// as part of the emerge alternative cost. `None` means not using emerge.
+        ///
+        /// When `Some`, the identified creature must be:
+        /// - On the battlefield, controlled by the caster
+        /// - A creature (by current characteristics)
+        ///
+        /// The spell's total cost is reduced by the sacrificed creature's mana value.
+        /// `alt_cost` must be `Some(AltCostKind::Emerge)` when this is `Some`.
+        #[serde(default)]
+        emerge_sacrifice: Option<ObjectId>,
+        /// CR 702.153a: The ObjectId of a creature on the battlefield to sacrifice
+        /// as the casualty additional cost. `None` means the player chose not to pay
+        /// the casualty cost (casualty is optional).
+        ///
+        /// When `Some`, the identified permanent must be:
+        /// - On the battlefield, controlled by the caster
+        /// - A creature (by current characteristics)
+        /// - Have power >= N (where N is from `KeywordAbility::Casualty(N)`)
+        ///
+        /// Unlike Emerge, Casualty is an additional cost — the normal mana cost is
+        /// still paid. Validated in `handle_cast_spell`.
+        #[serde(default)]
+        casualty_sacrifice: Option<ObjectId>,
+        /// CR 702.132a: The player who assists with the generic mana cost.
+        /// `None` means no assist (either the spell lacks Assist or the caster
+        /// chose not to use it). Must be a non-eliminated player other than
+        /// the caster (CR 702.132a: "another player").
+        #[serde(default)]
+        assist_player: Option<PlayerId>,
+        /// CR 702.132a: The amount of generic mana the assisting player pays.
+        /// Must be <= the generic component of the spell's total cost (after all
+        /// cost modifications: commander tax, kicker, affinity, undaunted, convoke,
+        /// improvise, delve). 0 is valid (no-op assist). Ignored when
+        /// `assist_player` is `None`.
+        #[serde(default)]
+        assist_amount: u32,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///
