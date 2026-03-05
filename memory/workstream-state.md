@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 6: Cost Modification (Bargain, Emerge, Spectacle, Surge, Casualty, Assist) | ACTIVE | 2026-03-03 | Batch 5 complete; starting Batch 6 |
+| W1: Abilities | — | available | — | Batch 6 complete; Batch 7 next (Replicate, Gravestorm, Cleave, Splice, Entwine, Escalate) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -37,6 +37,25 @@
 **Next**: Claim W1-B6. Check docs/ability-batch-plan.md for Batch 6 contents.
 **Hazards**: Discriminant chain: KeywordAbility 95-99, AbilityDefinition 28-32, StackObjectKind 31-33. StackObject still has per-ability was_X fields (was_dashed, was_blitzed etc.) — not consolidated, deferred. Prototype's `prototype: bool` on CastSpell still causes ~85-file update when new Prototype cards added — could use Default+struct-update eventually.
 **Commit prefix used**: `W1-B5:`, `W3:` (structural refactor)
+
+## Last Handoff
+
+**Date**: 2026-03-05 (session end)
+**Workstream**: W1: Abilities — Batch 6
+**Task**: Implement Batch 6: Cost modification (Bargain, Emerge, Spectacle, Surge, Casualty, Assist)
+**Completed**:
+- Bargain (CR 702.166): optional additional cost, bargain_sacrifice+was_bargained chain; Torch the Tower; script 137 — clean review
+- Emerge (CR 702.119): alt cost, sacrifice creature reduces MV, get_emerge_cost()/reduce_cost_by_mv(); Elder Deep-Fiend; script 138 — clean review
+- Spectacle (CR 702.137): alt cost if opponent lost life; new life_lost_this_turn on PlayerState; Skewer the Critics; script 139 — needs-fix (2 MEDIUM fixed: test name, commander tax test)
+- Surge (CR 702.117): alt cost if you cast another spell this turn; Reckless Bushwhacker; script 140 — clean review; cast_spell_surge harness arm added
+- Casualty (CR 702.153): additional cost, StackObjectKind::CasualtyTrigger+copy; Make Disappear; script 141 — clean review
+- Assist (CR 702.132): another player pays generic; assist_player+assist_amount on CastSpell; Huddle Up; script 142 — clean review
+- Batch 6 checkbox checked in workstream-coordination.md
+- LegalActionProvider doc comment updated (full bot behavior = W2 TUI task)
+- Commit: 322bfae W1-B6: Batch 6 complete
+**Next**: Claim W1-B7. Check docs/ability-batch-plan.md for Batch 7 contents (Replicate, Gravestorm, Overload, Cleave, Splice, Entwine*, Escalate*). Note Entwine+Escalate depend on Modal choice (Batch 11).
+**Discriminant chain**: KeywordAbility 100-105 used; AbilityDefinition disc 33-35 used; StackObjectKind 34 used. Next: KW 106, AbilDef 36, SOK 35.
+**Hazards**: Casualty CR number is 702.153 (not 702.154 — that's Enlist); plan files carry correct 702.153.
 
 ## Handoff History
 
