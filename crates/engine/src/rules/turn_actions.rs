@@ -726,6 +726,11 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             p.life_lost_this_turn = 0;
         }
     }
+
+    // CR 702.69a: Global permanents-to-graveyard count resets at the start of each turn.
+    // Unlike spells_cast_this_turn (per-player) or life_lost_this_turn (per-player),
+    // this is a shared global counter on GameState itself.
+    state.permanents_put_into_graveyard_this_turn = 0;
 }
 
 // ---------------------------------------------------------------------------

@@ -452,6 +452,10 @@ fn test_madness_cast_from_exile() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -552,6 +556,10 @@ fn test_madness_sorcery_ignores_timing() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -686,6 +694,10 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -764,6 +776,10 @@ fn test_madness_non_madness_exile_cannot_cast() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -921,6 +937,10 @@ fn test_madness_mana_value_unchanged() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1051,6 +1071,10 @@ fn test_madness_effect_discard_goes_to_exile() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();

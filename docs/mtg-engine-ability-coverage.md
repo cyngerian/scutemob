@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-05 (Assist validated; CR 702.132; KeywordAbility::Assist disc 105; assist_player + assist_amount on CastSpell; casting.rs validation + payment (deducts from assisting player's pool, reduces caster's remaining generic); 11 unit tests in assist.rs; Huddle Up card def; game script stack/142; P4 validated 35->36, total validated 127->128)
+> Last audited: 2026-03-06 (Escalate 702.120 validated; CR corrected 702.121->702.120; P4 validated 41->42, total validated 133->134; script 148; card: Blessed Alliance)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 36        | 0        | 0       | 53   | 12  |
-| **Total**| **200**| **128**  | **2**    | **0**   | **58**| **12** |
+| P4       | 101   | 42        | 0        | 0       | 47   | 12  |
+| **Total**| **200**| **134**  | **2**    | **0**   | **52**| **12** |
 
 ---
 
@@ -150,16 +150,16 @@ Keywords that modify how spells are cast, copied, or resolved.
 | Cascade | 702.85 | P1 | `validated` | `rules/casting.rs`, `rules/copy.rs` | Bloodbraid Elf (etc.) | `stack/` scripts | — | Exile until nonland with lesser MV, cast free |
 | Kicker | 702.33 | P2 | `validated` | `state/types.rs:244`, `cards/card_definition.rs:152-166`, `effects/mod.rs:60-91,1744-1745`, `state/stack.rs:58`, `state/game_object.rs:269`, `rules/command.rs:88`, `rules/casting.rs:169-205,393,549-568`, `rules/resolution.rs:149-156,187`, `testing/script_schema.rs:228-232`, `testing/replay_harness.rs:204,238` | Burst Lightning, Torch Slinger | `stack/065` | — | KeywordAbility::Kicker enum + AbilityDefinition::Kicker { cost, is_multikicker }; Condition::WasKicked; kicker_times_paid on StackObject + GameObject; kicker_times on CastSpell; get_kicker_cost + validation/payment in casting.rs; kicker propagation to EffectContext in resolution.rs; harness kicked:bool support; 10 unit tests in `tests/kicker.rs`; game script pending_review (assertions pass) |
 | Overload | 702.96 | P3 | `validated` | `state/types.rs:599`, `cards/card_definition.rs:255-263,821`, `state/stack.rs:127-134`, `effects/mod.rs:66-69,2759-2760`, `rules/command.rs:157-166`, `rules/casting.rs:485-529,591-597,737-743,974-975`, `rules/resolution.rs:179-186`, `testing/replay_harness.rs:668-689` | Vandalblast | `baseline/108` | — | KeywordAbility::Overload enum + AbilityDefinition::Overload { cost }; Condition::WasOverloaded; cast_with_overload on CastSpell command; was_overloaded on StackObject + EffectContext; overload cost payment as alternative cost (CR 118.9); no-targets enforcement (CR 702.96b); alternative cost mutual exclusion (flashback/evoke/bestow/madness/miracle/escape/foretell); commander tax stacking; harness cast_spell_overload action; 11 unit tests in `tests/overload.rs`; game script baseline/108 approved |
-| Replicate | 702.56 | P4 | `none` | — | — | — | — | Pay replicate cost N times → N copies |
-| Splice | 702.47 | P4 | `none` | — | — | — | — | Reveal from hand, add text to another spell |
-| Entwine | 702.42 | P4 | `none` | — | — | — | — | Pay entwine cost to choose all modes |
+| Replicate | 702.56 | P4 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `state/types.rs`, `state/stack.rs` | Train of Thought | `stack/143` | — | Pay replicate cost N times → N copies; 6 unit tests in `replicate.rs` |
+| Splice | 702.47 | P4 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `state/types.rs`, `state/stack.rs`, `state/hash.rs`, `rules/command.rs`, `cards/card_definition.rs` | Glacial Ray, Reach Through Mists | `stack/146` | — | splice_cards on CastSpell; spliced_effects+spliced_card_ids on StackObject; 9 unit tests in `splice.rs` |
+| Entwine | 702.42 | P4 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `state/hash.rs`, `rules/command.rs`, `state/stack.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Promise of Power | `stack/147` | — | KW disc 110, AbilDef disc 39; entwine_paid on CastSpell, was_entwined on StackObject; ModeSelection added to helpers.rs exports; 6 unit tests in `entwine.rs` |
 | Fuse | 702.102 | P4 | `none` | — | — | — | — | Cast both halves of a split card |
 | Buyback | 702.27 | P3 | `validated` | `state/types.rs:497-503`, `state/stack.rs:118`, `rules/casting.rs:67,597-625,894,1113-1129`, `rules/resolution.rs:489-490` | Searing Touch | `stack/094` | — | KeywordAbility::Buyback enum + AbilityDefinition::Buyback { cost }; cast_with_buyback param on CastSpell command; get_buyback_cost lookup in casting.rs; was_buyback_paid on StackObject; resolution destination check in resolution.rs (CR 702.27a); flashback exile overrides buyback (CR 702.34a); 9 unit tests in `tests/buyback.rs` covering basic payment, cost aggregation, counter interaction, fizzle behavior; game script stack/094 pending_review (assertions pass) |
 | Spree | 702.165 | P4 | `none` | — | — | — | — | Choose modes, pay cost for each |
-| Cleave | 702.148 | P4 | `none` | — | — | — | — | Pay cleave cost → remove bracketed text |
-| Escalate | 702.121 | P4 | `none` | — | — | — | — | Pay escalate cost for each mode beyond the first |
+| Cleave | 702.148 | P4 | `validated` | `state/types.rs`, `rules/casting.rs`, `rules/resolution.rs`, `effects/mod.rs` | Path of Peril | `stack/145` | — | AltCostKind::Cleave + Condition::WasCleaved; 8 unit tests |
+| Escalate | 702.120 | P4 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `state/hash.rs`, `rules/command.rs`, `state/stack.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Blessed Alliance | `stack/148` | — | KW disc 111, AbilDef disc 40 (Escalate { cost }); escalate_modes on CastSpell, escalate_modes_paid on StackObject; CR 702.120a additional cost validation; 9 unit tests in `tests/escalate.rs` |
 | Split Second | 702.61 | P2 | `validated` | `state/types.rs:250-255`, `state/hash.rs:347-348`, `rules/casting.rs:66-72,1060-1074`, `rules/abilities.rs:63-70,388-395` | Krosan Grip | `stack/066` | — | KeywordAbility::SplitSecond enum + has_split_second_on_stack helper; CastSpell gate (CR 702.61a), ActivateAbility gate (CR 702.61a), CycleCard gate (CR 702.61a); mana abilities exempt (CR 702.61b); triggered abilities still fire (CR 702.61b); uses calculate_characteristics for layer-aware keyword check; 8 unit tests in `tests/split_second.rs`; game script pending_review |
-| Gravestorm | 702.69 | P4 | `none` | — | — | — | Storm | Copy for each permanent put into graveyard this turn |
+| Gravestorm | 702.69 | P4 | `validated` | types.rs, casting.rs, resolution.rs, stack.rs, hash.rs | Follow the Bodies | stack/144 | Storm variant; permanents_put_into_graveyard_this_turn counter; 9 unit tests |
 
 ---
 

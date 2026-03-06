@@ -239,6 +239,10 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -348,6 +352,10 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -457,6 +465,10 @@ fn test_aftermath_exile_on_resolution() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -577,6 +589,10 @@ fn test_aftermath_exile_on_counter() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -620,6 +636,10 @@ fn test_aftermath_exile_on_counter() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -724,6 +744,10 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -802,6 +826,10 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -892,6 +920,10 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -989,6 +1021,10 @@ fn test_aftermath_pays_aftermath_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1078,6 +1114,10 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1165,6 +1205,10 @@ fn test_aftermath_uses_aftermath_effect() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1270,6 +1314,10 @@ fn test_aftermath_full_lifecycle() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1342,6 +1390,10 @@ fn test_aftermath_full_lifecycle() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1444,6 +1496,10 @@ fn test_aftermath_insufficient_mana_rejected() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 

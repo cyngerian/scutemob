@@ -185,7 +185,7 @@ Alternate cost patterns for hand-cast spells, all reusing `casting.rs` machinery
 **Infrastructure reused**: Foretell exile-then-cast, Unearth end-of-turn sacrifice,
 Suspend time-counter removal.
 
-- [ ] Batch 5 complete
+- [x] Batch 5 complete
 
 ---
 
@@ -205,7 +205,7 @@ Additional or alternative costs that modify how spells are cast.
 **Infrastructure reused**: Convoke/Improvise cost reduction, sacrifice-as-cost,
 `spells_cast_this_turn` counter (Storm), spell copy (Storm/Cascade).
 
-- [ ] Batch 6 complete
+- [x] Batch 6 complete
 
 ---
 
@@ -502,13 +502,13 @@ Recommended update points:
 
 | Batch | Size | Est. Sessions | Status |
 |-------|------|--------------|--------|
-| 0: P3 Stragglers | 5 | 1 | Not started |
-| 1: Evasion & Simple | 6 | 1 | Not started |
-| 2: Combat Triggers (Blocking) | 7 | 1-2 | Not started |
-| 3: Combat Modifiers & Ninjutsu | 5 | 1-2 | Not started |
-| 4: Alt-Cast Graveyard | 6 | 1-2 | Not started |
-| 5: Alt-Cast Hand/Exile | 5 | 1 | Not started |
-| 6: Cost Modification | 6 | 1-2 | Not started |
+| 0: P3 Stragglers | 5 | 1 | **Complete** |
+| 1: Evasion & Simple | 6 | 1 | **Complete** |
+| 2: Combat Triggers (Blocking) | 7 | 1-2 | **Complete** |
+| 3: Combat Modifiers & Ninjutsu | 5 | 1-2 | **Complete** |
+| 4: Alt-Cast Graveyard | 6 | 1-2 | **Complete** |
+| 5: Alt-Cast Hand/Exile | 5 | 1 | **Complete** |
+| 6: Cost Modification | 6 | 1-2 | **Complete** |
 | 7: Spell Modifiers | 7 | 2 | Not started |
 | 8: Upkeep, Time & Phasing | 7 | 2-3 | Not started |
 | 9: Counter & Growth | 6 | 1 | Not started |

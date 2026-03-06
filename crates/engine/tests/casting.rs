@@ -63,6 +63,10 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -134,6 +138,10 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(result.is_ok());
@@ -192,6 +200,10 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -249,6 +261,10 @@ fn test_cast_spell_flash_at_instant_speed() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -309,6 +325,10 @@ fn test_cast_spell_lifo_stack_order() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -342,6 +362,10 @@ fn test_cast_spell_lifo_stack_order() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -401,6 +425,10 @@ fn test_cast_spell_not_priority_holder_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(
@@ -455,6 +483,10 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -503,6 +535,10 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -568,6 +604,10 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -600,6 +640,10 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -646,6 +690,10 @@ fn test_cast_spell_land_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -695,6 +743,10 @@ fn test_cast_spell_card_not_in_hand_fails() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -748,6 +800,10 @@ fn test_cast_spell_priority_resets_to_active_player() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();

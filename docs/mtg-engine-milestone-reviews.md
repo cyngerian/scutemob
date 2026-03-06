@@ -1898,9 +1898,9 @@ This validates the T2 strategy of "treat debug_assert failures as bugs found, no
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
 | Milestones reviewed | 12 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B6 complete (2026-03-05)**: Bargain, Emerge, Spectacle, Surge, Casualty, Assist — commit `322bfae`; 1479 tests; 128 validated; P4 36/88 |
 
 **Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
 **Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)
 **Replay viewer LOC (M9.5)**: ~2,200 Rust + ~2,400 Svelte/JS = ~4,600 lines
-**Total test count**: 1421 (all passing, as of W1-B5 + W3 T1+T2 completion)
+**Total test count**: 1479 (all passing, as of W1-B6 completion 2026-03-05)

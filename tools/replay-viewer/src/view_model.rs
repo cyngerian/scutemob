@@ -525,6 +525,12 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::CasualtyTrigger { source_object, .. } => {
             ("casualty_trigger", Some(*source_object))
         }
+        StackObjectKind::ReplicateTrigger { source_object, .. } => {
+            ("replicate_trigger", Some(*source_object))
+        }
+        StackObjectKind::GravestormTrigger { source_object, .. } => {
+            ("gravestorm_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -767,5 +773,11 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Surge => "Surge".to_string(),
         KeywordAbility::Casualty(n) => format!("Casualty {}", n),
         KeywordAbility::Assist => "Assist".to_string(),
+        KeywordAbility::Replicate => "Replicate".to_string(),
+        KeywordAbility::Gravestorm => "Gravestorm".to_string(),
+        KeywordAbility::Cleave => "Cleave".to_string(),
+        KeywordAbility::Splice => "Splice".to_string(),
+        KeywordAbility::Entwine => "Entwine".to_string(),
+        KeywordAbility::Escalate => "Escalate".to_string(),
     }
 }

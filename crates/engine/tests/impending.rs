@@ -195,6 +195,10 @@ fn test_impending_basic_cast() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with impending failed: {:?}", e));
@@ -299,6 +303,10 @@ fn test_impending_not_a_creature_while_counters() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -503,6 +511,10 @@ fn test_impending_normal_cast() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -795,6 +807,10 @@ fn test_impending_alt_cost_exclusivity() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -920,6 +936,10 @@ fn test_impending_commander_tax() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -965,6 +985,10 @@ fn test_impending_commander_tax() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 

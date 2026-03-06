@@ -347,6 +347,10 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();

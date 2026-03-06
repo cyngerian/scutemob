@@ -155,6 +155,10 @@ fn test_assist_basic_another_player_pays_generic() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 3,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("assist cast failed: {:?}", e));
@@ -228,6 +232,10 @@ fn test_assist_no_assist_player_pays_full_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
@@ -283,6 +291,10 @@ fn test_assist_cannot_assist_self() {
             casualty_sacrifice: None,
             assist_player: Some(p1), // trying to self-assist
             assist_amount: 2,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -345,6 +357,10 @@ fn test_assist_exceeds_generic_mana_rejected() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 3, // exceeds generic (2)
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -403,6 +419,10 @@ fn test_assist_eliminated_player_cannot_assist() {
             casualty_sacrifice: None,
             assist_player: Some(p2), // p2 is eliminated
             assist_amount: 2,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -470,6 +490,10 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 3, // P2 pays all generic
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
@@ -555,6 +579,10 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 2, // pays remaining 2 generic after convoke
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
@@ -617,6 +645,10 @@ fn test_assist_amount_zero_is_noop() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 0, // no-op assist
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
@@ -679,6 +711,10 @@ fn test_assist_insufficient_mana_assisting_player() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 3, // P2 only has 1
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -740,6 +776,10 @@ fn test_assist_spell_without_keyword_rejected() {
             casualty_sacrifice: None,
             assist_player: Some(p2),
             assist_amount: 2,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -796,6 +836,10 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
             casualty_sacrifice: None,
             assist_player: Some(p3), // P3, not P2, assists
             assist_amount: 4,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));

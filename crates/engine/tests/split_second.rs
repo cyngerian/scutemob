@@ -177,6 +177,10 @@ fn test_split_second_blocks_casting_spells() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -214,6 +218,10 @@ fn test_split_second_blocks_casting_spells() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -296,6 +304,10 @@ fn test_split_second_blocks_activated_abilities() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -391,6 +403,10 @@ fn test_split_second_blocks_cycling() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -479,6 +495,10 @@ fn test_split_second_allows_mana_abilities() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -574,6 +594,10 @@ fn test_split_second_allows_pass_priority() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -656,6 +680,10 @@ fn test_split_second_blocks_caster_too() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -686,6 +714,10 @@ fn test_split_second_blocks_caster_too() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -768,6 +800,10 @@ fn test_split_second_restriction_ends_after_resolution() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -812,6 +848,10 @@ fn test_split_second_restriction_ends_after_resolution() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -888,6 +928,10 @@ fn test_split_second_triggered_abilities_still_fire() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

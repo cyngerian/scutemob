@@ -198,6 +198,10 @@ fn test_effect_deal_damage_to_player() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -285,6 +289,10 @@ fn test_effect_deal_damage_to_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -375,6 +383,10 @@ fn test_effect_exile_and_gain_life() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -482,6 +494,10 @@ fn test_effect_draw_cards() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1047,6 +1063,13 @@ fn test_effect_counter_spell_removes_from_stack() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1179,6 +1202,10 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1290,6 +1317,10 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1402,6 +1433,10 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1541,6 +1576,10 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1646,6 +1685,10 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1775,6 +1818,10 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();

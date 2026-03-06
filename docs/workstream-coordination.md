@@ -277,7 +277,7 @@ Track progress across sessions by checking these off:
 - [x] Batch 4: Alt-cast graveyard (Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore)
 - [x] Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending)
 - [x] Batch 6: Cost modification (Bargain, Emerge, Spectacle, Surge, Casualty, Assist)
-- [ ] Batch 7: Spell modifiers (Replicate, Gravestorm, Overload, Cleave, Splice, Entwine*, Escalate*)
+- [x] Batch 7: Spell modifiers (Replicate, Gravestorm, Overload, Cleave, Splice, Entwine*, Escalate*)
 - [ ] Batch 8: Upkeep, time & Phasing (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, **Phasing**)
 - [ ] Batch 9: Counter & growth (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass)
 - [ ] Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify)

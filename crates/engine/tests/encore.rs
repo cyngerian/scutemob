@@ -574,6 +574,13 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     };
     state.stack_objects.push_back(fake_stack_obj);
 

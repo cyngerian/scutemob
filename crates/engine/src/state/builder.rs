@@ -342,6 +342,7 @@ impl GameStateBuilder {
             timestamp_counter: 0,
             loop_detection_hashes: OrdMap::new(),
             history: Vector::new(),
+            permanents_put_into_graveyard_this_turn: 0,
             card_registry: self.card_registry,
         };
 

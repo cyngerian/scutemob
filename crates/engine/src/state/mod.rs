@@ -119,6 +119,18 @@ pub struct GameState {
     pub loop_detection_hashes: im::OrdMap<u64, u32>,
     /// Append-only event log for triggers that look back at history.
     pub history: Vector<GameEvent>,
+    /// CR 702.69a: Global count of permanents put into a graveyard from the battlefield
+    /// this turn, across all players and including tokens.
+    ///
+    /// Used by Gravestorm to determine how many copies to create. Incremented in
+    /// `move_object_to_zone` / `move_object_to_bottom_of_zone` when `from ==
+    /// ZoneId::Battlefield` and `to == ZoneId::Graveyard(_)`. Reset by
+    /// `reset_turn_state` at the start of each turn.
+    ///
+    /// Tokens count: they briefly exist in the graveyard (CR 704.5d) before ceasing to
+    /// exist as an SBA. The increment happens before any subsequent SBA check.
+    #[serde(default)]
+    pub permanents_put_into_graveyard_this_turn: u32,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones
@@ -339,6 +351,16 @@ impl GameState {
         // Insert new object
         self.objects.insert(new_id, new_object);
 
+        // CR 702.69a: Track permanents entering a graveyard from the battlefield.
+        // Tokens count (CR 704.5d — they briefly exist in the graveyard before SBA removes them).
+        // Non-permanent cards (instants, sorceries) go from the stack, not the battlefield, so
+        // they are naturally excluded by the ZoneId::Battlefield source check.
+        if old_object.zone == ZoneId::Battlefield {
+            if let ZoneId::Graveyard(_) = to {
+                self.permanents_put_into_graveyard_this_turn += 1;
+            }
+        }
+
         Ok((new_id, old_object))
     }
 
@@ -458,6 +480,13 @@ impl GameState {
 
         // Insert new object.
         self.objects.insert(new_id, new_object);
+
+        // CR 702.69a: Track permanents entering a graveyard from the battlefield.
+        if old_object.zone == ZoneId::Battlefield {
+            if let ZoneId::Graveyard(_) = to {
+                self.permanents_put_into_graveyard_this_turn += 1;
+            }
+        }
 
         Ok((new_id, old_object))
     }

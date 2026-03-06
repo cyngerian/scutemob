@@ -71,6 +71,10 @@ pub fn handle_cast_spell(
     casualty_sacrifice: Option<ObjectId>,
     assist_player: Option<PlayerId>,
     assist_amount: u32,
+    replicate_count: u32,
+    splice_cards: Vec<ObjectId>,
+    entwine_paid: bool,
+    escalate_modes: u32,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -89,6 +93,7 @@ pub fn handle_cast_spell(
     let cast_with_emerge = alt_cost == Some(AltCostKind::Emerge);
     let cast_with_spectacle = alt_cost == Some(AltCostKind::Spectacle);
     let cast_with_surge = alt_cost == Some(AltCostKind::Surge);
+    let cast_with_cleave = alt_cost == Some(AltCostKind::Cleave);
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -1561,6 +1566,49 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1q: Validate cleave mutual exclusion (CR 702.148a / CR 118.9a).
+    // Cleave is an alternative cost -- cannot combine with other alternative costs.
+    let casting_with_cleave = if cast_with_cleave {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine cleave with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine cleave with overload (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine cleave with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine cleave with spectacle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine cleave with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Validate the card has a cleave cost defined (implies the Cleave ability).
+        // CR 702.148a: "Cleave [cost]" -- if the cost isn't defined, the card doesn't
+        // have cleave and cannot be cast for its cleave cost.
+        if get_cleave_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have cleave (CR 702.148a)".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 1l: Validate prototype (CR 702.160a / CR 718.3).
     // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14) -- it can combine
     // with any alternative cost. We validate that the card has AbilityDefinition::Prototype
@@ -1693,6 +1741,10 @@ pub fn handle_cast_spell(
         // CR 702.117a: Pay surge cost instead of mana cost.
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_surge_cost(&card_id, &state.card_registry)
+    } else if casting_with_cleave {
+        // CR 702.148a: Pay cleave cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        get_cleave_cost(&card_id, &state.card_registry)
     } else if casting_with_plot {
         // CR 702.170d: Cast without paying mana cost (alternative cost, CR 118.9).
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
@@ -1755,6 +1807,240 @@ pub fn handle_cast_spell(
         Some(total)
     } else {
         mana_cost
+    };
+
+    // CR 702.56a / 601.2b / 601.2f-h: If the player declared intention to pay replicate,
+    // validate the spell has the Replicate keyword and add the replicate cost N times.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let replicate_cost_opt: Option<ManaCost> = if replicate_count > 0 {
+        // Validate the spell has the Replicate keyword.
+        if !chars.keywords.contains(&KeywordAbility::Replicate) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have replicate (CR 702.56a)".into(),
+            ));
+        }
+        match get_replicate_cost(&card_id, &state.card_registry) {
+            Some(cost) => Some(cost),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell has replicate keyword but no replicate cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        None
+    };
+
+    // CR 601.2f: Add replicate cost N times to the total mana cost.
+    let mana_cost = if let Some(replicate_cost) = replicate_cost_opt {
+        let mut total = mana_cost.unwrap_or_default();
+        for _ in 0..replicate_count {
+            total.white += replicate_cost.white;
+            total.blue += replicate_cost.blue;
+            total.black += replicate_cost.black;
+            total.red += replicate_cost.red;
+            total.green += replicate_cost.green;
+            total.generic += replicate_cost.generic;
+            total.colorless += replicate_cost.colorless;
+        }
+        Some(total)
+    } else {
+        mana_cost
+    };
+
+    // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
+    // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let mana_cost = if entwine_paid {
+        if !chars.keywords.contains(&KeywordAbility::Entwine) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have entwine (CR 702.42a)".into(),
+            ));
+        }
+        match get_entwine_cost(&card_id, &state.card_registry) {
+            Some(entwine_cost) => {
+                // CR 601.2f: Add the entwine cost to the total mana cost.
+                let mut total = mana_cost.unwrap_or_default();
+                total.white += entwine_cost.white;
+                total.blue += entwine_cost.blue;
+                total.black += entwine_cost.black;
+                total.red += entwine_cost.red;
+                total.green += entwine_cost.green;
+                total.generic += entwine_cost.generic;
+                total.colorless += entwine_cost.colorless;
+                Some(total)
+            }
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell has entwine keyword but no entwine cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        mana_cost
+    };
+
+    // CR 702.120a / 601.2f-h: Escalate -- if escalate_modes > 0, validate the spell has
+    // KeywordAbility::Escalate and add the escalate cost * escalate_modes to the total.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let mana_cost = if escalate_modes > 0 {
+        if !chars.keywords.contains(&KeywordAbility::Escalate) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have escalate (CR 702.120a)".into(),
+            ));
+        }
+        // CR 702.120a: Escalate is "a static ability of modal spells." Reject if the card
+        // definition has no modal structure (modes: None or modes missing from Spell ability).
+        let has_modes = card_id.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                        Some(m.modes.len())
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+        match has_modes {
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "escalate requires a modal spell (modes: Some(...)) (CR 702.120a)".into(),
+                ));
+            }
+            Some(0) => {
+                return Err(GameStateError::InvalidCommand(
+                    "escalate requires a modal spell with at least one mode (CR 702.120a)".into(),
+                ));
+            }
+            _ => {}
+        }
+        match get_escalate_cost(&card_id, &state.card_registry) {
+            Some(escalate_cost) => {
+                // CR 601.2f: Add escalate cost × N to the total mana cost.
+                let mut total = mana_cost.unwrap_or_default();
+                total.white += escalate_cost.white * escalate_modes;
+                total.blue += escalate_cost.blue * escalate_modes;
+                total.black += escalate_cost.black * escalate_modes;
+                total.red += escalate_cost.red * escalate_modes;
+                total.green += escalate_cost.green * escalate_modes;
+                total.generic += escalate_cost.generic * escalate_modes;
+                total.colorless += escalate_cost.colorless * escalate_modes;
+                Some(total)
+            }
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell has escalate keyword but no escalate cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        mana_cost
+    };
+
+    // CR 702.47a / 601.2b / 601.2f-h: Splice onto [subtype] -- validate and collect splice info.
+    // For each splice card declared: verify it's in hand, has Splice keyword, the target spell has
+    // the matching subtype, no duplicates, then add the splice cost as an additional cost and
+    // collect the effect for attachment to the StackObject.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let (mana_cost, collected_spliced_effects, collected_spliced_ids) = if !splice_cards.is_empty()
+    {
+        // CR 702.47b: Each card may only be spliced onto the same spell once.
+        let mut seen_splice_ids = std::collections::HashSet::new();
+        let mut splice_effects_out = Vec::new();
+        let mut splice_ids_out = Vec::new();
+        let mut running_cost = mana_cost;
+
+        for splice_card_id in &splice_cards {
+            // Duplicate check (CR 702.47b).
+            if !seen_splice_ids.insert(*splice_card_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                        "splice: card {:?} appears more than once (CR 702.47b: can't splice the same card twice)",
+                        splice_card_id
+                    )));
+            }
+
+            // CR 702.47a / Ruling: A card cannot be spliced onto itself.
+            // "A card with a splice ability can't be spliced onto itself because the spell
+            // is on the stack (and not in your hand) when you reveal the cards you want to
+            // splice onto it." At this point in casting the card hasn't moved yet, so we
+            // explicitly reject if the splice card is the card being cast.
+            if *splice_card_id == card {
+                return Err(GameStateError::InvalidCommand(format!(
+                        "splice: card {:?} cannot be spliced onto itself (CR 702.47a ruling: card must be in hand when spliced)",
+                        splice_card_id
+                    )));
+            }
+
+            // CR 702.47a: The splice card must be in the caster's hand.
+            // It cannot be the card being cast (that card is on the stack, not in hand).
+            let splice_zone = {
+                let splice_obj = state.object(*splice_card_id)?;
+                splice_obj.zone
+            };
+            if splice_zone != ZoneId::Hand(player) {
+                return Err(GameStateError::InvalidCommand(format!(
+                        "splice: card {:?} is not in caster's hand (CR 702.47a: splice card must be in hand)",
+                        splice_card_id
+                    )));
+            }
+
+            // CR 702.47a: The splice card must have the Splice keyword.
+            let splice_card_chars = calculate_characteristics(state, *splice_card_id)
+                .unwrap_or_else(|| {
+                    state
+                        .objects
+                        .get(splice_card_id)
+                        .map(|o| o.characteristics.clone())
+                        .unwrap_or_default()
+                });
+            if !splice_card_chars.keywords.contains(&KeywordAbility::Splice) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "splice: card {:?} does not have the Splice keyword (CR 702.47a)",
+                    splice_card_id
+                )));
+            }
+
+            // Fetch the Splice ability definition from the registry.
+            let splice_card_obj = state.objects.get(splice_card_id);
+            let splice_def_card_id = splice_card_obj.and_then(|o| o.card_id.clone());
+            let splice_info =
+                    get_splice_info(&splice_def_card_id, &state.card_registry).ok_or_else(
+                        || {
+                            GameStateError::InvalidCommand(format!(
+                                "splice: card {:?} has Splice keyword but no AbilityDefinition::Splice (missing cost/subtype/effect)",
+                                splice_card_id
+                            ))
+                        },
+                    )?;
+            let (splice_cost, splice_onto_subtype, splice_effect) = splice_info;
+
+            // CR 702.47a: The spell being cast must have the matching subtype.
+            // e.g., Splice onto Arcane requires the target spell to have the Arcane subtype.
+            if !chars.subtypes.contains(&splice_onto_subtype) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "splice: spell does not have subtype {:?} required for splice (CR 702.47a)",
+                    splice_onto_subtype
+                )));
+            }
+
+            // CR 601.2f-h: Add the splice cost as an additional cost.
+            let mut total = running_cost.unwrap_or_default();
+            total.white += splice_cost.white;
+            total.blue += splice_cost.blue;
+            total.black += splice_cost.black;
+            total.red += splice_cost.red;
+            total.green += splice_cost.green;
+            total.generic += splice_cost.generic;
+            total.colorless += splice_cost.colorless;
+            running_cost = Some(total);
+
+            splice_effects_out.push(splice_effect);
+            splice_ids_out.push(*splice_card_id);
+        }
+        (running_cost, splice_effects_out, splice_ids_out)
+    } else {
+        (mana_cost, vec![], vec![])
     };
 
     // CR 702.27a / 601.2f: If the player declared intention to pay buyback, validate
@@ -2498,6 +2784,17 @@ pub fn handle_cast_spell(
         // CR 702.153a: Record whether this spell was cast with its casualty cost paid
         // (sacrificed a creature with power >= N as an additional cost).
         was_casualty_paid: casualty_sacrifice_id.is_some(),
+        // CR 702.148a: Record whether this spell was cast by paying its cleave cost.
+        was_cleaved: casting_with_cleave,
+        // CR 702.42a: Record whether this spell was cast with its entwine cost paid.
+        was_entwined: entwine_paid,
+        // CR 702.120a: Record how many extra modes were paid for via escalate.
+        escalate_modes_paid: escalate_modes,
+        // CR 702.47a: Spliced effects collected during splice validation above.
+        // These are executed after the main spell effect at resolution (CR 702.47b).
+        spliced_effects: collected_spliced_effects,
+        // CR 702.47a: ObjectIds of cards spliced onto this spell (for display/validation).
+        spliced_card_ids: collected_spliced_ids,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2632,6 +2929,76 @@ pub fn handle_cast_spell(
             was_bargained: false,
             was_surged: false,
             was_casualty_paid: false,
+            // CR 702.148a: trigger/copy stack objects are not cleave casts.
+            was_cleaved: false,
+            // CR 702.42a: trigger/copy stack objects are not entwine casts.
+            was_entwined: false,
+            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
+            escalate_modes_paid: 0,
+            // CR 702.47a: trigger/copy stack objects have no spliced effects.
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+        };
+        state.stack_objects.push_back(trigger_obj);
+        events.push(GameEvent::AbilityTriggered {
+            controller: player,
+            source_object_id: new_card_id,
+            stack_object_id: trigger_id,
+        });
+    }
+
+    // CR 702.69a: Gravestorm — "When you cast this spell, copy it for each permanent
+    // that was put into a graveyard from the battlefield this turn."
+    // Gravestorm is a triggered ability (CR 702.69a). It goes on the stack above the
+    // original spell and resolves through normal priority.
+    // The gravestorm count is captured now (at trigger creation time) because the count
+    // could change between cast and resolution (e.g., creatures dying in response).
+    // NOTE: Unlike storm, gravestorm count is NOT decremented by 1 — it counts permanents
+    // going to graveyards, which is unrelated to this spell being cast.
+    if chars.keywords.contains(&KeywordAbility::Gravestorm) {
+        let count = state.permanents_put_into_graveyard_this_turn;
+        let trigger_id = state.next_object_id();
+        let trigger_obj = StackObject {
+            id: trigger_id,
+            controller: player,
+            kind: StackObjectKind::GravestormTrigger {
+                source_object: new_card_id,
+                original_stack_id: stack_entry_id,
+                gravestorm_count: count,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            // CR 702.148a: trigger/copy stack objects are not cleave casts.
+            was_cleaved: false,
+            // CR 702.42a: trigger/copy stack objects are not entwine casts.
+            was_entwined: false,
+            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
+            escalate_modes_paid: 0,
+            // CR 702.47a: trigger/copy stack objects have no spliced effects.
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -2685,6 +3052,15 @@ pub fn handle_cast_spell(
             was_bargained: false,
             was_surged: false,
             was_casualty_paid: false,
+            // CR 702.148a: trigger/copy stack objects are not cleave casts.
+            was_cleaved: false,
+            // CR 702.42a: trigger/copy stack objects are not entwine casts.
+            was_entwined: false,
+            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
+            escalate_modes_paid: 0,
+            // CR 702.47a: trigger/copy stack objects have no spliced effects.
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -2732,6 +3108,73 @@ pub fn handle_cast_spell(
             was_bargained: false,
             was_surged: false,
             was_casualty_paid: false,
+            // CR 702.148a: trigger/copy stack objects are not cleave casts.
+            was_cleaved: false,
+            // CR 702.42a: trigger/copy stack objects are not entwine casts.
+            was_entwined: false,
+            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
+            escalate_modes_paid: 0,
+            // CR 702.47a: trigger/copy stack objects have no spliced effects.
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+        };
+        state.stack_objects.push_back(trigger_obj);
+        events.push(GameEvent::AbilityTriggered {
+            controller: player,
+            source_object_id: new_card_id,
+            stack_object_id: trigger_id,
+        });
+    }
+
+    // CR 702.56a: Replicate -- "When you cast this spell, if a replicate cost was paid
+    // for it, copy it for each time its replicate cost was paid." This is a triggered
+    // ability (CR 702.56a). It goes on the stack above the original spell and resolves
+    // through normal priority.
+    // Copies are NOT cast (ruling 2024-01-12 for Shattering Spree) — they do not trigger
+    // "whenever you cast a spell" abilities and do not increment spells_cast_this_turn.
+    if replicate_count > 0 {
+        let trigger_id = state.next_object_id();
+        let trigger_obj = StackObject {
+            id: trigger_id,
+            controller: player,
+            kind: StackObjectKind::ReplicateTrigger {
+                source_object: new_card_id,
+                original_stack_id: stack_entry_id,
+                replicate_count,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            // CR 702.148a: trigger/copy stack objects are not cleave casts.
+            was_cleaved: false,
+            // CR 702.42a: trigger/copy stack objects are not entwine casts.
+            was_entwined: false,
+            // CR 702.120a: trigger/copy stack objects have no escalate modes paid.
+            escalate_modes_paid: 0,
+            // CR 702.47a: trigger/copy stack objects have no spliced effects.
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -2798,6 +3241,69 @@ fn get_kicker_cost(
                 } = a
                 {
                     Some((cost.clone(), *is_multikicker))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.56a: Look up the replicate cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Replicate { cost }`, or `None`
+/// if the card has no definition or no replicate ability defined.
+fn get_replicate_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Replicate { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.42a: Look up the entwine cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Entwine { cost }`, or `None`
+/// if the card has no definition or no entwine ability defined.
+fn get_entwine_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Entwine { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.120a: Look up the escalate cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Escalate { cost }`, or `None`
+/// if the card has no definition or no escalate ability defined.
+fn get_escalate_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Escalate { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }
@@ -4058,6 +4564,27 @@ fn get_surge_cost(
     })
 }
 
+/// CR 702.148a: Look up the cleave cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Cleave { cost }`, or `None`
+/// if the card has no definition or no cleave ability defined.
+fn get_cleave_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Cleave { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
 /// CR 702.119a: Reduce a mana cost by a creature's mana value.
 ///
 /// Reduces generic mana first, then colorless, then colored pips (WUBRG order)
@@ -4103,4 +4630,31 @@ fn reduce_cost_by_mv(cost: &ManaCost, mv: u32) -> ManaCost {
     }
 
     reduced
+}
+
+/// CR 702.47a: Look up the splice info from the card's `AbilityDefinition`.
+///
+/// Returns `Some((ManaCost, SubType, Effect))` if the card has a
+/// `AbilityDefinition::Splice { cost, onto_subtype, effect }` ability, or `None`
+/// if the card has no definition or no splice ability defined.
+fn get_splice_info(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<(ManaCost, SubType, crate::cards::card_definition::Effect)> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Splice {
+                    cost,
+                    onto_subtype,
+                    effect,
+                } = a
+                {
+                    Some((cost.clone(), onto_subtype.clone(), *effect.clone()))
+                } else {
+                    None
+                }
+            })
+        })
+    })
 }

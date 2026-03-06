@@ -205,6 +205,10 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -307,6 +311,10 @@ fn test_convoke_colored_mana_match() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -402,6 +410,10 @@ fn test_convoke_generic_mana_any_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -482,6 +494,10 @@ fn test_convoke_reject_no_keyword() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -544,6 +560,10 @@ fn test_convoke_reject_tapped_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -605,6 +625,10 @@ fn test_convoke_reject_not_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -667,6 +691,10 @@ fn test_convoke_reject_not_controlled() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -740,6 +768,10 @@ fn test_convoke_reject_too_many_creatures() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -853,6 +885,10 @@ fn test_convoke_with_commander_tax() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -946,6 +982,10 @@ fn test_convoke_no_summoning_sickness() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1014,6 +1054,10 @@ fn test_convoke_zero_creatures() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1097,6 +1141,10 @@ fn test_convoke_multicolored_creature_pays_colored() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

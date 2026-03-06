@@ -523,6 +523,10 @@ fn test_ascend_instant_sorcery_on_resolution() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CastSpell should succeed");

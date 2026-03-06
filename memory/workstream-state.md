@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | Batch 6 complete; Batch 7 next (Replicate, Gravestorm, Cleave, Splice, Entwine, Escalate) |
+| W1: Abilities | Batch 7 complete — Batch 8 next (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing) | available | — | B7 closed 2026-03-06 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,27 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-06
+**Workstream**: W1: Abilities — Batch 7
+
+Batch 7 complete. All 6 abilities implemented, reviewed, card+script+coverage done:
+- Replicate (702.56): Train of Thought, script 143, cast_spell_replicate harness
+- Gravestorm (702.69): Follow the Bodies, script 144, permanents_put_into_graveyard_this_turn
+- Cleave (702.148): Path of Peril, script 145, WasCleaved condition, cast_spell_cleave harness
+- Splice (702.47): Glacial Ray + Reach Through Mists, script 146, splice_cards on CastSpell
+- Entwine (702.42): Promise of Power, script 147, entwine_paid+was_entwined, ModeSelection→helpers.rs
+- Escalate (702.120): Blessed Alliance, script 148, escalate_modes u32, CR corrected from 702.121
+
+1526 tests passing. 134 validated. P4 44/88. Scripts 143-148.
+New harness actions: cast_spell_replicate, cast_spell_cleave, cast_spell_splice, cast_spell_entwine, cast_spell_escalate.
+Discriminants used: KW 107-111, AbilDef 36-40, SOK 36 (GravestormTrigger).
+
+**Next**: Claim W1-B8. Check docs/ability-batch-plan.md for Batch 8 contents (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing — upkeep/time abilities).
+
+**Commit prefix used**: W1-B7:
 
 ## Last Handoff
 

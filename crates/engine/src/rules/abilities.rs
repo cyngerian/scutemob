@@ -354,6 +354,15 @@ pub fn handle_activate_ability(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -583,6 +592,15 @@ pub fn handle_cycle_card(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -766,6 +784,15 @@ pub fn handle_unearth_card(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1028,6 +1055,15 @@ pub fn handle_ninjutsu(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1227,6 +1263,15 @@ pub fn handle_embalm_card(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1435,6 +1480,15 @@ pub fn handle_eternalize_card(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1642,6 +1696,15 @@ pub fn handle_encore_card(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3506,6 +3569,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         was_bargained: false,
                         was_surged: false,
                         was_casualty_paid: false,
+                        // CR 702.148a: storm copies are not cleave casts.
+                        was_cleaved: false,
+                        // CR 702.42a: storm copies are not entwine casts.
+                        was_entwined: false,
+                        // CR 702.120a: storm copies have no escalate modes paid.
+                        escalate_modes_paid: 0,
+                        // CR 702.47a: storm copies have no spliced effects.
+                        spliced_effects: vec![],
+                        spliced_card_ids: vec![],
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -3743,6 +3815,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 was_bargained: false,
                 was_surged: false,
                 was_casualty_paid: false,
+                // CR 702.148a: myriad copies are not cleave casts.
+                was_cleaved: false,
+                // CR 702.42a: myriad copies are not entwine casts.
+                was_entwined: false,
+                // CR 702.120a: myriad copies have no escalate modes paid.
+                escalate_modes_paid: 0,
+                // CR 702.47a: myriad copies have no spliced effects.
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4113,6 +4194,15 @@ pub fn handle_crew_vehicle(
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: triggered abilities are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: triggered/copy abilities are not entwine casts.
+        was_entwined: false,
+        // CR 702.120a: triggered abilities have no escalate modes paid.
+        escalate_modes_paid: 0,
+        // CR 702.47a: triggered abilities have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 

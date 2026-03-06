@@ -1,0 +1,336 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_144",
+    "name": "Gravestorm \u2014 Follow the Bodies creates 2 copies after 2 creatures die",
+    "description": "Tests the Gravestorm mechanic (CR 702.69a) using Follow the Bodies ({2}{U} Sorcery, Gravestorm, Investigate). Setup: p1 has Llanowar Elves and Elvish Mystic on the battlefield. First, p1 casts Wrath of God ({2}{W}{W}), which destroys both creatures, incrementing permanents_put_into_graveyard_this_turn to 2. Then p1 casts Follow the Bodies ({2}{U}). The Gravestorm trigger fires, capturing count=2 and placing GravestormTrigger on the stack above the original. Both players pass priority; GravestormTrigger resolves, creating 2 copies of Follow the Bodies on the stack. Stack now holds [Original, Copy1, Copy2]. Each of the 3 instances resolves in LIFO order, each executing Investigate (creating a Clue artifact token). Result: 3 Clue tokens on p1's battlefield. CR 702.69a: 'When you cast this spell, copy it for each permanent put into a graveyard from the battlefield this turn.'",
+    "cr_sections_tested": [
+      "702.69a",
+      "601.2",
+      "608.2",
+      "405.5",
+      "116.3",
+      "704.5g",
+      "111.1"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "gravestorm",
+      "copy",
+      "stack",
+      "sorcery",
+      "investigate",
+      "clue",
+      "token"
+    ],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Gravestorm (CR 702.69a) is a triggered ability that fires when the spell is cast. The count is captured at trigger-creation time from permanents_put_into_graveyard_this_turn. Because the schema has no field to pre-set that counter, we use Wrath of God in the first step to kill 2 creatures (Llanowar Elves + Elvish Mystic), raising the counter to 2 before Follow the Bodies is cast. This lets GravestormTrigger capture count=2 and create 2 copies. All 3 instances (2 copies + 1 original) resolve via separate priority rounds, each executing Effect::Investigate{count:Fixed(1)} to create 1 Clue token. Total: 3 Clue tokens. Copies are not cast (CR 707.10) so they do not re-trigger Gravestorm. Follow the Bodies card definition: cid 'follow-the-bodies', Gravestorm keyword + Spell{Investigate{Fixed(1)}}. Wrath of God cost: {2}{W}{W}; Follow the Bodies cost: {2}{U}. Mana in pool: 4 colorless + 2 white + 1 blue to cover both spells sequentially (Wrath pool is consumed, then Follow the Bodies uses remaining colorless+blue).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "colorless": 4,
+          "white": 2,
+          "blue": 1
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "tapped": false, "summoning_sick": false, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null },
+          { "card": "Elvish Mystic", "tapped": false, "summoning_sick": false, "counters": {}, "attached": [], "damage_marked": 0, "is_commander": false, "subtypes": null, "is_basic": null }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Wrath of God", "is_commander": false, "owner": null },
+          { "card": "Follow the Bodies", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Step 1: p1 casts Wrath of God to kill both creatures, raising permanents_put_into_graveyard_this_turn to 2.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: 2 creatures on battlefield, p1 hand has Wrath of God + Follow the Bodies, stack empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 2,
+            "zones.hand.p1.count": 2,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {4}{WW}{U} in pool. 2 creatures on battlefield will die to Wrath of God, incrementing permanents_put_into_graveyard_this_turn from 0 to 2."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Wrath of God",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "white": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Wrath of God {2}{W}{W}. Costs 2 colorless + 2 white from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Wrath of God: stack has 1 spell, hand has 1 card (Follow the Bodies)",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 1
+          },
+          "note": "Wrath of God is on the stack. Follow the Bodies remains in hand."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority. Wrath of God resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wrath of God",
+          "resolution": [
+            {
+              "effect": "destroy_all",
+              "target": null,
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Wrath of God destroys all creatures. Both Llanowar Elves and Elvish Mystic are destroyed and move to p1's graveyard. permanents_put_into_graveyard_this_turn increments to 2."
+            }
+          ],
+          "note": "CR 608.2: Wrath of God resolves. Both creatures destroyed. SBAs confirm lethal damage / destroy effect."
+        },
+        {
+          "type": "sba_check",
+          "results": [
+            {
+              "sba": "704.5g",
+              "description": "Llanowar Elves destroyed by Wrath of God",
+              "object": "Llanowar Elves",
+              "controller": "p1",
+              "result": "moved_to_graveyard",
+              "cr_ref": "704.5g"
+            },
+            {
+              "sba": "704.5g",
+              "description": "Elvish Mystic destroyed by Wrath of God",
+              "object": "Elvish Mystic",
+              "controller": "p1",
+              "result": "moved_to_graveyard",
+              "cr_ref": "704.5g"
+            }
+          ],
+          "note": "SBAs fire: both creatures move to graveyard. permanents_put_into_graveyard_this_turn = 2."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Wrath resolves: battlefield empty, both creatures in graveyard, stack empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }, { "card": "Elvish Mystic" }] }
+          },
+          "note": "Both permanents put into graveyard this turn. Counter is now 2 for Gravestorm."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Step 2: p1 casts Follow the Bodies. Gravestorm fires with count=2, placing GravestormTrigger on stack.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Follow the Bodies",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Follow the Bodies {2}{U}. Gravestorm trigger fires immediately at cast time (CR 702.69a), capturing count=2. GravestormTrigger placed on stack above the original."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Follow the Bodies: stack has 2 objects (Follow the Bodies + GravestormTrigger)",
+          "assertions": {
+            "zones.stack.count": 2,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.69a: GravestormTrigger fires when Follow the Bodies is cast. Stack = [Follow the Bodies (bottom), GravestormTrigger (top)]."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass. GravestormTrigger (top of stack) resolves, creating 2 copies of Follow the Bodies."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "GravestormTrigger",
+          "resolution": [
+            {
+              "effect": "create_copy",
+              "target": { "type": "spell", "card": "Follow the Bodies", "controller": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.69a",
+              "note": "CR 702.69a: GravestormTrigger resolves, creating 2 copies of Follow the Bodies on the stack. Copies are not cast (CR 707.10) and do not re-trigger Gravestorm."
+            }
+          ],
+          "note": "Trigger resolves. Stack now has [Original (bottom), Copy1, Copy2 (top)]."
+        },
+        {
+          "type": "assert_state",
+          "description": "After GravestormTrigger resolves: stack has 3 objects (Original + 2 copies)",
+          "assertions": {
+            "zones.stack.count": 3,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 405.5: LIFO order. Stack = [Original, Copy1, Copy2]. Priority returns to p1."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Step 3: Resolve all 3 instances of Follow the Bodies (LIFO order). Each Investigates, creating 1 Clue token.",
+      "actions": [
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass. Copy2 (top of stack) resolves \u2014 Investigates, creating 1 Clue token."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Follow the Bodies (copy 2)",
+          "resolution": [
+            {
+              "effect": "investigate",
+              "target": null,
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.16a",
+              "note": "CR 701.16a: Investigate creates 1 Clue artifact token. Copy2 is not cast (CR 707.10)."
+            }
+          ],
+          "note": "Copy2 resolves. 1 Clue token created. Stack = [Original, Copy1]."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Copy2 resolves: 1 Clue token on battlefield",
+          "assertions": {
+            "zones.battlefield.p1.count": 1,
+            "zones.stack.count": 2
+          },
+          "note": "1 Clue token from Copy2. Stack still has Original + Copy1."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass. Copy1 (top of stack) resolves \u2014 Investigates, creating 1 more Clue token."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Follow the Bodies (copy 1)",
+          "resolution": [
+            {
+              "effect": "investigate",
+              "target": null,
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.16a",
+              "note": "CR 701.16a: Investigate creates 1 Clue artifact token. Copy1 resolves."
+            }
+          ],
+          "note": "Copy1 resolves. 2 Clue tokens total on battlefield. Stack = [Original]."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Copy1 resolves: 2 Clue tokens on battlefield",
+          "assertions": {
+            "zones.battlefield.p1.count": 2,
+            "zones.stack.count": 1
+          },
+          "note": "2 Clue tokens from Copy2 + Copy1. Only Original remains on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both pass. Original Follow the Bodies resolves \u2014 Investigates, creating 1 more Clue token. Spell moves to graveyard (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Follow the Bodies",
+          "resolution": [
+            {
+              "effect": "investigate",
+              "target": null,
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.16a",
+              "note": "CR 701.16a: Original Follow the Bodies resolves. Investigate creates 1 Clue token. Spell goes to graveyard."
+            }
+          ],
+          "note": "CR 608.2: Original resolves. 3 Clue tokens total. Follow the Bodies moves to graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: 3 Clue tokens on p1 battlefield, stack empty, Follow the Bodies in graveyard",
+          "assertions": {
+            "zones.battlefield.p1.count": 3,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Follow the Bodies" }] }
+          },
+          "note": "CR 702.69a: Gravestorm count=2 \u2192 GravestormTrigger created 2 copies + 1 original = 3 total Investigate effects = 3 Clue tokens. Follow the Bodies is in p1 graveyard. Clue tokens are 0/0 artifact tokens."
+        }
+      ]
+    }
+  ]
+}

@@ -86,6 +86,10 @@ fn cast_and_resolve(
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -830,6 +834,10 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1163,6 +1171,10 @@ fn test_evolve_multiplayer_only_same_controller() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("P2 CastSpell should succeed");

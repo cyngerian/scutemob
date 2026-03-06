@@ -218,6 +218,17 @@ pub fn copy_spell_on_stack(
         // The casualty cost is an additional cost paid during casting (CR 601.2h).
         // Copies are created by the trigger and never go through the casting process.
         was_casualty_paid: false,
+        // CR 702.148a: copies are not cleave casts.
+        was_cleaved: false,
+        // CR 702.42a: Copies of entwined spells are also entwined (CR 707.2 --
+        // copies copy choices made during casting). Propagate from original.
+        was_entwined: original.was_entwined,
+        // CR 702.120a: Copies of escalated spells copy the escalate mode count (CR 707.2 --
+        // copies copy choices made during casting). Propagate from original.
+        escalate_modes_paid: original.escalate_modes_paid,
+        // CR 702.47a: copies do not inherit spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
     };
 
     // Push the copy onto the stack (above the original).
@@ -413,6 +424,15 @@ pub fn resolve_cascade(
                 was_surged: false,
                 // CR 702.153a: cascade free-cast spells are not casualty casts.
                 was_casualty_paid: false,
+                // CR 702.148a: cascade free-cast spells are not cleave casts.
+                was_cleaved: false,
+                // CR 702.42a: cascade free-cast spells are not entwine casts.
+                was_entwined: false,
+                // CR 702.120a: cascade free-cast spells have no escalate modes paid.
+                escalate_modes_paid: 0,
+                // CR 702.47a: cascade free-cast spells have no spliced effects.
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 

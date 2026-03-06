@@ -185,6 +185,10 @@ fn test_surge_basic_cast_with_surge_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -251,6 +255,10 @@ fn test_surge_rejected_no_prior_spell() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -306,6 +314,10 @@ fn test_surge_optional_normal_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -357,6 +369,10 @@ fn test_surge_after_resolved_spell() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -407,6 +423,10 @@ fn test_surge_after_countered_spell() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -494,6 +514,10 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -559,6 +583,10 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -634,6 +662,10 @@ fn test_surge_card_without_keyword_rejected() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -701,6 +733,10 @@ fn test_surge_reset_at_turn_start() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -771,6 +807,10 @@ fn test_surge_reset_at_turn_start() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -914,6 +954,10 @@ fn test_surge_commander_tax_stacks() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -981,6 +1025,10 @@ fn test_surge_cast_alt_cost_tracked() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 

@@ -261,6 +261,10 @@ fn test_bargain_basic_instant_with_sacrifice() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bargain (token) failed: {:?}", e));
@@ -332,6 +336,10 @@ fn test_bargain_basic_instant_without_sacrifice() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
@@ -410,6 +418,10 @@ fn test_bargain_sacrifice_artifact() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with artifact failed: {:?}", e));
@@ -465,6 +477,10 @@ fn test_bargain_sacrifice_enchantment() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with enchantment failed: {:?}", e));
@@ -522,6 +538,10 @@ fn test_bargain_sacrifice_creature_token() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with creature token failed: {:?}", e));
@@ -572,6 +592,10 @@ fn test_bargain_sacrifice_invalid_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -626,6 +650,10 @@ fn test_bargain_sacrifice_opponent_permanent() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -710,6 +738,10 @@ fn test_bargain_no_keyword_rejects_sacrifice() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -797,6 +829,10 @@ fn test_bargain_permanent_etb_was_bargained() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargain artifact failed: {:?}", e));
@@ -893,6 +929,10 @@ fn test_bargain_permanent_etb_not_bargained() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));

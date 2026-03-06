@@ -215,6 +215,46 @@ pub struct StackObject {
     /// because no permanent cares whether casualty was paid after resolution.
     #[serde(default)]
     pub was_casualty_paid: bool,
+    /// CR 702.148a: If true, this spell was cast by paying its cleave cost
+    /// (an alternative cost). Used by `Condition::WasCleaved` to branch between
+    /// the restricted (normal) and broadened (cleaved) spell effects at resolution.
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub was_cleaved: bool,
+    /// CR 702.42a: If true, this spell was cast with its entwine cost paid.
+    /// At resolution, all modes of the modal spell execute in printed order (CR 702.42b).
+    ///
+    /// Propagated to copies per CR 707.10 (copies copy all decisions including modes and
+    /// additional costs).
+    #[serde(default)]
+    pub was_entwined: bool,
+    /// CR 702.120a: Number of additional modes paid for via escalate. 0 = only mode[0]
+    /// executes at resolution. N = modes 0..=N execute. Escalate cost was paid N times.
+    ///
+    /// Propagated to copies per CR 707.10 (copies copy all decisions including modes and
+    /// additional costs).
+    #[serde(default)]
+    pub escalate_modes_paid: u32,
+    /// CR 702.47a: Effects from cards spliced onto this spell.
+    ///
+    /// Each entry is an `Effect` from a spliced card's `AbilityDefinition::Splice.effect`.
+    /// At resolution, these effects are executed in order after the main spell's effect
+    /// (CR 702.47b: "The effects of the main spell must happen first").
+    ///
+    /// Empty vec = no splice. These are stored on the StackObject so they are
+    /// automatically discarded when the spell leaves the stack for any reason
+    /// (CR 702.47e: "The spell loses any splice changes once it leaves the stack").
+    #[serde(default)]
+    pub spliced_effects: Vec<crate::cards::card_definition::Effect>,
+    /// CR 702.47a: ObjectIds of cards spliced onto this spell (for validation and display).
+    ///
+    /// Used to enforce CR 702.47b: "You can't splice any one card onto the same spell
+    /// more than once." Also used to verify each splice card is in the caster's hand
+    /// at resolution (though by 702.47a the reveal is at cast time and the card stays
+    /// in hand regardless of what happens to the spell).
+    #[serde(default)]
+    pub spliced_card_ids: Vec<ObjectId>,
 }
 
 /// The kind of object on the stack.
@@ -817,5 +857,38 @@ pub enum StackObjectKind {
     ImpendingCounterTrigger {
         source_object: ObjectId,
         impending_permanent: ObjectId,
+    },
+
+    /// CR 702.56a: Replicate trigger — "When you cast this spell, if a replicate cost
+    /// was paid for it, copy it for each time its replicate cost was paid."
+    ///
+    /// This is a triggered ability (CR 702.56a). It goes on the stack above the original
+    /// spell and resolves through normal priority.
+    ///
+    /// Copies created by replicate are NOT cast (ruling 2024-01-12 for Shattering Spree)
+    /// — they do not trigger "whenever you cast a spell" abilities and do not increment
+    /// `spells_cast_this_turn`.
+    ///
+    /// `replicate_count` stores the number of times the replicate cost was paid, which
+    /// determines the number of copies created on resolution.
+    ReplicateTrigger {
+        source_object: ObjectId,
+        original_stack_id: ObjectId,
+        replicate_count: u32,
+    },
+    /// CR 702.69a: Gravestorm triggered ability — fires when the spell with gravestorm
+    /// is cast. Resolves to create `gravestorm_count` copies of `original_stack_id`.
+    ///
+    /// Copies created by gravestorm are NOT cast (CR 702.69a / CR 707.10) — they do not
+    /// trigger "whenever you cast a spell" abilities and do not increment
+    /// `spells_cast_this_turn`.
+    ///
+    /// `gravestorm_count` is captured at trigger-creation time (at cast) from
+    /// `GameState::permanents_put_into_graveyard_this_turn` to prevent changes
+    /// between cast and resolution from affecting the count.
+    GravestormTrigger {
+        source_object: ObjectId,
+        original_stack_id: ObjectId,
+        gravestorm_count: u32,
     },
 }

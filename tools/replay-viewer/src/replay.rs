@@ -216,6 +216,7 @@ impl ReplaySession {
                         casualty_sacrifice,
                         assist_player,
                         assist_amount,
+                        replicate_count,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -242,6 +243,9 @@ impl ReplaySession {
                                 casualty_sacrifice.as_deref(),
                                 assist_player.as_deref(),
                                 *assist_amount,
+                                *replicate_count,
+                                &[],
+                                0,
                                 &current_state,
                                 &player_map,
                             );

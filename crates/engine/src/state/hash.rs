@@ -547,6 +547,18 @@ impl HashInto for KeywordAbility {
             }
             // Assist (discriminant 105) -- CR 702.132
             KeywordAbility::Assist => 105u8.hash_into(hasher),
+            // Replicate (discriminant 106) -- CR 702.56
+            KeywordAbility::Replicate => 106u8.hash_into(hasher),
+            // Gravestorm (discriminant 107) -- CR 702.69
+            KeywordAbility::Gravestorm => 107u8.hash_into(hasher),
+            // Cleave (discriminant 108) -- CR 702.148
+            KeywordAbility::Cleave => 108u8.hash_into(hasher),
+            // Splice (discriminant 109) -- CR 702.47
+            KeywordAbility::Splice => 109u8.hash_into(hasher),
+            // Entwine (discriminant 110) -- CR 702.42
+            KeywordAbility::Entwine => 110u8.hash_into(hasher),
+            // Escalate (discriminant 111) -- CR 702.120
+            KeywordAbility::Escalate => 111u8.hash_into(hasher),
         }
     }
 }
@@ -1614,6 +1626,28 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 original_stack_id.hash_into(hasher);
             }
+            // ReplicateTrigger (discriminant 35) -- CR 702.56a
+            StackObjectKind::ReplicateTrigger {
+                source_object,
+                original_stack_id,
+                replicate_count,
+            } => {
+                35u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+                replicate_count.hash_into(hasher);
+            }
+            // GravestormTrigger (discriminant 36) -- CR 702.69a
+            StackObjectKind::GravestormTrigger {
+                source_object,
+                original_stack_id,
+                gravestorm_count,
+            } => {
+                36u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                original_stack_id.hash_into(hasher);
+                gravestorm_count.hash_into(hasher);
+            }
         }
     }
 }
@@ -1691,6 +1725,19 @@ impl HashInto for StackObject {
         self.was_surged.hash_into(hasher);
         // Casualty (CR 702.153a) — spell was cast with casualty cost paid
         self.was_casualty_paid.hash_into(hasher);
+        // Cleave (CR 702.148a) — spell was cast by paying its cleave cost
+        self.was_cleaved.hash_into(hasher);
+        // Entwine (CR 702.42a) — spell was cast with entwine cost paid
+        self.was_entwined.hash_into(hasher);
+        // Escalate (CR 702.120a) — number of extra modes paid for via escalate
+        self.escalate_modes_paid.hash_into(hasher);
+        // Splice (CR 702.47a) — spliced effects attached to this spell
+        for effect in &self.spliced_effects {
+            effect.hash_into(hasher);
+        }
+        for id in &self.spliced_card_ids {
+            id.hash_into(hasher);
+        }
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -2763,6 +2810,8 @@ impl HashInto for Condition {
             Condition::WasOverloaded => 9u8.hash_into(hasher),
             // Bargain condition (discriminant 10) — CR 702.166b
             Condition::WasBargained => 10u8.hash_into(hasher),
+            // Cleave condition (discriminant 11) — CR 702.148a
+            Condition::WasCleaved => 11u8.hash_into(hasher),
         }
     }
 }
@@ -3276,6 +3325,37 @@ impl HashInto for AbilityDefinition {
                 35u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // Replicate (discriminant 36) -- CR 702.56
+            AbilityDefinition::Replicate { cost } => {
+                36u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Cleave (discriminant 37) -- CR 702.148
+            AbilityDefinition::Cleave { cost } => {
+                37u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Splice (discriminant 38) -- CR 702.47
+            AbilityDefinition::Splice {
+                cost,
+                onto_subtype,
+                effect,
+            } => {
+                38u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                onto_subtype.0.hash_into(hasher);
+                effect.hash_into(hasher);
+            }
+            // Entwine (discriminant 39) -- CR 702.42
+            AbilityDefinition::Entwine { cost } => {
+                39u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Escalate (discriminant 40) -- CR 702.120
+            AbilityDefinition::Escalate { cost } => {
+                40u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -3370,6 +3450,10 @@ impl GameState {
 
         // 6. Combat state
         self.combat.hash_into(&mut hasher);
+
+        // 7. Gravestorm counter (CR 702.69a)
+        self.permanents_put_into_graveyard_this_turn
+            .hash_into(&mut hasher);
 
         *hasher.finalize().as_bytes()
     }

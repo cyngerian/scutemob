@@ -401,6 +401,10 @@ fn test_plot_cannot_cast_same_turn() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -468,6 +472,10 @@ fn test_plot_cast_from_exile_on_later_turn() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -545,6 +553,10 @@ fn test_plot_free_cast_costs_zero() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -661,6 +673,13 @@ fn test_plot_requires_main_phase_empty_stack() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     });
 
     let result = process_command(
@@ -734,6 +753,10 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -983,6 +1006,10 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1122,6 +1149,10 @@ fn test_plot_mana_value_unchanged_on_stack() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -1214,6 +1245,13 @@ fn test_plot_free_cast_requires_empty_stack() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     });
 
     let result = process_command(
@@ -1236,6 +1274,10 @@ fn test_plot_free_cast_requires_empty_stack() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1300,6 +1342,10 @@ fn test_plot_free_cast_requires_own_turn() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1371,6 +1417,10 @@ fn test_plot_normal_cast_still_works() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1435,6 +1485,10 @@ fn test_plot_cast_postcombat_main_phase() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -1555,6 +1609,10 @@ fn test_plot_turn_tracking_boundary() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -1584,6 +1642,10 @@ fn test_plot_turn_tracking_boundary() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(

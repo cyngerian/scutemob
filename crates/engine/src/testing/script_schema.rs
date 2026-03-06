@@ -306,6 +306,24 @@ pub enum ScriptAction {
         /// Ignored when `assist_player` is `None`. Defaults to 0.
         #[serde(default)]
         assist_amount: u32,
+        /// CR 702.56a: For `cast_spell_replicate`. Number of times the replicate cost
+        /// was paid as an additional cost during casting.
+        /// 0 = not paid (no copies). N = paid N times → N copies created by trigger.
+        /// Defaults to 0.
+        #[serde(default)]
+        replicate_count: u32,
+        /// CR 702.47a: For `cast_spell_splice`. Names of cards in the caster's hand to
+        /// splice onto the spell. Each card must have the Splice ability and the spell
+        /// must have the matching subtype (e.g., Arcane). Empty by default.
+        /// Example: ["Glacial Ray"]
+        #[serde(default)]
+        splice_card_names: Vec<String>,
+        /// CR 702.120a: For `cast_spell_escalate`. Number of additional modes beyond the
+        /// first for which the escalate cost is paid. 0 = only mode[0] executes (no extra
+        /// cost). N = pay escalate cost N times and execute modes 0..=N at resolution.
+        /// Defaults to 0.
+        #[serde(default)]
+        escalate_modes: u32,
         cr_ref: Option<String>,
         note: Option<String>,
     },

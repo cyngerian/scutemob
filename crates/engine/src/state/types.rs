@@ -118,6 +118,9 @@ pub enum AltCostKind {
     /// CR 702.117a: Surge alternative cost -- pay surge cost instead of mana cost
     /// if you or a teammate has cast another spell this turn.
     Surge,
+    /// CR 702.148a: Cleave [cost] -- alternative cost. When paid, the spell's
+    /// square-bracketed text is removed (modeled as Condition::WasCleaved branching).
+    Cleave,
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -949,6 +952,55 @@ pub enum KeywordAbility {
     /// `CastSpell.assist_amount`.
     /// CR 702.132a: Multiple instances are redundant.
     Assist,
+    /// CR 702.56a: Replicate [cost] -- optional additional cost: pay [cost] any
+    /// number of times when casting this spell. When you cast this spell, if a
+    /// replicate cost was paid, copy it for each time its replicate cost was paid.
+    /// If the spell has any targets, you may choose new targets for any of the copies.
+    ///
+    /// Static + triggered ability marker. The replicate cost is stored in
+    /// `AbilityDefinition::Replicate { cost }`.
+    /// CR 702.56b: Multiple instances trigger independently.
+    Replicate,
+    /// CR 702.69a: Gravestorm -- "When you cast this spell, copy it for each
+    /// permanent that was put into a graveyard from the battlefield this turn.
+    /// If the spell has any targets, you may choose new targets for any of the copies."
+    ///
+    /// Triggered ability. The count is captured at trigger-creation time (at cast,
+    /// not resolution) from `GameState::permanents_put_into_graveyard_this_turn`.
+    /// CR 702.69b: Multiple instances trigger independently.
+    Gravestorm,
+    /// CR 702.148a: Cleave [cost] -- alternative cost. When paid, the spell's
+    /// square-bracketed text is removed -- modeled as conditional effect dispatch
+    /// via `Condition::WasCleaved`. Cards with cleave should also include
+    /// `AbilityDefinition::Cleave { cost }` for the cost lookup.
+    Cleave,
+    /// CR 702.47a: Splice onto [subtype] [cost] -- static ability that functions
+    /// while a card is in the player's hand. When casting a spell of the matching
+    /// subtype (e.g., Arcane), the player may reveal this card from hand and pay
+    /// the splice cost as an additional cost. The spell gains this card's rules
+    /// text, but the spliced card stays in the player's hand.
+    ///
+    /// Static ability. Marker for quick presence-checking (`keywords.contains`).
+    /// The splice cost, subtype qualifier, and effect are stored in
+    /// `AbilityDefinition::Splice { cost, onto_subtype, effect }`.
+    /// CR 702.47b: Multiple splice abilities are evaluated independently.
+    Splice,
+    /// CR 702.42a: Entwine [cost] -- optional additional cost on modal spells.
+    /// When paid, the caster chooses all modes of this modal spell instead of just
+    /// the number specified. The entwine cost itself is stored in
+    /// `AbilityDefinition::Entwine { cost }`.
+    ///
+    /// Static ability. Marker for quick presence-checking (`keywords.contains`).
+    Entwine,
+    /// CR 702.120a: Escalate [cost] -- optional additional cost on modal spells.
+    /// For each mode chosen beyond the first, the escalate cost is paid once.
+    /// The escalate cost itself is stored in `AbilityDefinition::Escalate { cost }`.
+    ///
+    /// Static ability. Marker for quick presence-checking (`keywords.contains`).
+    /// Unlike Entwine (pay once, choose ALL modes), Escalate scales with the number
+    /// of extra modes chosen. `escalate_modes` in `Command::CastSpell` tracks
+    /// how many additional modes beyond the first are chosen.
+    Escalate,
 }
 
 /// All creature subtypes from CR 205.3m.

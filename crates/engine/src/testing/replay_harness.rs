@@ -265,6 +265,16 @@ pub fn translate_player_action(
     // CR 702.132a: For `cast_spell_assist`, the amount of generic mana the assisting
     // player pays. Ignored when `assist_player_name` is `None`.
     assist_amount: u32,
+    // CR 702.56a: For `cast_spell_replicate`, the number of times the replicate cost was paid.
+    // 0 = not paid (no copies). N = paid N times → N copies created by trigger.
+    // Ignored for all other action types.
+    replicate_count: u32,
+    // CR 702.47a: For `cast_spell_splice`, names of cards in the caster's hand to splice
+    // onto the spell. Empty slice for all other action types.
+    splice_card_names: &[String],
+    // CR 702.120a: For `cast_spell_escalate`, the number of additional modes beyond the
+    // first for which the escalate cost is paid. 0 for all other action types.
+    escalate_modes: u32,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -319,6 +329,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -348,6 +362,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -374,6 +392,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -400,6 +422,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -427,6 +453,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -454,6 +484,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -486,6 +520,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -775,6 +813,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -814,6 +856,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -841,6 +887,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -871,6 +921,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -901,6 +955,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -928,6 +986,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -955,6 +1017,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -981,6 +1047,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1007,6 +1077,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1033,6 +1107,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1063,6 +1141,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1092,6 +1174,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1119,6 +1205,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1143,6 +1233,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1175,6 +1269,10 @@ pub fn translate_player_action(
                 casualty_sacrifice: casualty_sac_id,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             })
         }
 
@@ -1206,6 +1304,175 @@ pub fn translate_player_action(
                 casualty_sacrifice: None,
                 assist_player: assist_pid,
                 assist_amount,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+            })
+        }
+
+        // CR 702.56a: Cast a spell with the replicate additional cost paid N times.
+        // `replicate_count` is the number of times the replicate cost is paid.
+        // Each payment adds the replicate cost to the total mana cost.
+        // If `replicate_count > 0`, a `ReplicateTrigger` is placed on the stack that
+        // creates N copies of the original spell on resolution.
+        "cast_spell_replicate" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+            })
+        }
+
+        // CR 702.47a: Cast a spell with splice cards declared.
+        // `splice_card_names` lists the names of cards in the caster's hand to splice
+        // onto the spell. Each named card must have the Splice ability and be in hand.
+        "cast_spell_splice" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            // Resolve each splice card name to an ObjectId in the caster's hand.
+            // Fail loudly if any declared splice card is not found — silently dropping
+            // it would let a misspelled or absent card go undetected, causing the test
+            // to pass for the wrong reason.
+            let mut splice_ids = Vec::new();
+            for name in splice_card_names {
+                let id = find_in_hand(state, player, name.as_str())
+                    .unwrap_or_else(|| panic!("splice card '{name}' not found in hand"));
+                splice_ids.push(id);
+            }
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: splice_ids,
+                entwine_paid: false,
+                escalate_modes: 0,
+            })
+        }
+
+        // CR 702.148a: Cast with Cleave — pay the cleave cost to remove bracketed text.
+        "cast_spell_cleave" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: vec![],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Cleave),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+            })
+        }
+
+        // CR 702.42a: Cast a modal spell with the entwine additional cost paid.
+        // When entwine_paid = true, all modes of the spell are chosen and the entwine
+        // cost is added to the total mana cost. The spell must have KeywordAbility::Entwine.
+        "cast_spell_entwine" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: true,
+                escalate_modes: 0,
+            })
+        }
+
+        // CR 702.120a: Cast a modal spell with escalate additional cost paid.
+        // `escalate_modes` is the number of extra modes beyond the first. The escalate
+        // cost is multiplied by this count and added to the total mana cost.
+        // Mode 0 plus `escalate_modes` additional modes execute at resolution.
+        "cast_spell_escalate" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes,
             })
         }
 

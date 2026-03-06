@@ -159,8 +159,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if let Some(def) = registry.get(cid) {
                         // CR 702.127a + CR 709.3b: If the aftermath half was cast, use the
                         // aftermath effect instead of the first-half Spell effect.
-                        let spell_effect = if stack_obj.cast_with_aftermath {
-                            def.abilities.iter().find_map(|a| {
+                        // CR 702.42b: For entwined modal spells, collect the modes so we
+                        // can execute all of them (or just mode[0] when not entwined).
+                        let (spell_effect, spell_modes) =
+                            if stack_obj.cast_with_aftermath {
+                                let eff = def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Aftermath {
                                     effect,
                                     ..
@@ -170,21 +173,23 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 } else {
                                     None
                                 }
-                            })
-                        } else {
-                            def.abilities.iter().find_map(|a| {
+                            });
+                                (eff, None)
+                            } else {
+                                def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Spell {
                                     effect,
+                                    modes,
                                     ..
                                 } = a
                                 {
-                                    Some(effect.clone())
+                                    Some((effect.clone(), modes.clone()))
                                 } else {
                                     None
                                 }
-                            })
-                        };
-                        if let Some(effect) = spell_effect {
+                            }).map(|(e, m)| (Some(e), m)).unwrap_or((None, None))
+                            };
+                        if spell_effect.is_some() || spell_modes.is_some() {
                             // CR 608.2b: Partial fizzle — filter out illegal targets before
                             // executing effects. Illegal targets are simply skipped; they are
                             // not affected by the spell's effect. Full fizzle (all illegal)
@@ -198,6 +203,38 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.33d: Pass kicker status to the effect context so
                             // Condition::WasKicked can be checked during resolution.
                             // CR 702.96a: Pass overload status so Condition::WasOverloaded works.
+                            // CR 702.47b: Clone legal_targets before the move so splice effects
+                            // can use the same target list as the main spell.
+                            let legal_targets_for_splice = legal_targets.clone();
+
+                            // CR 702.42b / CR 702.120a: Mode dispatch.
+                            // Entwine takes precedence (all modes). If escalate was paid,
+                            // execute modes 0..=escalate_modes_paid. Otherwise, mode[0] only.
+                            // If no modes, execute the spell's main effect as before.
+                            let effects_to_run: Vec<crate::cards::card_definition::Effect> =
+                                if let Some(modes) = spell_modes {
+                                    if stack_obj.was_entwined {
+                                        // CR 702.42b: "follow the text of each of the modes in
+                                        // the order written on the card"
+                                        modes.modes.clone()
+                                    } else if stack_obj.escalate_modes_paid > 0 {
+                                        // CR 702.120a: execute modes 0..=escalate_modes_paid
+                                        // (escalate cost was paid once per extra mode beyond
+                                        // the first).
+                                        let count = (stack_obj.escalate_modes_paid as usize + 1)
+                                            .min(modes.modes.len());
+                                        modes.modes[..count].to_vec()
+                                    } else {
+                                        // Auto-select first mode (Batch 11 will add full
+                                        // interactive mode selection).
+                                        modes.modes.into_iter().take(1).collect()
+                                    }
+                                } else if let Some(effect) = spell_effect {
+                                    vec![effect]
+                                } else {
+                                    vec![]
+                                };
+
                             let mut ctx = EffectContext::new_with_kicker(
                                 controller,
                                 source_object,
@@ -207,8 +244,35 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ctx.was_overloaded = stack_obj.was_overloaded;
                             // CR 702.166b: Pass bargained status so Condition::WasBargained works.
                             ctx.was_bargained = stack_obj.was_bargained;
-                            let effect_events = execute_effect(state, &effect, &mut ctx);
-                            events.extend(effect_events);
+                            // CR 702.148a: Pass cleave status so Condition::WasCleaved works.
+                            ctx.was_cleaved = stack_obj.was_cleaved;
+
+                            // CR 702.42b: Execute each effect in order. For entwined spells,
+                            // state changes from earlier modes are visible to later modes.
+                            for effect in &effects_to_run {
+                                let effect_events = execute_effect(state, effect, &mut ctx);
+                                events.extend(effect_events);
+                            }
+
+                            // CR 702.47b: Execute spliced effects after the main spell effect.
+                            // "The effects of the main spell must happen first." (CR 702.47b)
+                            // Each spliced effect uses the same resolution context (controller,
+                            // source_object) per CR 702.47c: text gained refers to the spell,
+                            // not the spliced card.
+                            for spliced_effect in &stack_obj.spliced_effects {
+                                let mut splice_ctx = EffectContext::new_with_kicker(
+                                    controller,
+                                    source_object,
+                                    legal_targets_for_splice.clone(),
+                                    stack_obj.kicker_times_paid,
+                                );
+                                splice_ctx.was_overloaded = stack_obj.was_overloaded;
+                                splice_ctx.was_bargained = stack_obj.was_bargained;
+                                splice_ctx.was_cleaved = stack_obj.was_cleaved;
+                                let splice_events =
+                                    execute_effect(state, spliced_effect, &mut splice_ctx);
+                                events.extend(splice_events);
+                            }
                         }
                     }
                 }
@@ -819,6 +883,68 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // The trigger does nothing (CR 400.7 — the original is a dead object).
                 }
             }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.56a: Replicate trigger resolves — create copies of the original spell.
+        //
+        // "When you cast this spell, if a replicate cost was paid for it, copy it for
+        // each time its replicate cost was paid."
+        // Copies are NOT cast (ruling 2024-01-12 for Shattering Spree / CR 707.10) —
+        // they do not trigger "whenever you cast a spell" abilities.
+        //
+        // Reuses `create_storm_copies` which calls `copy_spell_on_stack` N times.
+        // If the original spell is no longer on the stack (was countered), `create_storm_copies`
+        // returns no events (graceful no-op). This is a known LOW gap — the 2024-01-12
+        // ruling states copies should still be created even if the original is gone, but
+        // the current copy infrastructure does not support this edge case.
+        StackObjectKind::ReplicateTrigger {
+            source_object: _,
+            original_stack_id,
+            replicate_count,
+        } => {
+            let controller = stack_obj.controller;
+            let copy_events = crate::rules::copy::create_storm_copies(
+                state,
+                original_stack_id,
+                controller,
+                replicate_count,
+            );
+            events.extend(copy_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.69a: Gravestorm trigger resolves — create copies of the original spell.
+        //
+        // "When you cast this spell, copy it for each permanent that was put into a
+        // graveyard from the battlefield this turn."
+        // Copies are NOT cast (CR 702.69a / CR 707.10) — they do not trigger "whenever
+        // you cast a spell" abilities and do not increment `spells_cast_this_turn`.
+        //
+        // Reuses `create_storm_copies` which calls `copy_spell_on_stack` N times.
+        // If the original spell is no longer on the stack (was countered), `create_storm_copies`
+        // returns no events (graceful no-op).
+        StackObjectKind::GravestormTrigger {
+            source_object: _,
+            original_stack_id,
+            gravestorm_count,
+        } => {
+            let controller = stack_obj.controller;
+            let copy_events = crate::rules::copy::create_storm_copies(
+                state,
+                original_stack_id,
+                controller,
+                gravestorm_count,
+            );
+            events.extend(copy_events);
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -1801,6 +1927,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             was_surged: false,
                             // CR 702.153a: suspend casts are not casualty casts.
                             was_casualty_paid: false,
+                            // CR 702.148a: suspend casts are not cleave casts.
+                            was_cleaved: false,
+                            // CR 702.42a: suspend casts are not entwine casts.
+                            was_entwined: false,
+                            // CR 702.120a: suspend casts have no escalate modes paid.
+                            escalate_modes_paid: 0,
+                            // CR 702.47a: suspend free-casts have no spliced effects.
+                            spliced_effects: vec![],
+                            spliced_card_ids: vec![],
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -3358,7 +3493,9 @@ pub fn counter_stack_object(
         | StackObjectKind::DashReturnTrigger { .. }
         | StackObjectKind::BlitzSacrificeTrigger { .. }
         | StackObjectKind::ImpendingCounterTrigger { .. }
-        | StackObjectKind::CasualtyTrigger { .. } => {
+        | StackObjectKind::CasualtyTrigger { .. }
+        | StackObjectKind::ReplicateTrigger { .. }
+        | StackObjectKind::GravestormTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
@@ -3370,6 +3507,10 @@ pub fn counter_stack_object(
             // permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
             // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
             // spell stays on the stack but no copy is made (CR 702.153a).
+            // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
+            // made but the original spell stays on the stack (CR 702.56a).
+            // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
+            // made but the original spell stays on the stack (CR 702.69a).
         }
     }
 

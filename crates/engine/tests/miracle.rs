@@ -490,6 +490,10 @@ fn test_miracle_cast_for_miracle_cost() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap();
@@ -597,6 +601,10 @@ fn test_miracle_sorcery_ignores_timing() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -783,6 +791,13 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -812,6 +827,10 @@ fn test_miracle_cannot_combine_with_flashback() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(

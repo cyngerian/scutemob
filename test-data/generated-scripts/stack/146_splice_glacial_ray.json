@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_146",
+    "name": "Splice: Glacial Ray spliced onto Reach Through Mists",
+    "description": "p1 casts Reach Through Mists (an Arcane instant, {U}) and splices Glacial Ray ({1}{R} splice cost) onto it, targeting p2 with the Glacial Ray damage. The host spell draws a card; the spliced effect deals 2 damage to p2. Per CR 702.47c, the spliced Glacial Ray remains in p1's hand after resolution, while Reach Through Mists goes to the graveyard. Two different Arcane cards are used so find_in_hand() returns distinct ObjectIds and the self-splice guard is not triggered.",
+    "cr_sections_tested": ["601.2", "702.47a", "702.47b", "702.47c", "608.2", "120.3"],
+    "corner_case_ref": null,
+    "tags": ["stack", "splice", "arcane", "damage", "instant", "draw"],
+    "confidence": "medium",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Reach Through Mists (reach-through-mists): {U} Instant Arcane — Draw a card. No targets. Glacial Ray (glacial-ray): {1}{R} Instant Arcane — Deals 2 damage to any target. Splice onto Arcane {1}{R}: AbilityDefinition::Splice { cost: {1}{R}, onto_subtype: Arcane, effect: DealDamage { target: DeclaredTarget{0}, amount: Fixed(2) } }. Using two DIFFERENT cards for host and splice so find_in_hand() returns distinct ObjectIds, avoiding the self-splice guard. Total mana: {U} (Reach Through Mists) + {1}{R} (Glacial Ray splice cost) = blue:1, colorless:1, red:1. After resolution: Reach Through Mists in graveyard, Glacial Ray stays in hand (CR 702.47c), p1 drew 1 card from library so hand count = 2, p2 life = 38.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1, "colorless": 1, "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Reach Through Mists", "is_commander": false, "owner": null },
+          { "card": "Glacial Ray", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Reach Through Mists splicing Glacial Ray onto it, targeting p2",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Reach Through Mists and Glacial Ray in p1 hand, p2 at 40 life, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_splice",
+          "card": "Reach Through Mists",
+          "targets": [
+            { "type": "player", "player": "p2", "card": null, "controller": null }
+          ],
+          "mana_paid": { "blue": 1, "colorless": 1, "red": 1 },
+          "mana_source": [],
+          "splice_card_names": ["Glacial Ray"],
+          "cr_ref": "702.47a",
+          "note": "CR 702.47a: p1 casts Reach Through Mists ({U}), reveals Glacial Ray from hand and pays its splice cost ({1}{R}) as an additional cost. Target p2 is declared for the spliced DealDamage effect. Total cost: blue:1, colorless:1, red:1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast_spell_splice: Reach Through Mists on stack, Glacial Ray still in hand",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Glacial Ray" }] }
+          },
+          "note": "CR 702.47c: The spliced card (Glacial Ray) is not moved to the stack — it stays in p1's hand. Only Reach Through Mists is on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Reach Through Mists",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.47b",
+              "note": "CR 702.47b: The spliced Glacial Ray's effect (DealDamage 2) is added to the host spell and resolves with it. Deals 2 damage to p2."
+            },
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Reach Through Mists' own effect (Draw a card) resolves. p1 draws 1 card from library."
+            }
+          ],
+          "note": "CR 608.2: Spell resolves. Spliced effect deals 2 damage to p2; host effect draws 1 card for p1. Reach Through Mists moves to graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p2 at 38 life, Reach Through Mists in p1 graveyard, Glacial Ray still in p1 hand plus drawn card = 2 total, stack empty",
+          "assertions": {
+            "players.p2.life": 38,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Reach Through Mists" }] },
+            "zones.hand.p1.count": 2,
+            "zones.hand.p1": { "includes": [{ "card": "Glacial Ray" }] }
+          },
+          "note": "CR 702.47c: Glacial Ray remained in hand after splice. p1 drew 1 card (Island from library) so hand = 2. p2 took 2 damage (40 -> 38). Reach Through Mists in graveyard."
+        }
+      ]
+    }
+  ]
+}

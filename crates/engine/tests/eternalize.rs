@@ -981,6 +981,13 @@ fn test_eternalize_split_second_blocks() {
         was_bargained: false,
         was_surged: false,
         was_casualty_paid: false,
+        // CR 702.148a: test objects are not cleave casts.
+        was_cleaved: false,
+        // CR 702.47a: test objects have no spliced effects.
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        was_entwined: false,
+        escalate_modes_paid: 0,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

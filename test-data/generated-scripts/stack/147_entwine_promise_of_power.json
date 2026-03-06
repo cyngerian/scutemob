@@ -1,0 +1,229 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_147",
+    "name": "Promise of Power: normal cast then entwine cast",
+    "description": "Demonstrates CR 702.42 Entwine with two sequential casts of Promise of Power. First cast chooses only Mode 0 (draw 5, lose 5 life) without paying the entwine cost. Second cast pays the entwine additional cost {4}, executing both modes: draw 5 cards and lose 5 life AND create a 5/5 black Demon token with flying. Verifies that entwine_paid=false executes only the selected mode, while entwine_paid=true executes all modes.",
+    "cr_sections_tested": ["702.42", "702.42a", "601.2", "608.2", "118.2", "111.1"],
+    "corner_case_ref": null,
+    "tags": ["stack", "sorcery", "modal", "entwine", "promise-of-power", "draw", "token"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-06",
+    "generation_notes": "CR 702.42a: Entwine is an additional cost that lets the player choose all modes of a modal spell. Promise of Power has Mode 0 (draw 5, lose 5 life) and Mode 1 (create X/X Demon token). The card def uses a fixed 5/5 placeholder for the Demon token since TokenSpec uses fixed i32 for P/T; true oracle text has X = hand size at resolution. Cast 1 (normal): p1 starts with 2 Promise of Power in hand; casts one (hand=1) → draws 5 (hand=6) → loses 5 life (life=35). Cast 2 (entwine): p1 has 6 cards in hand; casts one (hand=5) → draws 5 (hand=10) → loses 5 life (life=30) → Demon token created on battlefield. Mana pool is set generously to cover both casts: {2}{B}{B}{B} = 2 generic + 3 black for cast 1; {2}{B}{B}{B}+{4} = 6 generic + 3 black for cast 2; total = colorless:8, black:6 (but reusing remaining pool across both casts since no phase change resets the pool). After cast 1 uses generic:2 + black:3, pool has colorless:6 + black:3 left for cast 2 which needs generic:6 + black:3. Library has 10 Islands so two draw-5 effects succeed.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 8, "black": 6 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Promise of Power", "is_commander": false, "owner": null },
+          { "card": "Promise of Power", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "Cast 1: Promise of Power without entwine (Mode 0 only — draw 5, lose 5 life)",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 has 2 Promise of Power in hand, 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "players.p1.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Promise of Power",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "black": 3 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Promise of Power paying {2}{B}{B}{B}. Mode 0 selected (draw 5, lose 5 life). Entwine cost not paid."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Promise of Power on stack, hand has 1 card",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "Promise of Power moved from hand to stack; one copy remains in hand."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Promise of Power",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 5,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Mode 0 resolves — p1 draws 5 cards."
+            },
+            {
+              "effect": "lose_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 5,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: Mode 0 continues — p1 loses 5 life. Life goes from 40 to 35."
+            }
+          ],
+          "note": "CR 608.2: Promise of Power resolves; Mode 0 effect executes (draw 5, lose 5 life); card moves to graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast 1 resolves: p1 life=35, hand has 6 cards (1 remaining + 5 drawn), no Demon token, stack empty",
+          "assertions": {
+            "players.p1.life": 35,
+            "zones.hand.p1.count": 6,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Promise of Power" }] }
+          },
+          "note": "p1 went from 40 to 35 life; drew 5 from library giving hand count 1+5=6. No Demon token — entwine not paid."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "Cast 2: Promise of Power with Entwine (both modes — draw 5/lose 5 life AND create Demon token)",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_entwine",
+          "card": "Promise of Power",
+          "targets": [],
+          "mana_paid": { "colorless": 6, "black": 3 },
+          "mana_source": [],
+          "cr_ref": "702.42a",
+          "note": "CR 702.42a: p1 casts Promise of Power paying {2}{B}{B}{B} base cost plus {4} entwine additional cost (total {6}{B}{B}{B}). Both modes are chosen."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting with entwine: Promise of Power on stack, hand has 5 cards",
+          "assertions": {
+            "zones.hand.p1.count": 5,
+            "zones.stack.count": 1
+          },
+          "note": "Second Promise of Power moved from hand to stack; hand drops from 6 to 5."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Promise of Power",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 5,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Entwine — Mode 0 resolves first: p1 draws 5 cards."
+            },
+            {
+              "effect": "lose_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 5,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: Mode 0 continues — p1 loses 5 life. Life goes from 35 to 30."
+            },
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "111.1",
+              "note": "CR 111.1: Mode 1 resolves — create a 5/5 black Demon token with flying under p1's control."
+            }
+          ],
+          "note": "CR 702.42a: With entwine paid, both modes execute. Mode 0: draw 5 + lose 5 life. Mode 1: create Demon token."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast 2 resolves: p1 life=30, hand has 10 cards, 1 Demon token on battlefield, stack empty",
+          "assertions": {
+            "players.p1.life": 30,
+            "zones.hand.p1.count": 10,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "p1 life: 35-5=30. Hand: 5 cards before cast 2 resolution, drew 5 = 10. Demon token created on battlefield via entwine Mode 1."
+        }
+      ]
+    }
+  ]
+}

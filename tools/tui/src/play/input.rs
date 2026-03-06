@@ -108,6 +108,10 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         casualty_sacrifice: None,
                         assist_player: None,
                         assist_amount: 0,
+                        replicate_count: 0,
+                        splice_cards: Vec::new(),
+                        entwine_paid: false,
+                        escalate_modes: 0,
                     };
                     app.execute_command(cmd)?;
                 } else {

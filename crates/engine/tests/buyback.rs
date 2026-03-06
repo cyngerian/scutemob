@@ -284,6 +284,10 @@ fn test_buyback_basic_return_to_hand() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with buyback failed: {:?}", e));
@@ -391,6 +395,10 @@ fn test_buyback_not_paid_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without buyback failed: {:?}", e));
@@ -508,6 +516,10 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Buyback cast failed: {:?}", e));
@@ -551,6 +563,10 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Counterspell cast failed: {:?}", e));
@@ -653,6 +669,10 @@ fn test_buyback_cost_added_to_total() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with exact buyback mana failed: {:?}", e));
@@ -730,6 +750,10 @@ fn test_buyback_insufficient_mana_rejected() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -801,6 +825,10 @@ fn test_buyback_no_buyback_ability_rejected() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -893,6 +921,10 @@ fn test_buyback_with_flashback_exile_wins() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Flashback + buyback cast failed: {:?}", e));
@@ -1030,6 +1062,10 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Searing Touch with buyback failed: {:?}", e));
@@ -1061,6 +1097,10 @@ fn test_buyback_paid_spell_fizzles_goes_to_graveyard() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Lightning Bolt failed: {:?}", e));
@@ -1176,6 +1216,10 @@ fn test_buyback_spell_cast_event_emitted() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell buyback failed: {:?}", e));

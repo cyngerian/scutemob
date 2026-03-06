@@ -71,6 +71,10 @@ pub struct EffectContext {
     /// Used by `Condition::WasBargained`. Set from `StackObject.was_bargained`
     /// at spell resolution.
     pub was_bargained: bool,
+    /// CR 702.148a: If true, this spell was cast by paying its cleave cost.
+    /// Used by `Condition::WasCleaved`. Set from `StackObject.was_cleaved`
+    /// at spell resolution.
+    pub was_cleaved: bool,
 }
 
 impl EffectContext {
@@ -84,6 +88,7 @@ impl EffectContext {
             kicker_times_paid: 0,
             was_overloaded: false,
             was_bargained: false,
+            was_cleaved: false,
         }
     }
 
@@ -102,6 +107,7 @@ impl EffectContext {
             kicker_times_paid,
             was_overloaded: false,
             was_bargained: false,
+            was_cleaved: false,
         }
     }
 
@@ -1355,6 +1361,7 @@ fn execute_effect_inner(
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
+                            was_cleaved: ctx.was_cleaved,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1374,6 +1381,7 @@ fn execute_effect_inner(
                             kicker_times_paid: ctx.kicker_times_paid,
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
+                            was_cleaved: ctx.was_cleaved,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2781,6 +2789,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
         Condition::WasOverloaded => ctx.was_overloaded,
         // CR 702.166b: "if this spell was bargained" — true when bargain cost was paid.
         Condition::WasBargained => ctx.was_bargained,
+        // CR 702.148a: "if this spell's cleave cost was paid" — true when cleaved.
+        Condition::WasCleaved => ctx.was_cleaved,
     }
 }
 

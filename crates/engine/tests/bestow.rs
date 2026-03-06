@@ -182,6 +182,10 @@ fn test_bestow_cast_as_aura_basic() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -372,6 +376,10 @@ fn test_bestow_cast_normally_as_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -516,6 +524,10 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -761,6 +773,10 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -832,6 +848,10 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -921,6 +941,10 @@ fn test_bestow_cannot_combine_with_flashback() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -1033,6 +1057,10 @@ fn test_bestow_cannot_combine_with_evoke() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1103,6 +1131,10 @@ fn test_bestow_non_bestow_spell_rejected() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(

@@ -12,8 +12,8 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1479 tests passing; ~128 validated; 40/42 P1; 16/17 P2 (Modal deferred); 36/40 P3; 36/88 P4 (+Dash, Blitz, Plot, Prototype, Impending, Bargain, Emerge, Spectacle, Surge, Casualty, Assist); Batch 0+1+2+3+4+5+6 complete; Batch 7 next; 0 HIGH/MEDIUM; ~40 LOW deferred; 0 HIGH/MEDIUM; ~40 LOW deferred
-- **Last Updated**: 2026-03-05
+- **Status**: 1526 tests passing; ~134 validated; 40/42 P1; 16/17 P2 (Modal deferred); 36/40 P3; 44/88 P4 (+Dash, Blitz, Plot, Prototype, Impending, Bargain, Emerge, Spectacle, Surge, Casualty, Assist, Replicate, Gravestorm, Cleave, Splice, Entwine, Escalate); Batch 0+1+2+3+4+5+6+7 complete; Batch 8 next; 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Last Updated**: 2026-03-06
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry

@@ -132,6 +132,12 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::CasualtyTrigger { source_object, .. } => {
                     ("Casualty: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::ReplicateTrigger { source_object, .. } => {
+                    ("Replicate: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::GravestormTrigger { source_object, .. } => {
+                    ("Gravestorm: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

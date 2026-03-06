@@ -250,6 +250,10 @@ fn test_casualty_basic_copy() {
             casualty_sacrifice: Some(creature_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
@@ -395,6 +399,10 @@ fn test_casualty_power_threshold() {
             casualty_sacrifice: Some(weak_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -423,6 +431,10 @@ fn test_casualty_power_threshold() {
             casualty_sacrifice: Some(strong_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -460,6 +472,10 @@ fn test_casualty_optional_no_sacrifice() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
@@ -518,6 +534,10 @@ fn test_casualty_not_a_creature() {
             casualty_sacrifice: Some(artifact_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -560,6 +580,10 @@ fn test_casualty_wrong_controller() {
             casualty_sacrifice: Some(opp_creature_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -631,6 +655,10 @@ fn test_casualty_spell_without_keyword() {
             casualty_sacrifice: Some(creature_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -672,6 +700,10 @@ fn test_casualty_copy_is_not_cast() {
             casualty_sacrifice: Some(creature_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
@@ -732,6 +764,10 @@ fn test_casualty_higher_power_accepted() {
             casualty_sacrifice: Some(big_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 
@@ -772,6 +808,10 @@ fn test_casualty_creature_not_on_battlefield() {
             casualty_sacrifice: Some(dead_id),
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
 

@@ -18,6 +18,9 @@ use crate::state::types::AltCostKind;
 /// All player actions are Commands. There is no way to change game state
 /// except through the Command enum. This enables networking, replay, and
 /// deterministic testing.
+// CastSpell has many optional fields (additional costs, alt costs, splice, etc.)
+// making it large by design; the size difference vs. PassPriority is expected.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
     /// The player passes priority (CR 117.3d).
@@ -209,6 +212,38 @@ pub enum Command {
         /// `assist_player` is `None`.
         #[serde(default)]
         assist_amount: u32,
+        /// CR 702.56a: Number of times the replicate cost was paid as an additional
+        /// cost during casting.
+        /// 0 = not paid (no copies). N = paid N times → N copies created by trigger.
+        /// Each payment adds the replicate cost to the total mana cost paid for the spell
+        /// (CR 601.2f-h). Validated against the spell having `KeywordAbility::Replicate`.
+        /// Ignored for spells without replicate.
+        #[serde(default)]
+        replicate_count: u32,
+        /// CR 702.47a: Cards in the caster's hand to splice onto this spell.
+        /// Each ObjectId must be a card in the caster's hand that has
+        /// `KeywordAbility::Splice` and whose `AbilityDefinition::Splice.onto_subtype`
+        /// matches a subtype of the spell being cast (e.g., "Arcane").
+        /// Each splice adds its cost as an additional cost (CR 601.2f-h) and appends
+        /// its effect to the spell's resolution (CR 702.47b).
+        /// Empty vec = no splice. CR 702.47b: each card can only be spliced once per spell.
+        #[serde(default)]
+        splice_cards: Vec<ObjectId>,
+        /// CR 702.42a: If true, the entwine additional cost was paid. When true, all modes
+        /// of the modal spell are chosen instead of just one.
+        ///
+        /// Validated in `handle_cast_spell`: spell must have `KeywordAbility::Entwine` and
+        /// `AbilityDefinition::Spell.modes` must be `Some(...)`. Ignored for non-modal spells.
+        #[serde(default)]
+        entwine_paid: bool,
+        /// CR 702.120a: Number of additional modes beyond the first for which the escalate
+        /// cost is paid. 0 = single mode (no extra cost). N = pay escalate cost N times and
+        /// execute modes 0..=N at resolution.
+        ///
+        /// Validated in `handle_cast_spell`: spell must have `KeywordAbility::Escalate` and
+        /// `AbilityDefinition::Spell.modes` must be `Some(...)`. N must be < modes.len().
+        #[serde(default)]
+        escalate_modes: u32,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

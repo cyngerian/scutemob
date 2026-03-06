@@ -98,6 +98,10 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -154,6 +158,10 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -210,6 +218,10 @@ fn test_702_5_enchant_land_targets_land_valid() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -264,6 +276,10 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CastSpell should succeed");
@@ -445,6 +461,10 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -492,6 +512,10 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 casualty_sacrifice: None,
                 assist_player: None,
                 assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
             },
         );
         assert!(
@@ -544,6 +568,10 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -603,6 +631,10 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     );
     assert!(
@@ -661,6 +693,10 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             casualty_sacrifice: None,
             assist_player: None,
             assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: vec![],
+            entwine_paid: false,
+            escalate_modes: 0,
         },
     )
     .expect("CastSpell should succeed");

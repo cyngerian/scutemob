@@ -411,6 +411,55 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Surge)` for quick
     /// presence-checking without scanning all abilities.
     Surge { cost: ManaCost },
+    /// CR 702.56a: Replicate [cost] -- optional additional cost paid any number of
+    /// times when casting this spell. Each payment adds [cost] to the total mana cost.
+    /// When you cast this spell, if a replicate cost was paid, copy it for each time
+    /// the replicate cost was paid. Paying the replicate cost follows CR 601.2b and
+    /// CR 601.2f-h.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Replicate)` for quick
+    /// presence-checking without scanning all abilities.
+    Replicate { cost: ManaCost },
+    /// CR 702.148a: Cleave [cost]. The card may be cast by paying this cost instead
+    /// of its mana cost (alternative cost, CR 118.9). When cleaved, the spell's
+    /// square-bracketed text is removed -- modeled as conditional effect dispatch via
+    /// `Condition::WasCleaved`. Cards with cleave should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Cleave)` for quick
+    /// presence-checking without scanning all abilities.
+    Cleave { cost: ManaCost },
+    /// CR 702.47a: Splice onto [subtype] [cost]. When declared while casting a spell
+    /// of the matching subtype (e.g., Arcane), the player pays [cost] as an additional
+    /// cost and the target spell gains this card's rules text (`effect`). The spliced
+    /// card stays in the player's hand after resolution (CR 702.47a). The spell only
+    /// gains the rules text (CR 702.47c) -- not the name, mana cost, types, or other
+    /// characteristics of the spliced card.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Splice)` for quick
+    /// presence-checking without scanning all abilities.
+    Splice {
+        cost: ManaCost,
+        onto_subtype: SubType,
+        effect: Box<Effect>,
+    },
+    /// CR 702.42: Entwine [cost]. Optional additional cost that allows the caster to
+    /// choose all modes of this modal spell instead of just one.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Entwine)` for quick
+    /// presence-checking without scanning all abilities.
+    /// `AbilityDefinition::Spell.modes` must be `Some(...)` for entwine to be meaningful.
+    Entwine { cost: ManaCost },
+    /// CR 702.120: Escalate [cost]. Additional cost paid for each mode chosen beyond
+    /// the first. For N extra modes chosen, the escalate cost is paid N times.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Escalate)` for quick
+    /// presence-checking without scanning all abilities.
+    /// `AbilityDefinition::Spell.modes` must be `Some(...)` with `min_modes: 1,
+    /// max_modes: <mode_count>` for escalate to be meaningful.
+    Escalate { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────
@@ -975,6 +1024,11 @@ pub enum Condition {
     /// Checked at resolution time. Used in card definitions to branch between
     /// base and enhanced effects (analogous to WasKicked).
     WasBargained,
+    /// CR 702.148a: "if this spell's cleave cost was paid" — true when
+    /// `was_cleaved` is set on the EffectContext. Checked at resolution time.
+    /// Used in card definitions to branch between restricted (normal cast) and
+    /// broadened (cleaved cast) effects.
+    WasCleaved,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

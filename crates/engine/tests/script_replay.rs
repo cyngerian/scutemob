@@ -155,6 +155,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     casualty_sacrifice,
                     assist_player,
                     assist_amount,
+                    replicate_count,
+                    splice_card_names,
+                    escalate_modes,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -181,6 +184,9 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             casualty_sacrifice.as_deref(),
                             assist_player.as_deref(),
                             *assist_amount,
+                            *replicate_count,
+                            splice_card_names,
+                            *escalate_modes,
                             &state,
                             &players,
                         );
