@@ -1029,6 +1029,15 @@ pub enum KeywordAbility {
     /// of extra modes chosen. `escalate_modes` in `Command::CastSpell` tracks
     /// how many additional modes beyond the first are chosen.
     Escalate,
+    /// CR 702.59a: Recover [cost] -- triggered ability from graveyard.
+    ///
+    /// "When a creature is put into your graveyard from the battlefield, you may pay
+    /// [cost]. If you do, return this card from your graveyard to your hand. Otherwise,
+    /// exile this card."
+    ///
+    /// Static marker for quick presence-checking. The actual cost is stored in
+    /// `AbilityDefinition::Recover { cost }`. Discriminant 116.
+    Recover,
     /// CR 702.63a: Vanishing N -- "This permanent enters with N time counters on it,"
     /// "At the beginning of your upkeep, if this permanent has a time counter on it,
     /// remove a time counter from it," and "When the last time counter is removed from

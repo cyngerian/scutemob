@@ -496,6 +496,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::CumulativeUpkeep(cost))` for
     /// quick presence-checking.
     CumulativeUpkeep { cost: CumulativeUpkeepCost },
+    /// CR 702.59a: Recover [cost]. Triggered ability from the graveyard. When a
+    /// creature is put into your graveyard from the battlefield, you may pay [cost].
+    /// If you do, return this card from your graveyard to your hand. Otherwise,
+    /// exile this card.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Recover)` for quick
+    /// presence-checking without scanning all abilities. Discriminant 45.
+    Recover { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

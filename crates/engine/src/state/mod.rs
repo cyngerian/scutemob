@@ -148,8 +148,19 @@ pub struct GameState {
     /// `Command::PayCumulativeUpkeep` is received for each entry.
     /// Each entry is `(player, permanent_id, per_counter_cost)`.
     #[serde(default)]
-    pub pending_cumulative_upkeep_payments:
-        im::Vector<(PlayerId, ObjectId, crate::state::types::CumulativeUpkeepCost)>,
+    pub pending_cumulative_upkeep_payments: im::Vector<(
+        PlayerId,
+        ObjectId,
+        crate::state::types::CumulativeUpkeepCost,
+    )>,
+    /// CR 702.59a: Pending recover payment choices.
+    ///
+    /// When a RecoverTrigger resolves, the controller must choose to pay the
+    /// recover cost or exile the card. The game pauses until a
+    /// `Command::PayRecover` is received for each entry.
+    /// Each entry is `(player, recover_card_id, recover_cost)`.
+    #[serde(default)]
+    pub pending_recover_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

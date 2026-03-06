@@ -551,6 +551,8 @@ pub fn handle_cycle_card(
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -634,6 +636,27 @@ fn get_cycling_cost(
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Cycling { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.59a: Look up the recover cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Recover { cost }`, or `None`
+/// if the card has no definition or no recover ability defined.
+fn find_recover_cost(
+    card_id: &Option<crate::state::player::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Recover { cost } = a {
                     Some(cost.clone())
                 } else {
                     None
@@ -1824,6 +1847,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -1893,6 +1918,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 encore_activator: None,
                                 echo_cost: None,
                                 cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
                             });
                         }
                     }
@@ -1951,6 +1978,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
                         });
                     }
                 }
@@ -2011,6 +2040,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 encore_activator: None,
                                 echo_cost: None,
                                 cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
                             });
                         }
                     }
@@ -2161,6 +2192,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             encore_activator: None,
                                             echo_cost: None,
                                             cumulative_upkeep_cost: None,
+                                            recover_cost: None,
+                                            recover_card: None,
                                         });
                                     }
                                 }
@@ -2665,6 +2698,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
                         });
                     }
                 }
@@ -2848,6 +2883,82 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                        });
+                    }
+                }
+
+                // CR 702.59a: Recover triggers. When a creature enters a player's
+                // graveyard from the battlefield, each Recover card in that same
+                // player's graveyard triggers independently.
+                //
+                // The dying creature itself CAN trigger its own Recover (if it has
+                // Recover) because it is now in the graveyard when the event is
+                // processed (CR 702.59a: "while the card with recover is in a player's
+                // graveyard").
+                //
+                // Identify the owner's graveyard by looking at the new_grave_id object.
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    let owner_gy = crate::state::zone::ZoneId::Graveyard(dead_obj.owner);
+                    // Collect Recover cards in the owner's graveyard.
+                    // Use a snapshot to avoid borrow conflicts during iteration.
+                    let recover_cards: Vec<(ObjectId, ManaCost, PlayerId)> = state
+                        .objects
+                        .iter()
+                        .filter_map(|(&obj_id, obj)| {
+                            if obj.zone != owner_gy {
+                                return None;
+                            }
+                            // Quick check: does this object have the Recover keyword marker?
+                            if !obj
+                                .characteristics
+                                .keywords
+                                .iter()
+                                .any(|kw| *kw == KeywordAbility::Recover)
+                            {
+                                return None;
+                            }
+                            // Look up the recover cost from the card registry.
+                            let cost = find_recover_cost(&obj.card_id, &state.card_registry)?;
+                            Some((obj_id, cost, obj.owner))
+                        })
+                        .collect();
+
+                    for (recover_id, cost, card_owner) in recover_cards {
+                        triggers.push(PendingTrigger {
+                            source: recover_id,
+                            ability_index: 0, // unused for recover triggers
+                            controller: card_owner,
+                            kind: PendingTriggerKind::Recover,
+                            triggering_event: Some(TriggerEvent::SelfDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: Some(cost),
+                            recover_card: Some(recover_id),
                         });
                     }
                 }
@@ -2906,6 +3017,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
                         });
                     }
                 }
@@ -3008,6 +3121,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             encore_activator: None,
                             echo_cost: None,
                             cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
                         });
                     }
                 }
@@ -3109,6 +3224,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         encore_activator: None,
                                         echo_cost: None,
                                         cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
                                     });
                                 }
                             }
@@ -3189,6 +3306,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         encore_activator: None,
                                         echo_cost: None,
                                         cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
                                     });
                                 }
                             }
@@ -3272,6 +3391,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         encore_activator: None,
                                         echo_cost: None,
                                         cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
                                     });
                                 }
                             }
@@ -3386,6 +3507,8 @@ fn collect_triggers_for_event(
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }
@@ -3860,6 +3983,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             .cumulative_upkeep_cost
                             .clone()
                             .unwrap_or(CumulativeUpkeepCost::Mana(ManaCost::default())),
+                    }
+                }
+                PendingTriggerKind::Recover => {
+                    // CR 702.59a: Recover trigger.
+                    // "When a creature is put into your graveyard from the battlefield,
+                    // you may pay [cost]. If you do, return this card from your graveyard
+                    // to your hand. Otherwise, exile this card."
+                    StackObjectKind::RecoverTrigger {
+                        source_object: trigger.source,
+                        recover_card: trigger.recover_card.unwrap_or(trigger.source),
+                        recover_cost: trigger.recover_cost.clone().unwrap_or_default(),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

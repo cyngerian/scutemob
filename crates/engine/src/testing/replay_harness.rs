@@ -662,6 +662,23 @@ pub fn translate_player_action(
             Some(Command::ChooseDredge { player, card })
         }
 
+        // CR 702.59a: Pay the recover cost for a card in the graveyard. card_name is the
+        // recover card to return; if absent, declines (exiles the recover card).
+        "pay_recover" => {
+            let (pay, recover_card) = if let Some(name) = card_name {
+                let card_id = find_in_graveyard(state, player, name)?;
+                (true, card_id)
+            } else {
+                let card_id = state
+                    .pending_recover_payments
+                    .iter()
+                    .find(|(pid, _, _)| *pid == player)
+                    .map(|(_, card_id, _)| *card_id)?;
+                (false, card_id)
+            };
+            Some(Command::PayRecover { player, recover_card, pay })
+        }
+
         // CR 508.1: Declare attackers. Resolve creature names to ObjectIds on the
         // battlefield, and player names to AttackTarget::Player.
         "declare_attackers" => {

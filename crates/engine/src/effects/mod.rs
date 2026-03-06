@@ -2028,6 +2028,8 @@ fn execute_effect_inner(
                                         encore_activator: None,
                                         echo_cost: None,
                                         cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
                                     });
                                 }
                             }
@@ -2650,6 +2652,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         encore_activator: None,
                         echo_cost: None,
                         cumulative_upkeep_cost: None,
+                        recover_cost: None,
+                        recover_card: None,
                     });
                 }
             }

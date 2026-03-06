@@ -96,6 +96,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -165,6 +167,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }
@@ -235,6 +239,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }
@@ -306,6 +312,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 encore_activator: None,
                 echo_cost: Some(cost),
                 cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }
@@ -374,6 +382,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: Some(cost),
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }
@@ -430,6 +440,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -487,6 +499,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: encore_activated_by.or(Some(controller)),
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -536,6 +550,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -585,6 +601,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -643,6 +661,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             encore_activator: None,
             echo_cost: None,
             cumulative_upkeep_cost: None,
+            recover_cost: None,
+            recover_card: None,
         });
     }
 
@@ -925,6 +945,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         encore_activator: None,
                         echo_cost: None,
                         cumulative_upkeep_cost: None,
+                        recover_cost: None,
+                        recover_card: None,
                     });
                 }
             }

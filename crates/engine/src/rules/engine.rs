@@ -449,6 +449,27 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Recover (CR 702.59) ──────────────────────────────────────────
+        Command::PayRecover {
+            player,
+            recover_card,
+            pay,
+        } => {
+            // CR 702.59a: Handle the player's recover payment choice.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: paying recover is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_pay_recover(&mut state, player, recover_card, pay)?;
+            // CR 603.3: Check for triggered abilities arising from recover resolution.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
         // ── Cumulative Upkeep (CR 702.24) ────────────────────────────────
         Command::PayCumulativeUpkeep {
             player,
@@ -459,8 +480,7 @@ pub fn process_command(
             validate_player_exists(&state, player)?;
             // CR 104.4b: paying cumulative upkeep is a meaningful player choice.
             loop_detection::reset_loop_detection(&mut state);
-            let mut events =
-                handle_pay_cumulative_upkeep(&mut state, player, permanent, pay)?;
+            let mut events = handle_pay_cumulative_upkeep(&mut state, player, permanent, pay)?;
             // CR 603.3: Check for triggered abilities arising from CU resolution.
             let new_triggers = abilities::check_triggers(&state, &events);
             for t in new_triggers {
@@ -847,6 +867,107 @@ fn multiply_mana_cost(
         colorless: cost.colorless * multiplier,
         generic: cost.generic * multiplier,
     }
+}
+
+/// CR 702.59a: Handle the player's recover payment choice.
+///
+/// If `pay` is true, deducts the recover cost from the player's mana pool and
+/// moves the card from the graveyard to the player's hand (CR 702.59a: "return
+/// this card from your graveyard to your hand").
+///
+/// If `pay` is false, moves the card from the graveyard to exile
+/// (CR 702.59a: "Otherwise, exile this card.").
+///
+/// In both cases, the pending recover payment entry is removed.
+fn handle_pay_recover(
+    state: &mut GameState,
+    player: PlayerId,
+    recover_card: crate::state::game_object::ObjectId,
+    pay: bool,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Find and remove the matching pending recover payment.
+    let payment_pos = state
+        .pending_recover_payments
+        .iter()
+        .position(|(p, obj, _)| *p == player && *obj == recover_card);
+
+    let recover_cost = if let Some(pos) = payment_pos {
+        let (_, _, cost) = state.pending_recover_payments.remove(pos);
+        cost
+    } else {
+        // No pending payment for this card -- stale or invalid command.
+        return Err(GameStateError::InvalidCommand(format!(
+            "No pending recover payment for player {:?} card {:?}",
+            player, recover_card
+        )));
+    };
+
+    // Verify the card is still in a graveyard (CR 400.7).
+    let card_info = state.objects.get(&recover_card).and_then(|obj| {
+        if matches!(obj.zone, ZoneId::Graveyard(_)) {
+            Some(obj.owner)
+        } else {
+            None
+        }
+    });
+
+    let Some(owner) = card_info else {
+        // Card left the graveyard since the trigger resolved; nothing to do.
+        return Ok(events);
+    };
+
+    if pay {
+        // CR 702.59a: Player pays the recover cost.
+        let pool = &state
+            .players
+            .get(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?
+            .mana_pool;
+
+        let can_afford = casting::can_pay_cost(pool, &recover_cost);
+        if !can_afford {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Player {:?} cannot afford recover cost",
+                player
+            )));
+        }
+
+        // Deduct the mana.
+        if let Some(p) = state.players.get_mut(&player) {
+            casting::pay_cost(&mut p.mana_pool, &recover_cost);
+        }
+
+        // Return card from graveyard to owner's hand (CR 702.59a).
+        let (new_hand_id, _old) = state.move_object_to_zone(recover_card, ZoneId::Hand(owner))?;
+        events.push(GameEvent::RecoverPaid {
+            player,
+            recover_card,
+            new_hand_id,
+        });
+    } else {
+        // CR 702.59a: Player declines -- exile the card from the graveyard.
+        let (new_exile_id, _old) = state.move_object_to_zone(recover_card, ZoneId::Exile)?;
+        events.push(GameEvent::RecoverDeclined {
+            player,
+            recover_card,
+            new_exile_id,
+        });
+    }
+
+    // CR 704.3: Check SBAs after recover resolution.
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
+
+    // Grant priority to the active player.
+    state.turn.players_passed = im::OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    Ok(events)
 }
 
 /// Handle a PassPriority command.

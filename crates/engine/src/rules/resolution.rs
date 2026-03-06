@@ -1098,6 +1098,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 encore_activator: None,
                                 echo_cost: None,
                                 cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
                             });
                     }
                 }
@@ -1429,11 +1431,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if still_on_battlefield {
                 // CR 702.24a: "put an age counter on this permanent"
                 if let Some(obj) = state.objects.get_mut(&cu_permanent) {
-                    let current = obj
-                        .counters
-                        .get(&CounterType::Age)
-                        .copied()
-                        .unwrap_or(0);
+                    let current = obj.counters.get(&CounterType::Age).copied().unwrap_or(0);
                     obj.counters.insert(CounterType::Age, current + 1);
                 }
 
@@ -1453,11 +1451,56 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 });
 
                 // Track pending payment.
-                state
-                    .pending_cumulative_upkeep_payments
-                    .push_back((controller, cu_permanent, per_counter_cost));
+                state.pending_cumulative_upkeep_payments.push_back((
+                    controller,
+                    cu_permanent,
+                    per_counter_cost,
+                ));
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.59a: Recover trigger resolves.
+        //
+        // "When a creature is put into your graveyard from the battlefield, you may
+        // pay [cost]. If you do, return this card from your graveyard to your hand.
+        // Otherwise, exile this card."
+        //
+        // On resolution: check if recover_card is still in the graveyard (CR 400.7).
+        // If yes, emit RecoverPaymentRequired and add to pending_recover_payments.
+        // If not, do nothing (card is a new object elsewhere).
+        StackObjectKind::RecoverTrigger {
+            source_object: _,
+            recover_card,
+            recover_cost,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if the Recover card is still in the graveyard (CR 400.7).
+            let still_in_graveyard = state
+                .objects
+                .get(&recover_card)
+                .map(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
+                .unwrap_or(false);
+
+            if still_in_graveyard {
+                // Emit the payment required event and pause for player choice.
+                events.push(GameEvent::RecoverPaymentRequired {
+                    player: controller,
+                    recover_card,
+                    cost: recover_cost.clone(),
+                });
+                // Track pending payment so Command::PayRecover can find it.
+                state
+                    .pending_recover_payments
+                    .push_back((controller, recover_card, recover_cost));
+            }
+            // If not in graveyard, do nothing (CR 400.7 -- card is a new object).
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -2350,6 +2393,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 encore_activator: None,
                                 echo_cost: None,
                                 cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
                             });
                     }
                 }
@@ -4019,7 +4064,8 @@ pub fn counter_stack_object(
         | StackObjectKind::VanishingSacrificeTrigger { .. }
         | StackObjectKind::FadingTrigger { .. }
         | StackObjectKind::EchoTrigger { .. }
-        | StackObjectKind::CumulativeUpkeepTrigger { .. } => {
+        | StackObjectKind::CumulativeUpkeepTrigger { .. }
+        | StackObjectKind::RecoverTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EchoTrigger, if countered (e.g. by Stifle), echo_pending
             // remains set so the trigger fires again on the next upkeep (CR 702.30a).

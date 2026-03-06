@@ -571,4 +571,18 @@ pub enum Command {
         /// True = pay the total cumulative upkeep cost. False = sacrifice.
         pay: bool,
     },
+
+    // ── Recover (CR 702.59) ───────────────────────────────────────────────────
+    /// Choose whether to pay the recover cost for a card in the graveyard (CR 702.59a).
+    ///
+    /// Sent in response to a `RecoverPaymentRequired` event. If `pay` is true,
+    /// the player pays the recover cost (mana is deducted) and the card is returned
+    /// from the graveyard to the player's hand. If `pay` is false, the card is
+    /// exiled (CR 702.59a: "Otherwise, exile this card.").
+    PayRecover {
+        player: PlayerId,
+        recover_card: ObjectId,
+        /// True = pay the recover cost and return to hand. False = exile the card.
+        pay: bool,
+    },
 }

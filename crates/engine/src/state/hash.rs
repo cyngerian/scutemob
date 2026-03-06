@@ -597,6 +597,8 @@ impl HashInto for KeywordAbility {
                 115u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // Recover (discriminant 116) -- CR 702.59
+            KeywordAbility::Recover => 116u8.hash_into(hasher),
         }
     }
 }
@@ -1737,6 +1739,17 @@ impl HashInto for StackObjectKind {
                 cu_permanent.hash_into(hasher);
                 per_counter_cost.hash_into(hasher);
             }
+            // RecoverTrigger (discriminant 42) -- CR 702.59a
+            StackObjectKind::RecoverTrigger {
+                source_object,
+                recover_card,
+                recover_cost,
+            } => {
+                42u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                recover_card.hash_into(hasher);
+                recover_cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -2635,6 +2648,39 @@ impl HashInto for GameEvent {
                 permanent.hash_into(hasher);
                 age_counter_count.hash_into(hasher);
             }
+            // CR 702.59a: RecoverPaymentRequired (discriminant 93)
+            GameEvent::RecoverPaymentRequired {
+                player,
+                recover_card,
+                cost,
+            } => {
+                93u8.hash_into(hasher);
+                player.hash_into(hasher);
+                recover_card.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // CR 702.59a: RecoverPaid (discriminant 94)
+            GameEvent::RecoverPaid {
+                player,
+                recover_card,
+                new_hand_id,
+            } => {
+                94u8.hash_into(hasher);
+                player.hash_into(hasher);
+                recover_card.hash_into(hasher);
+                new_hand_id.hash_into(hasher);
+            }
+            // CR 702.59a: RecoverDeclined (discriminant 95)
+            GameEvent::RecoverDeclined {
+                player,
+                recover_card,
+                new_exile_id,
+            } => {
+                95u8.hash_into(hasher);
+                player.hash_into(hasher);
+                recover_card.hash_into(hasher);
+                new_exile_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -3506,6 +3552,11 @@ impl HashInto for AbilityDefinition {
                 44u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // Recover (discriminant 45) -- CR 702.59
+            AbilityDefinition::Recover { cost } => {
+                45u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -3614,6 +3665,13 @@ impl GameState {
 
         // 9. Cumulative upkeep payment choices (CR 702.24a)
         for (player, oid, cost) in self.pending_cumulative_upkeep_payments.iter() {
+            player.hash_into(&mut hasher);
+            oid.hash_into(&mut hasher);
+            cost.hash_into(&mut hasher);
+        }
+
+        // 10. Recover payment choices (CR 702.59a)
+        for (player, oid, cost) in self.pending_recover_payments.iter() {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);

@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_153",
+    "name": "Recover trigger: Grim Harvest returns to hand when creature dies",
+    "description": "p1 has Grim Harvest in their graveyard and Llanowar Elves on the battlefield. p2 (active player) casts Doom Blade targeting Llanowar Elves. After both players pass priority, Doom Blade resolves and destroys Llanowar Elves (CR 701.7a). An SBA check moves the creature to p1's graveyard. The RecoverTrigger from Grim Harvest fires (CR 702.59a: 'When a creature is put into your graveyard from the battlefield') and is placed on the stack. Both players pass priority; the RecoverTrigger resolves and emits RecoverPaymentRequired. p1 chooses to pay {2}{B} via pay_recover, returning Grim Harvest from their graveyard to their hand. Final state: Grim Harvest in p1's hand, not in graveyard.",
+    "cr_sections_tested": ["601.2", "608.2", "701.7a", "704.3", "704.5g", "702.59a", "603.2", "603.6c"],
+    "corner_case_ref": null,
+    "tags": ["recover", "triggered-ability", "graveyard", "grim-harvest", "doom-blade", "creature-dies"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tests the Recover triggered ability (CR 702.59a) end-to-end. Grim Harvest oracle: '{1}{B}, Instant — Return target creature card from your graveyard to your hand. Recover {2}{B}.' The Recover trigger fires whenever a creature is put into the controller's graveyard from the battlefield. The RecoverTrigger is built by flush_pending_triggers and goes on the stack as StackObjectKind::RecoverTrigger. On resolution (resolution.rs line 1477+), the engine emits GameEvent::RecoverPaymentRequired and adds the entry to state.pending_recover_payments. The Command::PayRecover command (with pay=true, card_name='Grim Harvest') is handled by handle_pay_recover (engine.rs line 882+): it verifies the card is still in the graveyard (CR 400.7), deducts the mana cost ({2}{B} = generic:2 + black:1) from p1's pool, and moves Grim Harvest to p1's hand. p2 is the active player (casts Doom Blade), so priority order is [p2, p1]. Doom Blade costs {1}{B} (generic:1, black:1). p1 pre-loads {colorless:2, black:1} so they can afford the recover cost. Llanowar Elves is 1/1 — Doom Blade targets it (non-black creature). Doom Blade oracle: '{1}{B}, Instant — Destroy target non-black creature.' The pay_recover harness action does not take mana_paid; the engine reads and deducts from the player's pool directly. No library cards needed (Grim Harvest main effect is a placeholder that draws 0 cards; we do not cast the spell).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p2",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p2",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p2": [
+          { "card": "Doom Blade", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {
+        "p1": [
+          { "card": "Grim Harvest", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p2 casts Doom Blade targeting p1's Llanowar Elves; creature is destroyed; RecoverTrigger fires; p1 pays to return Grim Harvest to hand",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p1 battlefield, Grim Harvest in p1 graveyard, Doom Blade in p2 hand",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Grim Harvest" }] },
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" }
+          ],
+          "mana_paid": { "colorless": 1, "black": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Doom Blade targeting p1's Llanowar Elves; {1}{B} paid from pool. Doom Blade: Destroy target non-black creature."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Doom Blade on stack, p2 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0
+          },
+          "note": "Doom Blade is on the stack targeting Llanowar Elves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Doom Blade resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "destroy",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "amount": null,
+              "card": "Llanowar Elves",
+              "owner": "p1",
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Doom Blade destroys Llanowar Elves; creature moves to p1's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Doom Blade resolves; Llanowar Elves is destroyed and moves to p1's graveyard. CR 702.59a: This triggers Grim Harvest's Recover ability (a creature was put into p1's graveyard from the battlefield). RecoverTrigger is placed on the stack."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Llanowar Elves", "controller": "p1" },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Llanowar Elves was destroyed by Doom Blade and moves to p1's graveyard."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked after Doom Blade resolves. Llanowar Elves goes to p1's graveyard. RecoverTrigger from Grim Harvest is queued and flushed to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Doom Blade resolves: Llanowar Elves in graveyard, RecoverTrigger on stack (count 1)",
+          "assertions": {
+            "zones.battlefield.p1": { "excludes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack.count": 1
+          },
+          "note": "Llanowar Elves is destroyed and in p1's graveyard. The RecoverTrigger from Grim Harvest is on the stack. Grim Harvest remains in p1's graveyard."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p2", "p1"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — RecoverTrigger resolves, emitting RecoverPaymentRequired. Game pauses for p1's choice."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Grim Harvest RecoverTrigger",
+          "resolution": [
+            {
+              "effect": "recover_payment_required",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Grim Harvest",
+              "owner": "p1",
+              "cr_ref": "702.59a",
+              "note": "CR 702.59a: RecoverTrigger resolves; engine emits RecoverPaymentRequired for p1. p1 must choose to pay {2}{B} or exile Grim Harvest."
+            }
+          ],
+          "note": "CR 608.2 + 702.59a: RecoverTrigger resolves. RecoverPaymentRequired event emitted. Game pauses until Command::PayRecover is received from p1."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "pay_recover",
+          "card": "Grim Harvest",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "702.59a",
+          "note": "CR 702.59a: p1 pays {2}{B} to recover Grim Harvest. The engine deducts {2}{B} from p1's mana pool and moves Grim Harvest from p1's graveyard to p1's hand."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Grim Harvest in p1's hand, not in graveyard; stack empty",
+          "assertions": {
+            "zones.hand.p1": { "includes": [{ "card": "Grim Harvest" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Grim Harvest" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.59a: p1 paid the recover cost {2}{B}; Grim Harvest is returned from graveyard to p1's hand. Llanowar Elves remains in graveyard."
+        }
+      ]
+    }
+  ]
+}

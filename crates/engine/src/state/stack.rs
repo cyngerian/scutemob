@@ -926,4 +926,19 @@ pub enum StackObjectKind {
         cu_permanent: ObjectId,
         per_counter_cost: crate::state::types::CumulativeUpkeepCost,
     },
+    /// CR 702.59a: Recover trigger. Fires when a creature enters the card owner's
+    /// graveyard from the battlefield and the Recover card is also in that graveyard.
+    ///
+    /// On resolution: check if recover_card is still in the graveyard (CR 400.7).
+    /// If yes, emit RecoverPaymentRequired and add to pending_recover_payments.
+    /// The game pauses until a Command::PayRecover is received.
+    ///
+    /// Discriminant 42.
+    RecoverTrigger {
+        source_object: ObjectId,
+        /// The ObjectId of the Recover card in the graveyard (the trigger source).
+        recover_card: ObjectId,
+        /// The mana cost to pay for Recover.
+        recover_cost: ManaCost,
+    },
 }

@@ -158,6 +158,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::CumulativeUpkeepTrigger { cu_permanent, .. } => {
                     ("Cumulative Upkeep: ".to_string(), Some(*cu_permanent))
                 }
+                StackObjectKind::RecoverTrigger { recover_card, .. } => {
+                    ("Recover: ".to_string(), Some(*recover_card))
+                }
             };
 
             let (name, name_color) = source_id

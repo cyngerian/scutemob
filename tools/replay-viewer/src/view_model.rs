@@ -548,6 +548,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::CumulativeUpkeepTrigger { cu_permanent, .. } => {
             ("cumulative_upkeep_trigger", Some(*cu_permanent))
         }
+        StackObjectKind::RecoverTrigger { recover_card, .. } => {
+            ("recover_trigger", Some(*recover_card))
+        }
     }
 }
 
@@ -808,5 +811,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Fading(n) => format!("Fading {n}"),
         KeywordAbility::Echo(_) => "Echo".to_string(),
         KeywordAbility::CumulativeUpkeep(_) => "Cumulative Upkeep".to_string(),
+        KeywordAbility::Recover => "Recover".to_string(),
     }
 }

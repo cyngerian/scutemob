@@ -81,6 +81,10 @@ pub enum PendingTriggerKind {
     EchoUpkeep,
     /// CR 702.24a: Cumulative upkeep trigger -- add age counter, then pay or sacrifice.
     CumulativeUpkeep,
+    /// CR 702.59a: Recover trigger -- fired when a creature enters the card owner's
+    /// graveyard from the battlefield. Carries recover_cost and recover_card for
+    /// flush_pending_triggers to build the RecoverTrigger stack entry.
+    Recover,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -270,6 +274,18 @@ pub struct PendingTrigger {
     /// Carries the cost from trigger queueing to stack object creation.
     #[serde(default)]
     pub cumulative_upkeep_cost: Option<crate::state::types::CumulativeUpkeepCost>,
+    /// CR 702.59a: The recover cost to pay (from AbilityDefinition::Recover { cost }).
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::Recover`.
+    /// Carries the recover cost from trigger queueing to stack object creation.
+    #[serde(default)]
+    pub recover_cost: Option<ManaCost>,
+    /// CR 702.59a: The ObjectId of the Recover card in the graveyard.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::Recover`.
+    /// Carries the recover card id from trigger queueing to stack object creation.
+    #[serde(default)]
+    pub recover_card: Option<ObjectId>,
 }
 
 impl PendingTriggerKind {

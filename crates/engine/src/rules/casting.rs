@@ -2664,6 +2664,8 @@ pub fn handle_cast_spell(
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
             });
         }
     }

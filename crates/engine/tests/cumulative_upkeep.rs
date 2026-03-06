@@ -603,13 +603,10 @@ fn test_cumulative_upkeep_multiplayer_only_controller_upkeep() {
 
     // No pending triggers for CumulativeUpkeep.
     assert!(
-        state
-            .pending_triggers
-            .iter()
-            .all(|t| !matches!(
-                t.kind,
-                mtg_engine::state::stubs::PendingTriggerKind::CumulativeUpkeep
-            )),
+        state.pending_triggers.iter().all(|t| !matches!(
+            t.kind,
+            mtg_engine::state::stubs::PendingTriggerKind::CumulativeUpkeep
+        )),
         "CR 702.24a: no CumulativeUpkeep trigger pending on non-controller's upkeep"
     );
 }

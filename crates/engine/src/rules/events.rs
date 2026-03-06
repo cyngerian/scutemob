@@ -915,6 +915,33 @@ pub enum GameEvent {
         age_counter_count: u32,
     },
 
+    // ── Recover events (CR 702.59) ────────────────────────────────────────────
+    /// CR 702.59a: A recover trigger has resolved. The controller must choose
+    /// whether to pay the recover cost or exile the card.
+    ///
+    /// The engine pauses until a `Command::PayRecover` is received.
+    RecoverPaymentRequired {
+        player: PlayerId,
+        recover_card: ObjectId,
+        cost: crate::state::game_object::ManaCost,
+    },
+
+    /// CR 702.59a: A player paid the recover cost for a card and it was
+    /// returned from the graveyard to the player's hand.
+    RecoverPaid {
+        player: PlayerId,
+        recover_card: ObjectId,
+        new_hand_id: ObjectId,
+    },
+
+    /// CR 702.59a: A player declined to pay the recover cost. The card
+    /// was exiled from the graveyard.
+    RecoverDeclined {
+        player: PlayerId,
+        recover_card: ObjectId,
+        new_exile_id: ObjectId,
+    },
+
     // -- Proliferate event (CR 701.34) ------------------------------------------
     /// CR 701.34a: A player proliferated.
     ///
