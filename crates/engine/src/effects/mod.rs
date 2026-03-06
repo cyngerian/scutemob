@@ -2026,6 +2026,7 @@ fn execute_effect_inner(
                                         poisonous_target_player: None,
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
+                                        echo_cost: None,
                                     });
                                 }
                             }
@@ -2491,6 +2492,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         plotted_turn: 0,
         is_prototyped: false,
         was_bargained: false,
+        echo_pending: false,
     }
 }
 
@@ -2645,6 +2647,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         poisonous_target_player: None,
                         enlist_enlisted_creature: None,
                         encore_activator: None,
+                        echo_cost: None,
                     });
                 }
             }

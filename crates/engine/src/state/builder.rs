@@ -343,6 +343,7 @@ impl GameStateBuilder {
             loop_detection_hashes: OrdMap::new(),
             history: Vector::new(),
             permanents_put_into_graveyard_this_turn: 0,
+            pending_echo_payments: Vector::new(),
             card_registry: self.card_registry,
         };
 
@@ -952,6 +953,7 @@ impl GameStateBuilder {
                 plotted_turn: 0,
                 is_prototyped: false,
                 was_bargained: false,
+                echo_pending: false,
             };
 
             state.add_object(object, zone)?;

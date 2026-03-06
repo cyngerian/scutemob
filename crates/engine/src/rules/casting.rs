@@ -2662,6 +2662,7 @@ pub fn handle_cast_spell(
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
                 encore_activator: None,
+                echo_cost: None,
             });
         }
     }

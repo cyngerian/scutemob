@@ -499,6 +499,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
 
+                // CR 702.30a: Mark permanents with Echo as pending their echo trigger.
+                // "At the beginning of your upkeep, if this permanent came under your
+                // control since the beginning of your last upkeep, sacrifice it unless
+                // you pay [cost]." Setting echo_pending models the condition.
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    if obj
+                        .characteristics
+                        .keywords
+                        .iter()
+                        .any(|kw| matches!(kw, crate::state::types::KeywordAbility::Echo(_)))
+                    {
+                        obj.echo_pending = true;
+                    }
+                }
+
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
                 // it enters the battlefield with the specified counters. This is a
                 // replacement effect on ETB (not a triggered ability). Applied here
@@ -1081,6 +1096,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
+                                echo_cost: None,
                             });
                     }
                 }
@@ -1329,6 +1345,50 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.30a: Echo upkeep trigger resolves.
+        //
+        // "At the beginning of your upkeep, if this permanent came under your control
+        // since the beginning of your last upkeep, sacrifice it unless you pay [cost]."
+        //
+        // On resolution: emit EchoPaymentRequired and add to pending_echo_payments.
+        // The game pauses until a Command::PayEcho is received.
+        // If the permanent has left the battlefield (CR 400.7), trigger does nothing.
+        // echo_pending is cleared only in the PayEcho handler (not here), so that if
+        // the trigger is countered (Stifle), it fires again on the next upkeep.
+        StackObjectKind::EchoTrigger {
+            source_object: _,
+            echo_permanent,
+            echo_cost,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if permanent is still on the battlefield (CR 400.7).
+            let still_on_battlefield = state
+                .objects
+                .get(&echo_permanent)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if still_on_battlefield {
+                // Emit the payment required event and pause for player choice.
+                events.push(GameEvent::EchoPaymentRequired {
+                    player: controller,
+                    permanent: echo_permanent,
+                    cost: echo_cost.clone(),
+                });
+                // Track the pending payment so Command::PayEcho can find it.
+                state
+                    .pending_echo_payments
+                    .push_back((controller, echo_permanent, echo_cost));
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
 
@@ -2095,6 +2155,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    echo_pending: false,
                 };
 
                 // Add the token to the battlefield.
@@ -2220,6 +2281,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
+                                echo_cost: None,
                             });
                     }
                 }
@@ -3191,6 +3253,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    echo_pending: false,
                 };
 
                 // Add the token to the battlefield.
@@ -3376,6 +3439,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    echo_pending: false,
                 };
 
                 // Add the token to the battlefield.
@@ -3580,6 +3644,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         plotted_turn: 0,
                         is_prototyped: false,
                         was_bargained: false,
+                        echo_pending: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3884,8 +3949,11 @@ pub fn counter_stack_object(
         | StackObjectKind::GravestormTrigger { .. }
         | StackObjectKind::VanishingCounterTrigger { .. }
         | StackObjectKind::VanishingSacrificeTrigger { .. }
-        | StackObjectKind::FadingTrigger { .. } => {
+        | StackObjectKind::FadingTrigger { .. }
+        | StackObjectKind::EchoTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For EchoTrigger, if countered (e.g. by Stifle), echo_pending
+            // remains set so the trigger fires again on the next upkeep (CR 702.30a).
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
             // Note: For DashReturnTrigger, the creature stays on the battlefield

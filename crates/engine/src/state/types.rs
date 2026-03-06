@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::game_object::ManaCost;
+
 /// The five colors of Magic (CR 105.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Color {
@@ -1024,6 +1026,15 @@ pub enum KeywordAbility {
     /// The upkeep trigger is a SINGLE trigger that handles both counter removal and
     /// sacrifice (if removal fails).
     Fading(u32),
+    /// CR 702.30a: Echo [cost] -- "At the beginning of your upkeep, if this permanent
+    /// came under your control since the beginning of your last upkeep, sacrifice it
+    /// unless you pay [cost]."
+    ///
+    /// The ManaCost parameter is the echo cost. For most Urza block cards, this equals
+    /// the card's mana cost (CR 702.30b). Later cards may have different echo costs.
+    ///
+    /// CR 702.30a: Each instance triggers separately (standard triggered ability rule).
+    Echo(ManaCost),
 }
 
 /// All creature subtypes from CR 205.3m.

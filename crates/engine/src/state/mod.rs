@@ -131,6 +131,16 @@ pub struct GameState {
     /// exist as an SBA. The increment happens before any subsequent SBA check.
     #[serde(default)]
     pub permanents_put_into_graveyard_this_turn: u32,
+    /// CR 702.30a: Pending echo payment choices.
+    ///
+    /// When an EchoTrigger resolves, the controller must choose to pay or sacrifice.
+    /// The game pauses until a `Command::PayEcho` is received for each entry.
+    /// Each entry is `(player, permanent_id, echo_cost)`.
+    ///
+    /// Only one echo payment can be pending at a time (triggers resolve one at a time
+    /// from the stack), but using `Vector` is consistent with other pending-choice patterns.
+    #[serde(default)]
+    pub pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones
@@ -319,6 +329,8 @@ impl GameState {
             is_prototyped: false,
             // CR 400.7: bargained status is not preserved across zone changes.
             was_bargained: false,
+            // CR 400.7: echo pending flag is not preserved across zone changes.
+            echo_pending: false,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
@@ -450,6 +462,8 @@ impl GameState {
             is_prototyped: false,
             // CR 400.7: bargained status is not preserved across zone changes.
             was_bargained: false,
+            // CR 400.7: echo pending flag is not preserved across zone changes.
+            echo_pending: false,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone

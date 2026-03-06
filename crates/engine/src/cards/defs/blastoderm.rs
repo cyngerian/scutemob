@@ -14,6 +14,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Shroud),
             AbilityDefinition::Fading { count: 3 },
         ],
-        ..Default::default()
     }
 }

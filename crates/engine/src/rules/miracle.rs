@@ -134,6 +134,7 @@ pub fn handle_choose_miracle(
         poisonous_target_player: None,
         enlist_enlisted_creature: None,
         encore_activator: None,
+        echo_cost: None,
     });
 
     Ok(vec![])

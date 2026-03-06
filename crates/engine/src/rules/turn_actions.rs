@@ -94,6 +94,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -161,6 +162,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
                 encore_activator: None,
+                echo_cost: None,
             });
         }
     }
@@ -229,6 +231,77 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
                 encore_activator: None,
+                echo_cost: None,
+            });
+        }
+    }
+
+    // CR 702.30a: Queue upkeep triggers for all Echo permanents with echo_pending.
+    // "At the beginning of your upkeep, if this permanent came under your control
+    // since the beginning of your last upkeep, sacrifice it unless you pay [cost]."
+    //
+    // Only fires for permanents controlled by the active player (CR 702.30a: "your upkeep").
+    // Intervening-if: echo_pending must be true AND the permanent still has
+    // KeywordAbility::Echo(_) in its layer-resolved characteristics (per gotchas-infra.md:
+    // "parameterized keyword N-value extraction must use layer-resolved chars").
+    // This ensures effects like Humility that remove Echo prevent the trigger from firing.
+    // Multiple instances of Echo each trigger separately (per CR 603.2b).
+    let echo_permanents: Vec<(ObjectId, Vec<crate::state::game_object::ManaCost>)> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield && obj.controller == active && obj.echo_pending
+        })
+        .map(|obj| {
+            let echo_costs: Vec<crate::state::game_object::ManaCost> = obj
+                .characteristics
+                .keywords
+                .iter()
+                .filter_map(|kw| {
+                    if let KeywordAbility::Echo(cost) = kw {
+                        Some(cost.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            (obj.id, echo_costs)
+        })
+        .filter(|(_, costs)| !costs.is_empty())
+        .collect();
+
+    for (obj_id, costs) in echo_permanents {
+        for cost in costs {
+            state.pending_triggers.push_back(PendingTrigger {
+                source: obj_id,
+                ability_index: 0, // unused for echo triggers
+                controller: active,
+                kind: PendingTriggerKind::EchoUpkeep,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: None,
+                madness_cost: None,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+                echo_cost: Some(cost),
             });
         }
     }
@@ -283,6 +356,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -338,6 +412,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             // controller. If encore_activated_by is unset (e.g., old state from before
             // this field was added), fall back to current controller.
             encore_activator: encore_activated_by.or(Some(controller)),
+            echo_cost: None,
         });
     }
 
@@ -385,6 +460,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -432,6 +508,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -488,6 +565,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -768,6 +846,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         poisonous_target_player: None,
                         enlist_enlisted_creature: None,
                         encore_activator: None,
+                        echo_cost: None,
                     });
                 }
             }

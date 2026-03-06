@@ -15,7 +15,7 @@ use super::zone::ZoneId;
 pub struct ObjectId(pub u64);
 
 /// Mana cost of a card or ability (CR 202).
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ManaCost {
     pub white: u32,
     pub blue: u32,
@@ -521,4 +521,14 @@ pub struct GameObject {
     /// at resolution time when the permanent enters the battlefield.
     #[serde(default)]
     pub was_bargained: bool,
+    /// CR 702.30a: If true, this permanent has Echo and has not yet had its echo
+    /// trigger resolve. Set to true when the permanent enters the battlefield with
+    /// the Echo keyword. Cleared when the echo trigger resolves (either paid or
+    /// sacrificed). If the trigger is countered (e.g., Stifle), the flag remains
+    /// set so the trigger fires again on the next upkeep.
+    ///
+    /// Models the "came under your control since the beginning of your last
+    /// upkeep" condition from CR 702.30a.
+    #[serde(default)]
+    pub echo_pending: bool,
 }

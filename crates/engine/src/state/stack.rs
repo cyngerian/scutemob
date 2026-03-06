@@ -10,7 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::game_object::ObjectId;
+use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
 use super::targeting::SpellTarget;
 
@@ -908,5 +908,13 @@ pub enum StackObjectKind {
     FadingTrigger {
         source_object: ObjectId,
         fading_permanent: ObjectId,
+    },
+    /// CR 702.30a: "At the beginning of your upkeep, if this permanent came under
+    /// your control since the beginning of your last upkeep, sacrifice it unless
+    /// you pay [cost]." Discriminant 40.
+    EchoTrigger {
+        source_object: ObjectId,
+        echo_permanent: ObjectId,
+        echo_cost: ManaCost,
     },
 }

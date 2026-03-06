@@ -570,6 +570,11 @@ impl HashInto for KeywordAbility {
                 113u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Echo (discriminant 114) -- CR 702.30
+            KeywordAbility::Echo(cost) => {
+                114u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -750,6 +755,8 @@ impl HashInto for GameObject {
         self.was_bargained.hash_into(hasher);
         // Note: Surge's "was_surged" is tracked via cast_alt_cost == Some(AltCostKind::Surge),
         // which is already hashed as part of cast_alt_cost above.
+        // Echo (CR 702.30a) — permanent has echo pending (echo trigger not yet resolved)
+        self.echo_pending.hash_into(hasher);
     }
 }
 
@@ -1686,6 +1693,17 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 fading_permanent.hash_into(hasher);
             }
+            // EchoTrigger (discriminant 40) -- CR 702.30a
+            StackObjectKind::EchoTrigger {
+                source_object,
+                echo_permanent,
+                echo_cost,
+            } => {
+                40u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                echo_permanent.hash_into(hasher);
+                echo_cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -2542,6 +2560,23 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 object_id.hash_into(hasher);
                 new_exile_id.hash_into(hasher);
+            }
+            // CR 702.30a: EchoPaymentRequired (discriminant 89)
+            GameEvent::EchoPaymentRequired {
+                player,
+                permanent,
+                cost,
+            } => {
+                89u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // CR 702.30a: EchoPaid (discriminant 90)
+            GameEvent::EchoPaid { player, permanent } => {
+                90u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
             }
         }
     }
@@ -3404,6 +3439,11 @@ impl HashInto for AbilityDefinition {
                 42u8.hash_into(hasher);
                 count.hash_into(hasher);
             }
+            // Echo (discriminant 43) -- CR 702.30
+            AbilityDefinition::Echo { cost } => {
+                43u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -3502,6 +3542,13 @@ impl GameState {
         // 7. Gravestorm counter (CR 702.69a)
         self.permanents_put_into_graveyard_this_turn
             .hash_into(&mut hasher);
+
+        // 8. Echo payment choices (CR 702.30a)
+        for (player, oid, cost) in self.pending_echo_payments.iter() {
+            player.hash_into(&mut hasher);
+            oid.hash_into(&mut hasher);
+            cost.hash_into(&mut hasher);
+        }
 
         *hasher.finalize().as_bytes()
     }

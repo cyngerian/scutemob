@@ -425,6 +425,29 @@ pub fn process_command(
             events.extend(trigger_events);
             all_events.extend(events);
         }
+
+        // ── Echo (CR 702.30) ─────────────────────────────────────────────
+        Command::PayEcho {
+            player,
+            permanent,
+            pay,
+        } => {
+            // CR 702.30a: Handle the player's echo payment choice.
+            // No validate_player_active needed -- echo can resolve during any upkeep,
+            // but the player must be the permanent's controller.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: paying echo is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_pay_echo(&mut state, player, permanent, pay)?;
+            // CR 603.3: Check for triggered abilities arising from echo resolution.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history
@@ -433,6 +456,172 @@ pub fn process_command(
     }
 
     Ok((state, all_events))
+}
+
+/// CR 702.30a: Handle the player's echo payment choice.
+///
+/// If `pay` is true, deducts the echo cost from the player's mana pool and
+/// clears `echo_pending` on the permanent. If `pay` is false (or the player
+/// cannot afford it), the permanent is sacrificed (bypassing indestructible,
+/// CR 701.17a) and `echo_pending` is cleared.
+///
+/// In both cases, the pending echo payment entry is removed.
+fn handle_pay_echo(
+    state: &mut GameState,
+    player: PlayerId,
+    permanent: crate::state::game_object::ObjectId,
+    pay: bool,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Find and remove the matching pending echo payment.
+    let payment_pos = state
+        .pending_echo_payments
+        .iter()
+        .position(|(p, obj, _)| *p == player && *obj == permanent);
+
+    let echo_cost = if let Some(pos) = payment_pos {
+        let (_, _, cost) = state.pending_echo_payments.remove(pos);
+        cost
+    } else {
+        // No pending payment for this permanent -- stale or invalid command.
+        return Err(GameStateError::InvalidCommand(format!(
+            "No pending echo payment for player {:?} permanent {:?}",
+            player, permanent
+        )));
+    };
+
+    // Validate: permanent must still be on the battlefield.
+    let source_info = state.objects.get(&permanent).and_then(|obj| {
+        if obj.zone == ZoneId::Battlefield {
+            Some((obj.owner, obj.controller, obj.counters.clone()))
+        } else {
+            None
+        }
+    });
+
+    let Some((owner, controller, pre_death_counters)) = source_info else {
+        // Permanent left the battlefield since the trigger resolved; nothing to do.
+        return Ok(events);
+    };
+
+    // CR 702.30a: Clear the echo_pending flag regardless of pay/sacrifice.
+    if let Some(obj) = state.objects.get_mut(&permanent) {
+        obj.echo_pending = false;
+    }
+
+    if pay {
+        // CR 702.30a: Player pays the echo cost.
+        // Validate: player has sufficient mana.
+        let pool = &state
+            .players
+            .get(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?
+            .mana_pool;
+
+        let can_afford = casting::can_pay_cost(pool, &echo_cost);
+        if !can_afford {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Player {:?} cannot afford echo cost",
+                player
+            )));
+        }
+
+        // Deduct the mana.
+        if let Some(p) = state.players.get_mut(&player) {
+            casting::pay_cost(&mut p.mana_pool, &echo_cost);
+        }
+
+        events.push(GameEvent::EchoPaid { player, permanent });
+    } else {
+        // CR 702.30a: Player declines -- sacrifice the permanent (CR 701.17a: bypasses indestructible).
+        let action = crate::rules::replacement::check_zone_change_replacement(
+            state,
+            permanent,
+            crate::state::zone::ZoneType::Battlefield,
+            crate::state::zone::ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            crate::rules::replacement::ZoneChangeAction::Redirect {
+                to: dest,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
+                    match dest {
+                        ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: owner,
+                                object_id: permanent,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        ZoneId::Command(_) => {
+                            // Commander redirected to command zone; no sacrifice event.
+                        }
+                        _ => {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: permanent,
+                                new_grave_id: new_id,
+                                controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                if let Ok((new_grave_id, _old)) =
+                    state.move_object_to_zone(permanent, ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: permanent,
+                        new_grave_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                player: choice_player,
+                choices,
+                event_description,
+            } => {
+                // CR 616.1: Multiple replacement effects -- defer to player choice.
+                state.pending_zone_changes.push_back(
+                    crate::state::replacement_effect::PendingZoneChange {
+                        object_id: permanent,
+                        original_from: crate::state::zone::ZoneType::Battlefield,
+                        original_destination: crate::state::zone::ZoneType::Graveyard,
+                        affected_player: choice_player,
+                        already_applied: Vec::new(),
+                    },
+                );
+                events.push(GameEvent::ReplacementChoiceRequired {
+                    player: choice_player,
+                    event_description,
+                    choices,
+                });
+            }
+        }
+    }
+
+    // CR 704.3: Check SBAs after echo resolution.
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
+
+    // Grant priority to the active player.
+    state.turn.players_passed = im::OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    Ok(events)
 }
 
 /// Handle a PassPriority command.

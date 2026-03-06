@@ -77,6 +77,8 @@ pub enum PendingTriggerKind {
     VanishingSacrifice,
     /// CR 702.32a: Fading upkeep trigger -- remove a fade counter or sacrifice.
     FadingUpkeep,
+    /// CR 702.30a: Echo upkeep trigger -- sacrifice unless you pay [cost].
+    EchoUpkeep,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -254,6 +256,12 @@ pub struct PendingTrigger {
     /// before sacrificing.
     #[serde(default)]
     pub encore_activator: Option<PlayerId>,
+    /// CR 702.30a: The echo cost to pay (from KeywordAbility::Echo(cost)).
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::EchoUpkeep`.
+    /// Carries the echo cost from trigger queueing to stack object creation.
+    #[serde(default)]
+    pub echo_cost: Option<ManaCost>,
 }
 
 impl PendingTriggerKind {

@@ -176,6 +176,23 @@ pub fn handle_play_land(
         }
     }
 
+    // CR 702.30a: Mark lands with Echo as pending their echo trigger.
+    // "At the beginning of your upkeep, if this permanent came under your
+    // control since the beginning of your last upkeep, sacrifice it unless
+    // you pay [cost]." Setting echo_pending models the condition.
+    // Echo lands are extremely rare, but the ETB hook must exist at both sites
+    // (resolution.rs and lands.rs) per gotchas-infra.md.
+    if let Some(obj) = state.objects.get_mut(&new_land_id) {
+        if obj
+            .characteristics
+            .keywords
+            .iter()
+            .any(|kw| matches!(kw, KeywordAbility::Echo(_)))
+        {
+            obj.echo_pending = true;
+        }
+    }
+
     // CR 614: Register global replacement abilities from this land's card definition.
     super::replacement::register_permanent_replacement_abilities(
         state,

@@ -478,6 +478,16 @@ pub enum AbilityDefinition {
     /// `count` is N (the number of fade counters placed on ETB).
     /// Fading always has N >= 1 (unlike Vanishing which can be 0).
     Fading { count: u32 },
+    /// CR 702.30a: Echo [cost] -- triggered ability that fires on the controller's
+    /// first upkeep after the permanent enters.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Echo(cost))` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// `cost` is the echo cost (ManaCost). For Urza block cards, this equals
+    /// the card's mana cost (CR 702.30b).
+    Echo { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

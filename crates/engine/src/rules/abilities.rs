@@ -549,6 +549,7 @@ pub fn handle_cycle_card(
             poisonous_target_player: None,
             enlist_enlisted_creature: None,
             encore_activator: None,
+            echo_cost: None,
         });
     }
 
@@ -1820,6 +1821,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -1887,6 +1889,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
+                                echo_cost: None,
                             });
                         }
                     }
@@ -1943,6 +1946,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         });
                     }
                 }
@@ -2001,6 +2005,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 poisonous_target_player: None,
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
+                                echo_cost: None,
                             });
                         }
                     }
@@ -2149,6 +2154,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             poisonous_target_player: None,
                                             enlist_enlisted_creature: None,
                                             encore_activator: None,
+                                            echo_cost: None,
                                         });
                                     }
                                 }
@@ -2651,6 +2657,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         });
                     }
                 }
@@ -2832,6 +2839,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         });
                     }
                 }
@@ -2888,6 +2896,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         });
                     }
                 }
@@ -2988,6 +2997,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             poisonous_target_player: None,
                             enlist_enlisted_creature: None,
                             encore_activator: None,
+                            echo_cost: None,
                         });
                     }
                 }
@@ -3087,6 +3097,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         poisonous_target_player: None,
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
+                                        echo_cost: None,
                                     });
                                 }
                             }
@@ -3165,6 +3176,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         poisonous_target_player: None,
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
+                                        echo_cost: None,
                                     });
                                 }
                             }
@@ -3246,6 +3258,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         poisonous_target_player: Some(damaged_player),
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
+                                        echo_cost: None,
                                     });
                                 }
                             }
@@ -3358,6 +3371,7 @@ fn collect_triggers_for_event(
                 poisonous_target_player: None,
                 enlist_enlisted_creature: None,
                 encore_activator: None,
+                echo_cost: None,
             });
         }
     }
@@ -3807,6 +3821,17 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::FadingTrigger {
                         source_object: trigger.source,
                         fading_permanent: trigger.source,
+                    }
+                }
+                PendingTriggerKind::EchoUpkeep => {
+                    // CR 702.30a: Echo upkeep trigger.
+                    // "At the beginning of your upkeep, if this permanent came under
+                    // your control since the beginning of your last upkeep, sacrifice
+                    // it unless you pay [cost]."
+                    StackObjectKind::EchoTrigger {
+                        source_object: trigger.source,
+                        echo_permanent: trigger.source,
+                        echo_cost: trigger.echo_cost.clone().unwrap_or_default(),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

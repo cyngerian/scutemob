@@ -542,6 +542,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::FadingTrigger {
             fading_permanent, ..
         } => ("fading_trigger", Some(*fading_permanent)),
+        StackObjectKind::EchoTrigger { echo_permanent, .. } => {
+            ("echo_trigger", Some(*echo_permanent))
+        }
     }
 }
 
@@ -799,5 +802,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
             }
         }
         KeywordAbility::Fading(n) => format!("Fading {n}"),
+        KeywordAbility::Echo(_) => "Echo".to_string(),
     }
 }

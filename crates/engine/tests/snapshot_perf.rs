@@ -143,6 +143,7 @@ fn test_clone_independence_object_modification() {
                 plotted_turn: 0,
                 is_prototyped: false,
                 was_bargained: false,
+                echo_pending: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

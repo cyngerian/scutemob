@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Fading 702.32 validated; P4 validated 43->44, total validated 135->136; script 150; card: Blastoderm)
+> Last audited: 2026-03-06 (Echo 702.30 validated; P4 validated 44->45, total validated 136->137; script 151; card: Avalanche Riders)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 44        | 0        | 0       | 45   | 12  |
-| **Total**| **200**| **136**  | **2**    | **0**   | **50**| **12** |
+| P4       | 101   | 45        | 0        | 0       | 44   | 12  |
+| **Total**| **200**| **137**  | **2**    | **0**   | **49**| **12** |
 
 ---
 
@@ -236,7 +236,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Suspend | 702.62 | P3 | `validated` | `state/types.rs:543`, `cards/card_definition.rs:252`, `rules/suspend.rs` (197 lines), `rules/command.rs:356`, `rules/events.rs:784`, `rules/engine.rs:304`, `rules/turn_actions.rs:35-91`, `rules/abilities.rs`, `rules/resolution.rs:1278-1449`, `state/hash.rs:439+2086` | Rift Bolt (#111) | `stack/102` | — | KeywordAbility::Suspend enum + AbilityDefinition::Suspend { cost, time_counters }; Command::SuspendCard special action (CR 116.2f); handle_suspend_card validates zone/keyword/timing/mana, exiles face-up with N time counters, is_suspended=true; GameEvent::CardSuspended (hash 86); upkeep trigger dispatch in turn_actions.rs queues SuspendCounterTrigger; resolution.rs removes counter, queues SuspendCastTrigger when last removed; cast trigger casts without paying mana cost (CR 702.62d), creatures gain haste (CR 702.62a); multiplayer: only owner's upkeep ticks; 9 unit tests in `tests/suspend.rs`; game script approved |
 | Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
 | Cumulative Upkeep | 702.24 | P4 | `none` | — | — | — | — | Increasing cost each upkeep |
-| Echo | 702.31 | P4 | `none` | — | — | — | — | Pay mana cost again on next upkeep or sacrifice |
+| Echo | 702.30 | P4 | `validated` | `rules/turn_actions.rs:L239`, `rules/resolution.rs:L502,L1357`, `rules/lands.rs:L179`, `rules/engine.rs:L429`, `rules/abilities.rs:L3826` | Avalanche Riders | `stack/151` | — | CR number corrected 702.31->702.30; KeywordAbility::Echo(ManaCost) enum; ETB sets echo_pending (resolution.rs + lands.rs); upkeep trigger queues EchoUpkeep (turn_actions.rs); resolution emits EchoPaymentRequired; Command::PayEcho handles pay/sacrifice (engine.rs); intervening-if checks layer-resolved characteristics; 9 unit tests in `tests/echo.rs`; game script approved |
 | Fading | 702.32 | P4 | `validated` | `rules/turn_actions.rs:L168`, `rules/resolution.rs:L477,L1206`, `rules/lands.rs:L148`, `rules/abilities.rs:L3803` | Blastoderm | `stack/150` | — | ETB with fade counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/fading.rs`; CR 702.32a covered; uses fade counters (not time counters like Vanishing) |
 | Vanishing | 702.63 | P4 | `validated` | `rules/turn_actions.rs:L100`, `rules/resolution.rs:L449,L983,L1072`, `rules/lands.rs:L115`, `rules/abilities.rs:L3785` | Aven Riftwatcher | `stack/149` | — | ETB counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/vanishing.rs`; CR 702.63a-c covered |
 | Forecast | 702.57 | P4 | `none` | — | — | — | — | Reveal from hand during upkeep for effect |

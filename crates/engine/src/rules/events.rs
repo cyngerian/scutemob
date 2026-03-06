@@ -872,6 +872,27 @@ pub enum GameEvent {
         remaining_count: u32,
     },
 
+    // ── Echo events (CR 702.30) ───────────────────────────────────────────
+    /// CR 702.30a: An echo trigger has resolved. The controller must choose
+    /// whether to pay the echo cost or sacrifice the permanent.
+    ///
+    /// The engine pauses until a `Command::PayEcho` is received.
+    EchoPaymentRequired {
+        player: PlayerId,
+        permanent: ObjectId,
+        cost: crate::state::game_object::ManaCost,
+    },
+
+    /// CR 702.30a: A player paid the echo cost for a permanent.
+    ///
+    /// Emitted when the player sends `Command::PayEcho { pay: true }` and
+    /// the mana has been deducted. The permanent stays on the battlefield
+    /// and `echo_pending` is cleared.
+    EchoPaid {
+        player: PlayerId,
+        permanent: ObjectId,
+    },
+
     // -- Proliferate event (CR 701.34) ------------------------------------------
     /// CR 701.34a: A player proliferated.
     ///

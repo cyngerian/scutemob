@@ -544,4 +544,18 @@ pub enum Command {
         /// The unblocked attacking creature to return to its owner's hand.
         attacker_to_return: ObjectId,
     },
+
+    // ── Echo (CR 702.30) ─────────────────────────────────────────────────
+    /// Choose whether to pay the echo cost for a permanent (CR 702.30a).
+    ///
+    /// Sent in response to an `EchoPaymentRequired` event. If `pay` is true,
+    /// the player pays the echo cost (mana is deducted) and the permanent stays.
+    /// If `pay` is false (or the player cannot afford the cost), the permanent
+    /// is sacrificed.
+    PayEcho {
+        player: PlayerId,
+        permanent: ObjectId,
+        /// True = pay the echo cost. False = sacrifice the permanent.
+        pay: bool,
+    },
 }

@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_151",
+    "name": "Avalanche Riders — cast and resolve, Haste + Echo",
+    "description": "p1 casts Avalanche Riders ({3}{R}, 2/2 Haste, Echo {3}{R}). The spell resolves and Avalanche Riders enters p1's battlefield. The script verifies the cast→resolve path and that the creature lands on the battlefield. The ETB land-destruction trigger ('When this creature enters, destroy target land') is affected by an engine gap: fire_when_enters_triggered_effects passes an empty targets list to the EffectContext, so DeclaredTarget { index: 0 } resolves to nothing and the destroy effect silently does not execute. This is a known engine gap — targeted ETB triggers are not yet supported by the inline ETB execution path. Echo's upkeep payment interaction is intentionally omitted (requires multi-turn progression).",
+    "cr_sections_tested": ["601.2", "608.2", "702.30a"],
+    "corner_case_ref": null,
+    "tags": ["echo", "haste", "etb-trigger", "land-destruction", "creature", "engine-gap"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Avalanche Riders oracle text: Haste; Echo {3}{R}; 'When this creature enters, destroy target land.' Cost is {3}{R} — 3 generic + 1 red. p1 is set up with 3 colorless and 1 red in mana pool to pay the full cost. p2 controls a Forest as the intended ETB destruction target. Engine gap: fire_when_enters_triggered_effects (replacement.rs line ~920) creates EffectContext with vec![] targets. Effect::DestroyPermanent { target: DeclaredTarget { index: 0 } } silently does nothing since index 0 is out-of-bounds on the empty targets list. The Forest remains on p2's battlefield after resolution. Script assertions are scoped to what the engine actually executes: creature on p1's battlefield, p2's Forest still present (gap), stack empty. Dispute recorded below. CR 603.2 requires the triggered ability to go on the stack with the declared target; CR 701.7a requires the Forest be destroyed. Neither happens due to the engine gap.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "game-script-generator",
+        "description": "ENGINE GAP (CR 603.2 + CR 701.7a): Avalanche Riders ETB trigger 'When this creature enters, destroy target land' does not execute. fire_when_enters_triggered_effects (replacement.rs) creates EffectContext with vec![] targets. Effect::DestroyPermanent { target: DeclaredTarget { index: 0 } } silently does nothing since the targets list is empty. Per CR 603.2, the triggered ability should go on the stack and resolve to destroy p2's Forest. The inline ETB execution path does not support targeted ETB triggers that need to resolve through the stack. The final assert checks that the Forest remains (engine gap behavior) rather than asserting the correct CR behavior (Forest destroyed).",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 3, "red": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Forest", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Avalanche Riders", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Avalanche Riders; it resolves and enters p1's battlefield",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: Avalanche Riders in p1's hand, p2's Forest on battlefield",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p2": { "includes": [{ "card": "Forest" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "p1 has {3}{R} in mana pool; p2 controls a Forest (the intended ETB destruction target — see dispute)."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Avalanche Riders",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Forest", "controller": "p2" }
+          ],
+          "mana_paid": { "colorless": 3, "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Avalanche Riders paying {3}{R}. Target declared for the ETB trigger per oracle text."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Avalanche Riders on stack, p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Avalanche Riders is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Avalanche Riders resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Avalanche Riders",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Avalanche Riders",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Avalanche Riders resolves and enters p1's battlefield with Haste and Echo {3}{R}."
+            }
+          ],
+          "note": "CR 608.2: Creature spell resolves. Per CR 603.2, the ETB trigger should go on the stack — engine gap prevents this (see dispute). p2's Forest should be destroyed but is not."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: Avalanche Riders on p1's battlefield, stack empty. p2's Forest survives due to engine gap.",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Avalanche Riders" }] },
+            "zones.battlefield.p2": { "includes": [{ "card": "Forest" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Avalanche Riders (2/2 Haste, Echo {3}{R}) is on the battlefield. p2's Forest should have been destroyed by the ETB trigger per CR 603.2 + CR 701.7a but remains due to engine gap. Echo's upkeep trigger (CR 702.30a) will fire at p1's next upkeep but is not scripted here."
+        }
+      ]
+    }
+  ]
+}

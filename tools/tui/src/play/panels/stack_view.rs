@@ -152,6 +152,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::FadingTrigger {
                     fading_permanent, ..
                 } => ("Fading: ".to_string(), Some(*fading_permanent)),
+                StackObjectKind::EchoTrigger { echo_permanent, .. } => {
+                    ("Echo: ".to_string(), Some(*echo_permanent))
+                }
             };
 
             let (name, name_color) = source_id
