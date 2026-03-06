@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 3 (2026-03-01)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 7 (2026-03-06)
 
 ## Rust / im-rs Gotchas
 
@@ -140,10 +140,10 @@
   This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
-- **Discriminant chain after Batch 3**: KeywordAbility next = 89, StackObjectKind next = 27.
-  Batch 3 used: Melee=83, Poisonous=84, Toxic=85, Enlist=86, Ninjutsu=87, CommanderNinjutsu=88
-  (StackObjectKind: MeleeTrigger=23, PoisonousTrigger=24, EnlistTrigger=25, NinjutsuAbility=26).
-  AbilityDefinition hash discriminants: Ninjutsu=22, CommanderNinjutsu=23 (check card_definition.rs).
+- **Discriminant chain after Batch 7**: KeywordAbility next = 112, StackObjectKind next = 37,
+  AbilityDefinition next = 41. B7 used: KW 107-111 (Gravestorm, Cleave, Splice, Entwine, Escalate),
+  AbilDef 36-40 (same order), SOK 36 (GravestormTrigger). Check card_definition.rs for exact values.
+  **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
 - **Parameterized keyword N-value extraction must use layer-resolved chars, NOT card registry.**
   Reading `card_registry.get(card_id)` bypasses Humility/Dress Down (ability removal in Layer 6)
   and also misses abilities granted by continuous effects. Always use `chars.keywords.iter()` where
@@ -198,8 +198,18 @@
   `declare_blockers` (DeclareBlockers command, `blockers: [{card, blocking}]` array),
   `crew_vehicle` (CrewVehicle command, `vehicle`, `crew_creatures: [name, ...]` array),
   `improvise` (CastSpell with `improvise_names: [name, ...]`; maps to `improvise_artifacts`).
+  **B7 additions**: `cast_spell_replicate` (replicate_count: u32), `cast_spell_cleave`
+  (AltCostKind::Cleave), `cast_spell_splice` (splice_card_names: Vec<String>),
+  `cast_spell_entwine` (entwine_paid: true), `cast_spell_escalate` (escalate_modes: u32).
   When the generator reports a harness gap for a new action type, add the arm to
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
+- **`cast_spell` hard-codes `replicate_count: 0`** — scripts for Replicate spells MUST use
+  `cast_spell_replicate`. Similarly, `cast_spell` does not set entwine/escalate/splice fields.
+  Always use the ability-specific action type for alt-cost/additional-cost spells.
+- **Card definition `modes` field is `Option<ModeSelection>`, NOT `Vec`** — `card-definition-author`
+  repeatedly writes `modes: vec![]` which causes a type error. Correct value: `modes: None` for
+  non-modal spells, or `modes: Some(ModeSelection { min_modes, max_modes, modes: vec![...] })`.
+  `ModeSelection` is now exported from `crates/engine/src/cards/helpers.rs` (added B7).
 - **Convoke scripts: duplicate creature names resolve to the same ObjectId** — rejected as
   "duplicate ObjectId in convoke_creatures." Use distinct card names (e.g., Llanowar Elves,
   Elvish Mystic, Birds of Paradise) rather than three identical "Llanowar Elves" entries.
