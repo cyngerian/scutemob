@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 8: Upkeep, Time & Phasing (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing) | ACTIVE | 2026-03-06 | B7 closed; B8 claimed |
+| W1: Abilities | Batch 8 complete — Batch 9 next (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass) | available | — | B8 closed 2026-03-06 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,30 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-06
+**Workstream**: W1: Abilities — Batch 8
+
+Batch 8 complete. All 7 abilities implemented, reviewed, card+script+coverage done:
+- Vanishing (702.63): ETB time counters, upkeep removal, sacrifice trigger; Aven Riftwatcher; script 149; MEDIUM fix (find_map→filter_map sum for multi-instance)
+- Fading (702.32): ETB fade counters, single upkeep trigger (remove or sacrifice); Blastoderm; script 150; clean review
+- Echo (702.30): echo_pending flag on GameObject, upkeep trigger, PayEcho command; Avalanche Riders; script 151; clean review. CR corrected: 702.30 not 702.31
+- Cumulative Upkeep (702.24): age counters, escalating cost, PayCumulativeUpkeep; Mystic Remora; script 152; HIGH fix (expect→unwrap_or) + MEDIUM (life_lost_this_turn)
+- Recover (702.59): GY creature-death trigger, PayRecover command, pay_recover harness action; Grim Harvest; script 153; clean review. Also fixed grim_harvest.rs modes: vec![]→None
+- Forecast (702.57): hand activated ability, upkeep-only restriction, forecast_used_this_turn tracking, activate_forecast harness action; Sky Hussar; script 154; clean review
+- Phasing (702.26): simultaneous phase-in/out (snapshot before mutate, CR 502.1), indirect phasing (CR 702.26h), is_phased_in() filters on 30+ battlefield sites; Teferi's Isle; script 155; HIGH+MEDIUM fixes for simultaneous phasing + filter gaps
+
+1592 tests passing. 141 validated. P4 51/88. Scripts 149-155.
+New infra: CounterType::Fade+Age; SOK 37-43 (VanishingCounter, VanishingSacrifice, Fading, Echo, CumulativeUpkeep, Recover, ForecastAbility); echo_pending+phased_out_indirectly+phased_out_controller on GameObject; forecast_used_this_turn on GameState; CumulativeUpkeepCost enum; PermanentsPhasedOut/PermanentsPhasedIn events; pay_recover+activate_forecast harness actions.
+Discriminants used: KW 112-118; AbilDef 41-46.
+
+**HAZARD**: Ability planner sometimes generates wrong KW/AbilDef discriminants (used already-taken values). Always verify the discriminant chain from the previous batch before running the runner. The runner itself was given correct values manually each time.
+
+**Next**: Claim W1-B9. Check docs/ability-batch-plan.md for Batch 9 contents (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass — counter/growth mechanics).
+
+**Commit prefix used**: W1-B8:
 
 ## Last Handoff
 
