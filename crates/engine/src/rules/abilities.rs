@@ -29,7 +29,7 @@ use crate::state::stubs::{
     PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
 };
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, CounterType, KeywordAbility};
+use crate::state::types::{CardType, CounterType, CumulativeUpkeepCost, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -550,6 +550,7 @@ pub fn handle_cycle_card(
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -1822,6 +1823,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -1890,6 +1892,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
                                 echo_cost: None,
+                                cumulative_upkeep_cost: None,
                             });
                         }
                     }
@@ -1947,6 +1950,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         });
                     }
                 }
@@ -2006,6 +2010,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
                                 echo_cost: None,
+                                cumulative_upkeep_cost: None,
                             });
                         }
                     }
@@ -2155,6 +2160,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             enlist_enlisted_creature: None,
                                             encore_activator: None,
                                             echo_cost: None,
+                                            cumulative_upkeep_cost: None,
                                         });
                                     }
                                 }
@@ -2658,6 +2664,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         });
                     }
                 }
@@ -2840,6 +2847,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         });
                     }
                 }
@@ -2897,6 +2905,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         });
                     }
                 }
@@ -2998,6 +3007,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             enlist_enlisted_creature: None,
                             encore_activator: None,
                             echo_cost: None,
+                            cumulative_upkeep_cost: None,
                         });
                     }
                 }
@@ -3098,6 +3108,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
                                         echo_cost: None,
+                                        cumulative_upkeep_cost: None,
                                     });
                                 }
                             }
@@ -3177,6 +3188,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
                                         echo_cost: None,
+                                        cumulative_upkeep_cost: None,
                                     });
                                 }
                             }
@@ -3259,6 +3271,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
                                         echo_cost: None,
+                                        cumulative_upkeep_cost: None,
                                     });
                                 }
                             }
@@ -3372,6 +3385,7 @@ fn collect_triggers_for_event(
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: None,
+                cumulative_upkeep_cost: None,
             });
         }
     }
@@ -3832,6 +3846,20 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                         echo_permanent: trigger.source,
                         echo_cost: trigger.echo_cost.clone().unwrap_or_default(),
+                    }
+                }
+                PendingTriggerKind::CumulativeUpkeep => {
+                    // CR 702.24a: Cumulative upkeep trigger.
+                    // "At the beginning of your upkeep, if this permanent is on the
+                    // battlefield, put an age counter on this permanent. Then you may
+                    // pay [cost] for each age counter on it. If you don't, sacrifice it."
+                    StackObjectKind::CumulativeUpkeepTrigger {
+                        source_object: trigger.source,
+                        cu_permanent: trigger.source,
+                        per_counter_cost: trigger
+                            .cumulative_upkeep_cost
+                            .clone()
+                            .unwrap_or(CumulativeUpkeepCost::Mana(ManaCost::default())),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

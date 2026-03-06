@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
-    ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, CumulativeUpkeepCost, EnchantTarget,
+    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -231,6 +231,8 @@ impl HashInto for CounterType {
             CounterType::Stun => 11u8.hash_into(hasher),
             CounterType::Time => 12u8.hash_into(hasher),
             CounterType::Fade => 14u8.hash_into(hasher),
+            // Age (discriminant 15) -- CR 702.24a
+            CounterType::Age => 15u8.hash_into(hasher),
             CounterType::Custom(s) => {
                 13u8.hash_into(hasher);
                 s.hash_into(hasher);
@@ -293,6 +295,21 @@ impl HashInto for AffinityTarget {
             AffinityTarget::BasicLandType(st) => {
                 1u8.hash_into(hasher);
                 st.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for CumulativeUpkeepCost {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            CumulativeUpkeepCost::Mana(cost) => {
+                0u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            CumulativeUpkeepCost::Life(amount) => {
+                1u8.hash_into(hasher);
+                amount.hash_into(hasher);
             }
         }
     }
@@ -573,6 +590,11 @@ impl HashInto for KeywordAbility {
             // Echo (discriminant 114) -- CR 702.30
             KeywordAbility::Echo(cost) => {
                 114u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // CumulativeUpkeep (discriminant 115) -- CR 702.24
+            KeywordAbility::CumulativeUpkeep(cost) => {
+                115u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }
@@ -1704,6 +1726,17 @@ impl HashInto for StackObjectKind {
                 echo_permanent.hash_into(hasher);
                 echo_cost.hash_into(hasher);
             }
+            // CumulativeUpkeepTrigger (discriminant 41) -- CR 702.24a
+            StackObjectKind::CumulativeUpkeepTrigger {
+                source_object,
+                cu_permanent,
+                per_counter_cost,
+            } => {
+                41u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                cu_permanent.hash_into(hasher);
+                per_counter_cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -2578,6 +2611,30 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 permanent.hash_into(hasher);
             }
+            // CR 702.24a: CumulativeUpkeepPaymentRequired (discriminant 91)
+            GameEvent::CumulativeUpkeepPaymentRequired {
+                player,
+                permanent,
+                per_counter_cost,
+                age_counter_count,
+            } => {
+                91u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
+                per_counter_cost.hash_into(hasher);
+                age_counter_count.hash_into(hasher);
+            }
+            // CR 702.24a: CumulativeUpkeepPaid (discriminant 92)
+            GameEvent::CumulativeUpkeepPaid {
+                player,
+                permanent,
+                age_counter_count,
+            } => {
+                92u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
+                age_counter_count.hash_into(hasher);
+            }
         }
     }
 }
@@ -3444,6 +3501,11 @@ impl HashInto for AbilityDefinition {
                 43u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // CumulativeUpkeep (discriminant 44) -- CR 702.24
+            AbilityDefinition::CumulativeUpkeep { cost } => {
+                44u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }
@@ -3545,6 +3607,13 @@ impl GameState {
 
         // 8. Echo payment choices (CR 702.30a)
         for (player, oid, cost) in self.pending_echo_payments.iter() {
+            player.hash_into(&mut hasher);
+            oid.hash_into(&mut hasher);
+            cost.hash_into(&mut hasher);
+        }
+
+        // 9. Cumulative upkeep payment choices (CR 702.24a)
+        for (player, oid, cost) in self.pending_cumulative_upkeep_payments.iter() {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);

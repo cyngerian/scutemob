@@ -41,8 +41,8 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    AffinityTarget, CardType, Color, CounterType, EnchantTarget, KeywordAbility, LandwalkType,
-    ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, Color, CounterType, CumulativeUpkeepCost, EnchantTarget,
+    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -141,6 +141,15 @@ pub struct GameState {
     /// from the stack), but using `Vector` is consistent with other pending-choice patterns.
     #[serde(default)]
     pub pending_echo_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    /// CR 702.24a: Pending cumulative upkeep payment choices.
+    ///
+    /// When a CumulativeUpkeepTrigger resolves (after adding the age counter), the
+    /// controller must choose to pay or sacrifice. The game pauses until a
+    /// `Command::PayCumulativeUpkeep` is received for each entry.
+    /// Each entry is `(player, permanent_id, per_counter_cost)`.
+    #[serde(default)]
+    pub pending_cumulative_upkeep_payments:
+        im::Vector<(PlayerId, ObjectId, crate::state::types::CumulativeUpkeepCost)>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

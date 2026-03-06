@@ -135,6 +135,7 @@ pub fn handle_choose_miracle(
         enlist_enlisted_creature: None,
         encore_activator: None,
         echo_cost: None,
+        cumulative_upkeep_cost: None,
     });
 
     Ok(vec![])

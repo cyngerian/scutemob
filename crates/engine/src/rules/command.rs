@@ -558,4 +558,17 @@ pub enum Command {
         /// True = pay the echo cost. False = sacrifice the permanent.
         pay: bool,
     },
+
+    // ── Cumulative Upkeep (CR 702.24) ─────────────────────────────────────────
+    /// Choose whether to pay the cumulative upkeep cost for a permanent (CR 702.24a).
+    ///
+    /// Sent in response to a `CumulativeUpkeepPaymentRequired` event. If `pay`
+    /// is true, the player pays the total cost (per-counter cost x age_count).
+    /// If `pay` is false, the permanent is sacrificed.
+    PayCumulativeUpkeep {
+        player: PlayerId,
+        permanent: ObjectId,
+        /// True = pay the total cumulative upkeep cost. False = sacrifice.
+        pay: bool,
+    },
 }

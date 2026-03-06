@@ -79,6 +79,8 @@ pub enum PendingTriggerKind {
     FadingUpkeep,
     /// CR 702.30a: Echo upkeep trigger -- sacrifice unless you pay [cost].
     EchoUpkeep,
+    /// CR 702.24a: Cumulative upkeep trigger -- add age counter, then pay or sacrifice.
+    CumulativeUpkeep,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -262,6 +264,12 @@ pub struct PendingTrigger {
     /// Carries the echo cost from trigger queueing to stack object creation.
     #[serde(default)]
     pub echo_cost: Option<ManaCost>,
+    /// CR 702.24a: The per-counter cumulative upkeep cost.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::CumulativeUpkeep`.
+    /// Carries the cost from trigger queueing to stack object creation.
+    #[serde(default)]
+    pub cumulative_upkeep_cost: Option<crate::state::types::CumulativeUpkeepCost>,
 }
 
 impl PendingTriggerKind {

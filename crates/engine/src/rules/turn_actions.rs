@@ -8,7 +8,7 @@ use crate::state::player::PlayerId;
 use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
 use crate::state::turn::Step;
 use crate::state::types::AltCostKind;
-use crate::state::types::{CounterType, KeywordAbility};
+use crate::state::types::{CounterType, CumulativeUpkeepCost, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -95,6 +95,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -163,6 +164,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: None,
+                cumulative_upkeep_cost: None,
             });
         }
     }
@@ -232,6 +234,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: None,
+                cumulative_upkeep_cost: None,
             });
         }
     }
@@ -302,6 +305,75 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: Some(cost),
+                cumulative_upkeep_cost: None,
+            });
+        }
+    }
+
+    // CR 702.24a: Queue upkeep triggers for all cumulative upkeep permanents.
+    // "At the beginning of your upkeep, if this permanent is on the battlefield,
+    // put an age counter on this permanent. Then you may pay [cost] for each age
+    // counter on it. If you don't, sacrifice it."
+    //
+    // Only fires for permanents controlled by the active player (CR 702.24a: "your upkeep").
+    // Uses layer-resolved characteristics to check for CumulativeUpkeep keyword.
+    // CR 702.24b: Each instance triggers separately.
+    // NOTE: No pending flag needed -- cumulative upkeep fires EVERY upkeep unconditionally.
+    let cu_permanents: Vec<(ObjectId, Vec<CumulativeUpkeepCost>)> = state
+        .objects
+        .values()
+        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == active)
+        .map(|obj| {
+            let cu_costs: Vec<CumulativeUpkeepCost> = obj
+                .characteristics
+                .keywords
+                .iter()
+                .filter_map(|kw| {
+                    if let KeywordAbility::CumulativeUpkeep(cost) = kw {
+                        Some(cost.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            (obj.id, cu_costs)
+        })
+        .filter(|(_, costs)| !costs.is_empty())
+        .collect();
+
+    for (obj_id, costs) in cu_permanents {
+        for cost in costs {
+            state.pending_triggers.push_back(PendingTrigger {
+                source: obj_id,
+                ability_index: 0, // unused for CU triggers
+                controller: active,
+                kind: PendingTriggerKind::CumulativeUpkeep,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: None,
+                madness_cost: None,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+                echo_cost: None,
+                cumulative_upkeep_cost: Some(cost),
             });
         }
     }
@@ -357,6 +429,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -413,6 +486,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             // this field was added), fall back to current controller.
             encore_activator: encore_activated_by.or(Some(controller)),
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -461,6 +535,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -509,6 +584,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -566,6 +642,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             enlist_enlisted_creature: None,
             encore_activator: None,
             echo_cost: None,
+            cumulative_upkeep_cost: None,
         });
     }
 
@@ -847,6 +924,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         enlist_enlisted_creature: None,
                         encore_activator: None,
                         echo_cost: None,
+                        cumulative_upkeep_cost: None,
                     });
                 }
             }

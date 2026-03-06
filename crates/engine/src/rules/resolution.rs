@@ -1097,6 +1097,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
                                 echo_cost: None,
+                                cumulative_upkeep_cost: None,
                             });
                     }
                 }
@@ -1389,6 +1390,72 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 state
                     .pending_echo_payments
                     .push_back((controller, echo_permanent, echo_cost));
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.24a: Cumulative upkeep trigger resolves.
+        //
+        // "At the beginning of your upkeep, if this permanent is on the battlefield,
+        // put an age counter on this permanent. Then you may pay [cost] for each age
+        // counter on it. If you don't, sacrifice it."
+        //
+        // On resolution:
+        // 1. Check if permanent is still on the battlefield (CR 400.7).
+        // 2. Add one age counter to the permanent.
+        // 3. Emit CumulativeUpkeepPaymentRequired with the age count.
+        // 4. Add to pending_cumulative_upkeep_payments.
+        // If countered (Stifle), no age counter is added -- the trigger fires again
+        // next upkeep with the same counter count.
+        StackObjectKind::CumulativeUpkeepTrigger {
+            source_object: _,
+            cu_permanent,
+            per_counter_cost,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if permanent is still on the battlefield (CR 400.7).
+            let still_on_battlefield = state
+                .objects
+                .get(&cu_permanent)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if still_on_battlefield {
+                // CR 702.24a: "put an age counter on this permanent"
+                if let Some(obj) = state.objects.get_mut(&cu_permanent) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::Age)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters.insert(CounterType::Age, current + 1);
+                }
+
+                // Count total age counters after adding.
+                let age_count = state
+                    .objects
+                    .get(&cu_permanent)
+                    .and_then(|obj| obj.counters.get(&CounterType::Age).copied())
+                    .unwrap_or(0);
+
+                // Emit payment required event.
+                events.push(GameEvent::CumulativeUpkeepPaymentRequired {
+                    player: controller,
+                    permanent: cu_permanent,
+                    per_counter_cost: per_counter_cost.clone(),
+                    age_counter_count: age_count,
+                });
+
+                // Track pending payment.
+                state
+                    .pending_cumulative_upkeep_payments
+                    .push_back((controller, cu_permanent, per_counter_cost));
             }
             // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
 
@@ -2282,6 +2349,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 enlist_enlisted_creature: None,
                                 encore_activator: None,
                                 echo_cost: None,
+                                cumulative_upkeep_cost: None,
                             });
                     }
                 }
@@ -3950,10 +4018,14 @@ pub fn counter_stack_object(
         | StackObjectKind::VanishingCounterTrigger { .. }
         | StackObjectKind::VanishingSacrificeTrigger { .. }
         | StackObjectKind::FadingTrigger { .. }
-        | StackObjectKind::EchoTrigger { .. } => {
+        | StackObjectKind::EchoTrigger { .. }
+        | StackObjectKind::CumulativeUpkeepTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EchoTrigger, if countered (e.g. by Stifle), echo_pending
             // remains set so the trigger fires again on the next upkeep (CR 702.30a).
+            // Note: For CumulativeUpkeepTrigger, if countered (e.g. by Stifle), no
+            // age counter is added (counter addition happens at resolution, not queueing).
+            // The trigger fires again next upkeep with the same counter count (CR 702.24a).
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
             // Note: For DashReturnTrigger, the creature stays on the battlefield

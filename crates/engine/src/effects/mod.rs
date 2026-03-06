@@ -2027,6 +2027,7 @@ fn execute_effect_inner(
                                         enlist_enlisted_creature: None,
                                         encore_activator: None,
                                         echo_cost: None,
+                                        cumulative_upkeep_cost: None,
                                     });
                                 }
                             }
@@ -2648,6 +2649,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         enlist_enlisted_creature: None,
                         encore_activator: None,
                         echo_cost: None,
+                        cumulative_upkeep_cost: None,
                     });
                 }
             }

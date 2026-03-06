@@ -155,6 +155,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::EchoTrigger { echo_permanent, .. } => {
                     ("Echo: ".to_string(), Some(*echo_permanent))
                 }
+                StackObjectKind::CumulativeUpkeepTrigger { cu_permanent, .. } => {
+                    ("Cumulative Upkeep: ".to_string(), Some(*cu_permanent))
+                }
             };
 
             let (name, name_color) = source_id

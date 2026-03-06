@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Echo 702.30 validated; P4 validated 44->45, total validated 136->137; script 151; card: Avalanche Riders)
+> Last audited: 2026-03-06 (Cumulative Upkeep 702.24 validated; P4 validated 45->46, total validated 137->138; script 152; card: Mystic Remora)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 45        | 0        | 0       | 44   | 12  |
-| **Total**| **200**| **137**  | **2**    | **0**   | **49**| **12** |
+| P4       | 101   | 46        | 0        | 0       | 43   | 12  |
+| **Total**| **200**| **138**  | **2**    | **0**   | **48**| **12** |
 
 ---
 
@@ -235,7 +235,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Cycling | 702.29 | P2 | `validated` | `state/types.rs:195`, `cards/card_definition.rs:145`, `state/hash.rs:316+1630+2220`, `rules/command.rs:182`, `rules/engine.rs:185`, `rules/abilities.rs:365`, `rules/events.rs:386` | Lonely Sandbar | `stack/061` | — | KeywordAbility::Cycling enum + AbilityDefinition::Cycling { cost }; Command::CycleCard dispatch; handle_cycle_card validates zone/keyword/mana, discards as cost, pushes draw onto stack; GameEvent::CardCycled emitted; 12 unit tests in `tests/cycling.rs`; game script approved |
 | Suspend | 702.62 | P3 | `validated` | `state/types.rs:543`, `cards/card_definition.rs:252`, `rules/suspend.rs` (197 lines), `rules/command.rs:356`, `rules/events.rs:784`, `rules/engine.rs:304`, `rules/turn_actions.rs:35-91`, `rules/abilities.rs`, `rules/resolution.rs:1278-1449`, `state/hash.rs:439+2086` | Rift Bolt (#111) | `stack/102` | — | KeywordAbility::Suspend enum + AbilityDefinition::Suspend { cost, time_counters }; Command::SuspendCard special action (CR 116.2f); handle_suspend_card validates zone/keyword/timing/mana, exiles face-up with N time counters, is_suspended=true; GameEvent::CardSuspended (hash 86); upkeep trigger dispatch in turn_actions.rs queues SuspendCounterTrigger; resolution.rs removes counter, queues SuspendCastTrigger when last removed; cast trigger casts without paying mana cost (CR 702.62d), creatures gain haste (CR 702.62a); multiplayer: only owner's upkeep ticks; 9 unit tests in `tests/suspend.rs`; game script approved |
 | Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
-| Cumulative Upkeep | 702.24 | P4 | `none` | — | — | — | — | Increasing cost each upkeep |
+| Cumulative Upkeep | 702.24 | P4 | `validated` | `rules/turn_actions.rs:L319`, `rules/resolution.rs:L1411,L4022`, `rules/engine.rs:L453`, `rules/abilities.rs:L3851` | Mystic Remora | `stack/152` | — | CR 702.24a-b: upkeep trigger adds age counter then pay cost*age or sacrifice; CumulativeUpkeepCost enum (Mana/Life); CumulativeUpkeepTrigger StackObjectKind; Command::PayCumulativeUpkeep; 8 unit tests in `tests/cumulative_upkeep.rs`; game script approved |
 | Echo | 702.30 | P4 | `validated` | `rules/turn_actions.rs:L239`, `rules/resolution.rs:L502,L1357`, `rules/lands.rs:L179`, `rules/engine.rs:L429`, `rules/abilities.rs:L3826` | Avalanche Riders | `stack/151` | — | CR number corrected 702.31->702.30; KeywordAbility::Echo(ManaCost) enum; ETB sets echo_pending (resolution.rs + lands.rs); upkeep trigger queues EchoUpkeep (turn_actions.rs); resolution emits EchoPaymentRequired; Command::PayEcho handles pay/sacrifice (engine.rs); intervening-if checks layer-resolved characteristics; 9 unit tests in `tests/echo.rs`; game script approved |
 | Fading | 702.32 | P4 | `validated` | `rules/turn_actions.rs:L168`, `rules/resolution.rs:L477,L1206`, `rules/lands.rs:L148`, `rules/abilities.rs:L3803` | Blastoderm | `stack/150` | — | ETB with fade counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/fading.rs`; CR 702.32a covered; uses fade counters (not time counters like Vanishing) |
 | Vanishing | 702.63 | P4 | `validated` | `rules/turn_actions.rs:L100`, `rules/resolution.rs:L449,L983,L1072`, `rules/lands.rs:L115`, `rules/abilities.rs:L3785` | Aven Riftwatcher | `stack/149` | — | ETB counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/vanishing.rs`; CR 702.63a-c covered |
@@ -580,5 +580,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Surge (CR 702.117) — validated 2026-03-05 (script stack/140, Reckless Bushwhacker, 11 unit tests in surge.rs). Alternative cost (CR 118.9a mutual exclusion with 16 other alt costs); KeywordAbility::Surge disc 103 + AbilityDefinition::Surge{cost} disc 35 + AltCostKind::Surge; casting.rs cast_with_surge + get_surge_cost + spells_cast_this_turn >= 1 precondition; resolution.rs was_surged propagation to permanent; `cast_spell_surge` harness action.
 
 **Resolved**: Casualty (CR 702.153) — validated 2026-03-05 (script stack/141, Make Disappear, 9 unit tests in casualty.rs). Optional additional cost (CR 118.8): sacrifice creature with power >= N to trigger a copy of the spell; KeywordAbility::Casualty(u32) disc 104 + StackObjectKind::CasualtyTrigger disc 34; CastSpell.casualty_sacrifice: Option<ObjectId>; casting.rs power-threshold validation + sacrifice execution + was_casualty_paid flag + CasualtyTrigger push; resolution.rs CasualtyTrigger resolves to create one copy; `cast_spell_casualty` harness action.
+
+**Resolved**: Cumulative Upkeep (CR 702.24) — validated 2026-03-06 (script stack/152, Mystic Remora, 8 unit tests in cumulative_upkeep.rs). Triggered ability per CR 702.24a: upkeep adds age counter, then pay cost per age counter or sacrifice; CumulativeUpkeepCost enum supports Mana and Life costs; CumulativeUpkeepTrigger StackObjectKind; Command::PayCumulativeUpkeep; multiple instances trigger separately per CR 702.24b.
 
 **Resolved**: Fading (CR 702.32) — validated 2026-03-06 (script stack/150, Blastoderm, 8 unit tests in fading.rs). Two abilities per CR 702.32a: (1) ETB replacement places N fade counters, (2) upkeep trigger removes a fade counter or sacrifices if unable; turn_actions.rs queues FadingUpkeep triggers (no intervening-if, unlike Vanishing); resolution.rs ETB hook + FadingTrigger resolution; lands.rs parallel ETB hook for land permanents; uses fade counters (not time counters); multiple Fading instances each trigger separately.

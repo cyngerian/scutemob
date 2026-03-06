@@ -344,6 +344,7 @@ impl GameStateBuilder {
             history: Vector::new(),
             permanents_put_into_graveyard_this_turn: 0,
             pending_echo_payments: Vector::new(),
+            pending_cumulative_upkeep_payments: Vector::new(),
             card_registry: self.card_registry,
         };
 

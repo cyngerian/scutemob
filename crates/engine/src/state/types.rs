@@ -146,6 +146,10 @@ pub enum CounterType {
     /// Distinct from Time counters (used by Vanishing). Fading uses "fade counters"
     /// in its oracle text and in the activated abilities of cards like Parallax Wave.
     Fade,
+    /// CR 702.24a: Age counters are placed on permanents with cumulative upkeep.
+    /// One age counter is added at the beginning of each upkeep before the
+    /// payment check. The total number of age counters determines the total cost.
+    Age,
     /// Catch-all for counter types not explicitly enumerated.
     Custom(String),
 }
@@ -172,6 +176,23 @@ pub enum EnchantTarget {
     Player,
     /// "Enchant creature or planeswalker"
     CreatureOrPlaneswalker,
+}
+
+/// CR 702.24a: The cost paid for each age counter on a permanent with
+/// cumulative upkeep. Multiplied by the number of age counters at
+/// resolution time.
+///
+/// Most common variants are mana costs (Mystic Remora: {1}) and life
+/// costs (Glacial Chasm: "Pay 2 life"). Complex action-based costs
+/// (Herald of Leshrac) are not yet supported.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum CumulativeUpkeepCost {
+    /// Pay a mana cost for each age counter (most common).
+    /// Example: Mystic Remora with "{1}" -- pay {1} per counter.
+    Mana(ManaCost),
+    /// Pay life for each age counter.
+    /// Example: Glacial Chasm with "Pay 2 life" -- pay 2 life per counter.
+    Life(u32),
 }
 
 /// CR 702.41a: Specifies the quality for affinity cost reduction.
@@ -1035,6 +1056,14 @@ pub enum KeywordAbility {
     ///
     /// CR 702.30a: Each instance triggers separately (standard triggered ability rule).
     Echo(ManaCost),
+    /// CR 702.24a: Cumulative upkeep [cost] -- "At the beginning of your upkeep,
+    /// if this permanent is on the battlefield, put an age counter on this
+    /// permanent. Then you may pay [cost] for each age counter on it. If you
+    /// don't, sacrifice it."
+    ///
+    /// The CumulativeUpkeepCost parameter is the per-counter cost.
+    /// CR 702.24b: Each instance triggers separately, but all share age counters.
+    CumulativeUpkeep(CumulativeUpkeepCost),
 }
 
 /// All creature subtypes from CR 205.3m.

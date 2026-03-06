@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
-    CardId, CardType, Color, CounterType, KeywordAbility, ManaColor, ManaCost, ManaPool, SubType,
-    SuperType,
+    CardId, CardType, Color, CounterType, CumulativeUpkeepCost, KeywordAbility, ManaColor,
+    ManaCost, ManaPool, SubType, SuperType,
 };
 
 // ── Card Definition ───────────────────────────────────────────────────────────
@@ -488,6 +488,14 @@ pub enum AbilityDefinition {
     /// `cost` is the echo cost (ManaCost). For Urza block cards, this equals
     /// the card's mana cost (CR 702.30b).
     Echo { cost: ManaCost },
+    /// CR 702.24a: Cumulative upkeep [cost] -- triggered ability that fires on
+    /// the controller's upkeep. Adds an age counter, then requires payment of
+    /// cost x age_count or sacrifice.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::CumulativeUpkeep(cost))` for
+    /// quick presence-checking.
+    CumulativeUpkeep { cost: CumulativeUpkeepCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

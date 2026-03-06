@@ -917,4 +917,13 @@ pub enum StackObjectKind {
         echo_permanent: ObjectId,
         echo_cost: ManaCost,
     },
+    /// CR 702.24a: "At the beginning of your upkeep, if this permanent is on the
+    /// battlefield, put an age counter on this permanent. Then you may pay [cost]
+    /// for each age counter on it. If you don't, sacrifice it."
+    /// Discriminant 41.
+    CumulativeUpkeepTrigger {
+        source_object: ObjectId,
+        cu_permanent: ObjectId,
+        per_counter_cost: crate::state::types::CumulativeUpkeepCost,
+    },
 }

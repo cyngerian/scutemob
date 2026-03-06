@@ -2663,6 +2663,7 @@ pub fn handle_cast_spell(
                 enlist_enlisted_creature: None,
                 encore_activator: None,
                 echo_cost: None,
+                cumulative_upkeep_cost: None,
             });
         }
     }

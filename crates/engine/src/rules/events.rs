@@ -893,6 +893,28 @@ pub enum GameEvent {
         permanent: ObjectId,
     },
 
+    // ── Cumulative Upkeep events (CR 702.24) ─────────────────────────────────
+    /// CR 702.24a: A cumulative upkeep trigger has resolved. The age counter
+    /// has been added. The controller must choose whether to pay the total
+    /// cost or sacrifice the permanent.
+    ///
+    /// The engine pauses until a `Command::PayCumulativeUpkeep` is received.
+    CumulativeUpkeepPaymentRequired {
+        player: PlayerId,
+        permanent: ObjectId,
+        /// The per-counter cost.
+        per_counter_cost: crate::state::types::CumulativeUpkeepCost,
+        /// Number of age counters currently on the permanent (after adding one).
+        age_counter_count: u32,
+    },
+
+    /// CR 702.24a: A player paid the cumulative upkeep cost for a permanent.
+    CumulativeUpkeepPaid {
+        player: PlayerId,
+        permanent: ObjectId,
+        age_counter_count: u32,
+    },
+
     // -- Proliferate event (CR 701.34) ------------------------------------------
     /// CR 701.34a: A player proliferated.
     ///

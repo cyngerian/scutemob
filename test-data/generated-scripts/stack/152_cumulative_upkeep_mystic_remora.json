@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_152",
+    "name": "Mystic Remora resolves onto battlefield with Cumulative Upkeep",
+    "description": "p1 casts Mystic Remora ({U}, Enchantment, Cumulative upkeep {1}). Both players pass priority. The spell resolves and Mystic Remora enters the battlefield as a permanent. Script asserts the enchantment is on the battlefield after resolution. The cumulative upkeep escalation cycle (age counters, sacrifice-or-pay trigger at each upkeep) is covered by unit tests; this script focuses on the cast-and-resolve flow.",
+    "cr_sections_tested": ["601.2", "608.2", "702.24"],
+    "corner_case_ref": null,
+    "tags": ["stack", "enchantment", "cumulative-upkeep", "mystic-remora"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Mystic Remora oracle text: 'Cumulative upkeep {1}. Whenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.' Cost is {U} (one blue mana). The enchantment has no targets, so targets array is empty. After resolution the permanent sits on p1's battlefield. The cumulative upkeep trigger fires at the beginning of controller's upkeep (not at ETB), so it does not appear in this script. CR 702.24 defines Cumulative Upkeep. CR 601.2 governs casting. CR 608.2 governs resolution of spells that become permanents — the card is placed on the battlefield. Initial state: p1 has Island tapped for {U} already in pool, Mystic Remora in hand.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Island", "is_commander": false, "owner": null, "tapped": true }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Mystic Remora", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Mystic Remora for {U}",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Mystic Remora in p1 hand, battlefield has only Island",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Mystic Remora",
+          "targets": [],
+          "mana_paid": { "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Mystic Remora; {U} paid from pool; no targets (enchantment with no targeting requirement)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Mystic Remora on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Mystic Remora is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves top object."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Mystic Remora",
+          "resolution": [
+            {
+              "effect": "permanent_enters_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Mystic Remora",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Mystic Remora is a permanent spell; it resolves by entering the battlefield under p1's control."
+            }
+          ],
+          "note": "CR 608.2: Enchantment spell resolves and enters the battlefield as a permanent. Cumulative upkeep trigger (CR 702.24) will fire at p1's next upkeep, not now."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Mystic Remora on p1 battlefield, stack empty, hand empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Mystic Remora" }] }
+          },
+          "note": "Mystic Remora is now a permanent on the battlefield with Cumulative upkeep {1} (CR 702.24). The upkeep trigger is not yet relevant — it fires at the beginning of p1's next upkeep step."
+        }
+      ]
+    }
+  ]
+}

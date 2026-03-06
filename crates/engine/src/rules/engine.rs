@@ -448,6 +448,28 @@ pub fn process_command(
             events.extend(trigger_events);
             all_events.extend(events);
         }
+
+        // ── Cumulative Upkeep (CR 702.24) ────────────────────────────────
+        Command::PayCumulativeUpkeep {
+            player,
+            permanent,
+            pay,
+        } => {
+            // CR 702.24a: Handle the player's cumulative upkeep payment choice.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: paying cumulative upkeep is a meaningful player choice.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                handle_pay_cumulative_upkeep(&mut state, player, permanent, pay)?;
+            // CR 603.3: Check for triggered abilities arising from CU resolution.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
     }
 
     // Record events in history
@@ -622,6 +644,209 @@ fn handle_pay_echo(
     state.turn.priority_holder = Some(active);
 
     Ok(events)
+}
+
+/// CR 702.24a: Handle the player's cumulative upkeep payment choice.
+///
+/// If `pay` is true, deducts the total cost (per_counter_cost x age_count) from
+/// the player's mana pool (mana variant) or life total (life variant) and the
+/// permanent stays. If `pay` is false, the permanent is sacrificed (bypassing
+/// indestructible, CR 701.17a).
+///
+/// In both cases, the pending payment entry is removed.
+fn handle_pay_cumulative_upkeep(
+    state: &mut GameState,
+    player: PlayerId,
+    permanent: crate::state::game_object::ObjectId,
+    pay: bool,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::types::CumulativeUpkeepCost;
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Find and remove the matching pending cumulative upkeep payment.
+    let payment_pos = state
+        .pending_cumulative_upkeep_payments
+        .iter()
+        .position(|(p, obj, _)| *p == player && *obj == permanent);
+
+    let per_counter_cost = if let Some(pos) = payment_pos {
+        let (_, _, cost) = state.pending_cumulative_upkeep_payments.remove(pos);
+        cost
+    } else {
+        return Err(GameStateError::InvalidCommand(format!(
+            "No pending cumulative upkeep payment for player {:?} permanent {:?}",
+            player, permanent
+        )));
+    };
+
+    // Validate: permanent must still be on the battlefield.
+    let source_info = state.objects.get(&permanent).and_then(|obj| {
+        if obj.zone == ZoneId::Battlefield {
+            Some((obj.owner, obj.controller, obj.counters.clone()))
+        } else {
+            None
+        }
+    });
+
+    let Some((owner, controller, pre_death_counters)) = source_info else {
+        // Permanent left the battlefield since the trigger resolved; nothing to do.
+        return Ok(events);
+    };
+
+    // Count age counters (already incremented during trigger resolution).
+    let age_count = state
+        .objects
+        .get(&permanent)
+        .and_then(|obj| {
+            obj.counters
+                .get(&crate::state::types::CounterType::Age)
+                .copied()
+        })
+        .unwrap_or(0);
+
+    if pay {
+        match &per_counter_cost {
+            CumulativeUpkeepCost::Mana(mc) => {
+                // CR 702.24a: Pay per_counter_cost x age_count mana.
+                let total_cost = multiply_mana_cost(mc, age_count);
+                let pool = &state
+                    .players
+                    .get(&player)
+                    .ok_or(GameStateError::PlayerNotFound(player))?
+                    .mana_pool;
+                let can_afford = casting::can_pay_cost(pool, &total_cost);
+                if !can_afford {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "Player {:?} cannot afford cumulative upkeep cost",
+                        player
+                    )));
+                }
+                if let Some(p) = state.players.get_mut(&player) {
+                    casting::pay_cost(&mut p.mana_pool, &total_cost);
+                }
+            }
+            CumulativeUpkeepCost::Life(amount) => {
+                // CR 702.24a: Pay amount * age_count life.
+                let total_life = amount * age_count;
+                if let Some(p) = state.players.get_mut(&player) {
+                    p.life_lost_this_turn += total_life;
+                    p.life_total -= total_life as i32;
+                }
+                events.push(GameEvent::LifeLost {
+                    player,
+                    amount: total_life,
+                });
+            }
+        }
+        events.push(GameEvent::CumulativeUpkeepPaid {
+            player,
+            permanent,
+            age_counter_count: age_count,
+        });
+    } else {
+        // CR 702.24a: Player declines -- sacrifice the permanent (CR 701.17a: bypasses indestructible).
+        let action = crate::rules::replacement::check_zone_change_replacement(
+            state,
+            permanent,
+            crate::state::zone::ZoneType::Battlefield,
+            crate::state::zone::ZoneType::Graveyard,
+            owner,
+            &std::collections::HashSet::new(),
+        );
+
+        match action {
+            crate::rules::replacement::ZoneChangeAction::Redirect {
+                to: dest,
+                events: repl_events,
+                ..
+            } => {
+                events.extend(repl_events);
+                if let Ok((new_id, _old)) = state.move_object_to_zone(permanent, dest) {
+                    match dest {
+                        ZoneId::Exile => {
+                            events.push(GameEvent::ObjectExiled {
+                                player: owner,
+                                object_id: permanent,
+                                new_exile_id: new_id,
+                            });
+                        }
+                        ZoneId::Command(_) => {
+                            // Commander redirected to command zone; no sacrifice event.
+                        }
+                        _ => {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: permanent,
+                                new_grave_id: new_id,
+                                controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                if let Ok((new_grave_id, _old)) =
+                    state.move_object_to_zone(permanent, ZoneId::Graveyard(owner))
+                {
+                    events.push(GameEvent::CreatureDied {
+                        object_id: permanent,
+                        new_grave_id,
+                        controller,
+                        pre_death_counters,
+                    });
+                }
+            }
+            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                player: choice_player,
+                choices,
+                event_description,
+            } => {
+                state.pending_zone_changes.push_back(
+                    crate::state::replacement_effect::PendingZoneChange {
+                        object_id: permanent,
+                        original_from: crate::state::zone::ZoneType::Battlefield,
+                        original_destination: crate::state::zone::ZoneType::Graveyard,
+                        affected_player: choice_player,
+                        already_applied: Vec::new(),
+                    },
+                );
+                events.push(GameEvent::ReplacementChoiceRequired {
+                    player: choice_player,
+                    event_description,
+                    choices,
+                });
+            }
+        }
+    }
+
+    // CR 704.3: Check SBAs after cumulative upkeep resolution.
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
+
+    // Grant priority to the active player.
+    state.turn.players_passed = im::OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    Ok(events)
+}
+
+/// Multiply a mana cost by a scalar, used for cumulative upkeep cost calculation.
+fn multiply_mana_cost(
+    cost: &crate::state::game_object::ManaCost,
+    multiplier: u32,
+) -> crate::state::game_object::ManaCost {
+    crate::state::game_object::ManaCost {
+        white: cost.white * multiplier,
+        blue: cost.blue * multiplier,
+        black: cost.black * multiplier,
+        red: cost.red * multiplier,
+        green: cost.green * multiplier,
+        colorless: cost.colorless * multiplier,
+        generic: cost.generic * multiplier,
+    }
 }
 
 /// Handle a PassPriority command.

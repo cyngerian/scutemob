@@ -545,6 +545,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::EchoTrigger { echo_permanent, .. } => {
             ("echo_trigger", Some(*echo_permanent))
         }
+        StackObjectKind::CumulativeUpkeepTrigger { cu_permanent, .. } => {
+            ("cumulative_upkeep_trigger", Some(*cu_permanent))
+        }
     }
 }
 
@@ -673,6 +676,7 @@ fn format_counter_type(ct: &CounterType) -> String {
         CounterType::Stun => "stun".to_string(),
         CounterType::Time => "time".to_string(),
         CounterType::Fade => "fade".to_string(),
+        CounterType::Age => "age".to_string(),
         CounterType::Custom(s) => s.clone(),
     }
 }
@@ -803,5 +807,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         }
         KeywordAbility::Fading(n) => format!("Fading {n}"),
         KeywordAbility::Echo(_) => "Echo".to_string(),
+        KeywordAbility::CumulativeUpkeep(_) => "Cumulative Upkeep".to_string(),
     }
 }
