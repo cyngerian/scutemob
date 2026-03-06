@@ -161,6 +161,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::RecoverTrigger { recover_card, .. } => {
                     ("Recover: ".to_string(), Some(*recover_card))
                 }
+                StackObjectKind::ForecastAbility { source_object, .. } => {
+                    ("Forecast: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

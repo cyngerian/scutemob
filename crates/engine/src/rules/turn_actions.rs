@@ -1046,6 +1046,10 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // Unlike spells_cast_this_turn (per-player) or life_lost_this_turn (per-player),
     // this is a shared global counter on GameState itself.
     state.permanents_put_into_graveyard_this_turn = 0;
+
+    // CR 702.57b: Forecast once-per-turn tracking resets at the start of each turn.
+    // Each card's forecast ability may be activated once per turn.
+    state.forecast_used_this_turn = im::OrdSet::new();
 }
 
 // ---------------------------------------------------------------------------

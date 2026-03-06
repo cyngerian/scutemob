@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_154",
+    "name": "Forecast: Sky Hussar activates during upkeep, card stays in hand",
+    "description": "p1 is in their upkeep step with Sky Hussar in hand. p1 activates Sky Hussar's Forecast ability by paying {W}{U} (CR 702.57a). The ForecastAbility is placed on the stack; Sky Hussar remains in p1's hand (Forecast reveals but does not discard the card). Both players pass priority; the ability resolves. Sky Hussar's Forecast effect is a TODO placeholder (DrawCards 0 — untap-all not yet in DSL), so the net game effect is a no-op, but the stack drains and Sky Hussar is confirmed still in hand. Validates: Forecast activation during upkeep, card stays in hand after activation and after resolution, stack drains cleanly.",
+    "cr_sections_tested": ["702.57a", "702.57b", "116.3", "608.2", "405.5"],
+    "corner_case_ref": null,
+    "tags": ["forecast", "activated-ability", "hand", "upkeep", "sky-hussar"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.57a: Forecast is a special activated ability that can only be activated from the player's hand. The card is revealed (cosmetically) but is NOT discarded as a cost — it stays in hand before, during, and after activation. CR 702.57b: May only be activated during the upkeep step of the card's owner, and only once each turn. The harness action 'activate_forecast' maps to Command::ActivateForecast { player, card, targets } (replay_harness.rs line 585). The engine uses find_in_hand to locate the ObjectId, deducts the mana cost ({W}{U}) from p1's pool, and pushes a ForecastAbility onto the stack. Sky Hussar's Forecast effect is Effect::DrawCards { count: Fixed(0) } (a TODO placeholder for Effect::UntapAll which does not yet exist in the DSL — see sky_hussar.rs). DrawCards(0) resolves silently as a no-op: no cards drawn, no state changes. The stack_resolve step documents the ability resolving; the resolution array is empty since the placeholder draws 0 cards (no observable effect). After resolution: stack is empty, Sky Hussar is still in p1's hand (hand.count = 1). p1 needs {white: 1, blue: 1} in their mana pool. The phase field passed to parse_step must be 'upkeep' (the harness reads init.phase directly via parse_step — not init.step). No library cards needed because the effect draws 0 cards. p2 has no mana and no cards — minimal initial state.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "upkeep",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1, "blue": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Sky Hussar", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "upkeep",
+      "step_note": "p1 activates Sky Hussar's Forecast ability during their upkeep; ForecastAbility resolves; Sky Hussar stays in hand",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sky Hussar in p1's hand, stack empty, p1 has {W}{U} in pool",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Sky Hussar" }] },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.57a: Sky Hussar is in p1's hand. p1 has {W}{U} available to pay the Forecast cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_forecast",
+          "card": "Sky Hussar",
+          "targets": [],
+          "mana_paid": { "white": 1, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "702.57a",
+          "note": "CR 702.57a: p1 activates Sky Hussar's Forecast ability from hand during p1's upkeep. {W}{U} is paid from p1's mana pool. The card is revealed but stays in hand — Forecast does NOT discard the card as cost."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: ForecastAbility on stack (count=1), Sky Hussar still in hand (count=1)",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Sky Hussar" }] }
+          },
+          "note": "CR 702.57a: ForecastAbility is now on the stack. Sky Hussar remains in p1's hand — Forecast reveals the card but does not consume it. Stack has exactly 1 object (the forecast ability)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority. The ForecastAbility at the top of the stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sky Hussar ForecastAbility",
+          "resolution": [],
+          "note": "CR 608.2 + 702.57a: ForecastAbility resolves. The Forecast effect (untap all creatures you control) is a TODO placeholder — Effect::DrawCards { count: Fixed(0) } — so no observable game state change occurs. The ability resolves cleanly with no cards drawn. Sky Hussar remains in p1's hand."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: stack empty, Sky Hussar still in p1's hand",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Sky Hussar" }] }
+          },
+          "note": "CR 702.57a: After the ForecastAbility resolves, the stack is empty and Sky Hussar is still in p1's hand. The card was never moved — Forecast only reveals it, it is not discarded, exiled, or cast."
+        }
+      ]
+    }
+  ]
+}

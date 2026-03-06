@@ -551,6 +551,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::RecoverTrigger { recover_card, .. } => {
             ("recover_trigger", Some(*recover_card))
         }
+        StackObjectKind::ForecastAbility { source_object, .. } => {
+            ("forecast_ability", Some(*source_object))
+        }
     }
 }
 
@@ -812,5 +815,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Echo(_) => "Echo".to_string(),
         KeywordAbility::CumulativeUpkeep(_) => "Cumulative Upkeep".to_string(),
         KeywordAbility::Recover => "Recover".to_string(),
+        KeywordAbility::Forecast => "Forecast".to_string(),
     }
 }

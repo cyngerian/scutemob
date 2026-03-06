@@ -384,6 +384,22 @@ pub enum Command {
     /// resolves, the controller draws a card.
     CycleCard { player: PlayerId, card: ObjectId },
 
+    // ── Forecast (CR 702.57) ─────────────────────────────────────────────
+    /// Activate a forecast ability from hand (CR 702.57a).
+    ///
+    /// Forecast is an activated ability that can only be activated from a player's
+    /// hand, only during the upkeep step of the card's owner, and only once per turn.
+    /// The card is revealed as part of activation but stays in hand (unlike Cycling
+    /// which discards as cost). The effect uses the stack and can be responded to.
+    ///
+    /// Unlike `ActivateAbility` (which requires the source on the battlefield),
+    /// this command works from the hand zone.
+    ActivateForecast {
+        player: PlayerId,
+        card: ObjectId,
+        targets: Vec<crate::state::targeting::Target>,
+    },
+
     // ── Dredge (CR 702.52) ───────────────────────────────────────────────
     /// Choose whether to dredge a card from the graveyard instead of drawing (CR 702.52a).
     ///

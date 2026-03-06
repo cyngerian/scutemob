@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Recover 702.59 validated; P4 validated 46->47, total validated 138->139; script 153; card: Grim Harvest)
+> Last audited: 2026-03-06 (Forecast 702.57 validated; P4 validated 47->48, total validated 139->140; script 154; card: Sky Hussar)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 47        | 0        | 0       | 42   | 12  |
-| **Total**| **200**| **139**  | **2**    | **0**   | **47**| **12** |
+| P4       | 101   | 48        | 0        | 0       | 41   | 12  |
+| **Total**| **200**| **140**  | **2**    | **0**   | **46**| **12** |
 
 ---
 
@@ -239,7 +239,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Echo | 702.30 | P4 | `validated` | `rules/turn_actions.rs:L239`, `rules/resolution.rs:L502,L1357`, `rules/lands.rs:L179`, `rules/engine.rs:L429`, `rules/abilities.rs:L3826` | Avalanche Riders | `stack/151` | — | CR number corrected 702.31->702.30; KeywordAbility::Echo(ManaCost) enum; ETB sets echo_pending (resolution.rs + lands.rs); upkeep trigger queues EchoUpkeep (turn_actions.rs); resolution emits EchoPaymentRequired; Command::PayEcho handles pay/sacrifice (engine.rs); intervening-if checks layer-resolved characteristics; 9 unit tests in `tests/echo.rs`; game script approved |
 | Fading | 702.32 | P4 | `validated` | `rules/turn_actions.rs:L168`, `rules/resolution.rs:L477,L1206`, `rules/lands.rs:L148`, `rules/abilities.rs:L3803` | Blastoderm | `stack/150` | — | ETB with fade counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/fading.rs`; CR 702.32a covered; uses fade counters (not time counters like Vanishing) |
 | Vanishing | 702.63 | P4 | `validated` | `rules/turn_actions.rs:L100`, `rules/resolution.rs:L449,L983,L1072`, `rules/lands.rs:L115`, `rules/abilities.rs:L3785` | Aven Riftwatcher | `stack/149` | — | ETB counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/vanishing.rs`; CR 702.63a-c covered |
-| Forecast | 702.57 | P4 | `none` | — | — | — | — | Reveal from hand during upkeep for effect |
+| Forecast | 702.57 | P4 | `validated` | `rules/abilities.rs:L679`, `rules/engine.rs:L242`, `rules/resolution.rs:L827`, `state/mod.rs:L164` | Sky Hussar | `stack/154` | — | Activated from hand during owner's upkeep; once per turn (CR 702.57b); 9 unit tests in `tests/forecast.rs` |
 | Recover | 702.59 | P4 | `validated` | `rules/abilities.rs:L554,L648`, `rules/resolution.rs:L1468`, `rules/engine.rs:L453,L882`, `testing/replay_harness.rs:L665` | Grim Harvest | `stack/153` | — | CreatureDied trigger wiring in abilities.rs; RecoverTrigger resolution + pay/exile in resolution.rs; PayRecover command in engine.rs; pay_recover harness action; 8 unit tests in `tests/recover.rs`; CR 702.59a + CR 400.7 covered |
 | Dredge | 702.52 | P2 | `validated` | `state/types.rs:205`, `state/hash.rs:318+1646+1656`, `rules/command.rs:187`, `rules/events.rs:672-692`, `rules/replacement.rs:412-1492`, `rules/engine.rs:200`, `rules/turn_actions.rs:108`, `effects/mod.rs:1532` | Golgari Grave-Troll | `replacement/014` | — | KeywordAbility::Dredge(u32) enum; GameEvent::DredgeChoiceRequired + Dredged; Command::ChooseDredge; DrawAction::DredgeAvailable; check_would_draw_replacement dredge scan; handle_choose_dredge + draw_card_skipping_dredge; 13 unit tests in `tests/dredge.rs`; choose_dredge harness action; game script approved (9/9 assertions pass) |
 

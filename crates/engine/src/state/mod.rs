@@ -161,6 +161,13 @@ pub struct GameState {
     /// Each entry is `(player, recover_card_id, recover_cost)`.
     #[serde(default)]
     pub pending_recover_payments: im::Vector<(PlayerId, ObjectId, ManaCost)>,
+    /// CR 702.57b: Cards that have activated their forecast ability this turn.
+    ///
+    /// Keyed by CardId (not ObjectId) since the card stays in hand and retains
+    /// its identity. Reset at the start of each turn in `reset_turn_state`.
+    /// Each forecast ability can be activated at most once per turn (CR 702.57b).
+    #[serde(default)]
+    pub forecast_used_this_turn: im::OrdSet<crate::state::player::CardId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

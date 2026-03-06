@@ -667,6 +667,209 @@ fn find_recover_cost(
 }
 
 // ---------------------------------------------------------------------------
+// Forecast (CR 702.57)
+// ---------------------------------------------------------------------------
+
+/// Handle an ActivateForecast command: validate timing/zone/once-per-turn,
+/// pay mana cost, push forecast ability onto stack.
+///
+/// CR 702.57a: Forecast is an activated ability from hand.
+/// CR 702.57b: May only be activated during the upkeep step of the card's owner,
+/// and only once each turn. The card is revealed but stays in hand.
+pub fn handle_activate_forecast(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+    targets: Vec<Target>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::state::turn::Step;
+
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): Forecast is an activated ability, not a mana
+    //    ability. It cannot be activated while a spell with split second is on the stack.
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; forecast cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Upkeep check (CR 702.57b): only during the upkeep step.
+    if state.turn.step != Step::Upkeep {
+        return Err(GameStateError::InvalidCommand(format!(
+            "ActivateForecast: forecast may only be activated during the upkeep step (CR 702.57b); \
+             current step is {:?}",
+            state.turn.step
+        )));
+    }
+
+    // 4. Owner's upkeep check (CR 702.57b): the card's owner must be the active player.
+    //    In multiplayer, only during the turn of the card's owner.
+    if state.turn.active_player != player {
+        return Err(GameStateError::InvalidCommand(format!(
+            "ActivateForecast: forecast may only be activated during the owner's upkeep (CR 702.57b); \
+             active player is {:?}, activating player is {:?}",
+            state.turn.active_player, player
+        )));
+    }
+
+    // 5. Zone check (CR 702.57a): card must be in Hand(player).
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Hand(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateForecast: card {:?} is not in Hand({:?}); \
+                 forecast can only be activated from hand (CR 702.57a)",
+                card, player
+            )));
+        }
+    }
+
+    // 6. Keyword check (CR 702.57a): card must have KeywordAbility::Forecast.
+    {
+        let obj = state.object(card)?;
+        if !obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Forecast)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateForecast: card {:?} does not have the Forecast keyword (CR 702.57a)",
+                card
+            )));
+        }
+    }
+
+    // 7. Once-per-turn check (CR 702.57b): card must not have already used forecast this turn.
+    let card_id_opt = state.object(card)?.card_id.clone();
+    if let Some(ref cid) = card_id_opt {
+        if state.forecast_used_this_turn.contains(cid) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateForecast: card {:?} has already activated its forecast this turn (CR 702.57b)",
+                card
+            )));
+        }
+    }
+
+    // 8. Look up cost and effect from AbilityDefinition::Forecast in card registry.
+    let registry = state.card_registry.clone();
+    let (forecast_cost, forecast_effect) = card_id_opt
+        .as_ref()
+        .and_then(|cid| registry.get(cid.clone()))
+        .and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Forecast { cost, effect } = a {
+                    Some((cost.clone(), effect.clone()))
+                } else {
+                    None
+                }
+            })
+        })
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "ActivateForecast: card {:?} has no AbilityDefinition::Forecast entry",
+                card
+            ))
+        })?;
+
+    // 9. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if forecast_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &forecast_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &forecast_cost);
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: forecast_cost,
+        });
+    }
+
+    // 10. Mark forecast as used for this turn (CR 702.57b — once per card per turn).
+    if let Some(cid) = card_id_opt {
+        state.forecast_used_this_turn = state.forecast_used_this_turn.update(cid);
+    }
+
+    // 11. Push forecast ability onto stack.
+    // The card stays in hand — no zone move.
+    // Convert Vec<Target> → Vec<SpellTarget> capturing zone at activation time (CR 601.2c).
+    let spell_targets: Vec<SpellTarget> = targets
+        .into_iter()
+        .map(|t| {
+            let zone_at_cast = match &t {
+                Target::Object(id) => state.objects.get(id).map(|obj| obj.zone),
+                Target::Player(_) => None,
+            };
+            SpellTarget {
+                target: t,
+                zone_at_cast,
+            }
+        })
+        .collect();
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::ForecastAbility {
+            source_object: card,
+            embedded_effect: Box::new(forecast_effect),
+        },
+        targets: spell_targets,
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_entwined: false,
+        escalate_modes_paid: 0,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 12. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+// ---------------------------------------------------------------------------
 // Unearth (CR 702.84)
 // ---------------------------------------------------------------------------
 

@@ -599,6 +599,8 @@ impl HashInto for KeywordAbility {
             }
             // Recover (discriminant 116) -- CR 702.59
             KeywordAbility::Recover => 116u8.hash_into(hasher),
+            // Forecast (discriminant 117) -- CR 702.57
+            KeywordAbility::Forecast => 117u8.hash_into(hasher),
         }
     }
 }
@@ -1749,6 +1751,15 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 recover_card.hash_into(hasher);
                 recover_cost.hash_into(hasher);
+            }
+            // ForecastAbility (discriminant 43) -- CR 702.57a
+            StackObjectKind::ForecastAbility {
+                source_object,
+                embedded_effect,
+            } => {
+                43u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                embedded_effect.hash_into(hasher);
             }
         }
     }
@@ -3557,6 +3568,12 @@ impl HashInto for AbilityDefinition {
                 45u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // Forecast (discriminant 46) -- CR 702.57
+            AbilityDefinition::Forecast { cost, effect } => {
+                46u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                effect.hash_into(hasher);
+            }
         }
     }
 }
@@ -3675,6 +3692,11 @@ impl GameState {
             player.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);
             cost.hash_into(&mut hasher);
+        }
+
+        // 11. Forecast once-per-turn tracking (CR 702.57b)
+        for card_id in self.forecast_used_this_turn.iter() {
+            card_id.hash_into(&mut hasher);
         }
 
         *hasher.finalize().as_bytes()

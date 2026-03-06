@@ -941,4 +941,17 @@ pub enum StackObjectKind {
         /// The mana cost to pay for Recover.
         recover_cost: ManaCost,
     },
+    /// CR 702.57a: Forecast activated ability on the stack.
+    ///
+    /// The source card remains in the player's hand. The effect is captured
+    /// at activation time from the card definition's `AbilityDefinition::Forecast`.
+    ///
+    /// When this ability resolves, execute the embedded effect.
+    /// If the effect has targets, validate them at resolution time (CR 608.2b).
+    ///
+    /// Discriminant 43.
+    ForecastAbility {
+        source_object: ObjectId,
+        embedded_effect: Box<crate::cards::card_definition::Effect>,
+    },
 }

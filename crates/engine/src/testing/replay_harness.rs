@@ -580,6 +580,18 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.57a: Activate a forecast ability from hand during the owner's upkeep.
+        // card_name is the name of the forecast card in the player's hand.
+        "activate_forecast" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::ActivateForecast {
+                player,
+                card: card_id,
+                targets: target_list,
+            })
+        }
+
         // CR 702.84a: Activate an unearth ability from the graveyard.
         // card_name is the name of the card with unearth in the player's graveyard.
         "unearth_card" => {
@@ -676,7 +688,11 @@ pub fn translate_player_action(
                     .map(|(_, card_id, _)| *card_id)?;
                 (false, card_id)
             };
-            Some(Command::PayRecover { player, recover_card, pay })
+            Some(Command::PayRecover {
+                player,
+                recover_card,
+                pay,
+            })
         }
 
         // CR 508.1: Declare attackers. Resolve creature names to ObjectIds on the

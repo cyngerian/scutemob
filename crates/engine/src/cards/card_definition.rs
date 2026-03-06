@@ -505,6 +505,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Recover)` for quick
     /// presence-checking without scanning all abilities. Discriminant 45.
     Recover { cost: ManaCost },
+    /// CR 702.57: Forecast [cost], Reveal this card from your hand: [Effect].
+    /// Activated ability from hand, only during owner's upkeep, once per turn.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Forecast)` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// Discriminant 46.
+    Forecast { cost: ManaCost, effect: Effect },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

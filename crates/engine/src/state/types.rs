@@ -1073,6 +1073,12 @@ pub enum KeywordAbility {
     /// The CumulativeUpkeepCost parameter is the per-counter cost.
     /// CR 702.24b: Each instance triggers separately, but all share age counters.
     CumulativeUpkeep(CumulativeUpkeepCost),
+    /// CR 702.57a: Forecast -- activated ability from hand during owner's upkeep.
+    /// Static marker for quick presence-checking (`keywords.contains`).
+    /// The forecast cost and effect are stored in `AbilityDefinition::Forecast`.
+    ///
+    /// Discriminant 117.
+    Forecast,
 }
 
 /// All creature subtypes from CR 205.3m.

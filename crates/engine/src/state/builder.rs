@@ -346,6 +346,7 @@ impl GameStateBuilder {
             pending_echo_payments: Vector::new(),
             pending_cumulative_upkeep_payments: Vector::new(),
             pending_recover_payments: Vector::new(),
+            forecast_used_this_turn: im::OrdSet::new(),
             card_registry: self.card_registry,
         };
 

@@ -239,6 +239,27 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Forecast (CR 702.57) ──────────────────────────────────────────
+        Command::ActivateForecast {
+            player,
+            card,
+            targets,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: forecast activation is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                abilities::handle_activate_forecast(&mut state, player, card, targets)?;
+            // CR 603.2: Check for triggers after forecast activation.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
         // ── Cycling (CR 702.29) ───────────────────────────────────────────
         Command::CycleCard { player, card } => {
             validate_player_active(&state, player)?;

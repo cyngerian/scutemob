@@ -824,6 +824,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        StackObjectKind::ForecastAbility {
+            source_object,
+            embedded_effect,
+        } => {
+            // CR 702.57a: Forecast ability resolves — execute the embedded effect.
+            // The source card remains in the player's hand (not moved by resolution).
+            // Targets were recorded at activation time; validate at resolution (CR 608.2b).
+            let mut ctx = EffectContext::new(
+                stack_obj.controller,
+                source_object,
+                stack_obj.targets.clone(),
+            );
+            let effect_events = execute_effect(state, &embedded_effect, &mut ctx);
+            events.extend(effect_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller: stack_obj.controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         StackObjectKind::TriggeredAbility {
             source_object,
             ability_index,
@@ -4065,8 +4086,12 @@ pub fn counter_stack_object(
         | StackObjectKind::FadingTrigger { .. }
         | StackObjectKind::EchoTrigger { .. }
         | StackObjectKind::CumulativeUpkeepTrigger { .. }
-        | StackObjectKind::RecoverTrigger { .. } => {
+        | StackObjectKind::RecoverTrigger { .. }
+        | StackObjectKind::ForecastAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
+            // activation is already consumed (once-per-turn tracked) and the card
+            // remains in hand (CR 702.57a).
             // Note: For EchoTrigger, if countered (e.g. by Stifle), echo_pending
             // remains set so the trigger fires again on the next upkeep (CR 702.30a).
             // Note: For CumulativeUpkeepTrigger, if countered (e.g. by Stifle), no
