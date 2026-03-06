@@ -228,7 +228,7 @@ two after Batch 11, or stub with auto-all-modes for now.
 
 **Infrastructure reused**: Storm copy machinery (`copy.rs`), casting alt-cost framework.
 
-- [ ] Batch 7 complete
+- [x] Batch 7 complete
 
 ---
 
@@ -258,7 +258,7 @@ already hashed (`hash.rs:529`), initialized to `false` in builder. Implementatio
 **Infrastructure reused**: Suspend time-counter infrastructure, upkeep triggers,
 sacrifice SBA. Phasing uses existing `phased_out` field.
 
-- [ ] Batch 8 complete
+- [x] Batch 8 complete
 
 ---
 
