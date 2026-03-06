@@ -138,7 +138,40 @@ pub fn handle_play_land(
         if total_vanishing > 0 {
             if let Some(obj) = state.objects.get_mut(&new_land_id) {
                 let current = obj.counters.get(&CounterType::Time).copied().unwrap_or(0);
-                obj.counters = obj.counters.update(CounterType::Time, current + total_vanishing);
+                obj.counters = obj
+                    .counters
+                    .update(CounterType::Time, current + total_vanishing);
+            }
+        }
+    }
+
+    // CR 702.32a: Place N fade counters on a land with Fading N as it enters.
+    // Fading lands are extremely rare, but the ETB hook must exist at both sites
+    // (resolution.rs and lands.rs) per gotchas-infra.md.
+    {
+        let total_fading: u32 = state
+            .objects
+            .get(&new_land_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .filter_map(|kw| {
+                        if let KeywordAbility::Fading(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
+        if total_fading > 0 {
+            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                let current = obj.counters.get(&CounterType::Fade).copied().unwrap_or(0);
+                obj.counters = obj
+                    .counters
+                    .update(CounterType::Fade, current + total_fading);
             }
         }
     }

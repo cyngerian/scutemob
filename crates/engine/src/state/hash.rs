@@ -230,6 +230,7 @@ impl HashInto for CounterType {
             CounterType::Shield => 10u8.hash_into(hasher),
             CounterType::Stun => 11u8.hash_into(hasher),
             CounterType::Time => 12u8.hash_into(hasher),
+            CounterType::Fade => 14u8.hash_into(hasher),
             CounterType::Custom(s) => {
                 13u8.hash_into(hasher);
                 s.hash_into(hasher);
@@ -562,6 +563,11 @@ impl HashInto for KeywordAbility {
             // Vanishing (discriminant 112) -- CR 702.63
             KeywordAbility::Vanishing(n) => {
                 112u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Fading (discriminant 113) -- CR 702.32
+            KeywordAbility::Fading(n) => {
+                113u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
         }
@@ -1670,6 +1676,15 @@ impl HashInto for StackObjectKind {
                 38u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 vanishing_permanent.hash_into(hasher);
+            }
+            // FadingTrigger (discriminant 39) -- CR 702.32a
+            StackObjectKind::FadingTrigger {
+                source_object,
+                fading_permanent,
+            } => {
+                39u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                fading_permanent.hash_into(hasher);
             }
         }
     }
@@ -3382,6 +3397,11 @@ impl HashInto for AbilityDefinition {
             // Vanishing (discriminant 41) -- CR 702.63
             AbilityDefinition::Vanishing { count } => {
                 41u8.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // Fading (discriminant 42) -- CR 702.32
+            AbilityDefinition::Fading { count } => {
+                42u8.hash_into(hasher);
                 count.hash_into(hasher);
             }
         }

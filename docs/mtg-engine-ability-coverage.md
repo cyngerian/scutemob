@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Vanishing 702.63 validated; P4 validated 42->43, total validated 134->135; script 149; card: Aven Riftwatcher)
+> Last audited: 2026-03-06 (Fading 702.32 validated; P4 validated 43->44, total validated 135->136; script 150; card: Blastoderm)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 43        | 0        | 0       | 46   | 12  |
-| **Total**| **200**| **135**  | **2**    | **0**   | **51**| **12** |
+| P4       | 101   | 44        | 0        | 0       | 45   | 12  |
+| **Total**| **200**| **136**  | **2**    | **0**   | **50**| **12** |
 
 ---
 
@@ -237,7 +237,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 | Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
 | Cumulative Upkeep | 702.24 | P4 | `none` | — | — | — | — | Increasing cost each upkeep |
 | Echo | 702.31 | P4 | `none` | — | — | — | — | Pay mana cost again on next upkeep or sacrifice |
-| Fading | 702.32 | P4 | `none` | — | — | — | — | ETB with fade counters; remove each upkeep; sacrifice at 0 |
+| Fading | 702.32 | P4 | `validated` | `rules/turn_actions.rs:L168`, `rules/resolution.rs:L477,L1206`, `rules/lands.rs:L148`, `rules/abilities.rs:L3803` | Blastoderm | `stack/150` | — | ETB with fade counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/fading.rs`; CR 702.32a covered; uses fade counters (not time counters like Vanishing) |
 | Vanishing | 702.63 | P4 | `validated` | `rules/turn_actions.rs:L100`, `rules/resolution.rs:L449,L983,L1072`, `rules/lands.rs:L115`, `rules/abilities.rs:L3785` | Aven Riftwatcher | `stack/149` | — | ETB counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/vanishing.rs`; CR 702.63a-c covered |
 | Forecast | 702.57 | P4 | `none` | — | — | — | — | Reveal from hand during upkeep for effect |
 | Recover | 702.59 | P4 | `none` | — | — | — | — | When a creature dies, return this from graveyard |
@@ -580,3 +580,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Surge (CR 702.117) — validated 2026-03-05 (script stack/140, Reckless Bushwhacker, 11 unit tests in surge.rs). Alternative cost (CR 118.9a mutual exclusion with 16 other alt costs); KeywordAbility::Surge disc 103 + AbilityDefinition::Surge{cost} disc 35 + AltCostKind::Surge; casting.rs cast_with_surge + get_surge_cost + spells_cast_this_turn >= 1 precondition; resolution.rs was_surged propagation to permanent; `cast_spell_surge` harness action.
 
 **Resolved**: Casualty (CR 702.153) — validated 2026-03-05 (script stack/141, Make Disappear, 9 unit tests in casualty.rs). Optional additional cost (CR 118.8): sacrifice creature with power >= N to trigger a copy of the spell; KeywordAbility::Casualty(u32) disc 104 + StackObjectKind::CasualtyTrigger disc 34; CastSpell.casualty_sacrifice: Option<ObjectId>; casting.rs power-threshold validation + sacrifice execution + was_casualty_paid flag + CasualtyTrigger push; resolution.rs CasualtyTrigger resolves to create one copy; `cast_spell_casualty` harness action.
+
+**Resolved**: Fading (CR 702.32) — validated 2026-03-06 (script stack/150, Blastoderm, 8 unit tests in fading.rs). Two abilities per CR 702.32a: (1) ETB replacement places N fade counters, (2) upkeep trigger removes a fade counter or sacrifices if unable; turn_actions.rs queues FadingUpkeep triggers (no intervening-if, unlike Vanishing); resolution.rs ETB hook + FadingTrigger resolution; lands.rs parallel ETB hook for land permanents; uses fade counters (not time counters); multiple Fading instances each trigger separately.

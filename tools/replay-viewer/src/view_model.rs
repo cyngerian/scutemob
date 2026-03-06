@@ -539,6 +539,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             vanishing_permanent,
             ..
         } => ("vanishing_sacrifice_trigger", Some(*vanishing_permanent)),
+        StackObjectKind::FadingTrigger {
+            fading_permanent, ..
+        } => ("fading_trigger", Some(*fading_permanent)),
     }
 }
 
@@ -666,6 +669,7 @@ fn format_counter_type(ct: &CounterType) -> String {
         CounterType::Shield => "shield".to_string(),
         CounterType::Stun => "stun".to_string(),
         CounterType::Time => "time".to_string(),
+        CounterType::Fade => "fade".to_string(),
         CounterType::Custom(s) => s.clone(),
     }
 }
@@ -794,5 +798,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
                 format!("Vanishing {n}")
             }
         }
+        KeywordAbility::Fading(n) => format!("Fading {n}"),
     }
 }

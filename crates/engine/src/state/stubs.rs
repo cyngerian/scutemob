@@ -75,6 +75,8 @@ pub enum PendingTriggerKind {
     VanishingCounter,
     /// CR 702.63a: Vanishing last-counter sacrifice trigger.
     VanishingSacrifice,
+    /// CR 702.32a: Fading upkeep trigger -- remove a fade counter or sacrifice.
+    FadingUpkeep,
     // Add new trigger kinds here as abilities are implemented
 }
 

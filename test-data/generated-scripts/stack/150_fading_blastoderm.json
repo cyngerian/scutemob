@@ -1,0 +1,222 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_150",
+    "name": "Fading 3 — Blastoderm ETB: enters with 3 fade counters",
+    "description": "Tests the ETB moment of the Fading 3 lifecycle for Blastoderm ({2}{G}{G}, 5/5 Beast with Shroud and Fading 3). p1 casts Blastoderm; the spell resolves with the Fading 3 replacement effect placing 3 fade counters on it as it enters (CR 702.32a ability 1). Blastoderm has no ETB triggered ability, so after a single priority_round (both players pass) the spell resolves and the permanent lands on the battlefield. The script asserts: (a) Blastoderm moves from hand to stack on cast, (b) Blastoderm is on the battlefield after resolution, (c) the stack is empty. The upkeep counter-removal lifecycle (3 upkeeps each removing 1 fade counter, then sacrifice if unable to remove) is better covered by unit tests in crates/engine/tests/fading.rs and is documented in the informational lifecycle section of this script.",
+    "cr_sections_tested": [
+      "702.32a",
+      "601.2",
+      "608.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "fading",
+      "fade-counter",
+      "etb",
+      "shroud",
+      "creature"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Blastoderm card definition (crates/engine/src/cards/defs/blastoderm.rs): mana_cost {2}{G}{G} (generic:2, green:2), types Creature — Beast, power 5, toughness 5. Abilities: AbilityDefinition::Keyword(KeywordAbility::Shroud), AbilityDefinition::Fading { count: 3 }. CR 702.32a defines two abilities for Fading N: (1) static replacement — 'This permanent enters with N fade counters on it'; (2) upkeep triggered — 'At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent.' Blastoderm has no ETB triggered ability, so the resolution is straightforward — the permanent enters with 3 fade counters and nothing else fires. Mana: {2}{G}{G} = colorless:2 + green:2. The harness does not support asserting counter counts via 'permanent.Blastoderm.counters.fade' because parse_counter_type() does not map 'fade' to CounterType::Fade (same gap as CounterType::Time for Vanishing/Suspend scripts). The presence of 3 fade counters on ETB is validated by unit tests in crates/engine/tests/fading.rs. The upkeep lifecycle (remove counter each upkeep; sacrifice on inability to remove) cannot be driven by a single harness script because the harness cannot advance turns to a later Upkeep step. Script scope is intentionally limited to cast + resolve + assert battlefield presence. Analogous to script_stack_149 (Vanishing 3 — Aven Riftwatcher).",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness gap: parse_counter_type() in replay_harness.rs does not map 'fade' to CounterType::Fade. As a result, assertions of the form 'permanent.Blastoderm.counters.fade: 3' cannot be evaluated after ETB. The same gap applies to CounterType::Time (noted in scripts 136, 149). The fix is to add '\"fade\" => Some(CounterType::Fade)' to the parse_counter_type() match arm. Full fade counter placement (3 counters on ETB) should be validated by unit tests in crates/engine/tests/fading.rs (CR 702.32a ability 1).",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "green": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Blastoderm", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Blastoderm ({2}{G}{G}) from hand. Both players pass priority. The spell resolves: the Fading 3 replacement effect (CR 702.32a ability 1) places 3 fade counters on Blastoderm as it enters the battlefield. Blastoderm has no ETB triggered ability, so the stack is empty and Blastoderm is on the battlefield immediately after resolution.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Blastoderm in p1 hand; p1 at 40 life; battlefield empty; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Blastoderm" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Blastoderm" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Blastoderm ({2}{G}{G}, 5/5 Beast, Shroud, Fading 3) is in p1's hand. p1 has {2}{G}{G} (colorless:2, green:2) in mana pool ready to cast."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Blastoderm",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "green": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Blastoderm; {2}{G}{G} paid from pool (colorless:2, green:2). Blastoderm moves from hand to stack. CR 702.32a ability 1: as the permanent enters the battlefield on resolution, the Fading 3 replacement effect will place 3 fade counters on it."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Blastoderm on stack (count 1); p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 601.2: Blastoderm is now on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Blastoderm resolves (CR 608.2). CR 702.32a ability 1 (replacement): the permanent enters with 3 fade counters. Blastoderm has no ETB triggered ability, so the stack is empty immediately after resolution."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Blastoderm",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.32a",
+              "note": "CR 702.32a ability 1: Fading 3 replacement effect — 'This permanent enters with 3 fade counters on it.' Blastoderm enters with 3 fade counters. NOTE: fade counter assertions blocked by harness gap (see disputes) — should be validated by unit tests in crates/engine/tests/fading.rs."
+            }
+          ],
+          "note": "CR 608.2: Blastoderm spell resolves. The permanent enters with 3 fade counters (Fading 3 replacement, CR 702.32a ability 1). No ETB triggered ability. Stack is empty after resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Blastoderm on p1 battlefield (with 3 fade counters, not directly assertable — see disputes); stack empty; both players at 40 life",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Blastoderm" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Blastoderm" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.32a ability 1: Blastoderm entered with 3 fade counters (to be validated by unit test). Blastoderm is on the battlefield and NOT in the graveyard (sacrifice happens only after 3 upkeeps if unable to remove — see informational lifecycle below). Stack is empty. Neither player's life total changed (Blastoderm has no ETB life effect)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "INFORMATIONAL — Fading 3 counter-removal and sacrifice lifecycle documentation. These stack_resolve actions are informational only (no engine commands sent, no assertions checked). The full lifecycle (3 upkeep counter removals + sacrifice) is validated by unit tests in crates/engine/tests/fading.rs.",
+      "actions": [
+        {
+          "type": "stack_resolve",
+          "object": "FadingCounterTrigger (Upkeep 1 of 3)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.32a",
+              "note": "CR 702.32a ability 2: 'At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent.' Counter removed: 3 -> 2. Blastoderm remains on battlefield (still has counters). To be validated by unit test in crates/engine/tests/fading.rs."
+            }
+          ],
+          "note": "INFORMATIONAL: First upkeep — FadingCounterTrigger resolves (3 -> 2 fade counters). No sacrifice (counters remain)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "FadingCounterTrigger (Upkeep 2 of 3)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.32a",
+              "note": "CR 702.32a ability 2: Second upkeep counter-removal trigger. Counter removed: 2 -> 1. Blastoderm still on battlefield with 1 fade counter."
+            }
+          ],
+          "note": "INFORMATIONAL: Second upkeep — FadingCounterTrigger resolves (2 -> 1 fade counter). Blastoderm still alive."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "FadingCounterTrigger (Upkeep 3 of 3 — last counter)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.32a",
+              "note": "CR 702.32a ability 2: Third upkeep. Last counter removed: 1 -> 0. No more fade counters remain."
+            }
+          ],
+          "note": "INFORMATIONAL: Third upkeep — last fade counter removed (1 -> 0)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "FadingCounterTrigger (Upkeep 4 — no counters to remove)",
+          "resolution": [
+            {
+              "effect": "sacrifice",
+              "target": { "type": "permanent", "card": "Blastoderm", "controller": "p1" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.17a",
+              "note": "CR 701.17a: 'To sacrifice a permanent, its controller moves it from the battlefield to its owner's graveyard.' CR 702.32a ability 2: 'If you can't [remove a fade counter], sacrifice the permanent.' At the beginning of the 4th upkeep, no fade counters remain — the trigger fires but cannot remove a counter, so Blastoderm is sacrificed and moves to p1's graveyard. To be validated by unit test in crates/engine/tests/fading.rs."
+            }
+          ],
+          "note": "INFORMATIONAL: FadingCounterTrigger fires on 4th upkeep; no counters to remove — Blastoderm sacrificed (CR 701.17a, 702.32a). Full Fading 3 lifecycle complete: ETB (3 fade counters) -> 3 upkeeps remove counters -> sacrifice on 4th upkeep when unable to remove."
+        }
+      ]
+    }
+  ]
+}

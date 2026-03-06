@@ -469,6 +469,15 @@ pub enum AbilityDefinition {
     /// `count` is N (the number of time counters placed on ETB). When N=0 (CR 702.63b,
     /// Vanishing without a number), no counters are placed at ETB.
     Vanishing { count: u32 },
+    /// CR 702.32a: Fading N -- "This permanent enters with N fade counters on it."
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Fading(N))` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// `count` is N (the number of fade counters placed on ETB).
+    /// Fading always has N >= 1 (unlike Vanishing which can be 0).
+    Fading { count: u32 },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

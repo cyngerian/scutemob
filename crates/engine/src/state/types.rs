@@ -139,6 +139,11 @@ pub enum CounterType {
     Shield,
     Stun,
     Time,
+    /// CR 702.32a: Fade counters are placed on permanents with Fading N.
+    ///
+    /// Distinct from Time counters (used by Vanishing). Fading uses "fade counters"
+    /// in its oracle text and in the activated abilities of cards like Parallax Wave.
+    Fade,
     /// Catch-all for counter types not explicitly enumerated.
     Custom(String),
 }
@@ -1011,6 +1016,14 @@ pub enum KeywordAbility {
     ///
     /// CR 702.63c: Each instance works separately.
     Vanishing(u32),
+    /// CR 702.32a: Fading N -- "This permanent enters with N fade counters on it"
+    /// and "At the beginning of your upkeep, remove a fade counter from this
+    /// permanent. If you can't, sacrifice the permanent."
+    ///
+    /// Unlike Vanishing, Fading always has a number (no "Fading without a number").
+    /// The upkeep trigger is a SINGLE trigger that handles both counter removal and
+    /// sacrifice (if removal fails).
+    Fading(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

@@ -473,6 +473,30 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .update(CounterType::Time, current + total_vanishing);
                         }
                     }
+                    // CR 702.32a: "This permanent enters with N fade counters on it."
+                    // Fading N places N fade counters on the permanent as it enters.
+                    // Unlike Vanishing, Fading always has N >= 1 (no "Fading without a number").
+                    {
+                        let total_fading: u32 = obj
+                            .characteristics
+                            .keywords
+                            .iter()
+                            .filter_map(|kw| {
+                                if let crate::state::types::KeywordAbility::Fading(n) = kw {
+                                    Some(*n)
+                                } else {
+                                    None
+                                }
+                            })
+                            .sum();
+                        if total_fading > 0 {
+                            let current =
+                                obj.counters.get(&CounterType::Fade).copied().unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::Fade, current + total_fading);
+                        }
+                    }
                 }
 
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
@@ -1168,6 +1192,141 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             event_description,
                             choices,
                         });
+                    }
+                }
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.32a: Fading upkeep trigger resolves.
+        //
+        // "At the beginning of your upkeep, remove a fade counter from this permanent.
+        // If you can't, sacrifice the permanent."
+        //
+        // Single trigger handles both counter removal and sacrifice (unlike Vanishing's
+        // two-trigger approach). If fade counters > 0, remove one. If 0, sacrifice.
+        // No intervening-if condition -- the trigger fires unconditionally.
+        // If the permanent has left the battlefield (CR 400.7), trigger does nothing.
+        StackObjectKind::FadingTrigger {
+            source_object: _,
+            fading_permanent,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if permanent is still on the battlefield (CR 400.7).
+            let source_info = state.objects.get(&fading_permanent).and_then(|obj| {
+                if obj.zone == ZoneId::Battlefield {
+                    Some((
+                        obj.owner,
+                        obj.controller,
+                        obj.counters.clone(),
+                        obj.counters.get(&CounterType::Fade).copied().unwrap_or(0),
+                    ))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((owner, pre_sacrifice_controller, pre_sacrifice_counters, fade_count)) =
+                source_info
+            {
+                if fade_count > 0 {
+                    // CR 702.32a: Remove one fade counter.
+                    if let Some(obj) = state.objects.get_mut(&fading_permanent) {
+                        let new_count = fade_count - 1;
+                        if new_count == 0 {
+                            obj.counters.remove(&CounterType::Fade);
+                        } else {
+                            obj.counters.insert(CounterType::Fade, new_count);
+                        }
+                    }
+                    events.push(GameEvent::CounterRemoved {
+                        object_id: fading_permanent,
+                        counter: CounterType::Fade,
+                        count: 1,
+                    });
+                } else {
+                    // CR 702.32a: Can't remove a fade counter -- sacrifice the permanent.
+                    // CR 701.17a: Sacrifice bypasses indestructible.
+                    let action = crate::rules::replacement::check_zone_change_replacement(
+                        state,
+                        fading_permanent,
+                        crate::state::zone::ZoneType::Battlefield,
+                        crate::state::zone::ZoneType::Graveyard,
+                        owner,
+                        &std::collections::HashSet::new(),
+                    );
+
+                    match action {
+                        crate::rules::replacement::ZoneChangeAction::Redirect {
+                            to: dest,
+                            events: repl_events,
+                            ..
+                        } => {
+                            events.extend(repl_events);
+                            if let Ok((new_id, _old)) =
+                                state.move_object_to_zone(fading_permanent, dest)
+                            {
+                                match dest {
+                                    ZoneId::Exile => {
+                                        events.push(GameEvent::ObjectExiled {
+                                            player: owner,
+                                            object_id: fading_permanent,
+                                            new_exile_id: new_id,
+                                        });
+                                    }
+                                    ZoneId::Command(_) => {
+                                        // Commander redirected -- no sacrifice event.
+                                    }
+                                    _ => {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: fading_permanent,
+                                            new_grave_id: new_id,
+                                            controller: pre_sacrifice_controller,
+                                            pre_death_counters: pre_sacrifice_counters,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        crate::rules::replacement::ZoneChangeAction::Proceed => {
+                            if let Ok((new_grave_id, _old)) = state
+                                .move_object_to_zone(fading_permanent, ZoneId::Graveyard(owner))
+                            {
+                                events.push(GameEvent::CreatureDied {
+                                    object_id: fading_permanent,
+                                    new_grave_id,
+                                    controller: pre_sacrifice_controller,
+                                    pre_death_counters: pre_sacrifice_counters,
+                                });
+                            }
+                        }
+                        crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                            player,
+                            choices,
+                            event_description,
+                        } => {
+                            // CR 616.1: Multiple replacement effects -- defer to player choice.
+                            state.pending_zone_changes.push_back(
+                                crate::state::replacement_effect::PendingZoneChange {
+                                    object_id: fading_permanent,
+                                    original_from: crate::state::zone::ZoneType::Battlefield,
+                                    original_destination: crate::state::zone::ZoneType::Graveyard,
+                                    affected_player: player,
+                                    already_applied: Vec::new(),
+                                },
+                            );
+                            events.push(GameEvent::ReplacementChoiceRequired {
+                                player,
+                                event_description,
+                                choices,
+                            });
+                        }
                     }
                 }
             }
@@ -3724,7 +3883,8 @@ pub fn counter_stack_object(
         | StackObjectKind::ReplicateTrigger { .. }
         | StackObjectKind::GravestormTrigger { .. }
         | StackObjectKind::VanishingCounterTrigger { .. }
-        | StackObjectKind::VanishingSacrificeTrigger { .. } => {
+        | StackObjectKind::VanishingSacrificeTrigger { .. }
+        | StackObjectKind::FadingTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).

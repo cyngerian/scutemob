@@ -3800,6 +3800,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         vanishing_permanent: trigger.source,
                     }
                 }
+                PendingTriggerKind::FadingUpkeep => {
+                    // CR 702.32a: Fading upkeep trigger.
+                    // "At the beginning of your upkeep, remove a fade counter from
+                    // this permanent. If you can't, sacrifice the permanent."
+                    StackObjectKind::FadingTrigger {
+                        source_object: trigger.source,
+                        fading_permanent: trigger.source,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,

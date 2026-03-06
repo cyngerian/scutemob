@@ -903,4 +903,10 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         vanishing_permanent: ObjectId,
     },
+    /// CR 702.32a: "At the beginning of your upkeep, remove a fade counter from
+    /// this permanent. If you can't, sacrifice the permanent." Discriminant 39.
+    FadingTrigger {
+        source_object: ObjectId,
+        fading_permanent: ObjectId,
+    },
 }

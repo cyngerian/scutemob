@@ -149,6 +149,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     "Vanishing sacrifice: ".to_string(),
                     Some(*vanishing_permanent),
                 ),
+                StackObjectKind::FadingTrigger {
+                    fading_permanent, ..
+                } => ("Fading: ".to_string(), Some(*fading_permanent)),
             };
 
             let (name, name_color) = source_id
