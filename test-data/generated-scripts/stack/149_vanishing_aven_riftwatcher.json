@@ -1,0 +1,249 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_149",
+    "name": "Vanishing 3 — Aven Riftwatcher ETB: enters with 3 time counters and gains 2 life",
+    "description": "Tests the ETB moment of the Vanishing 3 lifecycle for Aven Riftwatcher ({2}{W}, 2/3 Bird with Flying). p1 casts Aven Riftwatcher; the spell resolves with the Vanishing 3 replacement effect placing 3 time counters on it as it enters (CR 702.63a ability 1). The WhenEntersBattlefield ability executes inline during resolution, granting p1 +2 life (40 -> 42). A single priority_round resolves both the spell and the ETB gain-life effect. The script asserts: (a) Aven Riftwatcher is on the battlefield after resolution, (b) p1 is at 42 life, and (c) the stack is empty. The upkeep counter-removal lifecycle (3 upkeeps each removing 1 counter via VanishingCounterTrigger, CR 702.63a ability 2) and the final VanishingSacrificeTrigger (CR 702.63a ability 3) are fully covered by unit tests in crates/engine/tests/vanishing.rs and are documented in the informational lifecycle section of this script.",
+    "cr_sections_tested": [
+      "702.63a",
+      "601.2",
+      "608.2",
+      "118.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "vanishing",
+      "time-counter",
+      "etb-gain-life",
+      "replacement-effect"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Aven Riftwatcher card definition (crates/engine/src/cards/defs/aven_riftwatcher.rs): mana_cost {2}{W}, types Creature — Bird Rebel Soldier, power 2, toughness 3. Abilities: AbilityDefinition::Keyword(Flying), AbilityDefinition::Vanishing { count: 3 }, AbilityDefinition::Triggered { WhenEntersBattlefield -> GainLife { Controller, Fixed(2) } }. CR 702.63a defines three abilities for Vanishing N: (1) static replacement — 'This permanent enters with N time counters on it'; (2) upkeep triggered — 'At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it' (intervening-if per CR 603.4); (3) triggered — 'When the last time counter is removed from this permanent, sacrifice it.' Script covers ability 1 (ETB counters via replacement effect in resolution.rs) and the ETB gain-2-life. ENGINE BEHAVIOR NOTE: The WhenEntersBattlefield trigger for Aven Riftwatcher uses fire_when_enters_triggered_effects() in replacement.rs, which calls execute_effect() INLINE during spell resolution — it does NOT queue the trigger onto the stack. This means after a single priority_round (both players pass), the spell resolves, the 3 time counters are placed, AND p1 immediately gains 2 life. The stack is empty and p1.life == 42 after the priority_round. This differs from triggers like Alela's (which watches OTHER permanents enter and queues normally on the stack). Mana: {2}{W} = colorless:2 + white:1. The LTB gain-2-life trigger is not yet implemented (WhenLeavesBattlefield not in DSL — aven_riftwatcher.rs TODO). The upkeep/sacrifice lifecycle is documented in the informational sections using stack_resolve (no-op in harness) and validated by unit tests: test_vanishing_etb_counters_on_cast, test_vanishing_upkeep_removes_counter, test_vanishing_sacrifice_on_last_counter in crates/engine/tests/vanishing.rs.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Harness gap: parse_counter_type() in replay_harness.rs does not map 'time' to CounterType::Time. As a result, assertions of the form 'permanent.Aven Riftwatcher.counters.time: 3' cannot be evaluated after ETB. The fix is to add '\"time\" => Some(CounterType::Time)' to the parse_counter_type() match arm. This gap also affects Suspend and Impending scripts (noted in script_stack_136). Full time-counter placement (3 counters on ETB) is validated by test_vanishing_etb_counters_on_cast in crates/engine/tests/vanishing.rs.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      },
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Card definition gap: The LTB (leaves-the-battlefield) gain-2-life trigger for Aven Riftwatcher is not implemented because TriggerCondition::WhenLeavesBattlefield does not exist in the DSL. Oracle text: 'When this creature enters or leaves the battlefield, you gain 2 life.' Only the ETB half is modeled. When Aven Riftwatcher is sacrificed by the Vanishing trigger in a real game, p1 should gain 2 additional life — but this does not occur in the current engine.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      },
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Script scope limitation: The full Vanishing 3 lifecycle (3 upkeeps, each removing 1 counter, then sacrifice on the third) cannot be exercised in a single harness script because the harness cannot skip turns or teleport to a later upkeep step. The VanishingCounterTrigger is queued by upkeep_actions() only when the engine enters the Upkeep step via handle_all_passed -> enter_step. Advancing from precombat_main through a full turn to the next upkeep requires passing through Draw (needs library card), combat, and other phases. The intermediate lifecycle is fully tested in crates/engine/tests/vanishing.rs: test_vanishing_upkeep_removes_counter (3->2 per upkeep, starting at Step::Untap with counters set manually) and test_vanishing_sacrifice_on_last_counter (1->0, sacrifice triggered).",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Aven Riftwatcher", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Aven Riftwatcher ({2}{W}) from hand. Both players pass priority. The spell resolves: (a) the Vanishing 3 replacement effect (CR 702.63a ability 1) places 3 time counters on Aven Riftwatcher as it enters the battlefield; (b) the WhenEntersBattlefield ability fires inline during resolution via fire_when_enters_triggered_effects(), granting p1 +2 life immediately (40 -> 42). The ETB gain-life does not go through the stack — it executes during spell resolution.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Aven Riftwatcher in p1 hand; p1 at 40 life; battlefield empty; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Aven Riftwatcher" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Aven Riftwatcher" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Aven Riftwatcher ({2}{W}, 2/3 Bird, Flying, Vanishing 3, ETB gain 2 life) is in p1's hand. p1 has {2}{W} (colorless:2, white:1) in mana pool ready to cast."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Aven Riftwatcher",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "white": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Aven Riftwatcher; {2}{W} paid from pool (colorless:2, white:1). Aven Riftwatcher moves from hand to stack. CR 702.63a ability 1: as the permanent enters the battlefield on resolution, the Vanishing 3 replacement effect will place 3 time counters on it."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Aven Riftwatcher on stack (count 1); p1 hand empty; mana spent",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 601.2: Aven Riftwatcher is now on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Aven Riftwatcher resolves (CR 608.2). CR 702.63a ability 1 (replacement): the permanent enters with 3 time counters. The WhenEntersBattlefield ability (gain 2 life) fires inline during resolution via fire_when_enters_triggered_effects() — it executes immediately without going on the stack, so p1 gains 2 life (40 -> 42) as part of this single resolution step. The stack is empty after this priority_round."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Aven Riftwatcher",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.63a",
+              "note": "CR 702.63a ability 1: Vanishing 3 replacement effect — 'This permanent enters with 3 time counters on it.' Aven Riftwatcher enters with 3 time counters. NOTE: time counter assertions blocked by harness gap (see disputes) — validated by test_vanishing_etb_counters_on_cast in vanishing.rs."
+            },
+            {
+              "effect": "gain_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: WhenEntersBattlefield ability executes inline (fire_when_enters_triggered_effects in replacement.rs calls execute_effect directly). p1 gains 2 life: 40 -> 42. This does not go on the stack."
+            }
+          ],
+          "note": "CR 608.2: Aven Riftwatcher spell resolves. The permanent enters with 3 time counters (Vanishing 3 replacement). ETB gain-life fires inline. Stack is empty after resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Aven Riftwatcher on p1 battlefield (3 time counters, not directly assertable — see disputes); p1 at 42 life; stack empty; p2 life unchanged",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Aven Riftwatcher" }] },
+            "zones.graveyard.p1": { "excludes": [{ "card": "Aven Riftwatcher" }] },
+            "players.p1.life": 42,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.63a ability 1: Aven Riftwatcher entered with 3 time counters (validated by test_vanishing_etb_counters_on_cast). ETB gain-life executed inline during resolution: p1 at 42 (40+2). Aven Riftwatcher is on the battlefield and NOT in the graveyard (sacrifice happens after 3 upkeeps — see informational lifecycle below). Stack is empty."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "INFORMATIONAL — Vanishing 3 counter-removal and sacrifice lifecycle documentation. These stack_resolve actions are informational only (no engine commands sent, no assertions checked). The full lifecycle (3 upkeep counter removals + sacrifice) is validated by unit tests in crates/engine/tests/vanishing.rs.",
+      "actions": [
+        {
+          "type": "stack_resolve",
+          "object": "VanishingCounterTrigger (Upkeep 1 of 3)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.63a",
+              "note": "CR 702.63a ability 2: 'At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it.' Intervening-if (CR 603.4): condition checked at trigger time (upkeep_actions queues trigger) and at resolution. Counter removed: 3 -> 2. Aven Riftwatcher remains on battlefield. Validated by test_vanishing_upkeep_removes_counter in crates/engine/tests/vanishing.rs (starts at Step::Untap, passes priority to advance to Upkeep via enter_step -> upkeep_actions)."
+            }
+          ],
+          "note": "INFORMATIONAL: First upkeep — VanishingCounterTrigger resolves (3 -> 2 time counters). No sacrifice trigger (counters remain)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "VanishingCounterTrigger (Upkeep 2 of 3)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.63a",
+              "note": "CR 702.63a ability 2: Second upkeep counter-removal trigger. Counter removed: 2 -> 1. Aven Riftwatcher still on battlefield with 1 time counter."
+            }
+          ],
+          "note": "INFORMATIONAL: Second upkeep — VanishingCounterTrigger resolves (2 -> 1 time counter). Aven Riftwatcher still alive."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "VanishingCounterTrigger (Upkeep 3 of 3 — last counter)",
+          "resolution": [
+            {
+              "effect": "remove_counter",
+              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.63a",
+              "note": "CR 702.63a ability 2: Third upkeep. Last counter removed: 1 -> 0. This was the last time counter, so VanishingSacrificeTrigger fires (CR 702.63a ability 3). Validated by test_vanishing_sacrifice_on_last_counter in crates/engine/tests/vanishing.rs."
+            }
+          ],
+          "note": "INFORMATIONAL: Third upkeep — last counter removed (1 -> 0). VanishingSacrificeTrigger queued on stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "VanishingSacrificeTrigger",
+          "resolution": [
+            {
+              "effect": "sacrifice",
+              "target": { "type": "permanent", "card": "Aven Riftwatcher", "controller": "p1" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.17a",
+              "note": "CR 701.17a: 'To sacrifice a permanent, its controller moves it from the battlefield to its owner's graveyard.' CR 702.63a ability 3: 'When the last time counter is removed from this permanent, sacrifice it.' Aven Riftwatcher moves to p1's graveyard. NOTE: LTB gain-2-life trigger not yet implemented (WhenLeavesBattlefield not in DSL — see disputes). Validated by test_vanishing_sacrifice_on_last_counter."
+            }
+          ],
+          "note": "INFORMATIONAL: VanishingSacrificeTrigger resolves — Aven Riftwatcher sacrificed (CR 701.17a), moves to p1's graveyard. Full Vanishing 3 lifecycle complete: ETB (3 counters + gain 2 life) -> 3 upkeeps remove counters one each -> sacrifice on last removal."
+        }
+      ]
+    }
+  ]
+}

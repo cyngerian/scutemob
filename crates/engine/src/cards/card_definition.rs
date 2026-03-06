@@ -460,6 +460,15 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Spell.modes` must be `Some(...)` with `min_modes: 1,
     /// max_modes: <mode_count>` for escalate to be meaningful.
     Escalate { cost: ManaCost },
+    /// CR 702.63a: Vanishing N -- "This permanent enters with N time counters on it."
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Vanishing(N))` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// `count` is N (the number of time counters placed on ETB). When N=0 (CR 702.63b,
+    /// Vanishing without a number), no counters are placed at ETB.
+    Vanishing { count: u32 },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

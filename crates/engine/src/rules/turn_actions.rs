@@ -97,6 +97,74 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
         });
     }
 
+    // CR 702.63a: Queue counter-removal triggers for all Vanishing permanents.
+    // "At the beginning of your upkeep, if this permanent has a time counter on it,
+    // remove a time counter from it."
+    //
+    // Only fires for permanents controlled by the active player (CR 702.63a: "your upkeep").
+    // CR 702.63c: Each Vanishing instance triggers separately -- count instances and
+    // queue one trigger per instance.
+    // The trigger has an intervening-if condition (CR 603.4): re-checked at resolution.
+    let vanishing_permanents: Vec<(ObjectId, usize)> = state
+        .objects
+        .values()
+        .filter(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && obj.controller == active
+                && obj.counters.get(&CounterType::Time).copied().unwrap_or(0) > 0
+                && obj
+                    .characteristics
+                    .keywords
+                    .iter()
+                    .any(|kw| matches!(kw, KeywordAbility::Vanishing(_)))
+        })
+        .map(|obj| {
+            // Count Vanishing instances for CR 702.63c (each works separately).
+            let instance_count = obj
+                .characteristics
+                .keywords
+                .iter()
+                .filter(|kw| matches!(kw, KeywordAbility::Vanishing(_)))
+                .count();
+            (obj.id, instance_count)
+        })
+        .collect();
+
+    for (obj_id, instance_count) in vanishing_permanents {
+        for _ in 0..instance_count {
+            state.pending_triggers.push_back(PendingTrigger {
+                source: obj_id,
+                ability_index: 0, // unused for vanishing counter triggers
+                controller: active,
+                kind: PendingTriggerKind::VanishingCounter,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: None,
+                madness_cost: None,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+            });
+        }
+    }
+
     Vec::new() // No direct events; triggers are flushed by enter_step
 }
 

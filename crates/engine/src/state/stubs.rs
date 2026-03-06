@@ -71,6 +71,10 @@ pub enum PendingTriggerKind {
     BlitzSacrifice,
     /// CR 702.176a: Impending end-step counter-removal trigger.
     ImpendingCounter,
+    /// CR 702.63a: Vanishing upkeep counter-removal trigger.
+    VanishingCounter,
+    /// CR 702.63a: Vanishing last-counter sacrifice trigger.
+    VanishingSacrifice,
     // Add new trigger kinds here as abilities are implemented
 }
 

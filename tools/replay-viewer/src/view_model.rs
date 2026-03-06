@@ -531,6 +531,14 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::GravestormTrigger { source_object, .. } => {
             ("gravestorm_trigger", Some(*source_object))
         }
+        StackObjectKind::VanishingCounterTrigger {
+            vanishing_permanent,
+            ..
+        } => ("vanishing_counter_trigger", Some(*vanishing_permanent)),
+        StackObjectKind::VanishingSacrificeTrigger {
+            vanishing_permanent,
+            ..
+        } => ("vanishing_sacrifice_trigger", Some(*vanishing_permanent)),
     }
 }
 
@@ -779,5 +787,12 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Splice => "Splice".to_string(),
         KeywordAbility::Entwine => "Entwine".to_string(),
         KeywordAbility::Escalate => "Escalate".to_string(),
+        KeywordAbility::Vanishing(n) => {
+            if *n == 0 {
+                "Vanishing".to_string()
+            } else {
+                format!("Vanishing {n}")
+            }
+        }
     }
 }

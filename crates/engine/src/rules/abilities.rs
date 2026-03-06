@@ -3782,6 +3782,24 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         impending_permanent: trigger.source,
                     }
                 }
+                PendingTriggerKind::VanishingCounter => {
+                    // CR 702.63a: Vanishing upkeep counter-removal trigger.
+                    // "At the beginning of your upkeep, if this permanent has a time
+                    // counter on it, remove a time counter from it."
+                    StackObjectKind::VanishingCounterTrigger {
+                        source_object: trigger.source,
+                        vanishing_permanent: trigger.source,
+                    }
+                }
+                PendingTriggerKind::VanishingSacrifice => {
+                    // CR 702.63a: Vanishing last-counter sacrifice trigger.
+                    // "When the last time counter is removed from this permanent,
+                    // sacrifice it."
+                    StackObjectKind::VanishingSacrificeTrigger {
+                        source_object: trigger.source,
+                        vanishing_permanent: trigger.source,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,

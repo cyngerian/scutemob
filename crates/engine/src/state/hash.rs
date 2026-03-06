@@ -559,6 +559,11 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Entwine => 110u8.hash_into(hasher),
             // Escalate (discriminant 111) -- CR 702.120
             KeywordAbility::Escalate => 111u8.hash_into(hasher),
+            // Vanishing (discriminant 112) -- CR 702.63
+            KeywordAbility::Vanishing(n) => {
+                112u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1647,6 +1652,24 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 original_stack_id.hash_into(hasher);
                 gravestorm_count.hash_into(hasher);
+            }
+            // VanishingCounterTrigger (discriminant 37) -- CR 702.63a
+            StackObjectKind::VanishingCounterTrigger {
+                source_object,
+                vanishing_permanent,
+            } => {
+                37u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                vanishing_permanent.hash_into(hasher);
+            }
+            // VanishingSacrificeTrigger (discriminant 38) -- CR 702.63a
+            StackObjectKind::VanishingSacrificeTrigger {
+                source_object,
+                vanishing_permanent,
+            } => {
+                38u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                vanishing_permanent.hash_into(hasher);
             }
         }
     }
@@ -3355,6 +3378,11 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Escalate { cost } => {
                 40u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Vanishing (discriminant 41) -- CR 702.63
+            AbilityDefinition::Vanishing { count } => {
+                41u8.hash_into(hasher);
+                count.hash_into(hasher);
             }
         }
     }

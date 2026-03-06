@@ -138,6 +138,17 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::GravestormTrigger { source_object, .. } => {
                     ("Gravestorm: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::VanishingCounterTrigger {
+                    vanishing_permanent,
+                    ..
+                } => ("Vanishing tick: ".to_string(), Some(*vanishing_permanent)),
+                StackObjectKind::VanishingSacrificeTrigger {
+                    vanishing_permanent,
+                    ..
+                } => (
+                    "Vanishing sacrifice: ".to_string(),
+                    Some(*vanishing_permanent),
+                ),
             };
 
             let (name, name_color) = source_id

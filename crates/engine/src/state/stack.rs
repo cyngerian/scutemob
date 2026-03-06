@@ -891,4 +891,16 @@ pub enum StackObjectKind {
         original_stack_id: ObjectId,
         gravestorm_count: u32,
     },
+    /// CR 702.63a: "At the beginning of your upkeep, if this permanent has a time counter
+    /// on it, remove a time counter from it." Discriminant 37.
+    VanishingCounterTrigger {
+        source_object: ObjectId,
+        vanishing_permanent: ObjectId,
+    },
+    /// CR 702.63a: "When the last time counter is removed from this permanent, sacrifice it."
+    /// Discriminant 38.
+    VanishingSacrificeTrigger {
+        source_object: ObjectId,
+        vanishing_permanent: ObjectId,
+    },
 }

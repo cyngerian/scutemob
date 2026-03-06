@@ -445,6 +445,34 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 .update(CounterType::Time, current + impending_count);
                         }
                     }
+                    // CR 702.63a: "This permanent enters with N time counters on it."
+                    // Vanishing N places N time counters on the permanent as it enters.
+                    // Fires for ALL permanents with Vanishing, regardless of how they
+                    // were cast (no alt-cost condition like Impending).
+                    // CR 702.63b: Vanishing without a number (N=0) does NOT place counters.
+                    // CR 702.63c: Multiple instances of Vanishing each work separately --
+                    // sum all N values so Vanishing 3 + Vanishing 2 places 5 counters.
+                    {
+                        let total_vanishing: u32 = obj
+                            .characteristics
+                            .keywords
+                            .iter()
+                            .filter_map(|kw| {
+                                if let crate::state::types::KeywordAbility::Vanishing(n) = kw {
+                                    Some(*n)
+                                } else {
+                                    None
+                                }
+                            })
+                            .sum();
+                        if total_vanishing > 0 {
+                            let current =
+                                obj.counters.get(&CounterType::Time).copied().unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::Time, current + total_vanishing);
+                        }
+                    }
                 }
 
                 // CR 702.138c: "Escapes with [counter]" -- if this permanent escaped,
@@ -945,6 +973,205 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 gravestorm_count,
             );
             events.extend(copy_events);
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.63a: Vanishing upkeep counter-removal trigger resolves.
+        //
+        // "At the beginning of your upkeep, if this permanent has a time counter on it,
+        // remove a time counter from it."
+        //
+        // Intervening-if re-check (CR 603.4): permanent must still be on the battlefield
+        // AND have at least one time counter. If either fails, the trigger does nothing.
+        StackObjectKind::VanishingCounterTrigger {
+            source_object: _,
+            vanishing_permanent,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if condition at resolution.
+            let current_counters = state
+                .objects
+                .get(&vanishing_permanent)
+                .filter(|obj| obj.zone == ZoneId::Battlefield)
+                .and_then(|obj| obj.counters.get(&CounterType::Time).copied());
+
+            if let Some(count) = current_counters {
+                if count > 0 {
+                    // Remove one time counter (CR 702.63a).
+                    if let Some(obj) = state.objects.get_mut(&vanishing_permanent) {
+                        let new_count = count - 1;
+                        if new_count == 0 {
+                            obj.counters.remove(&CounterType::Time);
+                        } else {
+                            obj.counters.insert(CounterType::Time, new_count);
+                        }
+                    }
+                    events.push(GameEvent::CounterRemoved {
+                        object_id: vanishing_permanent,
+                        counter: CounterType::Time,
+                        count: 1,
+                    });
+
+                    // CR 702.63a (third triggered ability): "When the last time counter
+                    // is removed from this permanent, sacrifice it."
+                    // Queue a VanishingSacrifice trigger when the last counter was removed.
+                    if count == 1 {
+                        let owner = state
+                            .objects
+                            .get(&vanishing_permanent)
+                            .map(|obj| obj.controller)
+                            .unwrap_or(controller);
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                source: vanishing_permanent,
+                                ability_index: 0,
+                                controller: owner,
+                                kind: PendingTriggerKind::VanishingSacrifice,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                            });
+                    }
+                }
+            }
+            // If not on battlefield or no counters, trigger does nothing (CR 603.4).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.63a: Vanishing sacrifice trigger resolves.
+        //
+        // "When the last time counter is removed from this permanent, sacrifice it."
+        // If the source has left the battlefield by resolution time (CR 400.7),
+        // the trigger does nothing — the permanent is a new object elsewhere.
+        // CR 702.63a ruling (Dreamtide Whale): If the sacrifice trigger is countered
+        // (e.g., Stifle), the permanent stays on the battlefield with 0 time counters
+        // and neither trigger can fire again (both have intervening-if for time counters).
+        StackObjectKind::VanishingSacrificeTrigger {
+            source_object: _,
+            vanishing_permanent,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Check if the source is still on the battlefield (CR 400.7).
+            let source_info = state.objects.get(&vanishing_permanent).and_then(|obj| {
+                if obj.zone == ZoneId::Battlefield {
+                    Some((obj.owner, obj.controller, obj.counters.clone()))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((owner, pre_death_controller, pre_death_counters)) = source_info {
+                // CR 701.17a: Sacrifice bypasses indestructible.
+                // CR 614: Replacement effects (e.g., Rest in Peace) still apply.
+                let action = crate::rules::replacement::check_zone_change_replacement(
+                    state,
+                    vanishing_permanent,
+                    crate::state::zone::ZoneType::Battlefield,
+                    crate::state::zone::ZoneType::Graveyard,
+                    owner,
+                    &std::collections::HashSet::new(),
+                );
+
+                match action {
+                    crate::rules::replacement::ZoneChangeAction::Redirect {
+                        to: dest,
+                        events: repl_events,
+                        ..
+                    } => {
+                        events.extend(repl_events);
+                        if let Ok((new_id, _old)) =
+                            state.move_object_to_zone(vanishing_permanent, dest)
+                        {
+                            match dest {
+                                ZoneId::Exile => {
+                                    events.push(GameEvent::ObjectExiled {
+                                        player: owner,
+                                        object_id: vanishing_permanent,
+                                        new_exile_id: new_id,
+                                    });
+                                }
+                                ZoneId::Command(_) => {
+                                    // Commander redirected -- no sacrifice event.
+                                }
+                                _ => {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: vanishing_permanent,
+                                        new_grave_id: new_id,
+                                        controller: pre_death_controller,
+                                        pre_death_counters,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::Proceed => {
+                        if let Ok((new_grave_id, _old)) =
+                            state.move_object_to_zone(vanishing_permanent, ZoneId::Graveyard(owner))
+                        {
+                            events.push(GameEvent::CreatureDied {
+                                object_id: vanishing_permanent,
+                                new_grave_id,
+                                controller: pre_death_controller,
+                                pre_death_counters,
+                            });
+                        }
+                    }
+                    crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                        player,
+                        choices,
+                        event_description,
+                    } => {
+                        // CR 616.1: Multiple replacement effects -- defer to player choice.
+                        state.pending_zone_changes.push_back(
+                            crate::state::replacement_effect::PendingZoneChange {
+                                object_id: vanishing_permanent,
+                                original_from: crate::state::zone::ZoneType::Battlefield,
+                                original_destination: crate::state::zone::ZoneType::Graveyard,
+                                affected_player: player,
+                                already_applied: Vec::new(),
+                            },
+                        );
+                        events.push(GameEvent::ReplacementChoiceRequired {
+                            player,
+                            event_description,
+                            choices,
+                        });
+                    }
+                }
+            }
+            // If not on battlefield, do nothing (CR 400.7 -- permanent is a new object).
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -3495,7 +3722,9 @@ pub fn counter_stack_object(
         | StackObjectKind::ImpendingCounterTrigger { .. }
         | StackObjectKind::CasualtyTrigger { .. }
         | StackObjectKind::ReplicateTrigger { .. }
-        | StackObjectKind::GravestormTrigger { .. } => {
+        | StackObjectKind::GravestormTrigger { .. }
+        | StackObjectKind::VanishingCounterTrigger { .. }
+        | StackObjectKind::VanishingSacrificeTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For EncoreAbility, the card is already in exile (exiled as cost
             // during activation). Countering does not return the card (CR 702.141a).
@@ -3511,6 +3740,10 @@ pub fn counter_stack_object(
             // made but the original spell stays on the stack (CR 702.56a).
             // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
             // made but the original spell stays on the stack (CR 702.69a).
+            // Note: For VanishingCounterTrigger, if countered (e.g. by Stifle), the
+            // permanent retains its time counter(s) (CR 702.63a).
+            // Note: For VanishingSacrificeTrigger, if countered (e.g. by Stifle), the
+            // permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
         }
     }
 

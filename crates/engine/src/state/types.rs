@@ -1001,6 +1001,16 @@ pub enum KeywordAbility {
     /// of extra modes chosen. `escalate_modes` in `Command::CastSpell` tracks
     /// how many additional modes beyond the first are chosen.
     Escalate,
+    /// CR 702.63a: Vanishing N -- "This permanent enters with N time counters on it,"
+    /// "At the beginning of your upkeep, if this permanent has a time counter on it,
+    /// remove a time counter from it," and "When the last time counter is removed from
+    /// this permanent, sacrifice it."
+    ///
+    /// CR 702.63b: Vanishing without a number -- only the upkeep counter-removal and
+    /// sacrifice triggered abilities; no ETB counter placement. Represented as `Vanishing(0)`.
+    ///
+    /// CR 702.63c: Each instance works separately.
+    Vanishing(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

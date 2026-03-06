@@ -14,7 +14,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::turn::Step;
-use crate::state::types::CardType;
+use crate::state::types::{CardType, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -111,6 +111,37 @@ pub fn handle_play_land(
         new_land_id,
         player,
     ));
+
+    // CR 702.63a: Place N time counters on a land with Vanishing N as it enters.
+    // Lands with Vanishing are extremely rare (Nameless Race et al. are not lands),
+    // but the ETB hook must exist at both sites per gotchas-infra.md.
+    // CR 702.63b: Vanishing(0) does not place counters.
+    // CR 702.63c: Multiple instances of Vanishing each work separately -- sum all N values.
+    {
+        let total_vanishing: u32 = state
+            .objects
+            .get(&new_land_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .filter_map(|kw| {
+                        if let KeywordAbility::Vanishing(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
+        if total_vanishing > 0 {
+            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                let current = obj.counters.get(&CounterType::Time).copied().unwrap_or(0);
+                obj.counters = obj.counters.update(CounterType::Time, current + total_vanishing);
+            }
+        }
+    }
 
     // CR 614: Register global replacement abilities from this land's card definition.
     super::replacement::register_permanent_replacement_abilities(

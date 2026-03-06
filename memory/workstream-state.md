@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 7 complete — Batch 8 next (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing) | available | — | B7 closed 2026-03-06 |
+| W1: Abilities | Batch 8: Upkeep, Time & Phasing (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing) | ACTIVE | 2026-03-06 | B7 closed; B8 claimed |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
