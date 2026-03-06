@@ -1079,6 +1079,20 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 117.
     Forecast,
+    /// CR 702.26a: Phasing -- static ability modifying untap step rules.
+    /// "During each player's untap step, before the active player untaps permanents,
+    /// all phased-in permanents with phasing that player controls phase out.
+    /// Simultaneously, all phased-out permanents that had phased out under that
+    /// player's control phase in."
+    ///
+    /// CR 702.26p: Multiple instances are redundant (auto-deduped by OrdSet).
+    /// Phasing does NOT use the stack (CR 702.26d -- no zone change, no triggers).
+    ///
+    /// Infrastructure: `ObjectStatus::phased_out` (already exists at game_object.rs).
+    /// Controller tracking: `GameObject::phased_out_controller` (added for phase-in routing).
+    ///
+    /// Discriminant 118.
+    Phasing,
 }
 
 /// All creature subtypes from CR 205.3m.

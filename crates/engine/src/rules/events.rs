@@ -957,6 +957,30 @@ pub enum GameEvent {
         /// Number of players that received additional counters.
         players_affected: u32,
     },
+
+    // -- Phasing events (CR 702.26) -------------------------------------------
+    /// CR 702.26a: Permanents phased out during the untap step.
+    ///
+    /// Includes both directly-phased (Phasing keyword) and indirectly-phased
+    /// (attached Auras/Equipment that phase out with their host).
+    /// Emitted by `untap_active_player_permanents` before the untap loop.
+    PermanentsPhasedOut {
+        /// The player whose untap step caused the phase-out.
+        player: PlayerId,
+        /// ObjectIds of permanents that phased out (direct + indirect).
+        objects: Vec<ObjectId>,
+    },
+
+    /// CR 702.26a: Permanents phased in during the untap step.
+    ///
+    /// Phasing in is NOT a zone change (CR 702.26d) -- no ETB triggers fire.
+    /// Emitted by `untap_active_player_permanents` before phasing-out.
+    PermanentsPhasedIn {
+        /// The player whose untap step caused the phase-in.
+        player: PlayerId,
+        /// ObjectIds of permanents that phased in.
+        objects: Vec<ObjectId>,
+    },
 }
 
 impl GameEvent {

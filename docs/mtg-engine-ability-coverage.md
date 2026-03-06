@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Forecast 702.57 validated; P4 validated 47->48, total validated 139->140; script 154; card: Sky Hussar)
+> Last audited: 2026-03-06 (Phasing 702.26 validated; P4 validated 48->49, total validated 140->141; script 155; card: Teferi's Isle)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 48        | 0        | 0       | 41   | 12  |
-| **Total**| **200**| **140**  | **2**    | **0**   | **46**| **12** |
+| P4       | 101   | 49        | 0        | 0       | 40   | 12  |
+| **Total**| **200**| **141**  | **2**    | **0**   | **45**| **12** |
 
 ---
 
@@ -234,7 +234,7 @@ Keywords involving time-based effects, phasing, and recurring costs.
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Cycling | 702.29 | P2 | `validated` | `state/types.rs:195`, `cards/card_definition.rs:145`, `state/hash.rs:316+1630+2220`, `rules/command.rs:182`, `rules/engine.rs:185`, `rules/abilities.rs:365`, `rules/events.rs:386` | Lonely Sandbar | `stack/061` | — | KeywordAbility::Cycling enum + AbilityDefinition::Cycling { cost }; Command::CycleCard dispatch; handle_cycle_card validates zone/keyword/mana, discards as cost, pushes draw onto stack; GameEvent::CardCycled emitted; 12 unit tests in `tests/cycling.rs`; game script approved |
 | Suspend | 702.62 | P3 | `validated` | `state/types.rs:543`, `cards/card_definition.rs:252`, `rules/suspend.rs` (197 lines), `rules/command.rs:356`, `rules/events.rs:784`, `rules/engine.rs:304`, `rules/turn_actions.rs:35-91`, `rules/abilities.rs`, `rules/resolution.rs:1278-1449`, `state/hash.rs:439+2086` | Rift Bolt (#111) | `stack/102` | — | KeywordAbility::Suspend enum + AbilityDefinition::Suspend { cost, time_counters }; Command::SuspendCard special action (CR 116.2f); handle_suspend_card validates zone/keyword/timing/mana, exiles face-up with N time counters, is_suspended=true; GameEvent::CardSuspended (hash 86); upkeep trigger dispatch in turn_actions.rs queues SuspendCounterTrigger; resolution.rs removes counter, queues SuspendCastTrigger when last removed; cast trigger casts without paying mana cost (CR 702.62d), creatures gain haste (CR 702.62a); multiplayer: only owner's upkeep ticks; 9 unit tests in `tests/suspend.rs`; game script approved |
-| Phasing | 702.26 | P4 | `none` | — | — | — | — | Phases out/in on untap step; deferred (corner case audit) |
+| Phasing | 702.26 | P4 | `validated` | `rules/turn_actions.rs:L672-L815`, `rules/sba.rs:L643,L758`, `rules/layers.rs:L216-L220`, `rules/combat.rs:L78,L519`, `effects/mod.rs:L2522`, `rules/events.rs:L961-L978`, `state/types.rs:L1082-L1095` | Teferi's Isle | `stack/155` | — | CR 702.26a-h: phase-in/phase-out simultaneously before untap (CR 502.1); phased-out permanents treated as nonexistent (filters in sba.rs, layers.rs, combat.rs); no zone change (CR 702.26d — no ETB/LTB triggers); indirect phasing for attachments (CR 702.26h); GameEvent::PermanentsPhasedOut/PermanentsPhasedIn; 16 unit tests in `tests/phasing.rs`; game script approved |
 | Cumulative Upkeep | 702.24 | P4 | `validated` | `rules/turn_actions.rs:L319`, `rules/resolution.rs:L1411,L4022`, `rules/engine.rs:L453`, `rules/abilities.rs:L3851` | Mystic Remora | `stack/152` | — | CR 702.24a-b: upkeep trigger adds age counter then pay cost*age or sacrifice; CumulativeUpkeepCost enum (Mana/Life); CumulativeUpkeepTrigger StackObjectKind; Command::PayCumulativeUpkeep; 8 unit tests in `tests/cumulative_upkeep.rs`; game script approved |
 | Echo | 702.30 | P4 | `validated` | `rules/turn_actions.rs:L239`, `rules/resolution.rs:L502,L1357`, `rules/lands.rs:L179`, `rules/engine.rs:L429`, `rules/abilities.rs:L3826` | Avalanche Riders | `stack/151` | — | CR number corrected 702.31->702.30; KeywordAbility::Echo(ManaCost) enum; ETB sets echo_pending (resolution.rs + lands.rs); upkeep trigger queues EchoUpkeep (turn_actions.rs); resolution emits EchoPaymentRequired; Command::PayEcho handles pay/sacrifice (engine.rs); intervening-if checks layer-resolved characteristics; 9 unit tests in `tests/echo.rs`; game script approved |
 | Fading | 702.32 | P4 | `validated` | `rules/turn_actions.rs:L168`, `rules/resolution.rs:L477,L1206`, `rules/lands.rs:L148`, `rules/abilities.rs:L3803` | Blastoderm | `stack/150` | — | ETB with fade counters, upkeep removal, sacrifice at 0; 8 unit tests in `tests/fading.rs`; CR 702.32a covered; uses fade counters (not time counters like Vanishing) |

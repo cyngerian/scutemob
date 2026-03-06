@@ -470,10 +470,11 @@ fn execute_effect_inner(
             if let Some(token_id) = first_token_id {
                 let equip_id = ctx.source;
                 // Verify source is still on the battlefield and is an Equipment.
+                // CR 702.26b: phased-out permanents are treated as nonexistent.
                 let source_on_bf = state
                     .objects
                     .get(&equip_id)
-                    .map(|o| o.zone == ZoneId::Battlefield)
+                    .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
                     .unwrap_or(false);
                 if source_on_bf {
                     // Detach from previous (should not be attached, but defensive).
@@ -1010,10 +1011,13 @@ fn execute_effect_inner(
                 // CR 701.39a: Find all creatures controlled by this player on the
                 // battlefield, then select the one with the least toughness.
                 // Use calculate_characteristics for layer-aware toughness (ruling 2014-11-24).
+                // CR 702.26b: phased-out permanents are treated as nonexistent.
                 let creatures: Vec<(ObjectId, i32)> = state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.controller == p)
+                    .filter(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield && obj.is_phased_in() && obj.controller == p
+                    })
                     .filter_map(|(&id, _)| {
                         let chars = crate::rules::layers::calculate_characteristics(state, id)?;
                         // Use layer-aware card_types to support animated non-creatures.
@@ -1414,10 +1418,15 @@ fn execute_effect_inner(
             for pid in player_ids {
                 // Collect the player's battlefield permanents sorted by ObjectId ascending
                 // for deterministic ordering (interactive choice deferred to M10+).
+                // CR 702.26b: phased-out permanents are treated as nonexistent.
                 let mut controlled: Vec<ObjectId> = state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.controller == pid)
+                    .filter(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == pid
+                    })
                     .map(|(id, _)| *id)
                     .collect();
                 controlled.sort_unstable();
@@ -1566,11 +1575,12 @@ fn execute_effect_inner(
             for resolved in &targets {
                 if let ResolvedTarget::Object(id) = resolved {
                     let id = *id;
-                    // Verify the target is on the battlefield
+                    // Verify the target is on the battlefield (and not phased out).
+                    // CR 702.26b: phased-out permanents are treated as nonexistent.
                     let on_battlefield = state
                         .objects
                         .get(&id)
-                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
                         .unwrap_or(false);
                     if !on_battlefield {
                         continue;
@@ -1620,11 +1630,16 @@ fn execute_effect_inner(
             // 1. Iterate all permanents on the battlefield with at least one counter.
             //    CR ruling 2023-02-04: "You can't choose cards in any zone other
             //    than the battlefield, even if they have counters on them."
+            // CR 702.26b: phased-out permanents are treated as nonexistent.
             let battlefield_objects: Vec<(ObjectId, Vec<(crate::state::types::CounterType, u32)>)> =
                 state
                     .objects
                     .iter()
-                    .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && !obj.counters.is_empty())
+                    .filter(|(_, obj)| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && !obj.counters.is_empty()
+                    })
                     .map(|(id, obj)| {
                         let counter_types: Vec<(crate::state::types::CounterType, u32)> = obj
                             .counters
@@ -1832,11 +1847,14 @@ fn execute_effect_inner(
                     // were changed by a continuous effect (e.g. animated artifacts, or
                     // creatures stripped of their type by Humility) are evaluated
                     // correctly (Finding 1 fix — layer-aware creature type check).
+                    // CR 702.26b: phased-out permanents are treated as nonexistent.
                     let target_on_battlefield_and_controlled = state
                         .objects
                         .get(&target_id)
                         .map(|obj| {
-                            obj.zone == ZoneId::Battlefield && obj.controller == ctx.controller
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == ctx.controller
                         })
                         .unwrap_or(false);
                     let target_is_creature = {
@@ -2038,10 +2056,11 @@ fn execute_effect_inner(
 
                     // Step 3: Place +1/+1 counters on the conniving permanent.
                     // CR 701.50c: Only if the permanent is still on the battlefield.
+                    // CR 702.26b: phased-out permanents are treated as nonexistent.
                     let creature_on_battlefield = state
                         .objects
                         .get(&creature_id)
-                        .map(|o| o.zone == ZoneId::Battlefield)
+                        .map(|o| o.zone == ZoneId::Battlefield && o.is_phased_in())
                         .unwrap_or(false);
 
                     if nonland_count > 0 && creature_on_battlefield {
@@ -2180,11 +2199,13 @@ fn resolve_effect_target_list_indexed(
             })
             .map(|&p| (None, ResolvedTarget::Player(p)))
             .collect(),
+        // CR 702.26b: phased-out permanents are treated as nonexistent.
         EffectTarget::AllCreatures => state
             .objects
             .iter()
             .filter(|(_, obj)| {
                 obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
                     && obj.characteristics.card_types.contains(&CardType::Creature)
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
@@ -2192,14 +2213,16 @@ fn resolve_effect_target_list_indexed(
         EffectTarget::AllPermanents => state
             .objects
             .iter()
-            .filter(|(_, obj)| obj.zone == ZoneId::Battlefield)
+            .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
         EffectTarget::AllPermanentsMatching(filter) => state
             .objects
             .iter()
             .filter(|(_, obj)| {
-                obj.zone == ZoneId::Battlefield && matches_filter(&obj.characteristics, filter)
+                obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
+                    && matches_filter(&obj.characteristics, filter)
             })
             .map(|(&id, _)| (None, ResolvedTarget::Object(id)))
             .collect(),
@@ -2496,6 +2519,8 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_prototyped: false,
         was_bargained: false,
         echo_pending: false,
+        phased_out_indirectly: false,
+        phased_out_controller: None,
     }
 }
 
@@ -2745,18 +2770,21 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
             .get(&ctx.controller)
             .map(|ps| ps.life_total >= *n as i32)
             .unwrap_or(false),
+        // CR 702.26b: phased-out permanents are treated as nonexistent.
         Condition::SourceOnBattlefield => state
             .objects
             .get(&ctx.source)
-            .map(|obj| obj.zone == ZoneId::Battlefield)
+            .map(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
             .unwrap_or(false),
         Condition::YouControlPermanent(filter) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && matches_filter(&obj.characteristics, filter)
         }),
         Condition::OpponentControlsPermanent(filter) => state.objects.values().any(|obj| {
             obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
                 && obj.controller != ctx.controller
                 && matches_filter(&obj.characteristics, filter)
         }),
@@ -2807,11 +2835,13 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
 
 fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext) -> Vec<ObjectId> {
     match over {
+        // CR 702.26b: phased-out permanents are treated as nonexistent.
         ForEachTarget::EachCreature => state
             .objects
             .iter()
             .filter(|(_, obj)| {
                 obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
                     && obj.characteristics.card_types.contains(&CardType::Creature)
             })
             .map(|(&id, _)| id)
@@ -2821,6 +2851,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .iter()
             .filter(|(_, obj)| {
                 obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
                     && obj.controller == ctx.controller
                     && obj.characteristics.card_types.contains(&CardType::Creature)
             })
@@ -2831,6 +2862,7 @@ fn collect_for_each(state: &GameState, over: &ForEachTarget, ctx: &EffectContext
             .iter()
             .filter(|(_, obj)| {
                 obj.zone == ZoneId::Battlefield
+                    && obj.is_phased_in()
                     && obj.controller != ctx.controller
                     && obj.characteristics.card_types.contains(&CardType::Creature)
             })

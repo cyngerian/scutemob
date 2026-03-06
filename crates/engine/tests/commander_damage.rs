@@ -434,6 +434,8 @@ fn test_commander_damage_survives_zone_change() {
                 is_prototyped: false,
                 was_bargained: false,
                 echo_pending: false,
+                phased_out_indirectly: false,
+                phased_out_controller: None,
             },
             ZoneId::Battlefield,
         )

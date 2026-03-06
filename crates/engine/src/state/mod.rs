@@ -358,6 +358,9 @@ impl GameState {
             was_bargained: false,
             // CR 400.7: echo pending flag is not preserved across zone changes.
             echo_pending: false,
+            // CR 400.7: phasing flags are not preserved across zone changes.
+            phased_out_indirectly: false,
+            phased_out_controller: None,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
@@ -491,6 +494,9 @@ impl GameState {
             was_bargained: false,
             // CR 400.7: echo pending flag is not preserved across zone changes.
             echo_pending: false,
+            // CR 400.7: phasing flags are not preserved across zone changes.
+            phased_out_indirectly: false,
+            phased_out_controller: None,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone

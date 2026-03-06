@@ -2298,6 +2298,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 .values()
                                 .filter(|obj| {
                                     obj.zone == ZoneId::Battlefield
+                                        && obj.is_phased_in()
                                         && obj.controller == controller
                                         && obj.id != *object_id
                                         && obj
@@ -2439,7 +2440,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let prowess_sources: Vec<ObjectId> = state
                         .objects
                         .values()
-                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == *player
+                        })
                         .map(|obj| obj.id)
                         .collect();
 
@@ -2462,7 +2467,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let controller_sources: Vec<ObjectId> = state
                         .objects
                         .values()
-                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == *player
+                        })
                         .map(|obj| obj.id)
                         .collect();
 
@@ -2484,7 +2493,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let opponent_sources: Vec<ObjectId> = state
                         .objects
                         .values()
-                        .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller != *player)
+                        .filter(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller != *player
+                        })
                         .map(|obj| obj.id)
                         .collect();
 
@@ -2778,7 +2791,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         .objects
                         .values()
                         .filter(|obj| {
-                            obj.zone == ZoneId::Battlefield && obj.controller == *attacking_player
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == *attacking_player
                         })
                         .map(|obj| obj.id)
                         .collect();
@@ -2823,7 +2838,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // CR 509.3f: The "without flanking" check is at declaration time.
                 for (blocker_id, attacker_id) in blockers {
                     let attacker_obj = match state.objects.get(attacker_id) {
-                        Some(obj) if obj.zone == ZoneId::Battlefield => obj.clone(),
+                        Some(obj) if obj.zone == ZoneId::Battlefield && obj.is_phased_in() => {
+                            obj.clone()
+                        }
                         _ => continue,
                     };
                     if !attacker_obj
@@ -2981,7 +2998,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // of a spell or ability an opponent controls. Only triggers if the
                 // targeting player is an opponent (not the permanent's controller).
                 if let Some(obj) = state.objects.get(target_id) {
-                    if obj.zone == ZoneId::Battlefield && obj.controller != *targeting_controller {
+                    if obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller != *targeting_controller
+                    {
                         let pre_len = triggers.len();
                         collect_triggers_for_event(
                             state,
@@ -3233,7 +3253,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 let controller_sources: Vec<ObjectId> = state
                     .objects
                     .values()
-                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
                     .map(|obj| obj.id)
                     .collect();
 
@@ -3254,7 +3278,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 let controller_sources: Vec<ObjectId> = state
                     .objects
                     .values()
-                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *player)
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *player
+                    })
                     .map(|obj| obj.id)
                     .collect();
 
@@ -3356,6 +3384,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 702.115b: Multiple instances trigger separately.
                         if let Some(obj) = state.objects.get(&assignment.source) {
                             if obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
                                 && obj
                                     .characteristics
                                     .keywords
@@ -3441,7 +3470,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 603.4: Intervening-if -- checked here at trigger time
                         // (is_renowned must be false) and again at resolution time.
                         if let Some(obj) = state.objects.get(&assignment.source) {
-                            if obj.zone == ZoneId::Battlefield && !obj.is_renowned
+                            if obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && !obj.is_renowned
                             // CR 603.4: intervening-if at trigger time
                             {
                                 // Collect Renown N values from card definition.
@@ -3520,7 +3551,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // damage to a player, that player gets N poison counters."
                         // CR 702.70b: Multiple instances trigger separately.
                         if let Some(obj) = state.objects.get(&assignment.source) {
-                            if obj.zone == ZoneId::Battlefield {
+                            if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
                                 // Already guaranteed by the outer `if matches!(..., Player(_))`
                                 // guard -- use `let...else` for safety.
                                 let CombatDamageTarget::Player(damaged_player) = &assignment.target
@@ -3610,7 +3641,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 let controller_sources: Vec<ObjectId> = state
                     .objects
                     .values()
-                    .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == *controller)
+                    .filter(|obj| {
+                        obj.zone == ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj.controller == *controller
+                    })
                     .map(|obj| obj.id)
                     .collect();
 
@@ -3653,7 +3688,7 @@ fn collect_triggers_for_event(
         state
             .objects
             .values()
-            .filter(|obj| obj.zone == ZoneId::Battlefield)
+            .filter(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
             .map(|obj| obj.id)
             .collect()
     };
@@ -3873,6 +3908,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         .iter()
                         .find(|(_, obj)| {
                             obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
                                 && obj.characteristics.card_types.contains(&CardType::Artifact)
                                 && obj.characteristics.card_types.contains(&CardType::Creature)
                         })

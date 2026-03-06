@@ -816,5 +816,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::CumulativeUpkeep(_) => "Cumulative Upkeep".to_string(),
         KeywordAbility::Recover => "Recover".to_string(),
         KeywordAbility::Forecast => "Forecast".to_string(),
+        KeywordAbility::Phasing => "Phasing".to_string(),
     }
 }

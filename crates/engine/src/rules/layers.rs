@@ -183,7 +183,8 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
             Some(source_id) => state
                 .objects
                 .get(&source_id)
-                .map(|obj| obj.zone == ZoneId::Battlefield)
+                // CR 702.26e: A phased-out permanent's static effects don't apply.
+                .map(|obj| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
                 .unwrap_or(false),
             // No source means the effect is inherently active (e.g., from a spell).
             None => true,
@@ -200,6 +201,10 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
 /// by earlier layers in the current `calculate_characteristics` call. This correctly
 /// handles cases like Opalescence making enchantments into creatures (layer 4) before
 /// Humility's "AllCreatures" filter is evaluated (layers 6 and 7).
+///
+/// CR 702.26e: Phased-out permanents are NOT included in the set of objects affected
+/// by continuous effects (except for effects that specifically reference phased-out
+/// permanents). This is enforced here for all battlefield-scope filters.
 fn effect_applies_to(
     state: &GameState,
     effect: &ContinuousEffect,
@@ -207,6 +212,20 @@ fn effect_applies_to(
     obj_zone: ZoneId,
     chars: &Characteristics,
 ) -> bool {
+    // CR 702.26e: Phased-out permanents are excluded from continuous effect sets.
+    // Check phased_out status for all battlefield-scope effects (except SingleObject,
+    // which is allowed to specifically reference a phased-out permanent if needed).
+    if obj_zone == ZoneId::Battlefield {
+        if let Some(obj) = state.objects.get(&object_id) {
+            if obj.status.phased_out {
+                // SingleObject may target a phased-out permanent explicitly.
+                if !matches!(&effect.filter, EffectFilter::SingleObject(_)) {
+                    return false;
+                }
+            }
+        }
+    }
+
     match &effect.filter {
         EffectFilter::SingleObject(id) => *id == object_id,
 

@@ -121,10 +121,13 @@ fn check_ascend(
 
         // Count all permanents controlled by this player (tokens and non-tokens alike).
         // CR 702.131 ruling: "A permanent is any object on the battlefield, including tokens."
+        // CR 702.26b: Phased-out permanents are excluded.
         let permanent_count = state
             .objects
             .values()
-            .filter(|obj| obj.zone == ZoneId::Battlefield && obj.controller == pid)
+            .filter(|obj| {
+                obj.zone == ZoneId::Battlefield && obj.controller == pid && obj.is_phased_in()
+            })
             .count();
 
         if permanent_count >= 10 {
@@ -152,10 +155,12 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     // The snapshot is built once per pass (not per check) because all SBAs within a
     // single pass are evaluated simultaneously (CR 704.3). After any SBAs fire, the
     // loop in `check_and_apply_sbas` calls us again with a fresh snapshot.
+    // CR 702.26b: Phased-out permanents are treated as though they do not exist.
+    // All SBAs skip phased-out permanents entirely.
     let battlefield_ids: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield)
+        .filter(|(_, obj)| obj.zone == ZoneId::Battlefield && obj.is_phased_in())
         .map(|(id, _)| *id)
         .collect();
     let chars_map: HashMap<ObjectId, Characteristics> = battlefield_ids
@@ -634,6 +639,10 @@ fn check_legendary_rule(state: &mut GameState) -> Vec<GameEvent> {
         if obj.zone != ZoneId::Battlefield {
             continue;
         }
+        // CR 702.26b: Phased-out permanents are treated as if they don't exist.
+        if obj.status.phased_out {
+            continue;
+        }
         if !obj
             .characteristics
             .supertypes
@@ -742,6 +751,11 @@ fn check_aura_sbas(state: &mut GameState) -> Vec<GameEvent> {
         .iter()
         .filter(|(aura_id, obj)| {
             if obj.zone != ZoneId::Battlefield {
+                return false;
+            }
+            // CR 702.26b: Phased-out permanents are treated as if they don't exist.
+            // Phased-out Auras are exempt from Aura SBAs until they phase in.
+            if obj.status.phased_out {
                 return false;
             }
             if !obj.characteristics.subtypes.contains(&subtype_aura) {
@@ -980,11 +994,13 @@ fn check_equipment_sbas(
 fn check_counter_annihilation(state: &mut GameState) -> Vec<GameEvent> {
     let mut events = Vec::new();
 
+    // CR 702.26b: Phased-out permanents are treated as if they don't exist.
     let ids: Vec<ObjectId> = state
         .objects
         .iter()
         .filter(|(_, obj)| {
             obj.zone == ZoneId::Battlefield
+                && obj.is_phased_in()
                 && obj
                     .counters
                     .get(&CounterType::PlusOnePlusOne)

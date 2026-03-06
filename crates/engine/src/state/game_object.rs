@@ -531,4 +531,31 @@ pub struct GameObject {
     /// upkeep" condition from CR 702.30a.
     #[serde(default)]
     pub echo_pending: bool,
+    /// CR 702.26g: If true, this permanent phased out indirectly -- it was attached
+    /// to another permanent that phased out directly. Indirectly-phased permanents
+    /// do NOT phase in independently; they phase in only when their host phases in.
+    ///
+    /// Set during the phasing-out step in `turn_actions.rs`. Reset when the host
+    /// phases back in. Reset to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub phased_out_indirectly: bool,
+    /// CR 702.26a: The player who controlled this permanent when it phased out.
+    /// Used to determine which player's untap step phases it back in.
+    ///
+    /// Only meaningful when `status.phased_out` is true. For directly-phased
+    /// permanents, set to the controller at phase-out time. For indirectly-phased
+    /// permanents, set to the same player as the host (their controller).
+    ///
+    /// Reset to None when the permanent phases back in or on zone changes (CR 400.7).
+    #[serde(default)]
+    pub phased_out_controller: Option<PlayerId>,
+}
+
+impl GameObject {
+    /// CR 702.26b: Returns true if this permanent is visible on the battlefield.
+    /// Phased-out permanents are "treated as though they do not exist" for all
+    /// game purposes except rules that specifically mention phased-out permanents.
+    pub fn is_phased_in(&self) -> bool {
+        !self.status.phased_out
+    }
 }

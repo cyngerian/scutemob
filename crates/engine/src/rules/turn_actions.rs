@@ -673,23 +673,169 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
 /// the active player determines which permanents they control will phase out
 /// [...] Then the active player untaps all tapped permanents they control."
 ///
-/// For M2 we skip phasing and just untap.
-///
 /// Also clears summoning sickness (CR 302.6) for all permanents the active player
 /// controls — they have now been under that player's control since the beginning
 /// of their most recent turn.
 pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
-    let mut untapped = Vec::new();
+    let mut events = Vec::new();
 
-    // Collect object IDs on the battlefield controlled by the active player.
-    let ids_on_battlefield: Vec<ObjectId> = state
+    // CR 502.1 / CR 702.26a: Phase-in and phase-out happen SIMULTANEOUSLY.
+    // We must snapshot BOTH sets before mutating anything, so that a creature
+    // that phases in does NOT also appear in the phase-out set (because it was
+    // phased-out when the snapshot was taken).
+    //
+    // Step 1: Snapshot the phase-IN set (currently phased-out, controller = active,
+    // not indirect). These objects were phased out last turn.
+    let phase_in_ids: Vec<ObjectId> = state
         .objects
         .iter()
-        .filter(|(_, obj)| obj.controller == active && obj.zone == ZoneId::Battlefield)
+        .filter(|(_, obj)| {
+            obj.status.phased_out
+                && obj.phased_out_controller == Some(active)
+                && !obj.phased_out_indirectly
+        })
         .map(|(id, _)| *id)
         .collect();
 
+    // Step 2: Snapshot the phase-OUT set (currently phased-IN, on battlefield,
+    // controller = active, has Phasing keyword). These objects will phase out now.
+    // Because we snapshot BEFORE phase-in mutations, objects in phase_in_ids are
+    // still phased-out and will NOT appear in this set (CR 502.1 simultaneous rule).
+    let phase_out_direct: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.zone == ZoneId::Battlefield && obj.controller == active && !obj.status.phased_out
+        })
+        .map(|(id, _)| *id)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .filter(|id| {
+            super::layers::calculate_characteristics(state, *id)
+                .map(|chars| chars.keywords.contains(&KeywordAbility::Phasing))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    // Step 3: Apply phase-IN mutations (using the snapshot taken above).
+    // CR 702.26d: Phasing in is NOT a zone change -- no ETB triggers fire.
+    if !phase_in_ids.is_empty() {
+        // Collect indirectly-phased attachments of each phasing-in host.
+        let mut all_phased_in: Vec<ObjectId> = Vec::new();
+        for host_id in &phase_in_ids {
+            // Collect attached objects that phased out indirectly (CR 702.26g).
+            // Find all objects where phased_out_indirectly == true and
+            // attached_to == Some(host_id).
+            let indirect_ids: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| {
+                    obj.status.phased_out
+                        && obj.phased_out_indirectly
+                        && obj.attached_to == Some(*host_id)
+                })
+                .map(|(id, _)| *id)
+                .collect();
+            for indirect_id in &indirect_ids {
+                if let Some(obj) = state.objects.get_mut(indirect_id) {
+                    obj.status.phased_out = false;
+                    obj.phased_out_indirectly = false;
+                    obj.phased_out_controller = None;
+                }
+                all_phased_in.push(*indirect_id);
+            }
+            // Phase in the host itself.
+            if let Some(obj) = state.objects.get_mut(host_id) {
+                obj.status.phased_out = false;
+                obj.phased_out_controller = None;
+            }
+            all_phased_in.push(*host_id);
+        }
+        events.push(GameEvent::PermanentsPhasedIn {
+            player: active,
+            objects: all_phased_in,
+        });
+    }
+
+    // Step 4: Apply phase-OUT mutations (using the snapshot taken above).
+    // Collect IDs that will be forced to phase out indirectly (CR 702.26h):
+    // any attachment that is in both phase_out_direct AND is an attachment of
+    // another phasing-out host must phase out INDIRECTLY, not directly.
+    let force_indirect: Vec<ObjectId> = {
+        let mut fi = Vec::new();
+        for host_id in &phase_out_direct {
+            let attachments: Vec<ObjectId> = state
+                .objects
+                .get(host_id)
+                .map(|obj| obj.attachments.iter().copied().collect::<Vec<_>>())
+                .unwrap_or_default();
+            for att_id in &attachments {
+                // CR 702.26h: if attachment is also in phase_out_direct (has its own
+                // Phasing keyword), it phases out INDIRECTLY (with its host), not directly.
+                if phase_out_direct.contains(att_id) {
+                    fi.push(*att_id);
+                }
+            }
+        }
+        fi
+    };
+
+    if !phase_out_direct.is_empty() {
+        let mut all_phased_out: Vec<ObjectId> = Vec::new();
+        for host_id in &phase_out_direct {
+            // CR 702.26h: if this object is forced-indirect (it's an attachment of
+            // another phasing-out host), skip it here — it will be processed indirectly.
+            if force_indirect.contains(host_id) {
+                continue;
+            }
+            // CR 702.26g: Phase out attached Auras/Equipment/Fortifications indirectly.
+            let attachments: Vec<ObjectId> = state
+                .objects
+                .get(host_id)
+                .map(|obj| obj.attachments.iter().copied().collect::<Vec<_>>())
+                .unwrap_or_default();
+            for att_id in &attachments {
+                if let Some(att_obj) = state.objects.get_mut(att_id) {
+                    if !att_obj.status.phased_out {
+                        att_obj.status.phased_out = true;
+                        // CR 702.26h: whether attachment has its own Phasing keyword or
+                        // not, if it is phasing out because its host is phasing out,
+                        // it phases out INDIRECTLY.
+                        att_obj.phased_out_indirectly = true;
+                        att_obj.phased_out_controller = Some(active);
+                        all_phased_out.push(*att_id);
+                    }
+                }
+            }
+            // Phase out the host itself (directly).
+            if let Some(obj) = state.objects.get_mut(host_id) {
+                obj.status.phased_out = true;
+                obj.phased_out_controller = Some(active);
+                // phased_out_indirectly remains false (this is a direct phase-out).
+            }
+            all_phased_out.push(*host_id);
+        }
+        if !all_phased_out.is_empty() {
+            events.push(GameEvent::PermanentsPhasedOut {
+                player: active,
+                objects: all_phased_out,
+            });
+        }
+    }
+
+    // CR 502.2: Collect object IDs on the battlefield controlled by the active player.
+    // Exclude phased-out permanents (CR 702.26b: treated as if they don't exist).
+    let ids_on_battlefield: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.controller == active && obj.zone == ZoneId::Battlefield && !obj.status.phased_out
+        })
+        .map(|(id, _)| *id)
+        .collect();
+
+    let mut untapped = Vec::new();
     for id in &ids_on_battlefield {
         if let Some(obj) = state.objects.get_mut(id) {
             // CR 302.6: Clear summoning sickness for permanents the player now controls.
@@ -707,14 +853,14 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
         }
     }
 
-    if untapped.is_empty() {
-        Vec::new()
-    } else {
-        vec![GameEvent::PermanentsUntapped {
+    if !untapped.is_empty() {
+        events.push(GameEvent::PermanentsUntapped {
             player: active,
             objects: untapped,
-        }]
+        });
     }
+
+    events
 }
 
 /// CR 504.1: "First, the active player draws a card."

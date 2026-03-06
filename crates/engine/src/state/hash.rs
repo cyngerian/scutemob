@@ -601,6 +601,7 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Recover => 116u8.hash_into(hasher),
             // Forecast (discriminant 117) -- CR 702.57
             KeywordAbility::Forecast => 117u8.hash_into(hasher),
+            KeywordAbility::Phasing => 118u8.hash_into(hasher),
         }
     }
 }
@@ -783,6 +784,10 @@ impl HashInto for GameObject {
         // which is already hashed as part of cast_alt_cost above.
         // Echo (CR 702.30a) — permanent has echo pending (echo trigger not yet resolved)
         self.echo_pending.hash_into(hasher);
+        // Phasing (CR 702.26g) — permanent phased out indirectly via a host
+        self.phased_out_indirectly.hash_into(hasher);
+        // Phasing (CR 702.26a) — player who controlled this permanent when it phased out
+        self.phased_out_controller.hash_into(hasher);
     }
 }
 
@@ -2691,6 +2696,18 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 recover_card.hash_into(hasher);
                 new_exile_id.hash_into(hasher);
+            }
+            // CR 702.26a: PermanentsPhasedOut (discriminant 96)
+            GameEvent::PermanentsPhasedOut { player, objects } => {
+                96u8.hash_into(hasher);
+                player.hash_into(hasher);
+                objects.hash_into(hasher);
+            }
+            // CR 702.26a: PermanentsPhasedIn (discriminant 97)
+            GameEvent::PermanentsPhasedIn { player, objects } => {
+                97u8.hash_into(hasher);
+                player.hash_into(hasher);
+                objects.hash_into(hasher);
             }
         }
     }

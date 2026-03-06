@@ -2287,6 +2287,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     echo_pending: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
                 };
 
                 // Add the token to the battlefield.
@@ -3388,6 +3390,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     echo_pending: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
                 };
 
                 // Add the token to the battlefield.
@@ -3574,6 +3578,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_prototyped: false,
                     was_bargained: false,
                     echo_pending: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
                 };
 
                 // Add the token to the battlefield.
@@ -3779,6 +3785,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_prototyped: false,
                         was_bargained: false,
                         echo_pending: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
                     };
 
                     // Add the token to the battlefield.

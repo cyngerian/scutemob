@@ -74,6 +74,13 @@ pub fn handle_declare_attackers(
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(*attacker_id));
         }
+        // CR 702.26b: Phased-out permanents are removed from combat and cannot attack.
+        if obj.status.phased_out {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} is phased out and cannot attack",
+                attacker_id
+            )));
+        }
         if obj.controller != player {
             return Err(GameStateError::NotController {
                 player,
@@ -507,6 +514,13 @@ pub fn handle_declare_blockers(
 
         if obj.zone != ZoneId::Battlefield {
             return Err(GameStateError::ObjectNotOnBattlefield(*blocker_id));
+        }
+        // CR 702.26b: Phased-out permanents cannot block.
+        if obj.status.phased_out {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} is phased out and cannot block",
+                blocker_id
+            )));
         }
         if obj.controller != player {
             return Err(GameStateError::NotController {

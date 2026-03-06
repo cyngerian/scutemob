@@ -957,6 +957,8 @@ impl GameStateBuilder {
                 is_prototyped: false,
                 was_bargained: false,
                 echo_pending: false,
+                phased_out_indirectly: false,
+                phased_out_controller: None,
             };
 
             state.add_object(object, zone)?;
