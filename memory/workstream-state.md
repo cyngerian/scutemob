@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 9: Counter & Growth (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass) | ACTIVE | 2026-03-06 | B9 in progress — chained agent run |
+| W1: Abilities | Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify) | available | — | B9 closed 2026-03-06; generic trigger gap found (see handoff) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,29 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-06
+**Workstream**: W1: Abilities — Batch 9
+
+Batch 9 complete. All 6 abilities implemented, reviewed, card+script+coverage done:
+- Graft (702.58): ETB counters, enter-trigger counter move, optional intervening-if; GraftTrigger SOK 44; Simic Initiate; script 156; 1 HIGH fix (view_model.rs missing GraftTrigger arm)
+- Scavenge (702.97): graveyard activated ability, power snapshot before exile, sorcery speed; ScavengeAbility SOK 45; Deadbridge Goliath; script 157; clean review
+- Outlast (702.107): tap+mana activated, sorcery speed, AddCounter self; KW 121, AbilDef 48; Ainok Bond-Kin; script 158; clean review. Post-review: view_model.rs missing Outlast display arm (fixed inline)
+- Amplify (702.38): ETB replacement, hand reveal, creature type matching; KW 122; Canopy Crawler; script 159; clean review
+- Bloodthirst (702.54): ETB replacement, damage_received_this_turn tracking on PlayerState; KW 123; Stormblood Berserker; script 160; clean review
+- Amass (701.47): Effect::Amass keyword action, Army token create/find, subtype add; GameEvent::Amassed; Dreadhorde Invasion; script 161; 1 MEDIUM fix (emit Amassed on token failure per CR 701.47b)
+
+1641 tests passing. 148 validated. P4 57/88. Scripts 156-161.
+New infra: GraftTrigger (SOK 44); ScavengeAbility (SOK 45); AbilDef 47 (Scavenge), 48 (Outlast); KW 119-123; damage_received_this_turn on PlayerState; Effect::Amass; GameEvent::Amassed.
+Discriminants used: KW 119-123; AbilDef 47-48; SOK 44-45; Effect disc 41; GameEvent disc 98.
+
+**HAZARD — Generic trigger gap**: `upkeep_actions()` in `turn_actions.rs` only fires hardcoded keyword triggers (Suspend, Vanishing, Fading, Echo, Cumulative Upkeep, Forecast). Cards with `TriggerCondition::AtBeginningOfYourUpkeep` in their CardDefinition (e.g., Dreadhorde Invasion) silently never fire their upkeep triggers. Recommend adding a general CardDef trigger sweep in `upkeep_actions()` before Batch 10 cards are scripted — this will affect Champion, Soulbond, and other ETB/LTB pattern cards if they use generic trigger conditions.
+
+**Next**: Claim W1-B10. Check docs/ability-batch-plan.md for Batch 10 contents (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify — ETB/dies patterns). Fix generic trigger gap first if it affects B10 scripts.
+
+**Commit prefix used**: W1-B9:
 
 ## Last Handoff
 

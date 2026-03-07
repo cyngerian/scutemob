@@ -278,7 +278,7 @@ Counter placement and movement patterns, all reusing AddCounter/RemoveCounter ef
 **Infrastructure reused**: `AddCounter`, `RemoveCounter`, `CreateToken`, ETB triggers,
 graveyard activation (Unearth).
 
-- [ ] Batch 9 complete
+- [x] Batch 9 complete
 
 ---
 
