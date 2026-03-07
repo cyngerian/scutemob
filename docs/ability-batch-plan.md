@@ -336,7 +336,7 @@ Each is a TriggerCondition + effect.
 
 **Infrastructure reused**: Existing trigger conditions, ETB counters, discard-as-cost.
 
-- [ ] Batch 12 complete
+- [x] Batch 12 complete
 
 ---
 
@@ -509,12 +509,12 @@ Recommended update points:
 | 4: Alt-Cast Graveyard | 6 | 1-2 | **Complete** |
 | 5: Alt-Cast Hand/Exile | 5 | 1 | **Complete** |
 | 6: Cost Modification | 6 | 1-2 | **Complete** |
-| 7: Spell Modifiers | 7 | 2 | Not started |
-| 8: Upkeep, Time & Phasing | 7 | 2-3 | Not started |
-| 9: Counter & Growth | 6 | 1 | Not started |
-| 10: ETB/Dies Patterns | 7 | 2 | Not started |
-| 11: Modal Choice + Deps | 5 | 2 | Not started |
-| 12: Ability Words | 5 | 1 | Not started |
+| 7: Spell Modifiers | 7 | 2 | **Complete** |
+| 8: Upkeep, Time & Phasing | 7 | 2-3 | **Complete** |
+| 9: Counter & Growth | 6 | 1 | **Complete** |
+| 10: ETB/Dies Patterns | 7 | 2 | **Complete** |
+| 11: Modal Choice + Deps | 5 | 2 | **Complete** |
+| 12: Ability Words | 5 | 1 | **Complete** |
 | 13: Newer Set Mechanics | 8 | 2 | Not started |
 | 14: Niche & Encoding | 6 | 2 | Not started |
 | 15: Commander Variants | 3 | 0.5 | Not started |

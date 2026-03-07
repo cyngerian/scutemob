@@ -1937,19 +1937,44 @@ Modal Choice also closes the last P2 gap (P2 now 17/17). Per-ability findings ca
 
 ---
 
+## W1-B12: Batch 12 Review (2026-03-07)
+
+Batch 12 implemented 5 abilities — 4 ability words + 1 keyword misclassified in the batch plan:
+Enrage (ability word), Alliance (ability word), Corrupted (ability word), Ravenous (CR 702.156 keyword),
+Bloodrush (ability word). Also shipped x_value infrastructure (EffectAmount::XValue now works) and
+ETBTriggerFilter struct (fixes Impact Tremors silent-trigger gap). 2 MEDIUM findings caught and fixed
+inline. 8 LOW findings deferred.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B12-01 | **MEDIUM** | `rules/resolution.rs` — RavenousDrawTrigger | **Draw trigger fizzled if Ravenous creature left battlefield before resolution.** Resolution arm checked `permanent_on_battlefield` before drawing. CR 702.156b + CR 603.4: the trigger has no intervening-if on battlefield presence; it fires unconditionally if X >= 5 and has no legal targets to lose. **Fix:** Removed `permanent_on_battlefield` guard; condition is solely `x_value >= 5`. Added `test_ravenous_draw_still_fires_if_creature_removed` test. | **CLOSED** |
+| MR-B12-02 | **MEDIUM** | `rules/abilities.rs` — handle_activate_bloodrush | **Missing `PermanentTargeted` event for Ward.** `handle_activate_bloodrush` targeted a battlefield creature without emitting `GameEvent::PermanentTargeted`, so Ward triggers would not fire on Bloodrush targets. **Fix:** Added `GameEvent::PermanentTargeted { target_id, targeting_stack_id, targeting_controller }` after pushing the BloodrushAbility stack object, mirroring `handle_activate_ability`. | **CLOSED** |
+| MR-B12-03 | **LOW** | `crates/engine/tests/enrage.rs` — test_enrage_zero_damage | Test uses a 0-power attacker to produce "no damage" rather than actual damage reduction via a prevention effect. Doesn't cover the prevention-reduces-to-zero path. Deferred. | **OPEN (deferred)** |
+| MR-B12-04 | **LOW** | `crates/engine/tests/enrage.rs` — lethal damage test | When a creature dies from damage (SBA fires after trigger queued), effect lookup via `source_object` ObjectId returns None (CR 400.7 — object in new zone is a new object). Draw is silently skipped. Pre-existing infra gap: `PendingTrigger` should store embedded effect, not source ObjectId. Deferred holistically. | **OPEN (deferred)** |
+| MR-B12-05 | **LOW** | `testing/replay_harness.rs` — WheneverCreatureEntersBattlefield enrichment | `exclude_self: true` hardcoded for all `WheneverCreatureEntersBattlefield` usages. Would need to be a field in the DSL if a card ever says "whenever a creature you control enters" (without "another"). Acceptable for all current cards. | **OPEN (deferred)** |
+| MR-B12-06 | **LOW** | `crates/engine/tests/alliance.rs` — token test | Token-ETB Alliance test validates filter logic via cast-from-hand rather than `Effect::CreateToken` resolution path. Functionally sufficient (filter doesn't distinguish tokens). | **OPEN (deferred)** |
+| MR-B12-07 | **LOW** | `rules/replacement.rs` — Corrupted inline check | `check_condition()` in `effects/mod.rs` is module-private; `fire_when_enters_triggered_effects` in `replacement.rs` has a duplicated copy of the `OpponentHasPoisonCounters` logic. Should be refactored to a shared helper or `check_condition` should be pub(crate). | **OPEN (deferred)** |
+| MR-B12-08 | **LOW** | `rules/replacement.rs` — catch-all | The `_ => true` arm in the inline Corrupted condition check silently passes all future Condition variants added to the enum. Risk: a new Condition variant will not be enforced in the ETB-inline path. | **OPEN (deferred)** |
+| MR-B12-09 | **LOW** | `rules/resolution.rs` — RavenousDrawTrigger | `draw_card` result dropped via `if let Ok(...)`. A failed draw (empty library) is silently ignored rather than handled. | **OPEN (deferred)** |
+| MR-B12-10 | **LOW** | `rules/abilities.rs` — BloodrushAbility source_object | The `source_object` field on `StackObjectKind::BloodrushAbility` is the discarded card's ObjectId, which is retired to graveyard before the ability reaches the stack (CR 400.7). Attribution-only field; no functional impact. | **OPEN (deferred)** |
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 252 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11) |
+| Total unique issue IDs | 262 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
-| MEDIUM (CLOSED) | 60 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07) |
+| MEDIUM (CLOSED) | 62 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 41 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09) |
+| LOW (OPEN) | 49 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10) |
 | LOW (CLOSED) | 39 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08) |
 | LOW (DEFERRED) | 5 |
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
