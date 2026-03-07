@@ -348,6 +348,26 @@ fn effect_applies_to(
                 false
             }
         }
+
+        // CR 301.6 / CR 702.67a: Fortification static ability applies only to the
+        // fortified land. The source object's `attached_to` field identifies that land.
+        // The SBA already ensures Fortifications are only attached to lands.
+        // If the fortification is not attached to anything, the filter matches nothing.
+        EffectFilter::AttachedLand => {
+            if obj_zone != ZoneId::Battlefield {
+                return false;
+            }
+            if let Some(source_id) = effect.source {
+                state
+                    .objects
+                    .get(&source_id)
+                    .and_then(|src| src.attached_to)
+                    .map(|attached| attached == object_id)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
     }
 }
 

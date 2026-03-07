@@ -847,6 +847,21 @@ pub enum Effect {
         /// The creature to attach to. Should be `EffectTarget::DeclaredTarget { index: 0 }`.
         target: EffectTarget,
     },
+    /// CR 702.67a / CR 701.3a: Attach the source Fortification to the target land.
+    ///
+    /// Used as the effect of the Fortify activated ability. On resolution:
+    /// 1. Detach Fortification from any previously fortified land (CR 301.6 via 301.5c analog).
+    /// 2. Set `source.attached_to = target` and add source to `target.attachments`.
+    /// 3. Update Fortification timestamp (CR 701.3c, CR 613.7e).
+    ///
+    /// If the target is no longer legal at resolution (left battlefield, no longer
+    /// a land, no longer controlled by the activating player), the ability fizzles.
+    AttachFortification {
+        /// The fortification to attach. Should be `EffectTarget::Source`.
+        fortification: EffectTarget,
+        /// The land to attach to. Should be `EffectTarget::DeclaredTarget { index: 0 }`.
+        target: EffectTarget,
+    },
     /// CR 702.92a: Create a token and immediately attach the source Equipment to it.
     ///
     /// Used by Living Weapon. The token creation and attachment happen as a single

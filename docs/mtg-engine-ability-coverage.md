@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Soulbond 702.95 validated: paired_with on GameObject, SoulbondSelfETB+SoulbondOtherETB triggers, SOK 49, Silverblade Paladin, script stack/167, 10 tests)
+> Last audited: 2026-03-07 (Fortify 702.67 validated: KeywordAbility::Fortify disc 130, Effect::AttachFortification, EffectFilter::AttachedLand, GameEvent::FortificationAttached, Darksteel Garrison, script stack/168, 7 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 61        | 0        | 0       | 32   | 12  |
-| **Total**| **204**| **154**  | **2**    | **0**   | **36**| **12** |
+| P4       | 105   | 62        | 0        | 0       | 31   | 12  |
+| **Total**| **204**| **155**  | **2**    | **0**   | **35**| **12** |
 
 ---
 
@@ -90,7 +90,7 @@ Keywords governing how permanents attach to other permanents.
 | Enchant | 702.5 | P1 | `validated` | `state/types.rs:119-149`, `state/hash.rs:273-283`, `rules/casting.rs:204-241`, `rules/resolution.rs:181-228`, `rules/sba.rs:576-703`, `rules/abilities.rs:728` | Rancor | `stack/062` | — | EnchantTarget enum (Creature/Permanent/Artifact/Enchantment/Land/Planeswalker/Player/CreatureOrPlaneswalker); cast-time target restriction (CR 702.5a/303.4a); Aura attachment on resolution (CR 303.4b, AuraAttached event); SBA 704.5m type-mismatch + unattached + self-enchantment (CR 303.4d); AuraFellOff trigger wiring for WhenDies; 11 unit tests in `tests/enchant.rs`; game script pending_review (19/19 assertions pass) |
 | Bestow | 702.103 | P3 | `validated` | `state/types.rs:347`, `state/game_object.rs:323-333`, `state/stack.rs:66-75`, `state/mod.rs:281-356`, `state/hash.rs:380-381,532-533,1156-1157,1787-1788,2414-2415`, `cards/card_definition.rs:176-183`, `rules/casting.rs:62,184-223,497-505,728-736`, `rules/command.rs:106-111`, `rules/engine.rs:79,94`, `rules/resolution.rs:49-58,219-229`, `rules/sba.rs:709-745`, `rules/events.rs:266-269`, `rules/copy.rs:179-180`, `testing/replay_harness.rs:290-304` | Boon Satyr | `layers/081` | Enchant | KeywordAbility::Bestow enum; AbilityDefinition::Bestow{cost}; `is_bestowed` on permanents, `was_bestowed` on stack objects; alt cost validation (CR 118.9a: no combine with flashback/evoke); type transformation on cast (becomes Aura + enchant creature); target-illegal fallback to creature (CR 702.103e/608.3b); SBA 702.103f bestowed Aura revert (exception to 704.5m); copy preserves bestow (CR 702.103c); zone-change resets (CR 400.7); `cast_spell_bestow` harness action; 9 unit tests in `tests/bestow.rs`; script `pending_review` |
 | Reconfigure | 702.151 | P4 | `none` | — | — | — | Equip | Artifact creature that can attach/detach |
-| Fortify | 702.67 | P4 | `none` | — | — | — | — | Equip for lands (Fortifications) |
+| Fortify | 702.67 | P4 | `validated` | `state/types.rs:L1201`, `state/continuous_effect.rs:L97`, `cards/card_definition.rs:L859`, `effects/mod.rs:L2073`, `rules/abilities.rs:L185`, `rules/layers.rs:L356`, `rules/events.rs:L288` | Darksteel Garrison | `stack/168` | Equip | KeywordAbility::Fortify (disc 130); Effect::AttachFortification; EffectFilter::AttachedLand; GameEvent::FortificationAttached; activation validation (CR 702.67a target land + sorcery speed + CR 301.6 creature check); layer application via AttachedLand filter; 7 unit tests in `tests/fortify.rs`; P4 complete |
 | Living Weapon | 702.92 | P3 | `validated` | `state/types.rs:353-360`, `state/builder.rs:582-616`, `state/hash.rs:384-385`, `cards/card_definition.rs:418-426`, `effects/mod.rs:348-393` | Batterskull | `stack/082` | Equip | KeywordAbility::LivingWeapon enum; ETB trigger wired in builder.rs (SelfEntersBattlefield -> CreateTokenAndAttachSource); atomic token creation + Equipment attachment before SBAs (CR 702.92a); Germ is 0/0 black Phyrexian/Germ creature token; Batterskull card def (definitions.rs:1511); 6 unit tests in `tests/living_weapon.rs` (ETB trigger fires, Germ characteristics, buff survival, zero-toughness SBA, equip-to-other, multiplayer single trigger); script `pending_review` |
 
 ---

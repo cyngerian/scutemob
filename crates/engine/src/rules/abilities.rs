@@ -182,6 +182,78 @@ pub fn handle_activate_ability(
         }
     }
 
+    // CR 702.67a / CR 601.2c: Fortify abilities can only target "a land you control."
+    // Validate target type and controller BEFORE spending any costs, so that mana is
+    // not wasted when the activation is illegal.
+    if matches!(
+        &embedded_effect,
+        Some(crate::cards::card_definition::Effect::AttachFortification { .. })
+    ) {
+        // CR 301.6: A Fortification that's also a creature can't fortify a land.
+        // Check source (the Fortification itself) using layer-resolved characteristics.
+        let source_is_creature = {
+            let layer_chars = crate::rules::layers::calculate_characteristics(state, source)
+                .or_else(|| {
+                    state
+                        .objects
+                        .get(&source)
+                        .map(|o| o.characteristics.clone())
+                });
+            layer_chars
+                .map(|chars| {
+                    chars
+                        .card_types
+                        .contains(&crate::state::types::CardType::Creature)
+                })
+                .unwrap_or(false)
+        };
+        if source_is_creature {
+            return Err(GameStateError::InvalidTarget(
+                "a Fortification that's also a creature can't fortify a land (CR 301.6)".into(),
+            ));
+        }
+
+        if let Some(Target::Object(target_id)) = targets.first() {
+            let target_id = *target_id;
+            // Check: target must be a land on the battlefield controlled by the
+            // activating player. Use layer-computed characteristics for correctness
+            // under continuous effects (e.g. non-land permanents that became lands).
+            let on_battlefield_and_controlled = state
+                .objects
+                .get(&target_id)
+                .map(|obj| {
+                    obj.zone == crate::state::zone::ZoneId::Battlefield && obj.controller == player
+                })
+                .unwrap_or(false);
+            let is_land = {
+                let layer_chars = crate::rules::layers::calculate_characteristics(state, target_id)
+                    .or_else(|| {
+                        state
+                            .objects
+                            .get(&target_id)
+                            .map(|o| o.characteristics.clone())
+                    });
+                layer_chars
+                    .map(|chars| {
+                        chars
+                            .card_types
+                            .contains(&crate::state::types::CardType::Land)
+                    })
+                    .unwrap_or(false)
+            };
+            if !on_battlefield_and_controlled {
+                return Err(GameStateError::InvalidTarget(
+                    "fortify target must be a land you control on the battlefield".into(),
+                ));
+            }
+            if !is_land {
+                return Err(GameStateError::InvalidTarget(
+                    "fortify target must be a land".into(),
+                ));
+            }
+        }
+    }
+
     let mut events = Vec::new();
 
     // Pay tap cost if required (CR 602.2b).

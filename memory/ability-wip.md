@@ -1,27 +1,26 @@
-# Ability WIP: Soulbond
+# Ability WIP: Fortify
 
-ability: Soulbond
-cr: 702.95
+ability: Fortify
+cr: 702.67
 priority: P4
-started: 2026-03-06
+started: 2026-03-07
 phase: closed
-plan_file: memory/abilities/ability-plan-soulbond.md
+plan_file: memory/abilities/ability-plan-fortify.md
 
 ## Step Checklist
-- [x] 1. Enum variant (types.rs:1185, game_object.rs:570, hash.rs, builder.rs:964, mod.rs:368+519, effects/mod.rs:2672, resolution.rs, continuous_effect.rs:56, layers.rs:213, replacement.rs:238, stubs.rs:103+334, stack.rs:1044, card_definition.rs:540, replay_harness.rs:1784, view_model.rs:845, stack_view.rs:183)
-- [x] 2. Rule enforcement (sba.rs:1112 check_soulbond_unpairing; mod.rs zone-change unpairing; resolution.rs SoulbondTrigger resolution with fizzle check)
-- [x] 3. Trigger wiring (abilities.rs: SoulbondSelfETB + SoulbondOtherETB blocks after Champion ~line 2452)
-- [x] 4. Unit tests (crates/engine/tests/soulbond.rs: 10 tests)
-- [x] 5. Card definition (silverblade_paladin.rs)
-- [x] 6. Game script (test-data/generated-scripts/stack/167_soulbond_silverblade_paladin.json)
+- [x] 1. Enum variant — `state/types.rs:1194` (Fortify(u32) disc 130), `state/hash.rs:643`, `tools/replay-viewer/src/view_model.rs:850`
+- [x] 2. Rule enforcement — `cards/card_definition.rs:850` (AttachFortification effect), `state/continuous_effect.rs:92` (AttachedLand filter), `effects/mod.rs:2063` (effect handler), `rules/abilities.rs:184` (activation validation), `rules/layers.rs:352` (AttachedLand filter match), `rules/events.rs:285` (FortificationAttached event), `state/hash.rs` (Effect disc 42, EffectFilter disc 13, GameEvent disc 100)
+- [x] 3. Trigger wiring — n/a (Fortify is purely an activated ability, no triggers)
+- [x] 4. Unit tests — `crates/engine/tests/fortify.rs` (7 tests: basic attach, sorcery speed, target must be land, controller ownership, reattach moves, SBA unattach, static ability via AttachedLand)
+- [x] 5. Card definition (darksteel_garrison.rs)
+- [x] 6. Game script (test-data/generated-scripts/stack/168_fortify_darksteel_garrison.json)
 - [x] 7. Coverage doc update
 
 ## Review
-findings: 3 (1 MEDIUM, 2 LOW)
-review_file: memory/abilities/ability-review-soulbond.md
+findings: 3 (1 MEDIUM, 2 LOW) — all fixed 2026-03-07
+review_file: memory/abilities/ability-review-fortify.md
 
-## Fix Phase Complete
-- MEDIUM #1 fixed: resolution.rs SoulbondTrigger fizzle check now uses `calculate_characteristics` for layer-resolved creature-type check (lines ~3025, 3036)
-- LOW #2 fixed: `SoulbondGrant` added to helpers.rs re-export list
-- LOW #3 skipped: trigger-time partner search base-types issue (abilities.rs:2507,2578) — systemic pattern, deferred per instructions
-- All 1641 tests pass after fixes
+## Fix Log
+- MEDIUM #1 (CR 301.6 creature-Fortification check): added layer-aware source_is_creature guard in `effects/mod.rs` (after equip_id==target_id self-attach check) and `rules/abilities.rs` (before target validation block). effects/mod.rs:~2096, abilities.rs:~188
+- LOW #2 (Fortify(u32) → unit variant): changed `KeywordAbility::Fortify(u32)` → `KeywordAbility::Fortify` in `state/types.rs:1201`, updated hash arm in `state/hash.rs:644`, updated view_model.rs:850
+- LOW #3 (field rename equipment → fortification): renamed field in `cards/card_definition.rs:861`, updated pattern bindings in `effects/mod.rs:2073`, `state/hash.rs:3483`, `tests/fortify.rs:71`

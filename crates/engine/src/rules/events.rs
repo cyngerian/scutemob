@@ -283,6 +283,17 @@ pub enum GameEvent {
         controller: PlayerId,
     },
 
+    /// A Fortification was attached to a land via the Fortify ability (CR 702.67a).
+    /// Emitted when the fortify effect resolves and the attachment state changes.
+    FortificationAttached {
+        /// The Fortification that was attached.
+        fortification_id: ObjectId,
+        /// The land it was attached to.
+        target_id: ObjectId,
+        /// The player who activated the fortify ability.
+        controller: PlayerId,
+    },
+
     /// An Aura resolved and was attached to its target (CR 303.4a, 303.4b).
     ///
     /// Emitted when an Aura permanent spell resolves and enters the battlefield

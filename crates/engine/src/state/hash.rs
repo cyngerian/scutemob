@@ -640,6 +640,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::LivingMetal => 128u8.hash_into(hasher),
             // Soulbond (discriminant 129) -- CR 702.95
             KeywordAbility::Soulbond => 129u8.hash_into(hasher),
+            // Fortify (discriminant 130) -- CR 702.67
+            KeywordAbility::Fortify => 130u8.hash_into(hasher),
         }
     }
 }
@@ -967,6 +969,7 @@ impl HashInto for EffectFilter {
                 index.hash_into(hasher);
             }
             EffectFilter::Source => 12u8.hash_into(hasher),
+            EffectFilter::AttachedLand => 13u8.hash_into(hasher),
         }
     }
 }
@@ -2873,6 +2876,17 @@ impl HashInto for GameEvent {
                 protected_id.hash_into(hasher);
                 aura_id.hash_into(hasher);
             }
+            // CR 702.67a: FortificationAttached (discriminant 100)
+            GameEvent::FortificationAttached {
+                fortification_id,
+                target_id,
+                controller,
+            } => {
+                100u8.hash_into(hasher);
+                fortification_id.hash_into(hasher);
+                target_id.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
         }
     }
 }
@@ -3461,6 +3475,15 @@ impl HashInto for Effect {
                 41u8.hash_into(hasher);
                 subtype.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            // CR 702.67a / CR 701.3a: AttachFortification (discriminant 42)
+            Effect::AttachFortification {
+                fortification,
+                target,
+            } => {
+                42u8.hash_into(hasher);
+                fortification.hash_into(hasher);
+                target.hash_into(hasher);
             }
         }
     }

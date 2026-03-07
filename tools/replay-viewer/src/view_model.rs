@@ -847,5 +847,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::UmbraArmor => "Umbra Armor".to_string(),
         KeywordAbility::LivingMetal => "Living Metal".to_string(),
         KeywordAbility::Soulbond => "Soulbond".to_string(),
+        KeywordAbility::Fortify => "Fortify".to_string(),
     }
 }

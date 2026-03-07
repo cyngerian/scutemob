@@ -89,6 +89,12 @@ pub enum EffectFilter {
     /// field points to the target creature. Used for Equipment static abilities such
     /// as Lightning Greaves ("equipped creature has haste and shroud").
     AttachedCreature,
+    /// Applies to the land that the source Fortification is attached to.
+    ///
+    /// Resolved at characteristic-calculation time: the source object's `attached_to`
+    /// field points to the target land. Used for Fortification static abilities such
+    /// as Darksteel Garrison ("fortified land has indestructible").
+    AttachedLand,
     /// Placeholder filter for effects whose target is declared at resolution time.
     ///
     /// When `Effect::ApplyContinuousEffect` is executed, any `DeclaredTarget` filter

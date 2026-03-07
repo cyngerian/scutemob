@@ -2060,6 +2060,138 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 702.67a / CR 701.3a: Fortify -- attach the source Fortification to
+        // the target land controlled by the activating player.
+        //
+        // On resolution:
+        // 1. Detach from any previously fortified land (CR 301.6 via 301.5c analog).
+        // 2. Set source.attached_to = target; add source to target.attachments.
+        // 3. Update Fortification timestamp (CR 701.3c, CR 613.7e).
+        //
+        // If the target is no longer a land on the battlefield under the activating
+        // player's control, the effect is skipped.
+        Effect::AttachFortification {
+            fortification,
+            target,
+        } => {
+            let equip_resolved = resolve_effect_target_list(state, fortification, ctx);
+            let target_resolved = resolve_effect_target_list(state, target, ctx);
+
+            for equip_res in &equip_resolved {
+                let equip_id = match equip_res {
+                    ResolvedTarget::Object(id) => *id,
+                    _ => continue,
+                };
+                for target_res in &target_resolved {
+                    let target_id = match target_res {
+                        ResolvedTarget::Object(id) => *id,
+                        _ => continue,
+                    };
+
+                    // CR 301.6 (via 301.5c analog): A Fortification that is also a
+                    // creature can't fortify a land; a Fortification can't fortify
+                    // itself (trivially true since it's an artifact, not a land).
+                    if equip_id == target_id {
+                        continue;
+                    }
+
+                    // CR 301.6: A Fortification that's also a creature can't fortify a land.
+                    // This can happen via animation (e.g. March of the Machines).
+                    let source_is_creature = {
+                        let layer_chars =
+                            crate::rules::layers::calculate_characteristics(state, equip_id)
+                                .or_else(|| {
+                                    state
+                                        .objects
+                                        .get(&equip_id)
+                                        .map(|o| o.characteristics.clone())
+                                });
+                        layer_chars
+                            .map(|chars| chars.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false)
+                    };
+                    if source_is_creature {
+                        continue; // CR 301.6: creature Fortification can't fortify
+                    }
+
+                    // Validate: target must be a land on the battlefield controlled
+                    // by the ability's controller.
+                    //
+                    // CR 702.67a: "target land you control."
+                    // Use layer-computed characteristics so that permanents whose types
+                    // were changed by a continuous effect are evaluated correctly.
+                    // CR 702.26b: phased-out permanents are treated as nonexistent.
+                    let target_on_battlefield_and_controlled = state
+                        .objects
+                        .get(&target_id)
+                        .map(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == ctx.controller
+                        })
+                        .unwrap_or(false);
+                    let target_is_land = {
+                        let layer_chars =
+                            crate::rules::layers::calculate_characteristics(state, target_id)
+                                .or_else(|| {
+                                    state
+                                        .objects
+                                        .get(&target_id)
+                                        .map(|o| o.characteristics.clone())
+                                });
+                        layer_chars
+                            .map(|chars| chars.card_types.contains(&CardType::Land))
+                            .unwrap_or(false)
+                    };
+                    let target_valid = target_on_battlefield_and_controlled && target_is_land;
+
+                    if !target_valid {
+                        // CR 701.3b: Can't attach to an illegal target; do nothing.
+                        continue;
+                    }
+
+                    // CR 701.3b: Already attached to the same land — do nothing.
+                    if state
+                        .objects
+                        .get(&equip_id)
+                        .and_then(|o| o.attached_to)
+                        .map(|att| att == target_id)
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
+
+                    // Detach from previous land (CR 301.6 via 301.5c analog: can't
+                    // fortify more than one land).
+                    let prev_target_opt = state.objects.get(&equip_id).and_then(|o| o.attached_to);
+                    if let Some(prev_target) = prev_target_opt {
+                        if let Some(prev) = state.objects.get_mut(&prev_target) {
+                            prev.attachments.retain(|&x| x != equip_id);
+                        }
+                    }
+
+                    // Attach to new land.
+                    // CR 701.3c / CR 613.7e: new timestamp on reattach.
+                    state.timestamp_counter += 1;
+                    let new_ts = state.timestamp_counter;
+                    if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                        equip_obj.attached_to = Some(target_id);
+                        equip_obj.timestamp = new_ts;
+                    }
+                    if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                        if !target_obj.attachments.contains(&equip_id) {
+                            target_obj.attachments.push_back(equip_id);
+                        }
+                    }
+
+                    events.push(GameEvent::FortificationAttached {
+                        fortification_id: equip_id,
+                        target_id,
+                        controller: ctx.controller,
+                    });
+                }
+            }
+        }
         // CR 701.50a/e: Connive N — the permanent's controller draws N cards,
         // discards N cards, then puts a +1/+1 counter on the permanent for each
         // nonland card discarded this way.

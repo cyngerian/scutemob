@@ -1192,6 +1192,13 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 129.
     Soulbond,
+
+    /// CR 702.67a: Fortify [cost] -- "[Cost]: Attach this Fortification to target
+    /// land you control. Activate only as a sorcery." Fortify is an activated
+    /// ability of Fortification artifacts analogous to Equip for Equipment.
+    ///
+    /// Discriminant 130.
+    Fortify,
 }
 
 /// CR 702.72a: The filter for what can be championed.
