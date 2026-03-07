@@ -10,6 +10,22 @@ The Game Script Generation & Validation Strategy (`mtg-engine-game-scripts.md`) 
 
 ---
 
+## Strategic Review (2026-03-07)
+
+> A full project review identified changes to compress the time-to-playable.
+> See `docs/mtg-engine-strategic-review.md` for full findings.
+>
+> **Key changes pending**:
+> 1. Decouple M11 (UI) from M10 (networking) — UI works locally with bots first
+> 2. Split M10 into M10a (basic multiplayer) and M10b (resilience/social features)
+> 3. Downscope M12 — agent-based card scaling replaces the pipeline crate
+> 4. Prioritize Transform/Morph to unblock 9 ability batches
+> 5. Evaluate web-first UI (extend replay viewer) vs Tauri — decision pending
+>
+> **These changes must be finalized before M10 work begins.**
+
+---
+
 ## Guiding Principles
 
 1. **Test-first, always.** No milestone is complete without its test suite passing. Tests are written before or alongside implementation, never after.

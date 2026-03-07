@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify) | ACTIVE | 2026-03-06 | Running full chain via /implement-ability; 7 abilities sequential, no intervention needed |
+| W1: Abilities | Batch 11: Modal choice + deps | available | — | Batch 10 complete; claim to start B11 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,29 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-07
+**Workstream**: W1: Abilities — Batch 10
+
+Batch 10 complete. All 7 abilities implemented, reviewed, card+script+coverage done:
+- Devour (702.82): ETB sacrifice → +1/+1 counters, creatures_devoured field; KW 124; Predator Dragon; script 162; clean review
+- Backup (702.165): ETB counter on target + grant abilities for turn; BackupTrigger SOK 46; KW 125; Backup Agent; script 163; 1 HIGH fix (PendingTrigger hash missing backup_abilities/backup_n + 4 B8 fields)
+- Champion (702.72): ETB exile own creature or sacrifice self; LTB return via linked ability; ChampionETBTrigger/ChampionLTBTrigger SOK 47-48; ChampionFilter enum; KW 126; AbilDef 49; Changeling Hero; script 164; 1 MEDIUM fix (LTB detection used KW guard instead of champion_exiled_card.is_some() — CR 607.2a)
+- Umbra Armor/Totem Armor (702.89): inline replacement — destroy Aura instead of enchanted permanent; KW 127; Hyena Umbra; script 165; 2 MEDIUM fixes (phased-out filter, non-deterministic selection)
+- Living Metal (702.161): continuous effect Layer 4 adds Creature type on your turn; KW 128; Steel Guardian (synthetic DFC-free card); script 166; clean review
+- Soulbond (702.95): pair creatures, share abilities while paired; paired_with on GameObject; EffectDuration::WhilePaired; SoulbondTrigger SOK 49; AbilDef 50; SoulbondGrant struct; KW 129; Silverblade Paladin; script 167; 1 MEDIUM fix (fizzle check: calculate_characteristics not base types)
+- Fortify (702.67): Fortification activated ability attaches to land; Effect::AttachFortification; EffectFilter::AttachedLand; GameEvent::FortificationAttached; KW 130; Darksteel Garrison; script 168; 1 MEDIUM fix (CR 301.6 creature-Fortification guard) + 2 LOW fixes
+
+Also fixed: MR-B9-01 generic upkeep trigger gap (upkeep_actions() now has CardDef sweep).
+
+1706 tests passing. 155 validated. P4 64/88. Scripts 162-168.
+New infra: KW 124-130; AbilDef 49-50; SOK 46-49; Effect::AttachFortification (disc 42); EffectFilter::AttachedLand (disc 13); GameEvent::FortificationAttached (disc 100); EffectDuration::WhilePaired; creatures_devoured+champion_exiled_card+paired_with on GameObject; ChampionFilter enum; SoulbondGrant struct; cast_spell_devour harness action.
+
+**Next**: Claim W1-B11. Check docs/ability-batch-plan.md for Batch 11 contents (Modal Choice system, Tribute, Fabricate, Fuse, Spree).
+
+**Commit prefix used**: W1-B10:
 
 ## Last Handoff
 

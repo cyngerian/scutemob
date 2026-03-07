@@ -61,6 +61,13 @@ pub trait LegalActionProvider: Send + Sync {
 /// `alt_cost: None` and `bargain_sacrifice/emerge_sacrifice/etc: None` — it never
 /// attempts alt-cost casts. Full behavioral support (bot deciding to use alt costs based
 /// on game state) is a W2 TUI task; see `docs/workstream-coordination.md` Phase 2.
+///
+/// **B10 update (2026-03-07)**: Batch 10 ETB/dies pattern keywords (Devour, Backup,
+/// Champion, Umbra Armor, Living Metal, Soulbond, Fortify) are fully implemented in the
+/// engine. StubProvider handles these automatically via engine resolution — no LegalAction
+/// changes needed. Soulbond pairing choice and Champion target choice are auto-selected
+/// by the engine during trigger resolution. Fortify activation is handled by
+/// `LegalAction::ActivateAbility` (already emitted). No bot behavioral changes needed.
 pub struct StubProvider;
 
 impl LegalActionProvider for StubProvider {
