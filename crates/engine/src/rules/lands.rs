@@ -14,7 +14,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::turn::Step;
-use crate::state::types::{CardType, CounterType, KeywordAbility};
+use crate::state::types::{CardType, CounterType, KeywordAbility, SubType};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -210,6 +210,88 @@ pub fn handle_play_land(
                 obj.counters = obj
                     .counters
                     .update(CounterType::PlusOnePlusOne, current + total_graft);
+            }
+        }
+    }
+
+    // CR 702.38a: Amplify N -- as this object enters, reveal cards from hand that share
+    // a creature type with it; enters with N +1/+1 counters per revealed card.
+    // CR 702.38b: Multiple instances work separately.
+    // Lands never have creature subtypes, so the eligible hand count is always 0.
+    // The ETB hook exists here for consistency with resolution.rs (gotchas-infra.md).
+    {
+        // Collect Amplify instances from the land's keyword set.
+        let amplify_instances: Vec<u32> = state
+            .objects
+            .get(&new_land_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .filter_map(|kw| {
+                        if let KeywordAbility::Amplify(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if !amplify_instances.is_empty() {
+            // Resolve entering land's subtypes (via layer system -- respects CDAs).
+            let entering_subtypes: im::OrdSet<SubType> =
+                crate::rules::layers::calculate_characteristics(state, new_land_id)
+                    .map(|c| c.subtypes)
+                    .unwrap_or_default();
+
+            // Count hand cards sharing a creature subtype with the land.
+            // Lands have no creature subtypes, so this is always 0 in practice.
+            let hand_obj_ids: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| obj.zone == ZoneId::Hand(player) && obj.is_phased_in())
+                .map(|(id, _)| *id)
+                .collect();
+
+            let eligible_count = hand_obj_ids
+                .iter()
+                .filter(|&&hand_id| {
+                    let hand_subtypes =
+                        crate::rules::layers::calculate_characteristics(state, hand_id)
+                            .map(|c| c.subtypes)
+                            .unwrap_or_default();
+                    !entering_subtypes.is_empty()
+                        && !entering_subtypes
+                            .clone()
+                            .intersection(hand_subtypes)
+                            .is_empty()
+                })
+                .count() as u32;
+
+            let mut total_amplify_counters: u32 = 0;
+            for n in &amplify_instances {
+                total_amplify_counters += n * eligible_count;
+            }
+
+            if total_amplify_counters > 0 {
+                if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj.counters.update(
+                        CounterType::PlusOnePlusOne,
+                        current + total_amplify_counters,
+                    );
+                }
+                events.push(GameEvent::CounterAdded {
+                    object_id: new_land_id,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: total_amplify_counters,
+                });
             }
         }
     }

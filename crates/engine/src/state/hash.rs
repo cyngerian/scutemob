@@ -611,6 +611,11 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Scavenge => 120u8.hash_into(hasher),
             // Outlast (discriminant 121) -- CR 702.107
             KeywordAbility::Outlast => 121u8.hash_into(hasher),
+            // Amplify (discriminant 122) -- CR 702.38
+            KeywordAbility::Amplify(n) => {
+                122u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }

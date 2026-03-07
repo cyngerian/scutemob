@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Outlast 702.107 validated: KW 121, AbilDef 48, Ainok Bond-Kin, script stack/158, 7 tests)
+> Last audited: 2026-03-06 (Amplify 702.38 validated: KW 122, Canopy Crawler, script stack/159, 8 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 52        | 0        | 0       | 41   | 12  |
-| **Total**| **204**| **145**  | **2**    | **0**   | **45**| **12** |
+| P4       | 105   | 53        | 0        | 0       | 40   | 12  |
+| **Total**| **204**| **146**  | **2**    | **0**   | **44**| **12** |
 
 ---
 
@@ -220,7 +220,7 @@ Keywords involving counter manipulation and creature growth.
 | Evolve | 702.100 | P3 | `validated` | `state/types.rs:496`, `state/hash.rs:429`, `state/hash.rs:1244`, `state/stubs.rs:157`, `rules/abilities.rs:900`, `rules/resolution.rs:1015` | Cloudfin Raptor | `stack/093` | — | CR 702.100a fully enforced; intervening-if re-checked at resolution (CR 603.4); ETB creature comparison (P > P and/or T > T); StackObjectKind::EvolveTrigger; uses last-known P/T if entering creature leaves battlefield (ruling 2013-04-15); 10 unit tests in evolve.rs; script pending_review |
 | Scavenge | 702.97 | P4 | `validated` | `state/types.rs:1112`, `cards/card_definition.rs:525`, `rules/abilities.rs:4847`, `rules/engine.rs:432`, `rules/resolution.rs`, `rules/command.rs:552`, `state/stack.rs:978`, `state/hash.rs` | Deadbridge Goliath | `stack/157` | — | CR 702.97a fully enforced; activated ability from graveyard, sorcery-speed, pay cost + exile card, snapshot power, put +1/+1 counters on target creature; KeywordAbility::Scavenge disc 120; AbilityDefinition::Scavenge disc 47; StackObjectKind::ScavengeAbility disc 45; 10 unit tests in scavenge.rs; script validated |
 | Outlast | 702.107 | P4 | `validated` | `state/types.rs:1117`, `cards/card_definition.rs:526`, `testing/replay_harness.rs:1711`, `state/hash.rs:612,3628` | Ainok Bond-Kin | `stack/158` | — | CR 702.107a fully enforced; AbilityDefinition::Outlast{cost} expands into ActivatedAbility (tap + mana cost, sorcery speed, +1/+1 counter on self) via enrich_spec_from_def; KeywordAbility::Outlast disc 121; AbilityDefinition::Outlast disc 48; no custom StackObjectKind (uses generic ActivatedAbility path); 7 unit tests in outlast.rs; script validated |
-| Amplify | 702.38 | P4 | `none` | — | — | — | — | Reveal creature cards from hand for +1/+1 counters |
+| Amplify | 702.38 | P4 | `validated` | `state/types.rs:1126`, `rules/resolution.rs:679`, `state/hash.rs:614` | Canopy Crawler | `stack/159` | — | CR 702.38a fully enforced; as-enters replacement effect, reveal creature cards sharing a creature type from hand, N +1/+1 counters per card revealed; KeywordAbility::Amplify(u32) disc 122; implemented in resolution.rs ETB path; 8 unit tests in `amplify.rs`; script validated |
 | Adapt | 701.46 | P3 | `validated` | `state/types.rs:560`, `cards/card_definition.rs:793`, `effects/mod.rs:2731`, `state/hash.rs:445,2431` | Sharktocrab | `baseline/105` | — | CR 701.46a fully enforced; keyword action (not keyword ability); KeywordAbility::Adapt(u32) enum + Condition::SourceHasNoCountersOfType + Conditional effect; resolution-time check per ruling 2019-01-25 (activation always legal); re-adapt after losing counters verified; 6 unit tests in `adapt.rs`; game script approved |
 | Bolster | 701.39 | P3 | `validated` | `cards/card_definition.rs:388`, `effects/mod.rs:971` | Cached Defenses | `baseline/104` | — | CR 701.39a fully enforced; keyword action (not keyword ability); chooses creature with least layer-aware toughness (ruling 2014-11-24); does NOT target (protection irrelevant); deterministic tie-break by smallest ObjectId; no-op if controller has no creatures; 8 unit tests in `bolster.rs`; game script approved |
 

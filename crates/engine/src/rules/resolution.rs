@@ -676,6 +676,106 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
 
+                // CR 702.38a: Amplify N -- "As this object enters, reveal any number of
+                // cards from your hand that share a creature type with it. This permanent
+                // enters with N +1/+1 counters on it for each card revealed this way."
+                // CR 702.38b: Multiple instances work separately; each is processed over
+                // the same eligible hand cards (the CR does not restrict reveals per instance).
+                // CR 614.1c: This is a static/replacement ability, not a triggered ability.
+                //
+                // Implementation: count Amplify instances from the card definition (same
+                // approach as Modular/Graft). For each instance, auto-reveal all eligible
+                // hand cards (deterministic bot play -- maximises counters).
+                {
+                    // Collect all Amplify(n) instances from the card definition.
+                    let amplify_instances: Vec<u32> = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Amplify(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    if !amplify_instances.is_empty() {
+                        // Resolve the entering creature's subtypes via the layer system
+                        // (respects Changeling / CDAs in all zones -- CR 604.3).
+                        let entering_subtypes: im::OrdSet<SubType> =
+                            crate::rules::layers::calculate_characteristics(state, new_id)
+                                .map(|c| c.subtypes)
+                                .unwrap_or_default();
+
+                        // Collect hand object IDs for the controller (excluding the entering
+                        // creature itself, which is now on the battlefield, not in hand).
+                        let controller = {
+                            state
+                                .objects
+                                .get(&new_id)
+                                .map(|o| o.controller)
+                                .unwrap_or(stack_obj.controller)
+                        };
+                        let hand_obj_ids: Vec<ObjectId> = state
+                            .objects
+                            .iter()
+                            .filter(|(_, obj)| {
+                                obj.zone == ZoneId::Hand(controller) && obj.is_phased_in()
+                            })
+                            .map(|(id, _)| *id)
+                            .collect();
+
+                        // Count hand cards that share at least one creature subtype with the
+                        // entering creature. Calculate characteristics for each hand card to
+                        // honour CDAs like Changeling (CR 604.3).
+                        let eligible_count = hand_obj_ids
+                            .iter()
+                            .filter(|&&hand_id| {
+                                let hand_subtypes =
+                                    crate::rules::layers::calculate_characteristics(state, hand_id)
+                                        .map(|c| c.subtypes)
+                                        .unwrap_or_default();
+                                // Cards with no creature subtypes cannot share a type.
+                                !entering_subtypes.is_empty()
+                                    && !entering_subtypes
+                                        .clone()
+                                        .intersection(hand_subtypes)
+                                        .is_empty()
+                            })
+                            .count() as u32;
+
+                        // Apply each Amplify instance: N * eligible_count counters.
+                        let mut total_amplify_counters: u32 = 0;
+                        for n in &amplify_instances {
+                            total_amplify_counters += n * eligible_count;
+                        }
+
+                        if total_amplify_counters > 0 {
+                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                                let current = obj
+                                    .counters
+                                    .get(&CounterType::PlusOnePlusOne)
+                                    .copied()
+                                    .unwrap_or(0);
+                                obj.counters = obj.counters.update(
+                                    CounterType::PlusOnePlusOne,
+                                    current + total_amplify_counters,
+                                );
+                            }
+                            events.push(GameEvent::CounterAdded {
+                                object_id: new_id,
+                                counter: CounterType::PlusOnePlusOne,
+                                count: total_amplify_counters,
+                            });
+                        }
+                    }
+                }
+
                 // CR 702.103b: If the permanent is bestowed, re-apply the type
                 // transformation after move_object_to_zone (which resets to printed types).
                 // The permanent enters as an Aura enchantment with enchant creature,

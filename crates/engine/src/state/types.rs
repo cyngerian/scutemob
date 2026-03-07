@@ -1115,6 +1115,15 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 121.
     Outlast,
+    /// CR 702.38: Amplify N -- "As this object enters, reveal any number of cards from
+    /// your hand that share a creature type with it. This permanent enters with N +1/+1
+    /// counters on it for each card revealed this way."
+    ///
+    /// Static ability / ETB replacement effect (CR 614.1c). Multiple instances work
+    /// separately (CR 702.38b).
+    ///
+    /// Discriminant 122.
+    Amplify(u32),
 }
 
 /// All creature subtypes from CR 205.3m.
