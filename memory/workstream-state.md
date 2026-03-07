@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 12: Ability Words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush) | ACTIVE | 2026-03-07 | Chained auto-run: all 5 abilities via /implement-ability agent workflow |
+| W1: Abilities | Batch 13: Newer Set Mechanics (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle) | available | — | Batch 12 complete; claim to start B13 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -22,23 +22,30 @@
 ## Last Handoff
 
 **Date**: 2026-03-07
-**Workstream**: W1: Abilities — Batch 11
+**Workstream**: W1: Abilities — Batch 12
 
-Batch 11 complete. All 5 abilities implemented, reviewed, card+script+coverage done:
-- Modal Choice (CR 700.2): modes_chosen Vec<usize> on CastSpell+StackObject; casting validation; resolution dispatch; copy propagation; allow_duplicate_modes. P2 now 17/17. Abzan Charm; script 169.
-- Tribute (CR 702.104 — NOT 702.107): TributeNotPaid TriggerCondition; tribute_was_paid on GameObject; inline ETB; bot auto-declines. Fanatic of Xenagos; script 170. Review: clean.
-- Fabricate (CR 702.123): KW 132 inline ETB; bot chooses counters; Servo token fallback (2016-09-20 ruling). 1 MEDIUM fix (token fallback test). Weaponcraft Enthusiast; script 171.
-- Fuse (CR 702.102): KW 133, AbilDef::Fuse disc 51; was_fused on StackObject; hand-only; combined cost; left-then-right; copy propagates was_fused. 2 HIGH fixes (copy.rs was_fused propagation + doc). Wear//Tear; script 172.
-- Spree (CR 702.172 — NOT 702.165): KW 134; mode_costs on ModeSelection; per-mode cost accumulation; modes_chosen.sort_unstable() for CR 700.2a. 1 MEDIUM fix (mode order test). Final Showdown; script 173.
+Batch 12 complete. All 5 abilities implemented, reviewed, card+script+coverage done:
+- Enrage (ability word): TriggerCondition::WhenDealtDamage + TriggerEvent::SelfIsDealtDamage; fires combat + non-combat damage; deduplicates multiple simultaneous sources (ruling 2018-01-19); 5 tests; card: Ripjaw Raptor; script 174. Review: clean.
+- Alliance (ability word): ETBTriggerFilter struct (creature_only/controller_you/exclude_self) on TriggeredAbilityDef; wires WheneverCreatureEntersBattlefield; also fixes Impact Tremors silent-gap; 5 tests; card: Prosperous Innkeeper; script 175. Review: clean.
+- Corrupted (ability word): Condition::OpponentHasPoisonCounters(u32); any living non-controller opponent with >= N poison; inline check in replacement.rs + check_condition in effects/mod.rs; 6 tests; card: Vivisection Evangelist; script 176. Review: clean.
+- Ravenous (CR 702.156, keyword NOT ability word): KeywordAbility::Ravenous disc 135; ETB replacement (X +1/+1 counters); RavenousDrawTrigger SOK disc 50 fires if X >= 5; 1 MEDIUM fix (draw trigger must NOT fizzle on creature removal, CR 603.4); 6 tests; card: Tyrranax Rex; script 177.
+- Bloodrush (ability word): AbilityDefinition::Bloodrush disc 52; Command::ActivateBloodrush; StackObjectKind::BloodrushAbility disc 51; discard-as-cost from hand; targets attacking creature; PermanentTargeted event for Ward (1 MEDIUM fix); Layer 6+7c UntilEndOfTurn; 8 tests; card: Ghor-Clan Rampager; script 178.
 
-1754 tests passing. 160 validated. P4 66/88. Scripts 169-173.
-New infra: modes_chosen (Modal Choice); tribute_was_paid+TributeNotPaid (Tribute); Fabricate(u32) KW 131→ wait, Tribute=131, Fabricate=132, Fuse=133, Spree=134; AbilDef::Fuse disc 51; was_fused on StackObject; mode_costs on ModeSelection.
-CR corrections: Tribute=702.104, Spree=702.172.
+Infrastructure shipped: x_value: u32 on CastSpell/StackObject/GameObject/EffectContext; EffectAmount::XValue now works (was always 0); fixes all X-cost spells including Pull from Tomorrow.
+Side fix: Impact Tremors gap (WheneverCreatureEntersBattlefield was unwired, now fires correctly).
 
-**Next**: Claim W1-B12. Check docs/ability-batch-plan.md for Batch 12 (Enrage, Alliance, Corrupted, Ravenous, Bloodrush — ability words, all Low effort, reuse existing trigger patterns).
+1784 tests (+30). 165 validated (+5). P4 71/88. Scripts 174-178. 5 new cards.
 
-**Commit**: f9df635 W1-B11: Batch 11 complete
-**Commit prefix used**: W1-B11:
+**Next**: Claim W1-B13. Check docs/ability-batch-plan.md for Batch 13 (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — newer set mechanics, 2022-2024).
+
+**Discriminant chain for B13**: KW last = 135 (Ravenous); AbilDef last = 52 (Bloodrush); SOK last = 51 (BloodrushAbility). Next available: KW 136, AbilDef 53, SOK 52.
+
+**Hazards**:
+- Ravenous found to be CR 702.156 keyword (not ability word) — planner correctly identified it. Verify CR for any B13 ability listed as "ability word" before assuming no KW variant needed.
+- W3 claim (2026-03-03) appears stale — no handoff since then. Check before touching LOW issues.
+
+**Commit**: ba96d67 W1-B12: Batch 12 complete
+**Commit prefix used**: W1-B12:
 
 ## Last Handoff
 
@@ -170,6 +177,12 @@ Discriminants used: KW 107-111, AbilDef 36-40, SOK 36 (GravestormTrigger).
 **Hazards**: Casualty CR number is 702.153 (not 702.154 — that's Enlist); plan files carry correct 702.153.
 
 ## Handoff History
+
+### 2026-03-07 (session end) — W1: Abilities — Batch 11
+- Modal Choice (CR 700.2 P2 gap), Tribute (702.104), Fabricate (702.123), Fuse (702.102), Spree (702.172); 1754 tests; 160 validated; P4 66/88; scripts 169-173; cards: Abzan Charm, Fanatic of Xenagos, Weaponcraft Enthusiast, Wear//Tear, Final Showdown; commit f9df635
+
+### 2026-03-07 (session end) — W1: Abilities — Batch 10
+- Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify; 1706 tests; 155 validated; P4 64/88; scripts 162-168; cards: Predator Dragon, Backup Agent, Changeling Hero, Hyena Umbra, Steel Guardian, Silverblade Paladin, Darksteel Garrison; commit ae6cde8
 
 ### 2026-03-01 (session end) — W1: Abilities — Batch 4
 - Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore; 1336 tests; 117 validated; P4 25/88; scripts 126-131; cards: Flame Jab, Radical Idea, Cut//Ribbons, Sacred Cat, Proven Combatant, Briarblade Adept; commits cada8d5–3991065

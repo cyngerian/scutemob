@@ -290,7 +290,7 @@ Track progress across sessions by checking these off:
 - [x] Batch 9: Counter & growth (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass)
 - [x] Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify)
 - [x] Batch 11: Modal choice + deps (Modal Choice system, Tribute, Fabricate, Fuse, Spree)
-- [ ] Batch 12: Ability words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush)
+- [x] Batch 12: Ability words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush)
 - [ ] Batch 13: Newer set mechanics (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle)
 - [ ] Batch 14: Niche & encoding (Cipher, Haunt, Reconfigure, Blood/Treasure/Decayed tokens)
 - [ ] Batch 15: Commander variants (Friends Forever, Choose a Background, Doctor's Companion)
