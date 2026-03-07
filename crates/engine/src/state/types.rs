@@ -1124,6 +1124,14 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 122.
     Amplify(u32),
+    /// CR 702.54: Bloodthirst N -- "If an opponent was dealt damage this turn,
+    /// this permanent enters with N +1/+1 counters on it."
+    ///
+    /// Static ability / ETB replacement effect (CR 614.1c). Multiple instances
+    /// work separately (CR 702.54c).
+    ///
+    /// Discriminant 123.
+    Bloodthirst(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

@@ -286,6 +286,7 @@ impl GameStateBuilder {
                 spells_cast_this_turn: 0,
                 has_citys_blessing: false,
                 life_lost_this_turn: 0,
+                damage_received_this_turn: 0,
             };
             players.insert(config.id, player_state);
         }

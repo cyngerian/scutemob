@@ -296,6 +296,63 @@ pub fn handle_play_land(
         }
     }
 
+    // CR 702.54a: Bloodthirst N -- "If an opponent was dealt damage this turn,
+    // this permanent enters with N +1/+1 counters on it."
+    // Lands with Bloodthirst are not printed in Magic, but the ETB hook exists here
+    // for consistency with resolution.rs (completeness over the rule, not over printed cards).
+    // CR 702.54c: Multiple instances work separately.
+    // CR 800.4a: Eliminated/conceded players are not opponents.
+    {
+        let bloodthirst_instances: Vec<u32> = state
+            .objects
+            .get(&new_land_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .filter_map(|kw| {
+                        if let KeywordAbility::Bloodthirst(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if !bloodthirst_instances.is_empty() {
+            // Check if any opponent was dealt damage this turn.
+            let any_opponent_damaged = state.players.iter().any(|(pid, ps)| {
+                *pid != player
+                    && !ps.has_lost
+                    && !ps.has_conceded
+                    && ps.damage_received_this_turn > 0
+            });
+
+            if any_opponent_damaged {
+                let total_counters: u32 = bloodthirst_instances.iter().sum();
+                if total_counters > 0 {
+                    if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                        let current = obj
+                            .counters
+                            .get(&CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters = obj
+                            .counters
+                            .update(CounterType::PlusOnePlusOne, current + total_counters);
+                    }
+                    events.push(GameEvent::CounterAdded {
+                        object_id: new_land_id,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: total_counters,
+                    });
+                }
+            }
+        }
+    }
+
     // CR 702.30a: Mark lands with Echo as pending their echo trigger.
     // "At the beginning of your upkeep, if this permanent came under your
     // control since the beginning of your last upkeep, sacrifice it unless

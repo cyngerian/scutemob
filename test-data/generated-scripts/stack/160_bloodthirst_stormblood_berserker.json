@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_160",
+    "name": "Bloodthirst 2 — Stormblood Berserker enters as 3/3",
+    "description": "Tests Bloodthirst 2 (CR 702.54a). p1 first deals damage to p2 via Lightning Bolt, satisfying the Bloodthirst condition. p1 then casts Stormblood Berserker ({1}{R}). Because an opponent was dealt damage this turn, Stormblood Berserker enters the battlefield with 2 +1/+1 counters, making it a 3/3 instead of its base 1/1.",
+    "cr_sections_tested": ["601.2", "608.2", "120.3", "702.54a"],
+    "corner_case_ref": null,
+    "tags": ["bloodthirst", "etb", "counter", "replacement", "stormblood-berserker"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Stormblood Berserker oracle text: Bloodthirst 2, Menace. Base P/T is 1/1. When Bloodthirst triggers (opponent was dealt damage this turn), the permanent enters with 2 +1/+1 counters, making effective P/T 3/3. Lightning Bolt deals 3 damage to p2 in the first step to satisfy the Bloodthirst condition. p1 starts with {R}{R}{R} in pool (1R for bolt, 1R generic for berserker). After bolt resolves, p2 drops to 37 life. Then Stormblood Berserker is cast for {1}{R} and ETBs as 3/3. The assert uses power: 3 and toughness: 3 to verify the counters applied correctly.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 3 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Stormblood Berserker", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Lightning Bolt targeting p2 to satisfy Bloodthirst condition",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: p1 has Lightning Bolt and Stormblood Berserker in hand; p2 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "players.p2.life": 40
+          },
+          "note": "Both spells in hand, p2 undamaged."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "player", "player": "p2", "card": null, "controller": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Lightning Bolt targeting p2 for {R}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Lightning Bolt: stack has 1 object, hand has 1 card",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "Lightning Bolt moved from hand to stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to p2."
+            }
+          ],
+          "note": "CR 608.2: Lightning Bolt resolves; p2 is dealt 3 damage; card goes to p1 graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Lightning Bolt resolves: p2 at 37 life, stack empty, Bloodthirst condition met",
+          "assertions": {
+            "players.p2.life": 37,
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p1": { "includes": [{ "card": "Lightning Bolt" }] }
+          },
+          "note": "An opponent was dealt damage this turn — Bloodthirst 2 will trigger when Stormblood Berserker enters."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Stormblood Berserker; Bloodthirst 2 applies on ETB",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Stormblood Berserker",
+          "targets": [],
+          "mana_paid": { "red": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Stormblood Berserker for {1}{R} (paid as 2 red from pool)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Stormblood Berserker on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Stormblood Berserker is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Stormblood Berserker resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Stormblood Berserker",
+          "resolution": [
+            {
+              "effect": "enter_battlefield_with_counters",
+              "target": { "type": "card", "card": "Stormblood Berserker", "controller": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.54a",
+              "note": "CR 702.54a: Bloodthirst 2 — p2 was dealt damage this turn, so Stormblood Berserker enters with 2 +1/+1 counters."
+            }
+          ],
+          "note": "CR 608.2: Stormblood Berserker resolves and enters the battlefield. Bloodthirst 2 applies — it enters with 2 +1/+1 counters, making it a 3/3."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Stormblood Berserker on battlefield as 3/3 with 2 +1/+1 counters; stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Stormblood Berserker", "controller": "p1" }]
+            },
+            "zones.battlefield.p1.Stormblood Berserker.power": 3,
+            "zones.battlefield.p1.Stormblood Berserker.toughness": 3,
+            "zones.battlefield.p1.Stormblood Berserker.counters.plus_one_plus_one": 2
+          },
+          "note": "Bloodthirst 2 applied: base 1/1 + 2 counters = 3/3. CR 702.54a confirmed."
+        }
+      ]
+    }
+  ]
+}

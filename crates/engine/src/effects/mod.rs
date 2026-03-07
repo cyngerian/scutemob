@@ -181,6 +181,9 @@ fn execute_effect_inner(
                                 // instead of causing life loss (CR 702.90b).
                                 if let Some(player) = state.players.get_mut(&p) {
                                     player.poison_counters += final_dmg;
+                                    // CR 702.54a: Bloodthirst counts infect damage even though
+                                    // it causes poison counters rather than life loss.
+                                    player.damage_received_this_turn += final_dmg;
                                 }
                                 events.push(GameEvent::DamageDealt {
                                     source: ctx.source,
@@ -198,6 +201,8 @@ fn execute_effect_inner(
                                     player.life_total -= final_dmg as i32;
                                     // CR 702.137a: track life lost this turn for Spectacle.
                                     player.life_lost_this_turn += final_dmg;
+                                    // CR 702.54a: track damage received this turn for Bloodthirst.
+                                    player.damage_received_this_turn += final_dmg;
                                 }
                                 events.push(GameEvent::DamageDealt {
                                     source: ctx.source,

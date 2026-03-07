@@ -828,5 +828,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Scavenge => "Scavenge".to_string(),
         KeywordAbility::Outlast => "Outlast".to_string(),
         KeywordAbility::Amplify(n) => format!("Amplify {n}"),
+        KeywordAbility::Bloodthirst(n) => format!("Bloodthirst {n}"),
     }
 }

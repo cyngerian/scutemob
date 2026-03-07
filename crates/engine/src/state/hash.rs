@@ -616,6 +616,11 @@ impl HashInto for KeywordAbility {
                 122u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Bloodthirst (discriminant 123) -- CR 702.54
+            KeywordAbility::Bloodthirst(n) => {
+                123u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -829,6 +834,8 @@ impl HashInto for PlayerState {
         self.has_citys_blessing.hash_into(hasher);
         // CR 702.137a: per-turn life-loss counter for Spectacle eligibility.
         self.life_lost_this_turn.hash_into(hasher);
+        // CR 702.54a: per-turn damage-received counter for Bloodthirst eligibility.
+        self.damage_received_this_turn.hash_into(hasher);
     }
 }
 

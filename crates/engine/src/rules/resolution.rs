@@ -776,6 +776,68 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
 
+                // CR 702.54a: Bloodthirst N -- "If an opponent was dealt damage this turn,
+                // this permanent enters with N +1/+1 counters on it."
+                // CR 702.54c: Multiple instances work separately; each N is added independently.
+                // CR 800.4a: Eliminated/conceded players are not opponents.
+                {
+                    let bloodthirst_instances: Vec<u32> = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Bloodthirst(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    if !bloodthirst_instances.is_empty() {
+                        let controller = {
+                            state
+                                .objects
+                                .get(&new_id)
+                                .map(|o| o.controller)
+                                .unwrap_or(stack_obj.controller)
+                        };
+                        // Check if any opponent was dealt damage this turn.
+                        // CR 800.4a: eliminated/conceded players are not opponents.
+                        let any_opponent_damaged = state.players.iter().any(|(pid, ps)| {
+                            *pid != controller
+                                && !ps.has_lost
+                                && !ps.has_conceded
+                                && ps.damage_received_this_turn > 0
+                        });
+
+                        if any_opponent_damaged {
+                            let total_counters: u32 = bloodthirst_instances.iter().sum();
+                            if total_counters > 0 {
+                                if let Some(obj) = state.objects.get_mut(&new_id) {
+                                    let current = obj
+                                        .counters
+                                        .get(&CounterType::PlusOnePlusOne)
+                                        .copied()
+                                        .unwrap_or(0);
+                                    obj.counters = obj.counters.update(
+                                        CounterType::PlusOnePlusOne,
+                                        current + total_counters,
+                                    );
+                                }
+                                events.push(GameEvent::CounterAdded {
+                                    object_id: new_id,
+                                    counter: CounterType::PlusOnePlusOne,
+                                    count: total_counters,
+                                });
+                            }
+                        }
+                    }
+                }
+
                 // CR 702.103b: If the permanent is bestowed, re-apply the type
                 // transformation after move_object_to_zone (which resets to printed types).
                 // The permanent enters as an Aura enchantment with enchant creature,

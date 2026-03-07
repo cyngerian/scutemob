@@ -1196,6 +1196,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             // CR 702.137a: per-turn life-loss counter resets at the start of each
             // turn for all players (Spectacle eligibility is scoped to the current game turn).
             p.life_lost_this_turn = 0;
+            // CR 702.54a: per-turn damage-received counter resets at the start of each
+            // turn for all players (Bloodthirst eligibility is scoped to the current game turn).
+            p.damage_received_this_turn = 0;
         }
     }
 

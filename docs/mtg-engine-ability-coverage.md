@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Amplify 702.38 validated: KW 122, Canopy Crawler, script stack/159, 8 tests)
+> Last audited: 2026-03-06 (Bloodthirst 702.54 validated: KW 123, Stormblood Berserker, script stack/160, 8 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 53        | 0        | 0       | 40   | 12  |
-| **Total**| **204**| **146**  | **2**    | **0**   | **44**| **12** |
+| P4       | 105   | 54        | 0        | 0       | 39   | 12  |
+| **Total**| **204**| **147**  | **2**    | **0**   | **43**| **12** |
 
 ---
 
@@ -282,7 +282,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Haunt | 702.55 | P4 | `none` | — | — | — | — | When this dies, exile haunting a creature |
 | Extort | 702.101 | P3 | `validated` | `state/types.rs:324`, `state/game_object.rs:174`, `cards/card_definition.rs:224`, `effects/mod.rs:261`, `rules/abilities.rs:640`, `state/builder.rs:561`, `state/hash.rs:376`, `tools/replay-viewer/src/view_model.rs:610` | Syndic of Tithes | `stack/078` | — | CR 702.101a+b: triggered ability on spell cast, may pay {W/B}, drain 1 from each opponent; multiple instances trigger separately; 7 unit tests in `tests/extort.rs` |
 | Cipher | 702.99 | P4 | `none` | — | — | — | — | Encode spell on creature; cast copy on combat damage |
-| Bloodthirst | 702.54 | P4 | `none` | — | — | — | — | ETB with +1/+1 counters if opponent was dealt damage |
+| Bloodthirst | 702.54 | P4 | `validated` | `state/types.rs:1127`, `rules/resolution.rs:779`, `state/player.rs:137`, `effects/mod.rs`, `state/hash.rs` | Stormblood Berserker | `stack/160` | — | CR 702.54a+c: ETB replacement places N +1/+1 counters if opponent was dealt damage this turn; multiple instances add independently; KeywordAbility::Bloodthirst(u32) disc 123; `damage_dealt_this_turn` on PlayerState; 8 unit tests in `tests/bloodthirst.rs` |
 | Bloodrush | — | P4 | `none` | — | — | — | — | Ability word; discard to pump attacking creature |
 | Devoid | 702.114 | P4 | `validated` | state/types.rs:609-615, state/hash.rs:463-464, rules/layers.rs:74-83 | Forerunner of Slaughter | baseline/111 | CR 702.114a fully enforced; CDA in Layer 5 (ColorChange) clears colors; functions in all zones (CR 604.3); 8 unit tests in devoid.rs; script approved | Colorless regardless of mana cost |
 | Ingest | 702.115 | P4 | `validated` | state/types.rs:629-638, state/stubs.rs:230-242, state/stack.rs:407-427, state/hash.rs:467-468+1090-1092+1373-1374, rules/abilities.rs:1757-1840+2218-2226, rules/resolution.rs:1634-1671 | Mist Intruder | baseline/113 | CR 702.115a+b fully enforced; triggered ability on combat damage to player; multiple instances trigger separately (702.115b); empty library is safe no-op; face-up exile (default); 6 unit tests in ingest.rs; TUI stack_view.rs:80-81 + view_model.rs:473-474,687 | Combat damage to player → exile top card of library |
@@ -523,7 +523,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P4 Gaps (niche / historical)
 
-41 remaining (none), 12 n/a (digital-only + Banding + niche). 52/105 validated. Top unresolved by likely demand: Fuse, Bloodthirst, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+39 remaining (none), 12 n/a (digital-only + Banding + niche). 54/105 validated. Top unresolved by likely demand: Fuse, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
 
 **Resolved**: Shadow (CR 702.28) — validated 2026-02-28 (script combat/106, Dauthi Slayer, 7 unit tests in shadow.rs).
 
@@ -590,3 +590,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Fading (CR 702.32) — validated 2026-03-06 (script stack/150, Blastoderm, 8 unit tests in fading.rs). Two abilities per CR 702.32a: (1) ETB replacement places N fade counters, (2) upkeep trigger removes a fade counter or sacrifices if unable; turn_actions.rs queues FadingUpkeep triggers (no intervening-if, unlike Vanishing); resolution.rs ETB hook + FadingTrigger resolution; lands.rs parallel ETB hook for land permanents; uses fade counters (not time counters); multiple Fading instances each trigger separately.
 
 **Resolved**: Outlast (CR 702.107) — validated 2026-03-06 (script stack/158, Ainok Bond-Kin, 7 unit tests in outlast.rs). Convenience AbilityDefinition::Outlast{cost} expands into ActivatedAbility via enrich_spec_from_def: tap + mana cost, sorcery speed, +1/+1 counter on self; KeywordAbility::Outlast disc 121 + AbilityDefinition::Outlast disc 48; no custom StackObjectKind (generic ActivatedAbility path).
+
+**Resolved**: Bloodthirst (CR 702.54) — validated 2026-03-06 (script stack/160, Stormblood Berserker, 8 unit tests in bloodthirst.rs). ETB replacement per CR 702.54a: places N +1/+1 counters if any opponent was dealt damage this turn; multiple instances add independently (CR 702.54c); KeywordAbility::Bloodthirst(u32) disc 123; `damage_dealt_this_turn` on PlayerState; resolution.rs ETB hook; `cast_creature` harness pattern.

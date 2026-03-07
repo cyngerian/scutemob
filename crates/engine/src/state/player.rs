@@ -129,4 +129,13 @@ pub struct PlayerState {
     /// lost life this turn.
     #[serde(default)]
     pub life_lost_this_turn: u32,
+    /// Total damage dealt to this player this turn (CR 120.2, CR 702.54a).
+    ///
+    /// Incremented whenever this player is dealt damage (combat or non-combat,
+    /// including infect damage that gives poison instead of life loss).
+    /// Reset to 0 at the start of each turn in `reset_turn_state`.
+    /// Used by Bloodthirst to check if an opponent was dealt damage this turn
+    /// and by Bloodthirst X to determine the total.
+    #[serde(default)]
+    pub damage_received_this_turn: u32,
 }
