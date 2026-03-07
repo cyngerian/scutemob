@@ -2750,6 +2750,17 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 objects.hash_into(hasher);
             }
+            // CR 701.47a: Amassed (discriminant 98)
+            GameEvent::Amassed {
+                player,
+                army_id,
+                count,
+            } => {
+                98u8.hash_into(hasher);
+                player.hash_into(hasher);
+                army_id.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }
@@ -3331,6 +3342,12 @@ impl HashInto for Effect {
             Effect::Bolster { player, count } => {
                 40u8.hash_into(hasher);
                 player.hash_into(hasher);
+                count.hash_into(hasher);
+            }
+            // CR 701.47a: Amass (discriminant 41)
+            Effect::Amass { subtype, count } => {
+                41u8.hash_into(hasher);
+                subtype.hash_into(hasher);
                 count.hash_into(hasher);
             }
         }

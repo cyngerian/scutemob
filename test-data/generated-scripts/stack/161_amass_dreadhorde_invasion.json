@@ -1,0 +1,200 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_161",
+    "name": "Dreadhorde Invasion — cast and resolve; amass Zombies upkeep trigger (engine gap)",
+    "description": "p1 casts Dreadhorde Invasion ({1}{B}, Enchantment). Both players pass priority. The spell resolves and Dreadhorde Invasion enters p1's battlefield. The script validates the cast\u2192resolve flow and confirms the enchantment is on the battlefield. Dreadhorde Invasion has an upkeep triggered ability: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1.' Per CR 701.47a, amass Zombies 1 means: if you don't control an Army, create a 0/0 black Zombie Army creature token, then put 1 +1/+1 counter on it (making it a 1/1). On p1's second upkeep, the same trigger fires and the existing Army (now 1/1) receives a second +1/+1 counter (making it a 2/2). p1 loses 1 life per trigger. The upkeep trigger lifecycle is an engine gap in the replay harness (see disputes); it is validated by unit tests in crates/engine/tests/amass.rs.",
+    "cr_sections_tested": ["601.2", "608.2", "701.47a", "701.47b", "603.2"],
+    "corner_case_ref": null,
+    "tags": ["amass", "zombie-army", "token", "upkeep-trigger", "enchantment", "engine-gap"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Dreadhorde Invasion oracle text: 'At the beginning of your upkeep, you lose 1 life and amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.) Whenever a Zombie token you control with power 6 or greater attacks, it gains lifelink until end of turn.' Cost: {1}{B} = generic:1, black:1. Card definition (crates/engine/src/cards/defs/dreadhorde_invasion.rs): AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep, effect: Effect::Sequence([LoseLife { player: Controller, amount: Fixed(1) }, Amass { subtype: 'Zombie', count: Fixed(1) }]) }. CR 701.47a (amass Zombies N): if controller has no Army, create a 0/0 black Zombie Army creature token, then choose an Army and put N +1/+1 counters on it. CR 701.47b: Amassed event fires even if some actions were impossible. ENGINE GAP: The replay harness does not drive generic AtBeginningOfYourUpkeep triggered abilities from card definitions. The upkeep_actions() function in rules/turn_actions.rs only queues specific keyword ability triggers (Suspend, Vanishing, Fading, Echo, CumulativeUpkeep). It does NOT scan card definitions for AtBeginningOfYourUpkeep triggers and queue them as PendingTrigger { kind: PendingTriggerKind::Normal }. Additionally, check_triggers() in rules/abilities.rs handles event-driven triggers only; it does NOT respond to StepChanged { step: Upkeep } to fire card-definition upkeep triggers. The full amass lifecycle (trigger fires, LoseLife -1, token created 0/0, +1/+1 counter applied \u2192 1/1 on upkeep 1; existing Army gets +1 counter \u2192 2/2 on upkeep 2) is validated by unit tests in crates/engine/tests/amass.rs. The SECOND ability ('Whenever a Zombie token with power 6+ attacks, it gains lifelink until end of turn') is not implemented in the card definition (deferred — no DSL support for attack trigger with token-type filter + power threshold). Script scope: cast Dreadhorde Invasion \u2192 resolve \u2192 assert on battlefield. The informational section below documents the two-upkeep lifecycle per CR 701.47a/b for future reference when the harness gap is fixed.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "game-script-generator",
+        "description": "ENGINE GAP (CR 603.2 + CR 701.47a): Dreadhorde Invasion's upkeep triggered ability ('At the beginning of your upkeep, you lose 1 life and amass Zombies 1') does not fire through the replay harness. Two gaps exist: (1) upkeep_actions() in rules/turn_actions.rs only queues Suspend/Vanishing/Fading/Echo/CumulativeUpkeep triggers, not generic AtBeginningOfYourUpkeep card-definition triggers. (2) check_triggers() in rules/abilities.rs is event-driven and does not respond to StepChanged { step: Upkeep } to fire card-definition upkeep triggers. Per CR 603.2, the trigger should fire at the beginning of p1's upkeep step, putting it on the stack; after both players pass, it resolves: p1 loses 1 life and amass Zombies 1 fires (CR 701.47a: create 0/0 black Zombie Army token if none, then put 1 counter on it, making it 1/1). On the second upkeep, the Army would receive a second counter (2/2) and p1 would be at 38 life. Fix: add a general AtBeginningOfYourUpkeep pass to upkeep_actions() that scans battlefield permanents controlled by the active player, finds AbilityDefinition::Triggered { trigger_condition: AtBeginningOfYourUpkeep } entries, and queues them as PendingTrigger { kind: Normal, ability_index: <index> }. The amass effect itself is correctly implemented and tested in crates/engine/tests/amass.rs (7 tests, CR 701.47a-d).",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Dreadhorde Invasion", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Dreadhorde Invasion ({1}{B}) from hand. Both players pass priority. The spell resolves and the enchantment enters p1's battlefield.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Dreadhorde Invasion in p1 hand; battlefield empty; stack empty; p1 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Dreadhorde Invasion" }] },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Dreadhorde Invasion" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Dreadhorde Invasion ({1}{B} Enchantment, Amass Zombies upkeep trigger) is in p1's hand. p1 has {1}{B} (colorless:1, black:1) in mana pool ready to cast."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Dreadhorde Invasion",
+          "targets": [],
+          "mana_paid": { "colorless": 1, "black": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Dreadhorde Invasion; {1}{B} paid from pool (colorless:1, black:1). The enchantment has no targets. It moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Dreadhorde Invasion on stack (count 1); p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 601.2: Dreadhorde Invasion is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Dreadhorde Invasion resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Dreadhorde Invasion",
+          "resolution": [
+            {
+              "effect": "permanent_enters_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Dreadhorde Invasion",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Dreadhorde Invasion is a permanent spell; it resolves by entering the battlefield under p1's control. The upkeep trigger (CR 603.2) will fire at the beginning of p1's next upkeep — not now."
+            }
+          ],
+          "note": "CR 608.2: Enchantment spell resolves and enters the battlefield as a permanent. Its upkeep triggered ability ('At the beginning of your upkeep, lose 1 life and amass Zombies 1') fires at the start of p1's upkeep step, not at ETB time."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Dreadhorde Invasion on p1 battlefield; stack empty; both players at 40 life; no tokens yet",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Dreadhorde Invasion" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Dreadhorde Invasion is now a permanent on p1's battlefield. No life has been lost and no Army token has been created yet — those happen when the upkeep trigger fires (engine gap — see disputes)."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "INFORMATIONAL — Dreadhorde Invasion upkeep trigger lifecycle documentation (CR 701.47a). These stack_resolve actions document correct rules behavior but are NOT executed by the harness due to the engine gap (see disputes). Validated by unit tests in crates/engine/tests/amass.rs.",
+      "actions": [
+        {
+          "type": "stack_resolve",
+          "object": "Dreadhorde Invasion upkeep trigger (Upkeep 1)",
+          "resolution": [
+            {
+              "effect": "lose_life",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: p1 loses 1 life as part of the upkeep trigger's Sequence effect. p1 goes from 40 to 39 life."
+            },
+            {
+              "effect": "amass_zombies",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.47a",
+              "note": "CR 701.47a: p1 controls no Army. Create a 0/0 black Zombie Army creature token. Choose the new Army and put 1 +1/+1 counter on it, making it a 1/1 Zombie Army token. CR 701.47b: Amassed event is emitted."
+            }
+          ],
+          "note": "INFORMATIONAL (engine gap): First upkeep trigger fires; p1 loses 1 life (39 life) and amasses Zombies 1. No Army exists — a 0/0 black Zombie Army token is created, then 1 +1/+1 counter placed on it (now 1/1). After this upkeep p1 should have 39 life and a 1/1 Zombie Army on the battlefield."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Dreadhorde Invasion upkeep trigger (Upkeep 2)",
+          "resolution": [
+            {
+              "effect": "lose_life",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: p1 loses 1 more life. p1 goes from 39 to 38 life."
+            },
+            {
+              "effect": "amass_zombies",
+              "player": "p1",
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.47a",
+              "note": "CR 701.47a: p1 controls an Army (the 1/1 Zombie Army token from upkeep 1). p1 chooses it and puts 1 +1/+1 counter on it (now 2/2). No new token is created. CR 701.47b: Amassed event emitted."
+            }
+          ],
+          "note": "INFORMATIONAL (engine gap): Second upkeep trigger fires; p1 loses 1 more life (38 life) and amasses Zombies 1 again. Army already exists (1/1 from upkeep 1) — 1 counter added, now a 2/2 Zombie Army. After upkeep 2: p1 at 38 life, Zombie Army is 2/2 with 2 +1/+1 counters."
+        }
+      ]
+    }
+  ]
+}

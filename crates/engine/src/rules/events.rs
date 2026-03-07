@@ -710,6 +710,20 @@ pub enum GameEvent {
     /// Lonis, Cryptozoologist). NOT emitted when investigating 0.
     Investigated { player: PlayerId, count: u32 },
 
+    // ── Amass event ───────────────────────────────────────────────────────
+    /// A player performed an amass action (CR 701.47a).
+    ///
+    /// Emitted by `Effect::Amass` after the Army creature has received counters
+    /// and the subtype has been added. CR 701.47b: always emitted even if some
+    /// or all actions were impossible. Enables "whenever you amass" triggers.
+    Amassed {
+        player: PlayerId,
+        /// The Army creature that was chosen (or created).
+        army_id: ObjectId,
+        /// Number of +1/+1 counters placed.
+        count: u32,
+    },
+
     // ── M9.4: Goaded event ────────────────────────────────────────────────
     /// A permanent was goaded (CR 701.38).
     ///

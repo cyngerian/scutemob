@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Bloodthirst 702.54 validated: KW 123, Stormblood Berserker, script stack/160, 8 tests)
+> Last audited: 2026-03-06 (Amass 701.47 validated: Effect disc 41, GameEvent disc 98, Dreadhorde Invasion, script stack/161, 7 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 54        | 0        | 0       | 39   | 12  |
-| **Total**| **204**| **147**  | **2**    | **0**   | **43**| **12** |
+| P4       | 105   | 55        | 0        | 0       | 38   | 12  |
+| **Total**| **204**| **148**  | **2**    | **0**   | **42**| **12** |
 
 ---
 
@@ -319,7 +319,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Transform | 701.28 | P3 | `none` | — | — | — | — | Keyword action: flip DFC to other face |
 | Daybound/Nightbound | 702.145 | P4 | `none` | — | — | — | Transform | DFC auto-transform based on day/night cycle |
 | Investigate | 701.16 | P3 | `validated` | `cards/card_definition.rs:325` (Effect::Investigate), `effects/mod.rs:484` (execution), `rules/events.rs:706` (GameEvent::Investigated), `state/game_object.rs:193` (TriggerEvent::ControllerInvestigates), `state/hash.rs` (hash arms), `rules/abilities.rs:1447` (trigger dispatch) | Magnifying Glass, Thraben Inspector | `stack/099` (pending_review) | 6 unit tests in investigate.rs | CR 701.16a: "Investigate" means "Create a Clue token"; Effect::Investigate wraps clue_token_spec(1) x N; TriggerEvent::ControllerInvestigates wired; Thraben Inspector uses Effect::Investigate on ETB |
-| Amass | 701.47 | P4 | `none` | — | — | — | — | Put +1/+1 counters on Army token or create one |
+| Amass | 701.47 | P4 | `validated` | `cards/card_definition.rs:673` (Effect::Amass), `effects/mod.rs:1073-1185` (execution), `rules/events.rs:713` (GameEvent::Amassed), `state/hash.rs:2753,3347` (hash arms disc 98/41), `rules/abilities.rs:3411` (trigger dispatch) | Dreadhorde Invasion | `stack/161` | 7 tests in `amass.rs` | CR 701.47a: keyword action (no KeywordAbility variant); Effect::Amass { subtype, count }; creates 0/0 black Army token if none controlled, else adds +1/+1 counters to existing Army; adds subtype (e.g., Zombie); GameEvent::Amassed always emitted per CR 701.47b |
 | Discover | 701.57 | P4 | `none` | — | — | — | Cascade | Keyword action variant of Cascade without the free cast restriction |
 | Forage | 701.61 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
 | Offspring | 702.175 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |

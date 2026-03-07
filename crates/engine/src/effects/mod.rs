@@ -1070,6 +1070,125 @@ fn execute_effect_inner(
             }
         }
 
+        // ── Amass ─────────────────────────────────────────────────────────
+        // CR 701.47a: Amass [subtype] N.
+        //   1. If you don't control an Army creature, create a 0/0 black
+        //      [subtype] Army creature token.
+        //   2. Choose an Army creature you control (deterministic: smallest
+        //      ObjectId among all Army creatures, consistent with Bolster).
+        //   3. Put N +1/+1 counters on that creature.
+        //   4. If the chosen Army isn't a [subtype], it becomes one in
+        //      addition to its other types.
+        // CR 701.47b: Always emits Amassed even if some/all actions failed.
+        Effect::Amass { subtype, count } => {
+            let n = resolve_amount(state, count, ctx).max(0) as u32;
+            let controller = ctx.controller;
+
+            // Step 1–2: Find existing Army creatures controlled by `controller`.
+            // Uses calculate_characteristics for layer-aware type check (Changeling).
+            // CR 702.26b: phased-out permanents are treated as nonexistent.
+            let mut army_ids: Vec<ObjectId> = state
+                .objects
+                .iter()
+                .filter(|(_, obj)| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == controller
+                })
+                .filter_map(|(&id, _)| {
+                    let chars = crate::rules::layers::calculate_characteristics(state, id)?;
+                    // Must be a Creature with subtype "Army".
+                    if !chars
+                        .card_types
+                        .contains(&crate::state::types::CardType::Creature)
+                    {
+                        return None;
+                    }
+                    if chars
+                        .subtypes
+                        .contains(&crate::state::types::SubType("Army".to_string()))
+                    {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // If no Army exists, create a 0/0 black [subtype] Army token (CR 701.47a).
+            // Ruling 2023-06-16: the token enters as 0/0 BEFORE receiving counters.
+            // SBAs are not checked between token creation and counter placement.
+            let army_id = if army_ids.is_empty() {
+                let spec = crate::cards::card_definition::army_token_spec(subtype);
+                let token = make_token(&spec, controller);
+                if let Ok(id) = state.add_object(token, ZoneId::Battlefield) {
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: id,
+                    });
+                    army_ids.push(id);
+                    id
+                } else {
+                    // Token creation failed (should not happen in normal play).
+                    // CR 701.47b: still emit Amassed even if actions were impossible.
+                    events.push(GameEvent::Amassed {
+                        player: controller,
+                        army_id: ObjectId(0),
+                        count: n,
+                    });
+                    return;
+                }
+            } else {
+                // Deterministic: choose the Army with the smallest ObjectId.
+                // Ruling 2023-06-16: "you choose which Army creature to put the
+                // counters on" — deterministic fallback defers interactive choice.
+                let Some(&chosen) = army_ids.iter().min_by_key(|id| id.0) else {
+                    return;
+                };
+                chosen
+            };
+
+            // Step 3: Place N +1/+1 counters on the chosen Army (if N > 0).
+            if n > 0 {
+                if let Some(obj) = state.objects.get_mut(&army_id) {
+                    let cur = obj
+                        .counters
+                        .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters
+                        .insert(crate::state::types::CounterType::PlusOnePlusOne, cur + n);
+                    events.push(GameEvent::CounterAdded {
+                        object_id: army_id,
+                        counter: crate::state::types::CounterType::PlusOnePlusOne,
+                        count: n,
+                    });
+                }
+            }
+
+            // Step 4: If the chosen Army isn't a [subtype], add the subtype (CR 701.47a).
+            // This is a one-shot modification (not a continuous effect) — the subtype
+            // is permanently added to the creature's characteristics.
+            let army_subtype = crate::state::types::SubType(subtype.clone());
+            if let Some(obj) = state.objects.get_mut(&army_id) {
+                if !obj.characteristics.subtypes.contains(&army_subtype) {
+                    obj.characteristics.subtypes.insert(army_subtype);
+                }
+            }
+
+            // CR 701.47b: Always emit Amassed, even if counters or subtype change
+            // were impossible (e.g., N=0 still creates the token and emits the event).
+            events.push(GameEvent::Amassed {
+                player: controller,
+                army_id,
+                count: n,
+            });
+        }
+
         // ── Zone ──────────────────────────────────────────────────────────
         Effect::MoveZone { target, to } => {
             // MR-M7-04: resolve zone using owner PlayerTarget (not always controller).

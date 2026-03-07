@@ -3408,6 +3408,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
+            GameEvent::Amassed { player, .. } => {
+                // CR 701.47a: "Whenever you amass" triggers on all permanents
+                // controlled by the amassing player. No TriggerEvent::ControllerAmasses
+                // exists yet (no card currently uses this trigger condition), so this
+                // arm is a no-op placeholder for forward compatibility. When a card
+                // with "whenever you amass" is implemented, add a TriggerEvent variant
+                // and update collect_triggers_for_event here.
+                let _ = player;
+            }
+
             GameEvent::Connived { object_id, .. } => {
                 // CR 701.50b: "Whenever [this creature] connives" triggers fire even if
                 // the creature left the battlefield before the Connived event is processed.

@@ -670,6 +670,21 @@ pub enum Effect {
         count: EffectAmount,
     },
 
+    /// CR 701.47a: Amass [subtype] N -- If you don't control an Army creature,
+    /// create a 0/0 black [subtype] Army creature token. Choose an Army creature
+    /// you control. Put N +1/+1 counters on that creature. If it isn't a
+    /// [subtype], it becomes a [subtype] in addition to its other types.
+    ///
+    /// CR 701.47b: Always completes even if some or all actions were impossible.
+    /// CR 701.47d: Older cards without a subtype use "Zombie" per Oracle errata.
+    /// Deterministic fallback for multiple Armies: choose smallest ObjectId.
+    Amass {
+        /// The creature subtype to add (e.g., "Zombie", "Orc").
+        subtype: String,
+        /// Number of +1/+1 counters to place.
+        count: EffectAmount,
+    },
+
     // ── Zone ─────────────────────────────────────────────────────────────────
     /// Move an object to a zone (CR 400).
     MoveZone {
@@ -1252,6 +1267,30 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
         count,
         tapped: false,
         mana_color: None,
+    }
+}
+
+/// CR 701.47a: Token spec for an Army creature token.
+///
+/// Creates a 0/0 black [subtype] Army creature token. The `subtype` parameter
+/// determines the creature subtype (e.g., "Zombie" for "amass Zombies N").
+/// If no subtype is provided, defaults to "Zombie" per CR 701.47d Oracle errata.
+pub fn army_token_spec(subtype: &str) -> TokenSpec {
+    TokenSpec {
+        name: format!("{} Army", subtype),
+        power: 0,
+        toughness: 0,
+        colors: [Color::Black].into_iter().collect(),
+        card_types: [CardType::Creature].into_iter().collect(),
+        subtypes: [SubType(subtype.to_string()), SubType("Army".to_string())]
+            .into_iter()
+            .collect(),
+        keywords: OrdSet::new(),
+        count: 1,
+        tapped: false,
+        mana_color: None,
+        mana_abilities: vec![],
+        activated_abilities: vec![],
     }
 }
 
