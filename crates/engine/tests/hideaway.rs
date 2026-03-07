@@ -117,6 +117,7 @@ fn make_hideaway_trigger_stack_obj(
         was_entwined: false,
         escalate_modes_paid: 0,
         was_fused: false,
+        x_value: 0,
     }
 }
 

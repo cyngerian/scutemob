@@ -280,6 +280,7 @@ fn setup_champion_on_bf(
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -374,6 +375,7 @@ fn test_champion_basic_etb_exiles_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -502,6 +504,7 @@ fn test_champion_no_target_sacrifices_self() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -629,6 +632,7 @@ fn test_champion_ltb_returns_exiled_card() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -745,6 +749,7 @@ fn test_champion_non_champion_no_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -860,6 +865,7 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -971,6 +977,7 @@ fn test_champion_subtype_filter_accepts_faerie() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -1078,6 +1085,7 @@ fn test_champion_changeling_matches_faerie_filter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -1187,6 +1195,7 @@ fn test_champion_cannot_target_itself() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

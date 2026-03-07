@@ -212,6 +212,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -321,6 +322,7 @@ fn test_convoke_colored_mana_match() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -423,6 +425,7 @@ fn test_convoke_generic_mana_any_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -510,6 +513,7 @@ fn test_convoke_reject_no_keyword() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -579,6 +583,7 @@ fn test_convoke_reject_tapped_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -647,6 +652,7 @@ fn test_convoke_reject_not_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -716,6 +722,7 @@ fn test_convoke_reject_not_controlled() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -796,6 +803,7 @@ fn test_convoke_reject_too_many_creatures() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -916,6 +924,7 @@ fn test_convoke_with_commander_tax() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -1016,6 +1025,7 @@ fn test_convoke_no_summoning_sickness() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1091,6 +1101,7 @@ fn test_convoke_zero_creatures() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1181,6 +1192,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

@@ -211,6 +211,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -323,6 +324,7 @@ fn test_surveil_zero_no_event() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -429,6 +431,7 @@ fn test_surveil_empty_library_still_emits_event() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -523,6 +526,7 @@ fn test_surveil_library_fewer_than_n() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -639,6 +643,7 @@ fn test_surveil_then_draw_sequence() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -707,6 +712,7 @@ fn test_whenever_you_surveil_trigger() {
     // Build a creature with WheneverYouSurveil -> AddCounter(+1/+1).
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,
             description: "Whenever you surveil, Spybug gets a +1/+1 counter (CR 701.25d)"
@@ -780,6 +786,7 @@ fn test_whenever_you_surveil_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -825,6 +832,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
     // Build a creature with WheneverYouSurveil -> AddCounter(+1/+1).
     let surveil_creature = ObjectSpec::creature(p1, "Spybug", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::ControllerSurveils,
             intervening_if: None,
             description: "Whenever you surveil, Spybug gets a +1/+1 counter (CR 701.25d)"
@@ -894,6 +902,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

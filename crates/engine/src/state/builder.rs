@@ -385,6 +385,7 @@ impl GameStateBuilder {
             for kw in spec.keywords.iter() {
                 if let KeywordAbility::Ward(cost_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfBecomesTargetByOpponent,
                         intervening_if: None,
                         description: format!(
@@ -415,6 +416,7 @@ impl GameStateBuilder {
                 // Each keyword instance generates one TriggeredAbilityDef.
                 if matches!(kw, KeywordAbility::Prowess) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::ControllerCastsNoncreatureSpell,
                         intervening_if: None,
                         description: "Prowess (CR 702.108a): Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.".to_string(),
@@ -436,6 +438,7 @@ impl GameStateBuilder {
                 // not the permanent with exalted (which may not even be a creature).
                 if matches!(kw, KeywordAbility::Exalted) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::ControllerCreatureAttacksAlone,
                         intervening_if: None,
                         description: "Exalted (CR 702.83a): Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.".to_string(),
@@ -457,6 +460,7 @@ impl GameStateBuilder {
                 // which is resolved at flush time via PendingTrigger.defending_player_id.
                 if let KeywordAbility::Annihilator(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: format!(
@@ -477,6 +481,7 @@ impl GameStateBuilder {
                 // time and applies a +1/+0 ModifyPower continuous effect to each.
                 if matches!(kw, KeywordAbility::BattleCry) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: "Battle Cry (CR 702.91a): Whenever this creature attacks, \
@@ -506,6 +511,7 @@ impl GameStateBuilder {
                 // on all attacks.
                 if matches!(kw, KeywordAbility::Dethrone) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacksPlayerWithMostLife,
                         intervening_if: None,
                         description: "Dethrone (CR 702.105a): Whenever this creature attacks \
@@ -530,6 +536,7 @@ impl GameStateBuilder {
                 // all attacks.
                 if matches!(kw, KeywordAbility::Training) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacksWithGreaterPowerAlly,
                         intervening_if: None,
                         description: "Training (CR 702.149a): Whenever this creature and at \
@@ -553,6 +560,7 @@ impl GameStateBuilder {
                 // time from combat state (ruling 2016-08-23).
                 if matches!(kw, KeywordAbility::Melee) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: "Melee (CR 702.121a): Whenever this creature attacks, it \
@@ -576,6 +584,7 @@ impl GameStateBuilder {
                 // CR 702.154d: Each Enlist instance generates one placeholder.
                 if matches!(kw, KeywordAbility::Enlist) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: "Enlist (CR 702.154a): As this creature attacks, you may \
@@ -601,6 +610,7 @@ impl GameStateBuilder {
                 // carried by the CreatureDied event (last known information, CR 603.10a).
                 if matches!(kw, KeywordAbility::Persist) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
                             CounterType::MinusOneMinusOne,
@@ -634,6 +644,7 @@ impl GameStateBuilder {
                 // carried by the CreatureDied event (last known information, CR 603.10a).
                 if matches!(kw, KeywordAbility::Undying) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: Some(InterveningIf::SourceHadNoCounterOfType(
                             CounterType::PlusOnePlusOne,
@@ -666,6 +677,7 @@ impl GameStateBuilder {
                 // No intervening-if: the trigger always fires on death regardless of counters.
                 if let KeywordAbility::Afterlife(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
                         description: format!(
@@ -700,6 +712,7 @@ impl GameStateBuilder {
                 // deterministic fallback always resolves the drain effect.
                 if matches!(kw, KeywordAbility::Extort) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::ControllerCastsSpell,
                         intervening_if: None,
                         description: "Extort (CR 702.101a): Whenever you cast a spell, \
@@ -719,6 +732,7 @@ impl GameStateBuilder {
                 // to atomically create + attach before SBAs.
                 if matches!(kw, KeywordAbility::LivingWeapon) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfEntersBattlefield,
                         intervening_if: None,
                         description: "Living Weapon (CR 702.92a): When this Equipment enters, \
@@ -758,6 +772,7 @@ impl GameStateBuilder {
                 // by StackObjectKind::ModularTrigger.
                 if let KeywordAbility::Modular(_n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfDies,
                         intervening_if: None,
                         description: "Modular (CR 702.43a): When this permanent is put into a \
@@ -780,6 +795,7 @@ impl GameStateBuilder {
                 // end_combat() in turn_actions.rs.
                 if matches!(kw, KeywordAbility::Myriad) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: "Myriad (CR 702.116a): Whenever this creature attacks, \
@@ -807,6 +823,7 @@ impl GameStateBuilder {
 
                     // Trigger 1: "Whenever this creature blocks"
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfBlocks,
                         intervening_if: None,
                         description: format!(
@@ -818,6 +835,7 @@ impl GameStateBuilder {
 
                     // Trigger 2: "Whenever this creature becomes blocked"
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
                         description: format!(
@@ -838,6 +856,7 @@ impl GameStateBuilder {
                 // time from combat state (CR 702.23b).
                 if let KeywordAbility::Rampage(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
                         description: format!(
@@ -858,6 +877,7 @@ impl GameStateBuilder {
                 // identify and tag it as a provoke trigger at collection time.
                 if matches!(kw, KeywordAbility::Provoke) {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfAttacks,
                         intervening_if: None,
                         description: "Provoke (CR 702.39a): Whenever this creature attacks, \
@@ -875,6 +895,7 @@ impl GameStateBuilder {
                 // which is resolved at flush time via PendingTrigger.defending_player_id.
                 if let KeywordAbility::Afflict(n) = kw {
                     triggered_abilities.push(TriggeredAbilityDef {
+                        etb_filter: None,
                         trigger_on: TriggerEvent::SelfBecomesBlocked,
                         intervening_if: None,
                         description: format!(
@@ -966,6 +987,8 @@ impl GameStateBuilder {
                 paired_with: None,
                 // CR 702.104b: tribute_was_paid starts false.
                 tribute_was_paid: false,
+                // CR 107.3m: test-placed objects are not cast spells; x_value is 0.
+                x_value: 0,
             };
 
             state.add_object(object, zone)?;

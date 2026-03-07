@@ -196,6 +196,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -269,6 +270,7 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -331,6 +333,7 @@ fn test_spectacle_normal_cast_without_spectacle() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -401,6 +404,7 @@ fn test_spectacle_no_keyword_rejects() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -468,6 +472,7 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(
@@ -614,6 +619,7 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -712,6 +718,7 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -774,6 +781,7 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -879,6 +887,7 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1026,6 +1035,7 @@ fn test_spectacle_commander_tax_applies() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

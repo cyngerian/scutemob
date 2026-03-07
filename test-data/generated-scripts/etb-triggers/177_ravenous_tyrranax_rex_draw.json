@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_177",
+    "name": "Ravenous — Tyrranax Rex enters with X counters and draws when X >= 5",
+    "description": "Tests both effects of the Ravenous keyword (CR 702.156a) on Tyrranax Rex. P1 casts Tyrranax Rex with X=5, paying {5}{G}{G}{G}{G}. Ravenous is a replacement effect that causes the permanent to enter with X +1/+1 counters (so Tyrranax Rex enters as a 13/13 instead of 8/8). Because X is 5 or more, a triggered ability also fires: 'When this permanent enters, if X is 5 or more, draw a card.' The trigger resolves and p1 draws a card, increasing hand count from 0 to 1.",
+    "cr_sections_tested": [
+      "601.2",
+      "107.3",
+      "608.2",
+      "702.156a",
+      "603.2",
+      "603.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "ravenous",
+      "keyword",
+      "etb",
+      "x-cost",
+      "counters",
+      "draw",
+      "tyrranax-rex"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tyrranax Rex card definition (crates/engine/src/cards/defs/tyrranax_rex.rs): mana_cost green:4 (represents {X}{G}{G}{G}{G}); base P/T 8/8; abilities: Trample, Ward(4), Ravenous. CR 702.156a: Ravenous represents both a replacement effect (enters with X +1/+1 counters) and a triggered ability (draw a card if X >= 5). With X=5, p1 needs 5 colorless + 4 green = 9 total mana. The mana pool is pre-loaded with 5 colorless + 4 green. Tyrranax Rex enters with 5 +1/+1 counters making it a 13/13. The draw trigger fires immediately after it enters; the stack_resolve for Tyrranax Rex leaves a trigger on the stack. A card must be in p1's library for the draw to succeed — one Forest is placed in library. After the trigger resolves p1 has 1 card in hand (the drawn Forest). Ward {4} is irrelevant here — nothing targets Tyrranax Rex in this script. The script uses x_value: 5 per CR 107.3m and the script_schema.rs x_value field (line 342).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 5, "green": 4 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Tyrranax Rex", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Tyrranax Rex with X=5; it resolves entering with 5 +1/+1 counters; draw trigger fires and p1 draws a card",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Tyrranax Rex in p1's hand, 1 card in library, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Tyrranax Rex" }] }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Tyrranax Rex",
+          "targets": [],
+          "x_value": 5,
+          "mana_paid": { "colorless": 5, "green": 4 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Tyrranax Rex with X=5, paying {5}{G}{G}{G}{G}. CR 107.3m: X is chosen as 5 at cast time. Tyrranax Rex moves from hand to the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Tyrranax Rex on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Tyrranax Rex resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Tyrranax Rex",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Tyrranax Rex",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Tyrranax Rex resolves and enters the battlefield. CR 702.156a: Ravenous replacement effect applies — it enters with 5 +1/+1 counters (X=5) instead of 0, making it effectively a 13/13. Because X >= 5, the Ravenous draw trigger is placed on the stack."
+            }
+          ],
+          "note": "CR 702.156a: Ravenous — permanent enters with X +1/+1 counters (replacement effect, not a trigger). The 'if X is 5 or more, draw a card' triggered ability fires and goes on the stack (CR 603.2)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Tyrranax Rex enters: it is on battlefield with 5 +1/+1 counters; draw trigger is on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Tyrranax Rex" }]
+            },
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.156a: The Ravenous draw trigger ('if X is 5 or more, draw a card') is on the stack awaiting resolution. Tyrranax Rex is on the battlefield with 5 +1/+1 counters."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Ravenous draw trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Tyrranax Rex Ravenous",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.156a",
+              "note": "CR 702.156a: Ravenous triggered ability resolves — p1 draws 1 card (the Forest from library). Hand count increases from 0 to 1."
+            }
+          ],
+          "note": "CR 608.2: Ravenous draw trigger resolves; p1 draws a card."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Tyrranax Rex on battlefield with 5 counters, p1 drew 1 card, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Tyrranax Rex" }]
+            },
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 702.156a: Both Ravenous effects resolved — Tyrranax Rex entered with 5 +1/+1 counters (replacement effect) and p1 drew 1 card (triggered ability, X >= 5). Stack is empty."
+        }
+      ]
+    }
+  ]
+}

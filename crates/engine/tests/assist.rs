@@ -162,6 +162,7 @@ fn test_assist_basic_another_player_pays_generic() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("assist cast failed: {:?}", e));
@@ -242,6 +243,7 @@ fn test_assist_no_assist_player_pays_full_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
@@ -304,6 +306,7 @@ fn test_assist_cannot_assist_self() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -373,6 +376,7 @@ fn test_assist_exceeds_generic_mana_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -438,6 +442,7 @@ fn test_assist_eliminated_player_cannot_assist() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -512,6 +517,7 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
@@ -604,6 +610,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
@@ -673,6 +680,7 @@ fn test_assist_amount_zero_is_noop() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
@@ -742,6 +750,7 @@ fn test_assist_insufficient_mana_assisting_player() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -810,6 +819,7 @@ fn test_assist_spell_without_keyword_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -873,6 +883,7 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));

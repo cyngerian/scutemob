@@ -12,15 +12,15 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: 1754 tests passing; ~160 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 66/88 P4; Batch 0-11 complete; Batch 12 next; 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: 1784 tests passing; ~165 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 71/88 P4; Batch 0-12 complete; Batch 13 next; 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-07
 
-### What Exists (M9.5 complete + 64 abilities through Batch 10, includes M0-M9 + Engine Core Complete checkpoint)
+### What Exists (M9.5 complete + 71 abilities through Batch 11, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste)
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~88 approved game scripts, 1106 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card` action types
+- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~93 approved game scripts, 1754 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree` action types
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
 - All 36 corner cases: 29 COVERED, 4 GAP, 3 DEFERRED (phasing, morph, mutate)

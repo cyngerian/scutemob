@@ -205,6 +205,7 @@ fn test_effect_deal_damage_to_player() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -299,6 +300,7 @@ fn test_effect_deal_damage_to_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -396,6 +398,7 @@ fn test_effect_exile_and_gain_life() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -510,6 +513,7 @@ fn test_effect_draw_cards() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1085,6 +1089,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         was_entwined: false,
         escalate_modes_paid: 0,
         was_fused: false,
+        x_value: 0,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1149,6 +1154,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
     let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
         .with_types(vec![CardType::Enchantment])
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::OpponentCastsSpell,
             intervening_if: None,
             description: "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.".into(),
@@ -1224,6 +1230,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1278,6 +1285,7 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
     let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
         .with_types(vec![CardType::Enchantment])
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::OpponentCastsSpell,
             intervening_if: None,
             description: "Whenever an opponent casts a spell (CR 603.2)".into(),
@@ -1342,6 +1350,7 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1393,6 +1402,7 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
     let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
         .with_types(vec![CardType::Enchantment])
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::OpponentCastsSpell,
             intervening_if: None,
             description: "Whenever an opponent casts a spell (CR 603.2)".into(),
@@ -1461,6 +1471,7 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1530,6 +1541,7 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
         ObjectSpec::card(p1, name)
             .with_types(vec![CardType::Enchantment])
             .with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 description: "Whenever an opponent casts a spell (CR 603.2)".into(),
@@ -1607,6 +1619,7 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1657,6 +1670,7 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
     let rhystic_study = ObjectSpec::card(p1, "Rhystic Study")
         .with_types(vec![CardType::Enchantment])
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::OpponentCastsSpell,
             intervening_if: None,
             description: "Whenever an opponent casts a spell (CR 603.2)".into(),
@@ -1719,6 +1733,7 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1855,6 +1870,7 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

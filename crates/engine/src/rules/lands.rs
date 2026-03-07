@@ -366,6 +366,10 @@ pub fn handle_play_land(
     // ETB hook exists in fire_when_enters_triggered_effects (replacement.rs).
     // No-op for lands.
 
+    // CR 702.156a: Ravenous -- lands cannot have X in their mana cost (lands are
+    // not cast as spells, so there is no CastSpell.x_value). No ETB counters or
+    // draw trigger possible for lands. No-op.
+
     // CR 702.30a: Mark lands with Echo as pending their echo trigger.
     // "At the beginning of your upkeep, if this permanent came under your
     // control since the beginning of your last upkeep, sacrifice it unless

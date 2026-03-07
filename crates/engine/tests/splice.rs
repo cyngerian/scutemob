@@ -285,6 +285,7 @@ fn test_splice_basic_onto_arcane() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -377,6 +378,7 @@ fn test_splice_cost_added() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -461,6 +463,7 @@ fn test_splice_card_stays_in_hand() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -562,6 +565,7 @@ fn test_splice_wrong_subtype_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -647,6 +651,7 @@ fn test_splice_same_card_twice_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -732,6 +737,7 @@ fn test_splice_not_in_hand_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -832,6 +838,7 @@ fn test_splice_multiple_cards() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell with two splice cards should succeed");
@@ -937,6 +944,7 @@ fn test_splice_main_effect_first() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -1065,6 +1073,7 @@ fn test_splice_onto_itself_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

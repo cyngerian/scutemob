@@ -208,6 +208,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ctx.was_overloaded = stack_obj.was_overloaded;
                             ctx.was_bargained = stack_obj.was_bargained;
                             ctx.was_cleaved = stack_obj.was_cleaved;
+                            // CR 107.3m: Propagate X value to effect context.
+                            ctx.x_value = stack_obj.x_value;
                             // CR 702.102d: Execute left half first.
                             if let Some(eff) = left_effect {
                                 let eff_events = execute_effect(state, &eff, &mut ctx);
@@ -319,6 +321,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ctx.was_bargained = stack_obj.was_bargained;
                                 // CR 702.148a: Pass cleave status so Condition::WasCleaved works.
                                 ctx.was_cleaved = stack_obj.was_cleaved;
+                                // CR 107.3m: Propagate X value to effect context.
+                                ctx.x_value = stack_obj.x_value;
 
                                 // CR 702.42b: Execute each effect in order. For entwined spells,
                                 // state changes from earlier modes are visible to later modes.
@@ -342,6 +346,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     splice_ctx.was_overloaded = stack_obj.was_overloaded;
                                     splice_ctx.was_bargained = stack_obj.was_bargained;
                                     splice_ctx.was_cleaved = stack_obj.was_cleaved;
+                                    // CR 107.3m: Propagate X value to splice context.
+                                    splice_ctx.x_value = stack_obj.x_value;
                                     let splice_events =
                                         execute_effect(state, spliced_effect, &mut splice_ctx);
                                     events.extend(splice_events);
@@ -419,6 +425,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.166b: Transfer bargained status from stack to permanent so ETB
                     // triggers can check Condition::WasBargained.
                     obj.was_bargained = stack_obj.was_bargained;
+                    // CR 107.3m: Transfer X value from stack to permanent for ETB replacement
+                    // effects and triggers that reference X (e.g., Ravenous CR 702.156a).
+                    obj.x_value = stack_obj.x_value;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -458,6 +467,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // (resolution.rs:620-679) when the creature dies via any path.
                         obj.characteristics.triggered_abilities.push(
                             crate::state::game_object::TriggeredAbilityDef {
+                                etb_filter: None,
                                 trigger_on: crate::state::game_object::TriggerEvent::SelfDies,
                                 intervening_if: None,
                                 description: "Blitz (CR 702.152a): When this permanent is \
@@ -1129,6 +1139,93 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         //
                         // (No counters are placed; no state mutation needed here.)
                         let _ = tribute_instances; // explicitly consumed; no-op in bot play
+                    }
+                }
+
+                // CR 702.156a: Ravenous -- "This permanent enters with X +1/+1 counters on it."
+                // CR 107.3m: X is the value chosen at cast time (stack_obj.x_value), NOT the
+                // permanent's X (which is 0 per CR 107.3i). The counter placement is a
+                // replacement effect that modifies how the permanent enters the battlefield.
+                {
+                    let has_ravenous = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities.iter().any(|a| {
+                                matches!(
+                                    a,
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Ravenous
+                                    )
+                                )
+                            })
+                        })
+                        .unwrap_or(false);
+
+                    if has_ravenous && stack_obj.x_value > 0 {
+                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                            let current = obj
+                                .counters
+                                .get(&CounterType::PlusOnePlusOne)
+                                .copied()
+                                .unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::PlusOnePlusOne, current + stack_obj.x_value);
+                        }
+                        events.push(GameEvent::CounterAdded {
+                            object_id: new_id,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: stack_obj.x_value,
+                        });
+                    }
+
+                    // CR 702.156a: "When this permanent enters, if X is 5 or more, draw a card."
+                    // CR 603.4: Intervening-if -- checked at trigger time AND resolution.
+                    // X is the cast-time value (stack_obj.x_value), regardless of counters placed.
+                    if has_ravenous && stack_obj.x_value >= 5 {
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                source: new_id,
+                                ability_index: 0,
+                                controller: stack_obj.controller,
+                                kind: crate::state::stubs::PendingTriggerKind::RavenousDraw,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
+                                soulbond_pair_target: None,
+                            });
                     }
                 }
 
@@ -3230,6 +3327,148 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        StackObjectKind::RavenousDrawTrigger {
+            ravenous_permanent: _,
+            x_value,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Intervening-if re-check. x_value is fixed at cast time and
+            // immutable, so this always passes if the trigger fired. But we re-check
+            // for correctness (e.g., if a future replacement effect could change it).
+            // CR 702.156a: the only intervening-if condition is "if X is 5 or more."
+            // The draw trigger has no targets and is not conditioned on the Ravenous
+            // permanent remaining on the battlefield. Triggered abilities only fizzle
+            // for lack of legal targets (CR 608.2b); this ability has none. If the
+            // creature is removed in response to this trigger, the draw still happens.
+            if x_value >= 5 {
+                // CR 702.156a: "draw a card" — controller of the Ravenous permanent.
+                // draw_card returns Ok(events) on success; if the library is empty,
+                // it returns Ok(vec![GameEvent::PlayerLost { ... }]).
+                if let Ok(drawn_events) = crate::rules::turn_actions::draw_card(state, controller) {
+                    events.extend(drawn_events);
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 207.2c: Bloodrush activated ability resolution.
+        //
+        // At resolution, re-validate the target (CR 608.2b):
+        // - Still on the battlefield as a creature.
+        // - Still registered as an attacker in CombatState.
+        //   "Target attacking creature" is the targeting restriction; if the
+        //   creature is no longer attacking, the target is no longer legal and
+        //   the ability fizzles.
+        // If legal: register +power_boost/+toughness_boost (Layer 7c, UntilEndOfTurn)
+        // and optionally grant a keyword (Layer 6, UntilEndOfTurn).
+        StackObjectKind::BloodrushAbility {
+            source_object,
+            target_creature,
+            power_boost,
+            toughness_boost,
+            grants_keyword,
+        } => {
+            use crate::state::continuous_effect::{
+                ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
+                LayerModification,
+            };
+            use crate::state::types::CardType;
+            let controller = stack_obj.controller;
+
+            // CR 608.2b: Check target legality at resolution.
+            // The target must still be on the battlefield as a creature AND still attacking.
+            let is_on_battlefield = state
+                .objects
+                .get(&target_creature)
+                .map(|o| {
+                    matches!(o.zone, crate::state::zone::ZoneId::Battlefield)
+                        && o.characteristics.card_types.contains(&CardType::Creature)
+                })
+                .unwrap_or(false);
+            let is_attacking = state
+                .combat
+                .as_ref()
+                .map(|c| c.attackers.contains_key(&target_creature))
+                .unwrap_or(false);
+
+            if is_on_battlefield && is_attacking {
+                // Register +power_boost/+toughness_boost (Layer 7c, UntilEndOfTurn).
+                // Use separate Power and Toughness modifications if they differ;
+                // for bloodrush they are always equal so ModifyBoth is correct.
+                let ts = state.timestamp_counter;
+                state.timestamp_counter += 1;
+                let eff_id = state.next_object_id().0;
+                if power_boost == toughness_boost {
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(eff_id),
+                        source: Some(source_object),
+                        timestamp: ts,
+                        layer: EffectLayer::PtModify,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        filter: EffectFilter::SingleObject(target_creature),
+                        modification: LayerModification::ModifyBoth(power_boost),
+                        is_cda: false,
+                    });
+                } else {
+                    // Asymmetric boost: register Power and Toughness separately.
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(eff_id),
+                        source: Some(source_object),
+                        timestamp: ts,
+                        layer: EffectLayer::PtModify,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        filter: EffectFilter::SingleObject(target_creature),
+                        modification: LayerModification::ModifyPower(power_boost),
+                        is_cda: false,
+                    });
+                    let ts2 = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    let eff_id2 = state.next_object_id().0;
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(eff_id2),
+                        source: Some(source_object),
+                        timestamp: ts2,
+                        layer: EffectLayer::PtModify,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        filter: EffectFilter::SingleObject(target_creature),
+                        modification: LayerModification::ModifyToughness(toughness_boost),
+                        is_cda: false,
+                    });
+                }
+
+                // If a keyword is granted, register Layer 6 effect (UntilEndOfTurn).
+                if let Some(keyword) = grants_keyword {
+                    let kw_set: im::OrdSet<crate::state::types::KeywordAbility> =
+                        std::iter::once(keyword).collect();
+                    let ts_kw = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    let eff_id_kw = state.next_object_id().0;
+                    state.continuous_effects.push_back(ContinuousEffect {
+                        id: EffectId(eff_id_kw),
+                        source: Some(source_object),
+                        timestamp: ts_kw,
+                        layer: EffectLayer::Ability,
+                        duration: EffectDuration::UntilEndOfTurn,
+                        filter: EffectFilter::SingleObject(target_creature),
+                        modification: LayerModification::AddKeywords(kw_set),
+                        is_cda: false,
+                    });
+                }
+            }
+            // If not legal (fizzled): card is already in graveyard (discarded as cost).
+            // No pump or keyword grant applied.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         StackObjectKind::BackupTrigger {
             source_object,
             target_creature,
@@ -3404,6 +3643,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
+                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                    x_value: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -3646,6 +3887,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             modes_chosen: vec![],
                             // CR 702.102a: suspend free-casts are not fused spells.
                             was_fused: false,
+                            x_value: 0,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -4522,6 +4764,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
+                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                    x_value: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -4714,6 +4958,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     champion_exiled_card: None,
                     paired_with: None,
                     tribute_was_paid: false,
+                    // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
+                    x_value: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -4925,6 +5171,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         champion_exiled_card: None,
                         paired_with: None,
                         tribute_was_paid: false,
+                        // CR 107.3m: Tokens are never cast, so x_value is always 0.
+                        x_value: 0,
                     };
 
                     // Add the token to the battlefield.
@@ -5239,8 +5487,13 @@ pub fn counter_stack_object(
         | StackObjectKind::BackupTrigger { .. }
         | StackObjectKind::ChampionETBTrigger { .. }
         | StackObjectKind::ChampionLTBTrigger { .. }
-        | StackObjectKind::SoulbondTrigger { .. } => {
+        | StackObjectKind::SoulbondTrigger { .. }
+        | StackObjectKind::RavenousDrawTrigger { .. }
+        | StackObjectKind::BloodrushAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
+            // card is already in the graveyard (discarded as cost — CR 602.2b). No
+            // pump or keyword is applied, but the card stays in the graveyard.
             // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
             // are placed and no abilities are granted (CR 702.165a).
             // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is

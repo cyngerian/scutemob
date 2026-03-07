@@ -497,6 +497,7 @@ fn test_miracle_cast_for_miracle_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -611,6 +612,7 @@ fn test_miracle_sorcery_ignores_timing() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -807,6 +809,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         was_entwined: false,
         escalate_modes_paid: 0,
         was_fused: false,
+        x_value: 0,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -843,6 +846,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(

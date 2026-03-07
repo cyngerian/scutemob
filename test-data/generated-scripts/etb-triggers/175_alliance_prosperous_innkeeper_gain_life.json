@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_175",
+    "name": "Alliance (ability word) — Prosperous Innkeeper gains life when another creature enters",
+    "description": "Tests the Alliance ability word on Prosperous Innkeeper. Prosperous Innkeeper starts on the battlefield (placed in initial state to avoid its own ETB Treasure token trigger complicating the scenario). P1 casts Llanowar Elves from hand. Llanowar Elves resolves and enters the battlefield. This satisfies Prosperous Innkeeper's Alliance trigger: 'Whenever another creature you control enters, you gain 1 life.' The trigger fires, resolves, and p1's life total increases from 40 to 41. Alliance is an ability word (CR 207.2c) — italicized flavor label with no rules meaning of its own; the underlying mechanic is a standard triggered ability (CR 603.2). The script confirms the trigger fires for a different creature entering under the same controller's control.",
+    "cr_sections_tested": [
+      "207.2c",
+      "601.2",
+      "603.2",
+      "603.3",
+      "608.2",
+      "118.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "alliance",
+      "ability-word",
+      "triggered-ability",
+      "etb",
+      "gain-life",
+      "prosperous-innkeeper"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Prosperous Innkeeper card definition (crates/engine/src/cards/defs/prosperous_innkeeper.rs) has two abilities: (1) WhenEntersBattlefield -> CreateToken(Treasure) and (2) WheneverCreatureEntersBattlefield filtered to controller=You -> GainLife(1). The engine sets exclude_self=true automatically for WheneverCreatureEntersBattlefield triggers. By placing Innkeeper in the initial battlefield state, the ETB Treasure trigger never fires, keeping the script focused on Alliance. P1 casts Llanowar Elves for {G} (1 green mana in pool). Elves resolves, enters battlefield, and triggers Innkeeper's Alliance ability. Both players pass priority; trigger resolves; p1 gains 1 life (40 -> 41). Previous script (failed attempt) cast the Innkeeper during the script, which required handling the Treasure ETB trigger, causing harness failures due to trigger_placed not being a recognized action type. This simplified script avoids that entirely.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Prosperous Innkeeper", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Llanowar Elves; it resolves; Prosperous Innkeeper's Alliance trigger fires and gains 1 life",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Prosperous Innkeeper on battlefield, Llanowar Elves in hand, p1 at 40 life",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Prosperous Innkeeper" }]
+            },
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Llanowar Elves for {G}. Card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Llanowar Elves on stack, hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": null
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Llanowar Elves resolves and enters the battlefield. Innkeeper's Alliance trigger fires."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Llanowar Elves",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Llanowar Elves",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Llanowar Elves resolves and enters the battlefield under p1's control. This is 'another creature you control entering' — Innkeeper's Alliance trigger fires."
+            }
+          ],
+          "note": "Llanowar Elves enters. Prosperous Innkeeper's Alliance trigger fires: 'Whenever another creature you control enters, you gain 1 life.' (CR 603.2)"
+        },
+        {
+          "type": "assert_state",
+          "description": "Alliance trigger on stack; p1 still at 40 life (gain not yet resolved); both creatures on battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Prosperous Innkeeper" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "players.p1.life": 40
+          },
+          "note": "CR 603.3: The triggered ability is placed on the stack. Life gain has not resolved yet."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass priority — Alliance trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Prosperous Innkeeper Alliance",
+          "resolution": [
+            {
+              "effect": "gain_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: p1 gains 1 life. Life total increases from 40 to 41."
+            }
+          ],
+          "note": "Alliance trigger resolves: p1 gains 1 life (40 -> 41)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p1 at 41 life, both creatures on battlefield, stack empty",
+          "assertions": {
+            "players.p1.life": 41,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Prosperous Innkeeper" },
+                { "card": "Llanowar Elves" }
+              ]
+            }
+          },
+          "note": "Alliance (CR 207.2c ability word) triggered when Llanowar Elves entered under p1's control. p1 gained 1 life (40 -> 41)."
+        }
+      ]
+    }
+  ]
+}

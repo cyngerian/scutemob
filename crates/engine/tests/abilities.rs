@@ -52,6 +52,7 @@ fn etb_trigger(description: &str) -> TriggeredAbilityDef {
         intervening_if: None,
         description: description.to_string(),
         effect: None,
+        etb_filter: None,
     }
 }
 
@@ -62,6 +63,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         intervening_if: None,
         description: description.to_string(),
         effect: None,
+        etb_filter: None,
     }
 }
 
@@ -547,6 +549,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -632,6 +635,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -720,6 +724,7 @@ fn test_triggered_ability_apnap_ordering() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -762,6 +767,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
     // "Whenever ~ enters, if your life total is 50 or more, do something."
     let conditional_creature = ObjectSpec::creature(p1, "High Life Watcher", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(50)),
             description: "When ~ enters, if you have 50+ life, do something.".into(),
@@ -812,6 +818,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -837,6 +844,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
     // "When ~ enters, if your life total is 30 or more, do something."
     let conditional_creature = ObjectSpec::creature(p1, "Sanctuary Warden", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::SelfEntersBattlefield,
             intervening_if: Some(InterveningIf::ControllerLifeAtLeast(30)),
             description: "When ~ enters, if you have 30+ life, do something.".into(),
@@ -887,6 +895,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -964,6 +973,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1132,6 +1142,7 @@ fn dies_trigger(description: &str) -> TriggeredAbilityDef {
         intervening_if: None,
         description: description.to_string(),
         effect: None,
+        etb_filter: None,
     }
 }
 
@@ -1145,6 +1156,7 @@ fn dies_draw_trigger() -> TriggeredAbilityDef {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
         }),
+        etb_filter: None,
     }
 }
 
@@ -1881,6 +1893,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");
@@ -1949,6 +1962,7 @@ fn attack_trigger(description: &str) -> TriggeredAbilityDef {
         intervening_if: None,
         description: description.to_string(),
         effect: None,
+        etb_filter: None,
     }
 }
 
@@ -1962,6 +1976,7 @@ fn attack_draw_trigger() -> TriggeredAbilityDef {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
         }),
+        etb_filter: None,
     }
 }
 

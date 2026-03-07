@@ -573,6 +573,13 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::SoulbondTrigger { source_object, .. } => {
             ("soulbond_trigger", Some(*source_object))
         }
+        StackObjectKind::RavenousDrawTrigger {
+            ravenous_permanent, ..
+        } => ("ravenous_draw_trigger", Some(*ravenous_permanent)),
+        StackObjectKind::BloodrushAbility { source_object, .. } => {
+            // source_object is the pre-discard card ID (already in graveyard as cost).
+            ("bloodrush_ability", Some(*source_object))
+        }
     }
 }
 
@@ -852,5 +859,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Fabricate(n) => format!("Fabricate {n}"),
         KeywordAbility::Fuse => "Fuse".to_string(),
         KeywordAbility::Spree => "Spree".to_string(),
+        KeywordAbility::Ravenous => "Ravenous".to_string(),
     }
 }

@@ -257,6 +257,7 @@ fn test_modal_choose_one_mode_zero() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -336,6 +337,7 @@ fn test_modal_choose_one_mode_one() {
             devour_sacrifices: vec![],
             modes_chosen: vec![1],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -407,6 +409,7 @@ fn test_modal_choose_one_mode_two() {
             devour_sacrifices: vec![],
             modes_chosen: vec![2],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -520,6 +523,7 @@ fn test_modal_choose_two_modes() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0, 2], // Choose mode 0 and mode 2.
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -586,6 +590,7 @@ fn test_modal_default_auto_selects_mode_zero() {
             devour_sacrifices: vec![],
             modes_chosen: vec![], // Empty → auto-select mode[0]
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with empty modes_chosen failed: {:?}", e));
@@ -640,6 +645,7 @@ fn test_modal_invalid_index_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![5], // Only 3 modes; index 5 is out of range.
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -702,6 +708,7 @@ fn test_modal_duplicate_index_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0, 0], // Duplicate on choose-one spell.
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -779,6 +786,7 @@ fn test_modal_too_few_modes_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0], // Only 1 mode chosen, but min_modes=2.
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -828,6 +836,7 @@ fn test_modal_too_many_modes_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0, 1, 2], // 3 modes chosen, but max_modes=1.
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -974,6 +983,7 @@ fn test_modal_entwine_overrides_modes_chosen() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0], // modes_chosen=[0] but entwine overrides.
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
@@ -1089,6 +1099,7 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0], // Non-modal spell; modes_chosen=[0] must be rejected.
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1139,6 +1150,7 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
             devour_sacrifices: vec![],
             modes_chosen: vec![2],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1202,6 +1214,7 @@ fn test_modal_copy_inherits_modes() {
             devour_sacrifices: vec![],
             modes_chosen: vec![1],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1386,6 +1399,7 @@ fn test_modal_allow_duplicate_modes() {
             devour_sacrifices: vec![],
             modes_chosen: vec![0, 0], // Duplicate mode 0 — allowed because allow_duplicate_modes=true.
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with duplicate modes failed: {:?}", e));

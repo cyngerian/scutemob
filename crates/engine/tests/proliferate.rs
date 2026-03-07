@@ -768,6 +768,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
     // A creature with "Whenever you proliferate, put a +1/+1 counter on this creature."
     let proliferate_watcher = ObjectSpec::creature(p1, "Core Prowler", 2, 2)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::ControllerProliferates,
             intervening_if: None,
             description:
@@ -838,6 +839,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

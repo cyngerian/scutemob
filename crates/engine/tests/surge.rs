@@ -192,6 +192,7 @@ fn test_surge_basic_cast_with_surge_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -265,6 +266,7 @@ fn test_surge_rejected_no_prior_spell() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -327,6 +329,7 @@ fn test_surge_optional_normal_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -385,6 +388,7 @@ fn test_surge_after_resolved_spell() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -442,6 +446,7 @@ fn test_surge_after_countered_spell() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -536,6 +541,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             },
         );
         assert!(
@@ -608,6 +614,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -690,6 +697,7 @@ fn test_surge_card_without_keyword_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -764,6 +772,7 @@ fn test_surge_reset_at_turn_start() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(
@@ -841,6 +850,7 @@ fn test_surge_reset_at_turn_start() {
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             },
         );
         assert!(
@@ -991,6 +1001,7 @@ fn test_surge_commander_tax_stacks() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1065,6 +1076,7 @@ fn test_surge_cast_alt_cost_tracked() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

@@ -143,6 +143,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -249,6 +250,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -344,6 +346,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -437,6 +440,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -509,6 +513,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -576,6 +581,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1097,6 +1103,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1188,6 +1195,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -2028,6 +2036,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         was_entwined: false,
         escalate_modes_paid: 0,
         was_fused: false,
+        x_value: 0,
     });
 
     assert_eq!(
@@ -2340,6 +2349,7 @@ fn test_full_four_player_commander_game() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

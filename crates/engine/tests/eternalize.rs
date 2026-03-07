@@ -991,6 +991,7 @@ fn test_eternalize_split_second_blocks() {
         was_entwined: false,
         escalate_modes_paid: 0,
         was_fused: false,
+        x_value: 0,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

@@ -28,8 +28,9 @@ pub use continuous_effect::{
 };
 pub use error::GameStateError;
 pub use game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
-    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
+    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent,
+    TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
@@ -370,6 +371,8 @@ impl GameState {
             paired_with: None,
             // CR 400.7: tribute_was_paid is not preserved across zone changes.
             tribute_was_paid: false,
+            // CR 107.3m / CR 400.7: x_value is not preserved across zone changes.
+            x_value: 0,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -523,6 +526,8 @@ impl GameState {
             paired_with: None,
             // CR 400.7: tribute_was_paid is not preserved across zone changes.
             tribute_was_paid: false,
+            // CR 107.3m / CR 400.7: x_value is not preserved across zone changes.
+            x_value: 0,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

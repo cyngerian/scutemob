@@ -941,8 +941,26 @@ pub fn fire_when_enters_triggered_effects(
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect,
-                ..
+                intervening_if,
             } => {
+                // CR 603.4: Check intervening-if condition before executing.
+                // CR 207.2c (Corrupted): "if an opponent has N or more poison counters."
+                if let Some(cond) = intervening_if {
+                    use crate::cards::card_definition::Condition;
+                    let condition_met = match cond {
+                        Condition::OpponentHasPoisonCounters(n) => {
+                            state.players.iter().any(|(pid, ps)| {
+                                *pid != controller && !ps.has_lost && ps.poison_counters >= *n
+                            })
+                        }
+                        // Other conditions are not yet wired into the inline ETB path.
+                        // Treat unrecognized conditions as always true (safe default: fires).
+                        _ => true,
+                    };
+                    if !condition_met {
+                        continue;
+                    }
+                }
                 let mut ctx =
                     EffectContext::new_with_kicker(controller, new_id, vec![], kicker_times_paid);
                 evts.extend(execute_effect(state, effect, &mut ctx));

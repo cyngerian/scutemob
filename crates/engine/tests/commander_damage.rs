@@ -440,6 +440,7 @@ fn test_commander_damage_survives_zone_change() {
                 champion_exiled_card: None,
                 paired_with: None,
                 tribute_was_paid: false,
+                x_value: 0,
             },
             ZoneId::Battlefield,
         )

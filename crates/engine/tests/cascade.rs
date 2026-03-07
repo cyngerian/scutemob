@@ -247,6 +247,7 @@ fn test_cascade_exiles_until_hit() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -420,6 +421,7 @@ fn test_cascade_skips_lands() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -595,6 +597,7 @@ fn test_cascade_combined_mana_value_skip() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

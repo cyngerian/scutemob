@@ -184,6 +184,7 @@ fn test_split_second_blocks_casting_spells() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -228,6 +229,7 @@ fn test_split_second_blocks_casting_spells() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -317,6 +319,7 @@ fn test_split_second_blocks_activated_abilities() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -419,6 +422,7 @@ fn test_split_second_blocks_cycling() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -514,6 +518,7 @@ fn test_split_second_allows_mana_abilities() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -616,6 +621,7 @@ fn test_split_second_allows_pass_priority() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -705,6 +711,7 @@ fn test_split_second_blocks_caster_too() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -742,6 +749,7 @@ fn test_split_second_blocks_caster_too() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -831,6 +839,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -882,6 +891,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -913,6 +923,7 @@ fn test_split_second_triggered_abilities_still_fire() {
     // P1 has a creature on the battlefield with a "whenever a spell is cast" trigger.
     let creature = ObjectSpec::creature(p1, "Spell Watcher", 1, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::AnySpellCast,
             intervening_if: None,
             description:
@@ -965,6 +976,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

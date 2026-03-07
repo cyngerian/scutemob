@@ -183,6 +183,12 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::SoulbondTrigger { source_object, .. } => {
                     ("Soulbond: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::RavenousDrawTrigger {
+                    ravenous_permanent, ..
+                } => ("Ravenous draw: ".to_string(), Some(*ravenous_permanent)),
+                StackObjectKind::BloodrushAbility { source_object, .. } => {
+                    ("Bloodrush: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

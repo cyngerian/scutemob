@@ -237,6 +237,7 @@ fn test_entwine_basic_both_modes_execute() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -360,6 +361,7 @@ fn test_entwine_not_paid_only_first_mode() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -467,6 +469,7 @@ fn test_entwine_insufficient_mana_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(
@@ -540,6 +543,7 @@ fn test_entwine_no_keyword_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(
@@ -647,6 +651,7 @@ fn test_entwine_modes_in_printed_order() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -742,6 +747,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

@@ -432,6 +432,7 @@ fn test_investigate_clue_can_be_activated() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

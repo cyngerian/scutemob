@@ -211,6 +211,10 @@ pub enum TriggerEvent {
     /// `rules/abilities.rs` AttackersDeclared handler.
     /// Used by the Training keyword.
     SelfAttacksWithGreaterPowerAlly,
+    /// CR 207.2c / CR 120.3: Triggers when this creature is dealt damage (> 0
+    /// after prevention). Used by the Enrage ability word. Fires once per
+    /// simultaneous damage event, regardless of how many sources dealt damage.
+    SelfIsDealtDamage,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -228,6 +232,22 @@ pub enum InterveningIf {
     /// in the graveyard with no counters; MoveZone will simply find nothing if
     /// the source has since left the graveyard).
     SourceHadNoCounterOfType(crate::state::types::CounterType),
+}
+
+/// Filter applied to ETB triggers to restrict which entering permanents cause
+/// the trigger to fire. All `true` fields must be satisfied (AND logic).
+///
+/// Used by Alliance ("another creature you control"), Constellation
+/// ("enchantment you control"), Landfall ("land"), etc.
+/// CR 207.2c / CR 603.2
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ETBTriggerFilter {
+    /// If true, the entering permanent must be a creature.
+    pub creature_only: bool,
+    /// If true, the entering permanent must be controlled by the trigger source's controller.
+    pub controller_you: bool,
+    /// If true, the entering permanent must NOT be the trigger source itself ("another").
+    pub exclude_self: bool,
 }
 
 /// A triggered ability definition on a game object (CR 603).
@@ -249,6 +269,12 @@ pub struct TriggeredAbilityDef {
     /// that have no automated effect yet.
     #[serde(default)]
     pub effect: Option<crate::cards::card_definition::Effect>,
+    /// Optional ETB filter for "whenever [another] [creature] [you control] enters"
+    /// triggers. When present, the trigger only fires if the entering permanent
+    /// matches all specified criteria. Used by Alliance, Constellation, Landfall.
+    /// CR 207.2c / CR 603.2
+    #[serde(default)]
+    pub etb_filter: Option<ETBTriggerFilter>,
 }
 
 /// The observable characteristics of a game object (CR 109.3).
@@ -582,6 +608,12 @@ pub struct GameObject {
     /// Reset to false on zone changes (CR 400.7).
     #[serde(default)]
     pub tribute_was_paid: bool,
+    /// CR 107.3m: The value of X chosen when the spell that became this permanent was cast.
+    /// Used by ETB replacement effects and triggers that reference X (e.g., Ravenous CR 702.156a).
+    /// The permanent's own X is 0 per CR 107.3i, but ETB abilities use this stored value.
+    /// Reset to 0 on zone changes (CR 400.7). Copied from StackObject.x_value at resolution.
+    #[serde(default)]
+    pub x_value: u32,
 }
 
 impl GameObject {

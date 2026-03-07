@@ -530,6 +530,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell should succeed");

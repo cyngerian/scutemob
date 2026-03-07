@@ -233,6 +233,7 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (MV 3 creature) failed: {:?}", e));
@@ -328,6 +329,7 @@ fn test_emerge_sacrifice_token_mv_zero() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (token, MV 0) failed: {:?}", e));
@@ -411,6 +413,7 @@ fn test_emerge_sacrifice_high_mv_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| {
@@ -502,6 +505,7 @@ fn test_emerge_sacrifice_must_be_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -580,6 +584,7 @@ fn test_emerge_sacrifice_must_be_own_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -646,6 +651,7 @@ fn test_emerge_without_sacrifice_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -724,6 +730,7 @@ fn test_emerge_mutual_exclusion_with_flashback() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -820,6 +827,7 @@ fn test_emerge_no_keyword_rejects_emerge() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -882,6 +890,7 @@ fn test_emerge_normal_cast_without_emerge() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of emerge creature failed: {:?}", e));
@@ -958,6 +967,7 @@ fn test_emerge_sacrifice_without_emerge_altcost_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

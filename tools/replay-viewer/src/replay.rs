@@ -219,6 +219,7 @@ impl ReplaySession {
                         replicate_count,
                         modes,
                         target_creature,
+                        x_value,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -250,6 +251,7 @@ impl ReplaySession {
                                 0,
                                 modes.clone(),
                                 target_creature.as_deref(),
+                                *x_value,
                                 &current_state,
                                 &player_map,
                             );

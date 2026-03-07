@@ -442,6 +442,7 @@ pub fn handle_activate_ability(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -695,6 +696,7 @@ pub fn handle_cycle_card(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -946,6 +948,7 @@ pub fn handle_activate_forecast(
         modes_chosen: vec![],
         // CR 702.102a: forecast abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -959,6 +962,305 @@ pub fn handle_activate_forecast(
         source_object_id: card,
         stack_object_id: stack_id,
     });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+// ---------------------------------------------------------------------------
+// Bloodrush (CR 207.2c — ability word; underlying mechanics: CR 602)
+// ---------------------------------------------------------------------------
+
+/// Handle an ActivateBloodrush command: validate zone/target/mana, discard self
+/// as cost, and push BloodrushAbility onto the stack.
+///
+/// CR 207.2c: Bloodrush is an ability word. The underlying ability is an activated
+/// ability (CR 602) of the form:
+/// "{cost}, Discard this card: Target attacking creature gets +N/+N
+/// [and gains {keyword}] until end of turn."
+///
+/// Key rules:
+/// - CR 602.2a: The card is in a hidden zone (hand); it is revealed during activation.
+/// - CR 602.2b: The discard is the additional cost; paid before ability goes on stack.
+/// - CR 115: "Target attacking creature" — target must be in `state.combat.attackers`.
+/// - CR 702.61a: Cannot activate while split second is on the stack.
+pub fn handle_activate_bloodrush(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+    target: ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): Bloodrush is an activated ability, not a mana
+    //    ability. It cannot be activated while a spell with split second is on the stack.
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; bloodrush cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Zone check (CR 602.2a): card must be in Hand(player).
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Hand(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateBloodrush: card {:?} is not in Hand({:?}); \
+                 bloodrush can only be activated from hand (CR 602.2a)",
+                card, player
+            )));
+        }
+    }
+
+    // 4. AbilityDefinition check: card must have AbilityDefinition::Bloodrush.
+    //    We look up from the card registry, not the characteristics keywords,
+    //    because bloodrush is an ability word (not a KeywordAbility variant).
+    let card_id_opt = state.object(card)?.card_id.clone();
+    let registry = state.card_registry.clone();
+    let bloodrush_def = card_id_opt
+        .as_ref()
+        .and_then(|cid| registry.get(cid.clone()))
+        .and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Bloodrush {
+                    cost,
+                    power_boost,
+                    toughness_boost,
+                    grants_keyword,
+                } = a
+                {
+                    Some((
+                        cost.clone(),
+                        *power_boost,
+                        *toughness_boost,
+                        grants_keyword.clone(),
+                    ))
+                } else {
+                    None
+                }
+            })
+        })
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "ActivateBloodrush: card {:?} has no AbilityDefinition::Bloodrush entry",
+                card
+            ))
+        })?;
+    let (bloodrush_cost, power_boost, toughness_boost, grants_keyword) = bloodrush_def;
+
+    // 5. Target validation (CR 115): target must be on the battlefield as a creature
+    //    AND currently registered as an attacker in CombatState.
+    {
+        let target_obj = state.objects.get(&target).ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "ActivateBloodrush: target {:?} does not exist",
+                target
+            ))
+        })?;
+        if !matches!(target_obj.zone, ZoneId::Battlefield) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateBloodrush: target {:?} is not on the battlefield (CR 115)",
+                target
+            )));
+        }
+        if !target_obj
+            .characteristics
+            .card_types
+            .contains(&crate::state::types::CardType::Creature)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ActivateBloodrush: target {:?} is not a creature (CR 115)",
+                target
+            )));
+        }
+    }
+    let is_attacking = state
+        .combat
+        .as_ref()
+        .map(|c| c.attackers.contains_key(&target))
+        .unwrap_or(false);
+    if !is_attacking {
+        return Err(GameStateError::InvalidCommand(format!(
+            "ActivateBloodrush: target {:?} is not an attacking creature (CR 115). \
+             Bloodrush requires 'target attacking creature'.",
+            target
+        )));
+    }
+
+    // 6. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if bloodrush_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &bloodrush_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &bloodrush_cost);
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: bloodrush_cost,
+        });
+    }
+
+    // 7. Discard self as cost (CR 602.2b): the card goes to graveyard before
+    //    the ability goes on the stack. Check for Madness first (CR 702.35a).
+    let owner = state.object(card)?.owner;
+    let has_madness = state
+        .object(card)?
+        .characteristics
+        .keywords
+        .contains(&KeywordAbility::Madness);
+    let discard_destination = if has_madness {
+        ZoneId::Exile
+    } else {
+        ZoneId::Graveyard(owner)
+    };
+    let (new_grave_id, _) = state.move_object_to_zone(card, discard_destination)?;
+
+    // Emit CardDiscarded (CR 701.8).
+    events.push(GameEvent::CardDiscarded {
+        player,
+        object_id: card,
+        new_id: new_grave_id,
+    });
+
+    // Handle Madness if present (CR 702.35a): queue Madness trigger.
+    if has_madness {
+        let madness_cost = card_id_opt.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Madness { cost } = a {
+                        Some(cost.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+        state
+            .pending_triggers
+            .push_back(crate::state::stubs::PendingTrigger {
+                source: new_grave_id,
+                ability_index: 0,
+                controller: player,
+                kind: crate::state::stubs::PendingTriggerKind::Madness,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: Some(new_grave_id),
+                madness_cost,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+                echo_cost: None,
+                cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
+                graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
+                soulbond_pair_target: None,
+            });
+    }
+
+    // 8. Push BloodrushAbility onto stack (CR 602.2c).
+    //    The source card is now in the graveyard; source_object records the
+    //    pre-discard ObjectId for attribution only.
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::BloodrushAbility {
+            source_object: card,
+            target_creature: target,
+            power_boost,
+            toughness_boost,
+            grants_keyword,
+        },
+        targets: vec![SpellTarget {
+            target: Target::Object(target),
+            zone_at_cast: state.objects.get(&target).map(|o| o.zone),
+        }],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_entwined: false,
+        escalate_modes_paid: 0,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
+        modes_chosen: vec![],
+        was_fused: false,
+        x_value: 0,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 9. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+
+    // CR 702.21a: Emit PermanentTargeted so Ward triggers fire when the target
+    // creature has Ward. Mirrors the pattern in handle_activate_ability (lines
+    // 464-470) which emits this event for every battlefield permanent targeted
+    // by an activated ability.
+    events.push(GameEvent::PermanentTargeted {
+        target_id: target,
+        targeting_stack_id: stack_id,
+        targeting_controller: player,
+    });
+
     events.push(GameEvent::PriorityGiven { player: active });
 
     Ok(events)
@@ -1121,6 +1423,7 @@ pub fn handle_unearth_card(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1397,6 +1700,7 @@ pub fn handle_ninjutsu(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1610,6 +1914,7 @@ pub fn handle_embalm_card(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1832,6 +2137,7 @@ pub fn handle_eternalize_card(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2053,6 +2359,7 @@ pub fn handle_encore_card(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -4356,6 +4663,32 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
+
+                // CR 207.2c / CR 120.3: Enrage -- "Whenever this creature is dealt damage."
+                // Collect unique creature ObjectIds that received > 0 combat damage in this
+                // simultaneous damage step. Per ruling 2018-01-19, multiple simultaneous
+                // sources trigger Enrage only once per creature per damage event.
+                // CR 603.2g: amount == 0 (fully prevented) does not trigger.
+                let mut damaged_creatures: Vec<ObjectId> = Vec::new();
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue;
+                    }
+                    if let CombatDamageTarget::Creature(creature_id) = &assignment.target {
+                        if !damaged_creatures.contains(creature_id) {
+                            damaged_creatures.push(*creature_id);
+                        }
+                    }
+                }
+                for creature_id in damaged_creatures {
+                    collect_triggers_for_event(
+                        state,
+                        &mut triggers,
+                        TriggerEvent::SelfIsDealtDamage,
+                        Some(creature_id),
+                        None,
+                    );
+                }
             }
 
             GameEvent::Proliferated { controller, .. } => {
@@ -4541,6 +4874,23 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
+            // CR 207.2c / CR 120.3: Enrage -- "Whenever this creature is dealt damage."
+            // Non-combat damage to a creature fires SelfIsDealtDamage on that creature.
+            // CR 603.2g: amount == 0 (fully prevented) does not trigger.
+            GameEvent::DamageDealt { target, amount, .. } => {
+                if *amount > 0 {
+                    if let CombatDamageTarget::Creature(creature_id) = target {
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::SelfIsDealtDamage,
+                            Some(*creature_id),
+                            None,
+                        );
+                    }
+                }
+            }
+
             _ => {}
         }
     }
@@ -4585,6 +4935,43 @@ fn collect_triggers_for_event(
         for (idx, trigger_def) in obj.characteristics.triggered_abilities.iter().enumerate() {
             if trigger_def.trigger_on != event_type {
                 continue;
+            }
+
+            // CR 603.2 / CR 207.2c: Apply ETB filter for Alliance and similar
+            // "whenever [another] [creature] [you control] enters" triggers.
+            // All filter conditions must pass (AND logic).
+            if let Some(ref etb_filter) = trigger_def.etb_filter {
+                if let Some(entering_id) = entering_object {
+                    // exclude_self: "another" qualifier -- skip if the entering
+                    // permanent IS the trigger source.
+                    if etb_filter.exclude_self && obj_id == entering_id {
+                        continue;
+                    }
+                    if let Some(entering_obj) = state.objects.get(&entering_id) {
+                        // creature_only: entering permanent must be a creature.
+                        if etb_filter.creature_only
+                            && !entering_obj
+                                .characteristics
+                                .card_types
+                                .contains(&CardType::Creature)
+                        {
+                            continue;
+                        }
+                        // controller_you: entering permanent must share controller
+                        // with the trigger source's controller.
+                        if etb_filter.controller_you && entering_obj.controller != obj.controller {
+                            continue;
+                        }
+                    } else {
+                        // Entering object not found -- skip conservatively.
+                        continue;
+                    }
+                }
+                // If no entering_object provided but filter is set, skip --
+                // ETB filters require knowing the entering object.
+                else {
+                    continue;
+                }
             }
 
             // CR 603.4: Check intervening-if at trigger time.
@@ -4862,6 +5249,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         modes_chosen: vec![],
                         // CR 702.102a: storm copies are never fused spells.
                         was_fused: false,
+                        x_value: 0,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5185,6 +5573,20 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         pair_target: trigger.soulbond_pair_target.unwrap_or(trigger.source),
                     }
                 }
+                PendingTriggerKind::RavenousDraw => {
+                    // CR 702.156a: Ravenous draw trigger. Read x_value from the GameObject
+                    // (stored at ETB time per CR 107.3m). Intervening-if re-check happens
+                    // at resolution (in the RavenousDrawTrigger SOK arm).
+                    let x_value = state
+                        .objects
+                        .get(&trigger.source)
+                        .map(|o| o.x_value)
+                        .unwrap_or(0);
+                    StackObjectKind::RavenousDrawTrigger {
+                        ravenous_permanent: trigger.source,
+                        x_value,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -5232,6 +5634,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 modes_chosen: vec![],
                 // CR 702.102a: myriad attack copies are never fused spells.
                 was_fused: false,
+                x_value: 0,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -5616,6 +6019,7 @@ pub fn handle_crew_vehicle(
         modes_chosen: vec![],
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5866,6 +6270,7 @@ pub fn handle_scavenge_card(
         modes_chosen: vec![],
         // CR 702.102a: scavenge abilities are never fused spells.
         was_fused: false,
+        x_value: 0,
     };
     state.stack_objects.push_back(stack_obj);
 

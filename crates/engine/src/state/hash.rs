@@ -17,8 +17,9 @@ use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
 use super::game_object::{
-    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, GameObject, InterveningIf,
-    ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent, TriggeredAbilityDef,
+    AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
+    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent,
+    TriggeredAbilityDef,
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState};
 use super::replacement_effect::{
@@ -656,6 +657,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Fuse => 133u8.hash_into(hasher),
             // Spree (discriminant 134) -- CR 702.172
             KeywordAbility::Spree => 134u8.hash_into(hasher),
+            // Ravenous (discriminant 135) -- CR 702.156
+            KeywordAbility::Ravenous => 135u8.hash_into(hasher),
         }
     }
 }
@@ -862,6 +865,8 @@ impl HashInto for GameObject {
         self.paired_with.hash_into(hasher);
         // Tribute (CR 702.104b) — whether tribute was paid for this permanent
         self.tribute_was_paid.hash_into(hasher);
+        // X value (CR 107.3m) — the value of X chosen at cast time for ETB abilities
+        self.x_value.hash_into(hasher);
     }
 }
 
@@ -1405,6 +1410,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfBecomesBlocked => 18u8.hash_into(hasher),
             // CR 702.149a: Training "attacks with greater power ally" trigger — discriminant 19
             TriggerEvent::SelfAttacksWithGreaterPowerAlly => 19u8.hash_into(hasher),
+            // CR 207.2c / CR 120.3: Enrage "whenever this creature is dealt damage" — discriminant 20
+            TriggerEvent::SelfIsDealtDamage => 20u8.hash_into(hasher),
         }
     }
 }
@@ -1466,12 +1473,21 @@ impl HashInto for InterveningIf {
     }
 }
 
+impl HashInto for ETBTriggerFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.creature_only.hash_into(hasher);
+        self.controller_you.hash_into(hasher);
+        self.exclude_self.hash_into(hasher);
+    }
+}
+
 impl HashInto for TriggeredAbilityDef {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.trigger_on.hash_into(hasher);
         self.intervening_if.hash_into(hasher);
         self.description.hash_into(hasher);
         self.effect.hash_into(hasher);
+        self.etb_filter.hash_into(hasher);
     }
 }
 
@@ -1925,6 +1941,35 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 pair_target.hash_into(hasher);
             }
+            // RavenousDrawTrigger (discriminant 50) -- CR 702.156a
+            StackObjectKind::RavenousDrawTrigger {
+                ravenous_permanent,
+                x_value,
+            } => {
+                50u8.hash_into(hasher);
+                ravenous_permanent.hash_into(hasher);
+                x_value.hash_into(hasher);
+            }
+            // BloodrushAbility (discriminant 51) -- CR 207.2c
+            StackObjectKind::BloodrushAbility {
+                source_object,
+                target_creature,
+                power_boost,
+                toughness_boost,
+                grants_keyword,
+            } => {
+                51u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target_creature.hash_into(hasher);
+                power_boost.hash_into(hasher);
+                toughness_boost.hash_into(hasher);
+                if let Some(kw) = grants_keyword {
+                    1u8.hash_into(hasher);
+                    kw.hash_into(hasher);
+                } else {
+                    0u8.hash_into(hasher);
+                }
+            }
         }
     }
 }
@@ -2025,6 +2070,8 @@ impl HashInto for StackObject {
         }
         // Fuse (CR 702.102a) — spell was cast as a fused split spell (both halves from hand)
         self.was_fused.hash_into(hasher);
+        // X value (CR 107.3m) — the value of X chosen at cast time
+        self.x_value.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3175,6 +3222,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WheneverYouInvestigate => 20u8.hash_into(hasher),
             // CR 702.104b: "When ~ enters, if tribute wasn't paid" — discriminant 21
             TriggerCondition::TributeNotPaid => 21u8.hash_into(hasher),
+            // CR 207.2c / CR 120.3: "Whenever this creature is dealt damage" (Enrage) — discriminant 22
+            TriggerCondition::WhenDealtDamage => 22u8.hash_into(hasher),
         }
     }
 }
@@ -3218,6 +3267,11 @@ impl HashInto for Condition {
             Condition::WasBargained => 10u8.hash_into(hasher),
             // Cleave condition (discriminant 11) — CR 702.148a
             Condition::WasCleaved => 11u8.hash_into(hasher),
+            // Corrupted condition (discriminant 12) — CR 207.2c ability word
+            Condition::OpponentHasPoisonCounters(n) => {
+                12u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -3853,6 +3907,24 @@ impl HashInto for AbilityDefinition {
                 card_type.hash_into(hasher);
                 effect.hash_into(hasher);
                 targets.hash_into(hasher);
+            }
+            // Bloodrush (discriminant 52) -- CR 207.2c (ability word)
+            AbilityDefinition::Bloodrush {
+                cost,
+                power_boost,
+                toughness_boost,
+                grants_keyword,
+            } => {
+                52u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                power_boost.hash_into(hasher);
+                toughness_boost.hash_into(hasher);
+                if let Some(kw) = grants_keyword {
+                    1u8.hash_into(hasher);
+                    kw.hash_into(hasher);
+                } else {
+                    0u8.hash_into(hasher);
+                }
             }
         }
     }

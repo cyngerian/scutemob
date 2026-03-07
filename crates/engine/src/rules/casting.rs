@@ -78,6 +78,7 @@ pub fn handle_cast_spell(
     devour_sacrifices: Vec<ObjectId>,
     mut modes_chosen: Vec<usize>,
     fuse: bool,
+    x_value: u32,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -2671,6 +2672,19 @@ pub fn handle_cast_spell(
         )?;
     }
 
+    // CR 107.3m: Add the chosen X value to the generic portion of the mana cost.
+    // X spells have an implicit variable generic component. The player declares
+    // x_value at cast time, which is added to the total cost here.
+    // Non-X spells pass x_value = 0 (no change to mana cost).
+    let mana_cost = if x_value > 0 {
+        mana_cost.map(|mut c| {
+            c.generic += x_value;
+            c
+        })
+    } else {
+        mana_cost
+    };
+
     // CR 601.2f-h: Pay the mana cost if the card has one.
     let mut events = Vec::new();
 
@@ -3068,6 +3082,8 @@ pub fn handle_cast_spell(
         modes_chosen: validated_modes_chosen,
         // CR 702.102a: Whether this spell was cast as a fused split spell (both halves from hand).
         was_fused: casting_with_fuse,
+        // CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
+        x_value,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3216,6 +3232,7 @@ pub fn handle_cast_spell(
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
+            x_value: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3282,6 +3299,7 @@ pub fn handle_cast_spell(
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
+            x_value: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3349,6 +3367,7 @@ pub fn handle_cast_spell(
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
+            x_value: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3410,6 +3429,7 @@ pub fn handle_cast_spell(
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
+            x_value: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3473,6 +3493,7 @@ pub fn handle_cast_spell(
             modes_chosen: vec![],
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
+            x_value: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

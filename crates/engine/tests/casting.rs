@@ -70,6 +70,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -148,6 +149,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(result.is_ok());
@@ -213,6 +215,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -277,6 +280,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(
@@ -344,6 +348,7 @@ fn test_cast_spell_lifo_stack_order() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -384,6 +389,7 @@ fn test_cast_spell_lifo_stack_order() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -450,6 +456,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(
@@ -511,6 +518,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -566,6 +574,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -638,6 +647,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -677,6 +687,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -730,6 +741,7 @@ fn test_cast_spell_land_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -786,6 +798,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -846,6 +859,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

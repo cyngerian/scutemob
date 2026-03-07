@@ -160,6 +160,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     escalate_modes,
                     modes,
                     target_creature,
+                    x_value,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -191,6 +192,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             *escalate_modes,
                             modes.clone(),
                             target_creature.as_deref(),
+                            *x_value,
                             &state,
                             &players,
                         );

@@ -134,6 +134,7 @@ fn cast_spell(
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
 }
@@ -561,6 +562,7 @@ fn test_affinity_combined_with_improvise() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect(

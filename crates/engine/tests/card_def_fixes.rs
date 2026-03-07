@@ -125,6 +125,7 @@ fn test_read_the_bones_scry_then_draw() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -311,6 +312,7 @@ fn test_path_to_exile_optional_search() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -815,6 +817,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("casting Rest in Peace failed");

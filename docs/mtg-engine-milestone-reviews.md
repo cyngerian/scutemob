@@ -1890,7 +1890,50 @@ was discovered during the Amass game-script phase.
 
 | ID | Severity | File | Description | Status |
 |----|----------|------|-------------|--------|
-| MR-B9-01 | **LOW** | `rules/turn_actions.rs` — `upkeep_actions()` | **Generic CardDef upkeep triggers never fire.** `upkeep_actions()` only queues hardcoded keyword ability triggers (Suspend, Vanishing, Fading, Echo, Cumulative Upkeep, Forecast). Cards that declare `TriggerCondition::AtBeginningOfYourUpkeep` in their `CardDefinition::abilities` vec (e.g., Dreadhorde Invasion) silently never have their upkeep trigger queued during actual gameplay. The same gap likely exists for `AtBeginningOfYourDraw`, `AtBeginningOfCombat`, etc. **Fix:** After the keyword-specific trigger block in `upkeep_actions()`, add a general pass that iterates battlefield permanents, reads their `CardDefinition::abilities`, and queues any triggered ability with `TriggerCondition::AtBeginningOfYourUpkeep` where the trigger controller matches the current active player. Similar passes needed for other step-based trigger conditions. Medium effort, cross-cutting. Recommend fixing before B10 game scripts if any B10 cards use upkeep triggers. | OPEN |
+| MR-B9-01 | **LOW** | `rules/turn_actions.rs` — `upkeep_actions()` | **Generic CardDef upkeep triggers never fire.** `upkeep_actions()` only queues hardcoded keyword ability triggers (Suspend, Vanishing, Fading, Echo, Cumulative Upkeep, Forecast). Cards that declare `TriggerCondition::AtBeginningOfYourUpkeep` in their `CardDefinition::abilities` vec (e.g., Dreadhorde Invasion) silently never have their upkeep trigger queued during actual gameplay. The same gap likely exists for `AtBeginningOfYourDraw`, `AtBeginningOfCombat`, etc. **Fix:** After the keyword-specific trigger block in `upkeep_actions()`, add a general pass that iterates battlefield permanents, reads their `CardDefinition::abilities`, and queues any triggered ability with `TriggerCondition::AtBeginningOfYourUpkeep` where the trigger controller matches the current active player. Similar passes needed for other step-based trigger conditions. Medium effort, cross-cutting. Recommend fixing before B10 game scripts if any B10 cards use upkeep triggers. | **CLOSED** — fixed in W1-B10: added generic CardDef trigger sweep after keyword-specific block in `upkeep_actions()` (commit `W1-B10: Batch 10 complete`) |
+
+---
+
+## W1-B10: Batch 10 Review (2026-03-07)
+
+Batch 10 implemented 7 ETB/linked-ability keywords: Devour, Backup, Champion, Totem Armor (Umbra Armor),
+Living Metal, Soulbond, Fortify. Per-ability findings caught and fixed inline via implement→review→fix
+auto-chain. MR-B9-01 (generic upkeep trigger gap) also fixed during this batch.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B10-01 | **HIGH** | `state/types.rs` — `PendingTrigger` hash impl | **Backup trigger hash incomplete.** `PendingTrigger`'s custom `Hash` impl did not include `backup_abilities` or `backup_n` fields (nor 4 fields added in B8). Two `BackupTrigger` instances with different target abilities could collide in `HashSet`-based dedup, causing one to be silently dropped. **Fix:** Added all missing fields to the hash impl. | **CLOSED** |
+| MR-B10-02 | **MEDIUM** | `rules/replacement.rs` — Champion LTB handler | **Champion LTB used keyword guard instead of `champion_exiled_card`.** The linked LTB trigger (CR 607.2a) was gated on the Champion keyword still being present on the permanent, but the exiled card should be returned regardless of whether the ability text is visible. **Fix:** Changed guard from `has_keyword(Champion)` to `obj.champion_exiled_card.is_some()`. | **CLOSED** |
+| MR-B10-03 | **MEDIUM** | `rules/replacement.rs` — Totem Armor check | **Phased-out permanents not excluded from Totem Armor replacement scan.** The check iterated all Auras on the battlefield without filtering `is_phased_in()`, meaning a phased-out Umbra Armor could absorb a destroy event it shouldn't be able to. **Fix:** Added `is_phased_in()` filter to the Aura scan. | **CLOSED** |
+| MR-B10-04 | **MEDIUM** | `rules/replacement.rs` — Totem Armor multi-instance | **Non-deterministic Aura selection when multiple Umbra Armors present.** When more than one Totem Armor Aura was attached, the engine picked the first from an unordered iterator. CR 702.89b specifies the controller chooses. **Fix:** Selection changed to lowest ObjectId as a deterministic fallback (player choice deferred — LOW). | **CLOSED** |
+| MR-B10-05 | **MEDIUM** | `rules/replacement.rs` — Soulbond pairing fizzle | **Soulbond fizzle check used base types instead of characteristic types.** `calculate_characteristics()` was called to get types for the fizzle guard, but base card types do not reflect layer modifications (e.g., Living Metal adds Creature type in Layer 4). A card with a layer-granted Creature type would incorrectly fizzle the Soulbond pairing. **Fix:** Changed to use the runtime characteristic layer result. | **CLOSED** |
+| MR-B10-06 | **MEDIUM** | `rules/replacement.rs` — Fortify activation guard | **Missing CR 301.6 creature-type check on Fortify.** A Fortification could be attached to any land, including lands that had become creatures (e.g., via Living Metal or animation effects). CR 301.6 states Fortifications can only attach to non-creature lands. **Fix:** Added `!has_creature_type()` guard to `AttachFortification` effect execution. | **CLOSED** |
+| MR-B10-07 | **LOW** | `rules/replacement.rs` — Fortify | **Fortify activation does not emit a `GameEvent::FortificationMoved` event when re-attaching to a different land.** Move is silent from the event stream perspective. **Fix:** Emitted `FortificationAttached` in the re-attach path as well. | **CLOSED** |
+| MR-B10-08 | **LOW** | `rules/replacement.rs` — Fortify SBA | **Fortify SBA does not check non-creature guard when the land becomes a creature after attachment.** If a Fortification is attached to a land that later becomes a creature, the SBA should detach it (CR 704.5s analogy). **Fix:** Added creature-check to the Fortify SBA. | **CLOSED** |
+
+---
+
+## W1-B11: Batch 11 Review (2026-03-07)
+
+Batch 11 implemented 5 abilities completing the Modal Choice system and related patterns:
+Modal Choice (CR 700.2), Tribute (CR 702.104), Fabricate (CR 702.123), Fuse (CR 702.102), Spree (CR 702.172).
+Modal Choice also closes the last P2 gap (P2 now 17/17). Per-ability findings caught and fixed inline.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B11-01 | **HIGH** | `rules/copy.rs` — copy_spell | **Copies of fused spells reset `was_fused` to false.** `copy_spell()` initialized `was_fused: false` on the StackObject copy. Per CR 707.2, a copy of an object has the same characteristics as the original — a copy of a fused spell is also fused. If the copy resolved with `was_fused: false`, the right half effect was never executed. **Fix:** Changed to `was_fused: original.was_fused`. | **CLOSED** |
+| MR-B11-02 | **HIGH** | `state/stack.rs` — StackObject doc | **`was_fused` doc comment contradicted the correct behavior.** Comment read "copies set this to false" which would instruct future card authors to override the fused flag, compounding MR-B11-01. **Fix:** Updated doc to state "copies propagate this field per CR 707.2; do not override in copy_spell". | **CLOSED** |
+| MR-B11-03 | **MEDIUM** | `rules/casting.rs` — Modal Choice validation | **No validation that `modes_chosen` is non-empty before cast.** A `CastSpell` with an empty `modes_chosen` vec was accepted and resolved, executing zero effects. **Fix:** Added guard: if `modes` is `Some` and `modes_chosen` is empty, return `Err(EngineError::InvalidAction)`. | **CLOSED** |
+| MR-B11-04 | **MEDIUM** | `rules/casting.rs` — Modal Choice validation | **No validation that `modes_chosen` indices are in-range.** An out-of-range index would panic on slice access at resolution time rather than returning a clean error at cast time. **Fix:** Added bounds check: if any `modes_chosen` index >= `modes.len()`, return `Err`. | **CLOSED** |
+| MR-B11-05 | **MEDIUM** | `rules/casting.rs` — Modal Choice duplicate check | **Duplicate mode indices not rejected when `allow_duplicate_modes: false`.** The default (`false`) should prohibit the same mode index appearing twice. **Fix:** Added dedup check when `!allow_duplicate_modes`. | **CLOSED** |
+| MR-B11-06 | **MEDIUM** | `rules/replacement.rs` — Fabricate token fallback | **Fabricate token fallback test used `expect` on a still-present permanent.** The test for the "permanent left battlefield before token creation" fallback path (2016-09-20 Fabricate ruling) asserted the Servo token was created while the source was still on the battlefield, so it hit the counter path instead. **Fix:** Revised test to SBA-kill the source before the token fallback assertion. | **CLOSED** |
+| MR-B11-07 | **MEDIUM** | `rules/casting.rs` — Spree mode order | **Spree modes executed in declaration order rather than ascending mode-index order.** CR 700.2a requires modes to be executed in ascending numeric order (lowest first). A script declaring modes `[2, 0]` would apply mode 2's effect before mode 0. **Fix:** Added `modes_chosen.sort_unstable()` after accumulating Spree costs in `casting.rs`; replaced commutative test with structural assertion (`stack_obj.modes_chosen == [0, 2]` when input was `[2, 0]`). | **CLOSED** |
+| MR-B11-08 | **LOW** | `crates/engine/tests/spree.rs` | **Spree tests don't cover the case where mode_costs are summed with a base cost.** Only pure-Spree (no base mana cost) cards are tested. DSL limitation (no base cost in Final Showdown definition) — deferred until a Spree card with a base cost is authored. | **OPEN (deferred)** |
+| MR-B11-09 | **LOW** | `crates/engine/tests/spree.rs` | **No test for casting a Spree spell with zero additional modes selected (base-cost-only path).** The minimum-one-mode validation is tested, but not the exact error message or code path for zero modes on a Spree card with a non-Spree base. Deferred. | **OPEN (deferred)** |
 
 ---
 
@@ -1898,23 +1941,23 @@ was discovered during the Amass game-script phase.
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 234 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9) |
+| Total unique issue IDs | 252 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
-| HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
+| HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
-| MEDIUM (CLOSED) | 49 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
+| MEDIUM (CLOSED) | 60 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 40 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 1 B9: MR-B9-01) |
-| LOW (CLOSED) | 36 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03: see "W3 Remediation" section above) |
+| LOW (OPEN) | 41 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09) |
+| LOW (CLOSED) | 39 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08) |
 | LOW (DEFERRED) | 5 |
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
-| Milestones reviewed | 12 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5) |
+| Milestones reviewed | 14 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B6 complete (2026-03-05)**: Bargain, Emerge, Spectacle, Surge, Casualty, Assist — commit `322bfae`; 1479 tests; 128 validated; P4 36/88 |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete) |
 
-**Engine source LOC (M0-M9.4)**: ~17,800 lines (+2,700 M9.4)
-**Engine test LOC (M1-M9.4)**: ~25,400 lines (+4,700 M9.4)
+**Engine source LOC (M0-M9.4 baseline)**: ~17,800 lines (+2,700 M9.4); W1-B0 through B11 added ~6,500+ lines (71 abilities, new infra fields, effect variants, trigger kinds)
+**Engine test LOC (M1-M9.4 baseline)**: ~25,400 lines (+4,700 M9.4); W1-B0 through B11 added ~8,000+ lines (18 new test files, 276 unit tests + 93 scripts)
 **Replay viewer LOC (M9.5)**: ~2,200 Rust + ~2,400 Svelte/JS = ~4,600 lines
-**Total test count**: 1479 (all passing, as of W1-B6 completion 2026-03-05)
+**Total test count**: 1754 (all passing, as of W1-B11 completion 2026-03-07)

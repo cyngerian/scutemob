@@ -109,6 +109,12 @@ pub enum PendingTriggerKind {
     /// sentence of CR 702.95a). The soulbond creature is the source;
     /// soulbond_pair_target carries the entering creature.
     SoulbondOtherETB,
+    /// CR 702.156a: Ravenous draw trigger -- "When this permanent enters, if X is 5
+    /// or more, draw a card." X is the value chosen at cast time (CR 107.3m).
+    /// Intervening-if: checked at trigger time (in resolution.rs) and at resolution
+    /// (in the RavenousDrawTrigger SOK arm). Since X is immutable after cast, the
+    /// re-check always passes if it triggered.
+    RavenousDraw,
     // Add new trigger kinds here as abilities are implemented
 }
 

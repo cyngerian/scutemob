@@ -97,6 +97,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

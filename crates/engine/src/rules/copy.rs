@@ -236,6 +236,8 @@ pub fn copy_spell_on_stack(
         // CR 707.2: Copies copy choices made during casting, including the fuse choice.
         // A copy of a fused split spell also resolves both halves (left then right).
         was_fused: original.was_fused,
+        // CR 107.3m: Copies inherit the same X value as the original (ruling 2022-10-07).
+        x_value: original.x_value,
     };
 
     // Push the copy onto the stack (above the original).
@@ -445,6 +447,7 @@ pub fn resolve_cascade(
                 modes_chosen: vec![],
                 // CR 702.102a: cascade free-cast spells are not fused (requires hand — CR 702.102a).
                 was_fused: false,
+                x_value: 0,
             };
             state.stack_objects.push_back(stack_obj);
 

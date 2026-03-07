@@ -75,6 +75,10 @@ pub struct EffectContext {
     /// Used by `Condition::WasCleaved`. Set from `StackObject.was_cleaved`
     /// at spell resolution.
     pub was_cleaved: bool,
+    /// CR 107.3m: The value of X for this spell or ability.
+    /// Set from StackObject.x_value at resolution so EffectAmount::XValue resolves correctly.
+    /// 0 for non-X spells and for abilities that don't carry an X value.
+    pub x_value: u32,
 }
 
 impl EffectContext {
@@ -89,6 +93,7 @@ impl EffectContext {
             was_overloaded: false,
             was_bargained: false,
             was_cleaved: false,
+            x_value: 0,
         }
     }
 
@@ -108,6 +113,7 @@ impl EffectContext {
             was_overloaded: false,
             was_bargained: false,
             was_cleaved: false,
+            x_value: 0,
         }
     }
 
@@ -1508,6 +1514,7 @@ fn execute_effect_inner(
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
                             was_cleaved: ctx.was_cleaved,
+                            x_value: ctx.x_value,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1528,6 +1535,7 @@ fn execute_effect_inner(
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
                             was_cleaved: ctx.was_cleaved,
+                            x_value: ctx.x_value,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2591,7 +2599,8 @@ fn resolve_player_target_list(
 fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &EffectContext) -> i32 {
     match amount {
         EffectAmount::Fixed(n) => *n,
-        EffectAmount::XValue => 0, // M9+: X-cost support
+        // CR 107.3m: X resolves to the value chosen at cast time, stored in ctx.x_value.
+        EffectAmount::XValue => ctx.x_value as i32,
         EffectAmount::PowerOf(target) => {
             let targets = resolve_effect_target_list(state, target, ctx);
             targets
@@ -2805,6 +2814,8 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         champion_exiled_card: None,
         paired_with: None,
         tribute_was_paid: false,
+        // CR 107.3m: Tokens are never cast, so x_value is always 0.
+        x_value: 0,
     }
 }
 
@@ -3118,6 +3129,13 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
         Condition::WasBargained => ctx.was_bargained,
         // CR 702.148a: "if this spell's cleave cost was paid" — true when cleaved.
         Condition::WasCleaved => ctx.was_cleaved,
+        // CR 207.2c (Corrupted ability word): "if an opponent has N or more poison counters."
+        // In multiplayer Commander, true if ANY living opponent of the controller has >= N
+        // poison counters. Eliminated opponents (has_lost == true) are excluded.
+        Condition::OpponentHasPoisonCounters(n) => state
+            .players
+            .iter()
+            .any(|(pid, ps)| *pid != ctx.controller && !ps.has_lost && ps.poison_counters >= *n),
     }
 }
 

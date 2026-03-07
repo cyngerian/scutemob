@@ -335,6 +335,11 @@ pub enum ScriptAction {
         /// Example: "Grizzly Bears"
         #[serde(default)]
         target_creature: Option<String>,
+        /// CR 107.3m: For `cast_spell` (and variants) with X in the mana cost.
+        /// The value chosen for X at cast time. 0 for non-X spells (default).
+        /// Example: 5 means X=5 for a spell like {X}{G}.
+        #[serde(default)]
+        x_value: u32,
         cr_ref: Option<String>,
         note: Option<String>,
     },

@@ -80,6 +80,7 @@ fn any_etb_trigger(description: &str) -> TriggeredAbilityDef {
         intervening_if: None,
         description: description.to_string(),
         effect: None,
+        etb_filter: None,
     }
 }
 
@@ -221,6 +222,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -390,6 +392,7 @@ fn test_two_panharmonicons_triple_triggers() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -541,6 +544,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -690,6 +694,7 @@ fn test_panharmonicon_registration_via_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -754,6 +759,7 @@ fn test_panharmonicon_registration_via_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

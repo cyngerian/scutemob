@@ -575,6 +575,31 @@ pub enum AbilityDefinition {
         /// Target requirements for the right half's spell.
         targets: Vec<TargetRequirement>,
     },
+
+    /// CR 207.2c: Bloodrush — ability word. Activated ability from hand.
+    ///
+    /// "{cost}, Discard this card: Target attacking creature gets +N/+M
+    /// [and gains {keyword}] until end of turn."
+    ///
+    /// Bloodrush is an ability word (CR 207.2c), not a keyword — it has no
+    /// individual CR entry. The underlying rules are CR 602 (activated abilities).
+    ///
+    /// The card is discarded as cost before the ability goes on the stack (CR 602.2b).
+    /// If the ability is countered (e.g., by Stifle), the card remains in the
+    /// graveyard — it was already consumed as cost.
+    ///
+    /// `cost`: mana cost of the bloodrush activation.
+    /// `power_boost`: the +N to power until end of turn.
+    /// `toughness_boost`: the +M to toughness until end of turn.
+    /// `grants_keyword`: optional keyword granted to the target until end of turn.
+    ///
+    /// Discriminant 52.
+    Bloodrush {
+        cost: ManaCost,
+        power_boost: i32,
+        toughness_boost: i32,
+        grants_keyword: Option<KeywordAbility>,
+    },
 }
 
 /// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).
@@ -1141,6 +1166,13 @@ pub enum TriggerCondition {
     /// intervening-if condition: the trigger checks the condition at fire time
     /// and again at resolution (CR 603.4).
     TributeNotPaid,
+    /// CR 207.2c / CR 120.3: "Whenever this creature is dealt damage" -- Enrage ability word.
+    ///
+    /// Fires when the source creature receives > 0 damage from any source (combat
+    /// or non-combat). Per CR 603.2g, if all damage is prevented (final amount = 0),
+    /// the trigger does not fire. Per ruling 2018-01-19, if multiple sources deal
+    /// damage simultaneously (e.g., combat), triggers only once per damage event.
+    WhenDealtDamage,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -1193,6 +1225,12 @@ pub enum Condition {
     /// Used in card definitions to branch between restricted (normal cast) and
     /// broadened (cleaved cast) effects.
     WasCleaved,
+    /// CR 207.2c (Corrupted ability word): "if an opponent has N or more poison counters."
+    ///
+    /// Checked at the current game state. In multiplayer Commander, true if ANY living
+    /// opponent of the source object's controller has >= N poison counters.
+    /// Eliminated opponents (has_lost == true) are ignored.
+    OpponentHasPoisonCounters(u32),
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

@@ -435,6 +435,7 @@ fn test_foretell_cannot_cast_same_turn() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -547,6 +548,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -926,6 +928,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1035,6 +1038,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1140,6 +1144,7 @@ fn test_foretell_sorcery_timing_restriction() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1245,6 +1250,7 @@ fn test_foretell_instant_timing() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1476,6 +1482,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1610,6 +1617,7 @@ fn test_foretell_requires_is_foretold_flag() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

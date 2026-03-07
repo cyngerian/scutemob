@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 12: Ability Words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush) | available | — | Batch 11 complete; claim to start B12 |
+| W1: Abilities | Batch 12: Ability Words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush) | ACTIVE | 2026-03-07 | Chained auto-run: all 5 abilities via /implement-ability agent workflow |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

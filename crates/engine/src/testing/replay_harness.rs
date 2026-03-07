@@ -24,9 +24,10 @@ use crate::testing::script_schema::{
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
-    CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, Effect, GameState,
-    GameStateBuilder, KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step,
-    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, ETBTriggerFilter, Effect,
+    GameState, GameStateBuilder, KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId,
+    Step, TargetController, TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef,
+    ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -282,6 +283,9 @@ pub fn translate_player_action(
     // to receive +1/+1 counters. Required for `scavenge_card`; `None` for all other
     // action types.
     target_creature_name: Option<&str>,
+    // CR 107.3m: For `cast_spell` (and variants) with X in the mana cost.
+    // The value chosen for X at cast time. 0 for non-X spells (default).
+    x_value: u32,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -343,6 +347,8 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                // CR 107.3m: Propagate x_value from the script action to CastSpell.
+                x_value,
             })
         }
 
@@ -379,6 +385,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -412,6 +419,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -445,6 +453,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -479,6 +488,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -513,6 +523,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -552,6 +563,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -605,6 +617,32 @@ pub fn translate_player_action(
             Some(Command::CycleCard {
                 player,
                 card: card_id,
+            })
+        }
+
+        // CR 207.2c: Activate a bloodrush ability from hand during combat.
+        // card_name is the name of the bloodrush card in the player's hand.
+        // targets[0] is the attacking creature to pump.
+        "activate_bloodrush" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            let target_id = target_list
+                .iter()
+                .find_map(|t| match t {
+                    crate::state::targeting::Target::Object(id) => Some(*id),
+                    _ => None,
+                })
+                .ok_or_else(|| {
+                    format!(
+                        "activate_bloodrush: no valid Object target found for player {:?}",
+                        player
+                    )
+                })
+                .ok()?;
+            Some(Command::ActivateBloodrush {
+                player,
+                card: card_id,
+                target: target_id,
             })
         }
 
@@ -896,6 +934,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -942,6 +981,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -976,6 +1016,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1013,6 +1054,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1050,6 +1092,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1084,6 +1127,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1118,6 +1162,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1151,6 +1196,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1184,6 +1230,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1217,6 +1264,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1254,6 +1302,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1290,6 +1339,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1324,6 +1374,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1355,6 +1406,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1394,6 +1446,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1432,6 +1485,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1468,6 +1522,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1512,6 +1567,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1543,6 +1599,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1577,6 +1634,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1612,6 +1670,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1652,6 +1711,7 @@ pub fn translate_player_action(
                 devour_sacrifices: devour_ids,
                 modes_chosen: vec![],
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1688,6 +1748,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: modes_chosen.clone(),
                 fuse: false,
+                x_value: 0,
             })
         }
 
@@ -1723,6 +1784,7 @@ pub fn translate_player_action(
                 devour_sacrifices: vec![],
                 modes_chosen: vec![],
                 fuse: true,
+                x_value: 0,
             })
         }
 
@@ -1956,6 +2018,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
                 intervening_if: None,
                 description: "When ~ dies (CR 700.4)".to_string(),
@@ -1979,6 +2042,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
                 intervening_if: None,
                 description: "Whenever ~ attacks (CR 508.3a)".to_string(),
@@ -1998,6 +2062,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
                 intervening_if: None,
                 description: "Whenever ~ blocks (CR 509.1)".to_string(),
@@ -2019,9 +2084,32 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
                 intervening_if: None,
                 description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 207.2c / CR 120.3: Convert "Whenever ~ is dealt damage" (Enrage ability
+    // word) card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via CombatDamageDealt and DamageDealt events.
+    // Per ruling 2018-01-19, multiple simultaneous sources trigger only once per creature.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDealtDamage,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
+                trigger_on: TriggerEvent::SelfIsDealtDamage,
+                intervening_if: None,
+                description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
+                    .to_string(),
                 effect: Some(effect.clone()),
             });
         }
@@ -2040,6 +2128,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
                 intervening_if: None,
                 description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
@@ -2059,6 +2148,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
                 intervening_if: None,
                 description: "Whenever you surveil (CR 701.25d)".to_string(),
@@ -2079,6 +2169,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
                 intervening_if: None,
                 description: "Whenever this creature connives (CR 701.50b)".to_string(),
@@ -2098,6 +2189,7 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
                 intervening_if: None,
                 description: "Whenever you investigate (CR 701.16a)".to_string(),
@@ -2119,10 +2211,51 @@ pub fn enrich_spec_from_def(
         } = ability
         {
             spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
                 intervening_if: None,
                 description: "Whenever you cast a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
+            });
+        }
+    }
+
+    // CR 207.2c / CR 603.2: Convert "Whenever [another] creature [you control] enters"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via AnyPermanentEntersBattlefield events.
+    //
+    // Used by the Alliance ability word (Prosperous Innkeeper, etc.) and similar patterns
+    // (Impact Tremors uses the same TriggerCondition but is an enchantment, not a creature).
+    // The ETB filter is applied at trigger-collection time in collect_triggers_for_event.
+    //
+    // `exclude_self` is always true because:
+    // - Alliance cards say "another creature" -- the card itself must not trigger itself.
+    // - Non-creature sources (e.g. Impact Tremors) can never BE the entering creature,
+    //   so exclude_self: true is correct and harmless for non-creature trigger sources.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield { filter },
+            effect,
+            ..
+        } = ability
+        {
+            let etb_filter = ETBTriggerFilter {
+                creature_only: true,
+                controller_you: filter
+                    .as_ref()
+                    .is_some_and(|f| matches!(f.controller, TargetController::You)),
+                exclude_self: true,
+            };
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+                // Intervening-if conditions (card_definition::Condition) are a different
+                // type from runtime InterveningIf; conversion is deferred. None is safe
+                // for all known Alliance cards.
+                intervening_if: None,
+                description: "Alliance -- Whenever another creature you control enters (CR 207.2c)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: Some(etb_filter),
             });
         }
     }

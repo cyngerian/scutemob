@@ -278,6 +278,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -410,6 +411,7 @@ fn test_jump_start_exile_on_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -535,6 +537,7 @@ fn test_jump_start_exile_on_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -585,6 +588,7 @@ fn test_jump_start_exile_on_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -694,6 +698,7 @@ fn test_jump_start_sorcery_timing() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -779,6 +784,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -877,6 +883,7 @@ fn test_jump_start_pays_normal_mana_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -971,6 +978,7 @@ fn test_jump_start_discard_required() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1063,6 +1071,7 @@ fn test_jump_start_discard_must_be_in_hand() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1161,6 +1170,7 @@ fn test_jump_start_discard_any_card() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1253,6 +1263,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1362,6 +1373,7 @@ fn test_jump_start_flag_set_on_stack() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1456,6 +1468,7 @@ fn test_jump_start_insufficient_mana_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

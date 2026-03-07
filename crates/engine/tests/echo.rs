@@ -234,6 +234,7 @@ fn test_echo_etb_sets_pending() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CastSpell should succeed");

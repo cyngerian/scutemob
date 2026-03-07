@@ -212,6 +212,7 @@ fn test_add_object_to_state() {
         champion_exiled_card: None,
         paired_with: None,
         tribute_was_paid: false,
+        x_value: 0,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

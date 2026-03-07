@@ -1,22 +1,21 @@
-# Ability WIP: Spree
+# Ability WIP: Bloodrush
 
-ability: Spree
-cr: 702.172
+ability: Bloodrush
+cr: ability word (no CR section — activated ability: discard this card to pump attacking creature)
 priority: P4
 started: 2026-03-07
 phase: closed
-plan_file: memory/abilities/ability-plan-spree.md
+
+## Review
+findings: 1 MEDIUM (FIXED) + 2 LOW (deferred)
+review_file: memory/abilities/ability-review-bloodrush.md
+plan_file: memory/abilities/ability-plan-bloodrush.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:1230, hash.rs:656, view_model.rs:853
-- [x] 2. Rule enforcement — card_definition.rs:1213 (mode_costs field), hash.rs:3257 (ModeSelection hash), casting.rs:2013 (Spree cost block)
-- [x] 3. Trigger wiring — n/a (Spree is static, not triggered)
-- [x] 4. Unit tests — crates/engine/tests/spree.rs (9 tests: all pass)
-## Review
-findings: 1 MEDIUM (fixed), 2 LOW (deferred)
-review_file: memory/abilities/ability-review-spree.md
-fix: MEDIUM #1 applied — casting.rs `mut modes_chosen` + `modes_chosen.sort_unstable()` at line 2988; test replaced with stack-object assertion
-
-- [x] 5. Card definition — final_showdown.rs (Spree: modes 0+1 no-op (DSL gap), mode 2 destroys all creatures)
-- [x] 6. Game script — 173_spree_final_showdown.json (mode 2: destroy all creatures)
-- [x] 7. Coverage doc update — P4 66/88, 160 validated total
+- [x] 1. Enum variant — n/a: ability word (CR 207.2c), no KeywordAbility variant. AbilityDefinition::Bloodrush disc 52 in card_definition.rs:577; StackObjectKind::BloodrushAbility disc 51 in stack.rs:1096; Command::ActivateBloodrush in command.rs:453; hash.rs updated
+- [x] 2. Rule enforcement — handle_activate_bloodrush in abilities.rs:970; resolution arm in resolution.rs; engine dispatch in engine.rs; view_model.rs + stack_view.rs updated; replay_harness.rs: activate_bloodrush action
+- [x] 3. Trigger wiring — n/a: no triggers (pure activated ability)
+- [x] 4. Unit tests — 8 tests in crates/engine/tests/bloodrush.rs: basic_pump, grants_keyword, target_must_be_attacking, no_combat_fails, card_discarded_as_cost, insufficient_mana_fails, not_in_hand_fails, pump_expires_end_of_turn
+- [ ] 5. Card definition
+- [ ] 6. Game script
+- [ ] 7. Coverage doc update

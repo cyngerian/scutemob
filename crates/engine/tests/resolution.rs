@@ -87,6 +87,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -171,6 +172,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -243,6 +245,7 @@ fn test_608_3a_creature_enters_battlefield() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -334,6 +337,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -405,6 +409,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -497,6 +502,7 @@ fn test_608_1_lifo_resolves_top_first() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -530,6 +536,7 @@ fn test_608_1_lifo_resolves_top_first() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -652,6 +659,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -746,6 +754,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -829,6 +838,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

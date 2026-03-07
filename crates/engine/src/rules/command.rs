@@ -280,6 +280,11 @@ pub enum Command {
         /// `KeywordAbility::Fuse`, and `AbilityDefinition::Fuse` must exist.
         #[serde(default)]
         fuse: bool,
+        /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
+        /// Stored on the StackObject and propagated to the GameObject at resolution so ETB
+        /// replacement effects and triggers that reference X (e.g., Ravenous) can read it.
+        #[serde(default)]
+        x_value: u32,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///
@@ -434,6 +439,21 @@ pub enum Command {
         player: PlayerId,
         card: ObjectId,
         targets: Vec<crate::state::targeting::Target>,
+    },
+
+    // ── Bloodrush (CR 207.2c) ─────────────────────────────────────────────
+    /// CR 207.2c: Activate a bloodrush ability from hand.
+    ///
+    /// Bloodrush is an activated ability that functions only while the card is in
+    /// the player's hand. The activation cost is the mana cost plus discarding the
+    /// card itself. The effect pumps a target attacking creature until end of turn.
+    ///
+    /// Unlike `ActivateAbility` (which requires the source on the battlefield),
+    /// this command works from the hand zone. The card is discarded as cost (CR 602.2b).
+    ActivateBloodrush {
+        player: PlayerId,
+        card: ObjectId,
+        target: ObjectId,
     },
 
     // ── Dredge (CR 702.52) ───────────────────────────────────────────────

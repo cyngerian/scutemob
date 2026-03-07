@@ -223,8 +223,8 @@ Mechanics that modify spells on the stack — copies, modes, text changes.
 | 7.6 | Entwine | 702.42 | Medium | Pay to choose all modes (needs Modal choice) |
 | 7.7 | Escalate | 702.121 | Medium | Pay per additional mode (needs Modal choice) |
 
-**Note**: Entwine and Escalate depend on Modal choice (Batch 11). Implement those
-two after Batch 11, or stub with auto-all-modes for now.
+**Note**: Entwine and Escalate depended on Modal choice (Batch 11 — now complete).
+Both are now unblocked and may be revisited for full mode-selection wiring.
 
 **Infrastructure reused**: Storm copy machinery (`copy.rs`), casting alt-cost framework.
 
@@ -299,7 +299,7 @@ Creatures with enter-the-battlefield or leaves-the-battlefield effects.
 **Infrastructure reused**: ETB triggers, replacement effects (`replacement.rs`),
 continuous effects (`layers.rs`), equip machinery.
 
-- [ ] Batch 10 complete
+- [x] Batch 10 complete
 
 ---
 
@@ -317,7 +317,7 @@ Implement the Modal choice system (P2 gap), then abilities that depend on it.
 
 **Note**: Entwine (7.6) and Escalate (7.7) can be completed after this batch.
 
-- [ ] Batch 11 complete
+- [x] Batch 11 complete
 
 ---
 

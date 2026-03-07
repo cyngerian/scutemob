@@ -1,0 +1,189 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_combat_178",
+    "name": "Bloodrush — Ghor-Clan Rampager pumps an attacking creature",
+    "description": "p1 controls Llanowar Elves (1/1) and has Ghor-Clan Rampager (4/4, Trample; Bloodrush {R}{G}) in hand with {R}{G} in the mana pool. After declaring Llanowar Elves as an attacker, p1 activates Bloodrush: discards Ghor-Clan Rampager, pays {R}{G}, and targets the attacking Llanowar Elves. The ability resolves and Llanowar Elves gets +4/+4 and gains Trample until end of turn (becoming a 5/5 with Trample). The script asserts that Ghor-Clan Rampager moves to the graveyard (paid as cost, CR 602.2b), p1 hand becomes empty, and the Bloodrush ability resolves on the stack (CR 608.2). Bloodrush is an ability word (CR 207.2c) whose underlying mechanics are an activated ability from the hand (CR 602).",
+    "cr_sections_tested": [
+      "207.2c",
+      "508.1",
+      "508.1a",
+      "508.1f",
+      "508.1k",
+      "602.2",
+      "602.2a",
+      "602.2b",
+      "608.2",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "bloodrush",
+      "ability-word",
+      "activated-ability",
+      "hand",
+      "combat",
+      "pump",
+      "trample",
+      "ghor-clan-rampager",
+      "llanowar-elves"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Ghor-Clan Rampager oracle text (Scryfall verified via MCP): Trample; Bloodrush — {R}{G}, Discard this card: Target attacking creature gets +4/+4 and gains trample until end of turn. P/T: 4/4. Mana cost {2}{R}{G}. The Bloodrush ability is an ability word (CR 207.2c) — purely cosmetic label. The underlying mechanism is an activated ability (CR 602) that can only be activated while the card is in the player's hand (CR 602.2a) and requires discarding the card itself as an additional cost (CR 602.2b). The harness action 'activate_bloodrush' maps to Command::ActivateBloodrush { player, card, target } (replay_harness.rs line 626). The engine validates: (1) card is in Hand(player), (2) card has AbilityDefinition::Bloodrush, (3) target is on battlefield as a creature AND registered in CombatState.attackers, (4) mana can be paid (abilities.rs lines 988-1095). Since the engine requires the target to be a registered attacker in CombatState, p1 must first declare_attackers so Llanowar Elves is in CombatState before activating Bloodrush. Sequence: initial state (DeclareAttackers step, p1 has {R}{G} in pool) → declare_attackers (Elves tapped, now registered attacker) → p1 activates Bloodrush instead of passing priority → Ghor-Clan Rampager discarded to graveyard (cost paid per CR 602.2b), ability placed on stack → p1 passes, p2 passes → stack resolves → Llanowar Elves gets +4/+4 and trample until EOT (becomes a 5/5 trampler). P/T boost is a continuous effect with EffectDuration::UntilEndOfTurn. After resolution, both players pass priority again → advance to DeclareBlockers. The assert_state after resolution checks: hand.p1.count = 0, graveyard.p1 includes Ghor-Clan Rampager, battlefield.p1 includes Llanowar Elves (tapped), stack is_empty. Because continuous +4/+4 effects are tracked in continuous_effects (not directly in assert_state permanent P/T), the final assert focuses on zone states. Harness limitation: 'permanent.Llanowar Elves.power' assertions are not supported; P/T boost from continuous_effects cannot be asserted directly. The graveyard and hand count assertions fully document the Bloodrush activation and cost payment.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 1, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Ghor-Clan Rampager", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1 declares Llanowar Elves as an attacker targeting p2. After declaration, p1 activates Ghor-Clan Rampager's Bloodrush ability targeting the attacking Llanowar Elves.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves untapped on p1 battlefield, Ghor-Clan Rampager in p1 hand, p1 has {R}{G} in mana pool, both players at 40 life, stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Llanowar Elves has no summoning sickness (turn 4, placed in initial state by builder which sets has_summoning_sickness: false). p1 holds {R}{G} to pay the Bloodrush activation cost. p2 controls no creatures so no legal blockers."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Llanowar Elves", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: p1 declares Llanowar Elves as an attacking creature targeting p2. CR 508.1a: Llanowar Elves is untapped and free of summoning sickness — legal attacker. CR 508.1f: Llanowar Elves becomes tapped as a side effect of attacking (not a cost). CR 508.1k: Llanowar Elves becomes an attacking creature and is registered in CombatState.attackers. This registration is required for Bloodrush target validation (CR 207.2c — 'target attacking creature')."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Llanowar Elves is tapped and registered as an attacker, Ghor-Clan Rampager still in hand, stack empty",
+          "assertions": {
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Llanowar Elves tapped from attacking. Ghor-Clan Rampager remains in hand — not yet activated. p1 now has priority and may activate the Bloodrush ability."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_bloodrush",
+          "card": "Ghor-Clan Rampager",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Llanowar Elves", "controller": "p1" }
+          ],
+          "mana_paid": { "red": 1, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 207.2c / CR 602.2: p1 activates Ghor-Clan Rampager's Bloodrush ability from hand. Cost: {R}{G} (paid from pool) + discard Ghor-Clan Rampager (CR 602.2b — additional cost paid before ability goes on stack). Target: Llanowar Elves, which is a creature on the battlefield registered as an attacker in CombatState (engine validates both conditions). Ghor-Clan Rampager moves from p1 hand to p1 graveyard as the discard cost is paid (CR 602.2a — card is revealed from hidden zone during activation). The Bloodrush ability (Effect: +4/+4, gain Trample until EOT) is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Bloodrush activation: Ghor-Clan Rampager in p1 graveyard, p1 hand empty, Bloodrush ability on stack",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": { "includes": [{ "card": "Ghor-Clan Rampager" }] },
+            "zones.stack.count": 1
+          },
+          "note": "CR 602.2b: Discard-as-cost moves Ghor-Clan Rampager to p1 graveyard before the ability is placed on the stack. p1 hand is now empty. The Bloodrush ability (a non-card stack object) is on the stack targeting Llanowar Elves."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: p1 receives priority after ability is placed on stack. Both players pass priority in sequence — stack resolves the Bloodrush ability."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Ghor-Clan Rampager Bloodrush ability",
+          "resolution": [
+            {
+              "effect": "pump_creature",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "power_bonus": 4,
+              "toughness_bonus": 4,
+              "grants_keyword": "Trample",
+              "duration": "until_end_of_turn",
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Bloodrush ability resolves. Llanowar Elves gets +4/+4 (1/1 becomes 5/5) and gains Trample until end of turn. This is a continuous effect with EffectDuration::UntilEndOfTurn applied in Layer 7c (P/T modification) and Layer 6 (keyword grant)."
+            }
+          ],
+          "note": "CR 608.2: The Bloodrush ability (non-card stack object) resolves. Effect: target attacking creature (Llanowar Elves) gets +4/+4 and gains Trample until end of turn. Stack is now empty."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Bloodrush resolves: Ghor-Clan Rampager in p1 graveyard, p1 hand empty, Llanowar Elves still on battlefield (tapped, attacking), stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": { "includes": [{ "card": "Ghor-Clan Rampager" }] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "permanent.Llanowar Elves.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Ghor-Clan Rampager is in p1 graveyard (discarded as cost, CR 602.2b). p1 hand is empty. Llanowar Elves is still on the battlefield tapped (from attacking) with a +4/+4 bonus and Trample until end of turn applied as a continuous effect. Stack is empty. Both players will now pass priority to advance to DeclareBlockers."
+        }
+      ]
+    }
+  ]
+}

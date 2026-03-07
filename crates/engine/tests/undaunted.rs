@@ -98,6 +98,7 @@ fn cast_spell(
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
 }

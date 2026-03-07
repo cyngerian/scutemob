@@ -226,6 +226,7 @@ fn test_fuse_basic_both_halves_execute() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -327,6 +328,7 @@ fn test_fuse_single_half_cast() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("single-half cast failed: {:?}", e));
@@ -430,6 +432,7 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     );
 
@@ -509,6 +512,7 @@ fn test_fuse_no_keyword_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     );
 
@@ -603,6 +607,7 @@ fn test_fuse_combined_mana_cost_required() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     );
 
@@ -697,6 +702,7 @@ fn test_fuse_resolution_order_left_then_right() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -815,6 +821,7 @@ fn test_fuse_alt_cost_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: true,
+            x_value: 0,
         },
     );
 

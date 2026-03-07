@@ -246,6 +246,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -362,6 +363,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -478,6 +480,7 @@ fn test_aftermath_exile_on_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -605,6 +608,7 @@ fn test_aftermath_exile_on_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -655,6 +659,7 @@ fn test_aftermath_exile_on_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -766,6 +771,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -851,6 +857,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -948,6 +955,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1052,6 +1060,7 @@ fn test_aftermath_pays_aftermath_cost() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1148,6 +1157,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1242,6 +1252,7 @@ fn test_aftermath_uses_aftermath_effect() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -1354,6 +1365,7 @@ fn test_aftermath_full_lifecycle() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1433,6 +1445,7 @@ fn test_aftermath_full_lifecycle() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1542,6 +1555,7 @@ fn test_aftermath_insufficient_mana_rejected() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 

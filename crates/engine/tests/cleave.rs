@@ -273,6 +273,7 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -363,6 +364,7 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -450,6 +452,7 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -530,6 +533,7 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -616,6 +620,7 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -709,6 +714,7 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -802,6 +808,7 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
@@ -911,6 +918,7 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));

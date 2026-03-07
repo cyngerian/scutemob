@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use super::game_object::{ManaCost, ObjectId};
 use super::player::PlayerId;
 use super::targeting::SpellTarget;
+use super::types::KeywordAbility;
 
 /// An object on the stack: a spell, activated ability, or triggered ability
 /// (CR 405.1).
@@ -276,6 +277,11 @@ pub struct StackObject {
     /// Propagated to copies per CR 707.2 (copies copy choices made during casting).
     #[serde(default)]
     pub was_fused: bool,
+    /// CR 107.3m: The value of X chosen when this spell was cast. 0 for non-X spells.
+    /// Propagated from CastSpell.x_value at cast time and copied to GameObject.x_value
+    /// at resolution so ETB replacement effects and triggers can read it.
+    #[serde(default)]
+    pub x_value: u32,
 }
 
 /// The kind of object on the stack.
@@ -1059,5 +1065,46 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         /// The creature to pair with (auto-selected at trigger time).
         pair_target: ObjectId,
+    },
+    /// CR 702.156a: Ravenous draw trigger on the stack.
+    ///
+    /// "When this permanent enters, if X is 5 or more, draw a card."
+    /// X is the value chosen at cast time (CR 107.3m). The intervening-if
+    /// condition is checked both when the trigger would go on the stack
+    /// and when it resolves (CR 603.4).
+    ///
+    /// Discriminant 50.
+    RavenousDrawTrigger {
+        /// The Ravenous permanent that entered the battlefield.
+        ravenous_permanent: ObjectId,
+        /// The value of X chosen at cast time. Used for the intervening-if
+        /// re-check at resolution (CR 603.4).
+        x_value: u32,
+    },
+
+    /// CR 207.2c: Bloodrush activated ability on the stack.
+    ///
+    /// The source card has already been discarded (moved to graveyard as cost
+    /// at activation time — CR 602.2b). If this is countered (e.g., by Stifle),
+    /// the card remains in the graveyard.
+    ///
+    /// At resolution: apply +power_boost/+toughness_boost to `target_creature`
+    /// (and optionally grant `grants_keyword`) until end of turn, but only if
+    /// the target is still a legal creature on the battlefield and still
+    /// registered as an attacker in CombatState (CR 608.2b).
+    ///
+    /// Discriminant 51.
+    BloodrushAbility {
+        /// The ObjectId the source card had before it was discarded as cost.
+        /// Used for event attribution only; the card is already in the graveyard.
+        source_object: ObjectId,
+        /// The attacking creature to pump.
+        target_creature: ObjectId,
+        /// +N to power until end of turn (Layer 7c).
+        power_boost: i32,
+        /// +M to toughness until end of turn (Layer 7c).
+        toughness_boost: i32,
+        /// Optional keyword to grant until end of turn (Layer 6).
+        grants_keyword: Option<KeywordAbility>,
     },
 }

@@ -115,6 +115,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         devour_sacrifices: Vec::new(),
                         modes_chosen: Vec::new(),
                         fuse: false,
+                        x_value: 0,
                     };
                     app.execute_command(cmd)?;
                 } else {

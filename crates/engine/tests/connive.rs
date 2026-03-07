@@ -195,6 +195,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -333,6 +334,7 @@ fn test_connive_land_discard_no_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -458,6 +460,7 @@ fn test_connive_n_multiple_draws_and_discards() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -575,6 +578,7 @@ fn test_connive_empty_library_still_connives() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -691,6 +695,7 @@ fn test_connive_etb_trigger_on_creature() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -743,6 +748,7 @@ fn test_connive_self_trigger_fires_on_connive() {
     // modeled as SourceConnives -> AddCounter.
     let connive_trigger_creature = ObjectSpec::creature(p1, "Ledger Shredder Stand-in", 2, 1)
         .with_triggered_ability(TriggeredAbilityDef {
+            etb_filter: None,
             trigger_on: TriggerEvent::SourceConnives,
             intervening_if: None,
             description: "Whenever this creature connives, it gets a +1/+1 counter (CR 701.50b)"
@@ -819,6 +825,7 @@ fn test_connive_self_trigger_fires_on_connive() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();
@@ -986,6 +993,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

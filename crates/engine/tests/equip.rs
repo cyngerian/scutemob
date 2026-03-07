@@ -354,6 +354,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .unwrap();

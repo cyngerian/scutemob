@@ -439,6 +439,7 @@ fn test_702_18_shroud_prevents_targeting() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -517,6 +518,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     );
 
@@ -1165,6 +1167,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             devour_sacrifices: vec![],
             modes_chosen: vec![],
             fuse: false,
+            x_value: 0,
         },
     )
     .expect("casting Wrath of God failed");

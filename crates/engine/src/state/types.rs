@@ -1238,6 +1238,12 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 134.
     Spree,
+    /// CR 702.156: Ravenous -- "This permanent enters with X +1/+1 counters on it"
+    /// and "When this permanent enters, if X is 5 or more, draw a card."
+    /// X is the value chosen when the spell was cast (CR 107.3m).
+    ///
+    /// Discriminant 135.
+    Ravenous,
 }
 
 /// CR 702.72a: The filter for what can be championed.
