@@ -1110,6 +1110,11 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 120.
     Scavenge,
+    /// CR 702.107: Outlast [cost] -- activated ability on the battlefield.
+    /// "[Cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery."
+    ///
+    /// Discriminant 121.
+    Outlast,
 }
 
 /// All creature subtypes from CR 205.3m.

@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_158",
+    "name": "Outlast — Ainok Bond-Kin gains +1/+1 counter",
+    "description": "p1 controls Ainok Bond-Kin (2/1, no summoning sickness, untapped). During p1's precombat main phase with an empty stack and {1}{W} available, p1 activates Outlast by paying {1}{W} and tapping the creature. The ability goes on the stack. Both players pass priority. The Outlast ability resolves, placing one +1/+1 counter on Ainok Bond-Kin (it becomes an effective 3/2). After resolution the stack is empty and Ainok Bond-Kin is tapped with 1 +1/+1 counter.",
+    "cr_sections_tested": ["702.107a", "602.2", "116.3", "608.2", "121.1"],
+    "corner_case_ref": null,
+    "tags": ["outlast", "counter", "activated-ability", "ainok-bond-kin", "sorcery-speed"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Ainok Bond-Kin card definition verified at crates/engine/src/cards/defs/ainok_bond_kin.rs. Abilities: [Keyword(Outlast), Outlast { cost: {1}{W} }]. The Keyword entry is not a non-mana activated ability; AbilityDefinition::Outlast is expanded by the harness (replay_harness.rs ~1711) into ActivatedAbility { cost: { requires_tap: true, mana_cost: {1}{W} }, effect: AddCounter { Source, PlusOnePlusOne, 1 }, sorcery_speed: true }. This is the sole non-mana activated ability, so ability_index: 0. CR 702.107a: 'Outlast [cost] means [cost], {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery.' Mana paid: {1}{W} = colorless: 1, white: 1. Cost includes tap — Ainok Bond-Kin becomes tapped at activation time before the ability goes on the stack (CR 602.2c). Ainok Bond-Kin remains on the battlefield after activation (no sacrifice cost). After resolution, Ainok Bond-Kin has 1 +1/+1 counter making it effective 3/2 (2+1 / 1+1). CR 121.1: +1/+1 counters add to base P/T. The static first-strike grant ability (for other creatures with counters) is a TODO in the card def and is not tested here.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Ainok Bond-Kin",
+            "is_commander": false,
+            "tapped": false,
+            "counters": {}
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Outlast on Ainok Bond-Kin, paying {1}{W} and tapping it. Ability resolves — 1 +1/+1 counter is placed.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Ainok Bond-Kin on battlefield untapped, no counters, stack empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Ainok Bond-Kin is untapped with no counters. p1 has {1}{W} in mana pool. Stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Ainok Bond-Kin",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": { "colorless": 1, "white": 1 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: p1 activates Ainok Bond-Kin's Outlast ability (ability_index 0 — the sole non-mana activated ability). Cost: {1}{W} + tap. p1 pays {1}{W} from pool and taps Ainok Bond-Kin. CR 702.107a: Outlast only as a sorcery. Ability is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: Outlast ability on stack, Ainok Bond-Kin tapped",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1.count": 1
+          },
+          "note": "Ainok Bond-Kin is tapped (tap was part of the cost paid at activation time, CR 602.2c). The Outlast ability is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Ainok Bond-Kin Outlast ability",
+          "resolution": [
+            {
+              "effect": "add_counter",
+              "target": { "type": "permanent", "card": "Ainok Bond-Kin", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.107a",
+              "note": "CR 702.107a: Outlast ability resolves — places 1 +1/+1 counter on Ainok Bond-Kin. CR 121.1: Counter adds to P/T; Ainok Bond-Kin is now effective 3/2 (base 2/1 + 1 counter)."
+            }
+          ],
+          "note": "CR 608.2: Ability resolves. AddCounter effect places 1 +1/+1 counter on Ainok Bond-Kin (the source). Ability ceases to exist after resolution."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: stack empty, Ainok Bond-Kin tapped with 1 +1/+1 counter (effective 3/2), life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 1,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Ainok Bond-Kin remains on the battlefield with 1 +1/+1 counter (effective 3/2). It is tapped from the Outlast cost. No SBAs triggered. Stack is empty."
+        }
+      ]
+    }
+  ]
+}

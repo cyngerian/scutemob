@@ -826,5 +826,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Phasing => "Phasing".to_string(),
         KeywordAbility::Graft(n) => format!("Graft {n}"),
         KeywordAbility::Scavenge => "Scavenge".to_string(),
+        KeywordAbility::Outlast => "Outlast".to_string(),
     }
 }

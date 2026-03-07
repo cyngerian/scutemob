@@ -23,10 +23,10 @@ use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
 };
 use crate::{
-    all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition, CardId,
-    CardRegistry, Color, Command, Cost, Effect, GameState, GameStateBuilder, ManaAbility,
-    ManaColor, ObjectSpec, PlayerId, Step, TimingRestriction, TriggerCondition, TriggerEvent,
-    TriggeredAbilityDef, ZoneId,
+    all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
+    CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, Effect, GameState,
+    GameStateBuilder, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TimingRestriction,
+    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -1705,6 +1705,29 @@ pub fn enrich_spec_from_def(
                 };
                 spec = spec.with_activated_ability(ab);
             }
+        }
+    }
+
+    // CR 702.107a: Expand AbilityDefinition::Outlast into an ActivatedAbility.
+    // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
+    // Activate only as a sorcery."
+    for ability in &def.abilities {
+        if let AbilityDefinition::Outlast { cost } = ability {
+            let ab = ActivatedAbility {
+                cost: ActivationCost {
+                    requires_tap: true,
+                    mana_cost: Some(cost.clone()),
+                    sacrifice_self: false,
+                },
+                description: "Outlast (CR 702.107a)".to_string(),
+                effect: Some(Effect::AddCounter {
+                    target: CardEffectTarget::Source,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                }),
+                sorcery_speed: true,
+            };
+            spec = spec.with_activated_ability(ab);
         }
     }
 

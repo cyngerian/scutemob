@@ -523,6 +523,12 @@ pub enum AbilityDefinition {
     /// `AbilityDefinition::Keyword(KeywordAbility::Scavenge)` for quick
     /// presence-checking without scanning all abilities. Discriminant 47.
     Scavenge { cost: ManaCost },
+    /// CR 702.107: Outlast [cost]. A convenience variant that enrich_spec_from_def
+    /// expands into an ActivatedAbility with: requires_tap=true, mana_cost=cost,
+    /// sorcery_speed=true, effect=AddCounter(Source, PlusOnePlusOne, 1).
+    /// Cards should also include AbilityDefinition::Keyword(KeywordAbility::Outlast)
+    /// for quick presence-checking. Discriminant 48.
+    Outlast { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

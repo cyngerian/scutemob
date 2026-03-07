@@ -609,6 +609,8 @@ impl HashInto for KeywordAbility {
             }
             // Scavenge (discriminant 120) -- CR 702.97
             KeywordAbility::Scavenge => 120u8.hash_into(hasher),
+            // Outlast (discriminant 121) -- CR 702.107
+            KeywordAbility::Outlast => 121u8.hash_into(hasher),
         }
     }
 }
@@ -3621,6 +3623,11 @@ impl HashInto for AbilityDefinition {
             // Scavenge (discriminant 47) -- CR 702.97
             AbilityDefinition::Scavenge { cost } => {
                 47u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Outlast (discriminant 48) -- CR 702.107
+            AbilityDefinition::Outlast { cost } => {
+                48u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

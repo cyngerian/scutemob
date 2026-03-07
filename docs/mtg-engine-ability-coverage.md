@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Scavenge 702.97 validated: KW 120, AbilDef 47, SOK 45, Deadbridge Goliath, script stack/157, 10 tests)
+> Last audited: 2026-03-06 (Outlast 702.107 validated: KW 121, AbilDef 48, Ainok Bond-Kin, script stack/158, 7 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 51        | 0        | 0       | 42   | 12  |
-| **Total**| **204**| **144**  | **2**    | **0**   | **46**| **12** |
+| P4       | 105   | 52        | 0        | 0       | 41   | 12  |
+| **Total**| **204**| **145**  | **2**    | **0**   | **45**| **12** |
 
 ---
 
@@ -219,7 +219,7 @@ Keywords involving counter manipulation and creature growth.
 | Graft | 702.58 | P4 | `validated` | `state/types.rs:1096`, `rules/abilities.rs:2415`, `rules/resolution.rs:640+2234`, `state/stack.rs`, `state/stubs.rs`, `state/hash.rs` | Simic Initiate | `stack/156` | — | CR 702.58a fully enforced; static ETB with N +1/+1 counters + triggered ability (intervening-if: has +1/+1 counter, may move one to entering creature); StackObjectKind::GraftTrigger; PendingTriggerKind::Graft; KeywordAbility::Graft(u32) disc 119; 9 unit tests in graft.rs; script validated |
 | Evolve | 702.100 | P3 | `validated` | `state/types.rs:496`, `state/hash.rs:429`, `state/hash.rs:1244`, `state/stubs.rs:157`, `rules/abilities.rs:900`, `rules/resolution.rs:1015` | Cloudfin Raptor | `stack/093` | — | CR 702.100a fully enforced; intervening-if re-checked at resolution (CR 603.4); ETB creature comparison (P > P and/or T > T); StackObjectKind::EvolveTrigger; uses last-known P/T if entering creature leaves battlefield (ruling 2013-04-15); 10 unit tests in evolve.rs; script pending_review |
 | Scavenge | 702.97 | P4 | `validated` | `state/types.rs:1112`, `cards/card_definition.rs:525`, `rules/abilities.rs:4847`, `rules/engine.rs:432`, `rules/resolution.rs`, `rules/command.rs:552`, `state/stack.rs:978`, `state/hash.rs` | Deadbridge Goliath | `stack/157` | — | CR 702.97a fully enforced; activated ability from graveyard, sorcery-speed, pay cost + exile card, snapshot power, put +1/+1 counters on target creature; KeywordAbility::Scavenge disc 120; AbilityDefinition::Scavenge disc 47; StackObjectKind::ScavengeAbility disc 45; 10 unit tests in scavenge.rs; script validated |
-| Outlast | 702.107 | P4 | `none` | — | — | — | — | Tap + mana → +1/+1 counter (sorcery speed) |
+| Outlast | 702.107 | P4 | `validated` | `state/types.rs:1117`, `cards/card_definition.rs:526`, `testing/replay_harness.rs:1711`, `state/hash.rs:612,3628` | Ainok Bond-Kin | `stack/158` | — | CR 702.107a fully enforced; AbilityDefinition::Outlast{cost} expands into ActivatedAbility (tap + mana cost, sorcery speed, +1/+1 counter on self) via enrich_spec_from_def; KeywordAbility::Outlast disc 121; AbilityDefinition::Outlast disc 48; no custom StackObjectKind (uses generic ActivatedAbility path); 7 unit tests in outlast.rs; script validated |
 | Amplify | 702.38 | P4 | `none` | — | — | — | — | Reveal creature cards from hand for +1/+1 counters |
 | Adapt | 701.46 | P3 | `validated` | `state/types.rs:560`, `cards/card_definition.rs:793`, `effects/mod.rs:2731`, `state/hash.rs:445,2431` | Sharktocrab | `baseline/105` | — | CR 701.46a fully enforced; keyword action (not keyword ability); KeywordAbility::Adapt(u32) enum + Condition::SourceHasNoCountersOfType + Conditional effect; resolution-time check per ruling 2019-01-25 (activation always legal); re-adapt after losing counters verified; 6 unit tests in `adapt.rs`; game script approved |
 | Bolster | 701.39 | P3 | `validated` | `cards/card_definition.rs:388`, `effects/mod.rs:971` | Cached Defenses | `baseline/104` | — | CR 701.39a fully enforced; keyword action (not keyword ability); chooses creature with least layer-aware toughness (ruling 2014-11-24); does NOT target (protection irrelevant); deterministic tie-break by smallest ObjectId; no-op if controller has no creatures; 8 unit tests in `bolster.rs`; game script approved |
@@ -523,7 +523,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P4 Gaps (niche / historical)
 
-44 remaining (none), 12 n/a (digital-only + Banding + niche). 49/105 validated. Top unresolved by likely demand: Fuse, Bloodthirst, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+41 remaining (none), 12 n/a (digital-only + Banding + niche). 52/105 validated. Top unresolved by likely demand: Fuse, Bloodthirst, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
 
 **Resolved**: Shadow (CR 702.28) — validated 2026-02-28 (script combat/106, Dauthi Slayer, 7 unit tests in shadow.rs).
 
@@ -588,3 +588,5 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Cumulative Upkeep (CR 702.24) — validated 2026-03-06 (script stack/152, Mystic Remora, 8 unit tests in cumulative_upkeep.rs). Triggered ability per CR 702.24a: upkeep adds age counter, then pay cost per age counter or sacrifice; CumulativeUpkeepCost enum supports Mana and Life costs; CumulativeUpkeepTrigger StackObjectKind; Command::PayCumulativeUpkeep; multiple instances trigger separately per CR 702.24b.
 
 **Resolved**: Fading (CR 702.32) — validated 2026-03-06 (script stack/150, Blastoderm, 8 unit tests in fading.rs). Two abilities per CR 702.32a: (1) ETB replacement places N fade counters, (2) upkeep trigger removes a fade counter or sacrifices if unable; turn_actions.rs queues FadingUpkeep triggers (no intervening-if, unlike Vanishing); resolution.rs ETB hook + FadingTrigger resolution; lands.rs parallel ETB hook for land permanents; uses fade counters (not time counters); multiple Fading instances each trigger separately.
+
+**Resolved**: Outlast (CR 702.107) — validated 2026-03-06 (script stack/158, Ainok Bond-Kin, 7 unit tests in outlast.rs). Convenience AbilityDefinition::Outlast{cost} expands into ActivatedAbility via enrich_spec_from_def: tap + mana cost, sorcery speed, +1/+1 counter on self; KeywordAbility::Outlast disc 121 + AbilityDefinition::Outlast disc 48; no custom StackObjectKind (generic ActivatedAbility path).
