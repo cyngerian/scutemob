@@ -159,6 +159,7 @@ fn test_assist_basic_another_player_pays_generic() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("assist cast failed: {:?}", e));
@@ -236,6 +237,7 @@ fn test_assist_no_assist_player_pays_full_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("non-assist cast failed: {:?}", e));
@@ -295,6 +297,7 @@ fn test_assist_cannot_assist_self() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -361,6 +364,7 @@ fn test_assist_exceeds_generic_mana_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -423,6 +427,7 @@ fn test_assist_eliminated_player_cannot_assist() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -494,6 +499,7 @@ fn test_assist_pays_all_generic_caster_pays_only_colored() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("assist all-generic cast failed: {:?}", e));
@@ -583,6 +589,7 @@ fn test_assist_with_convoke_reduces_assist_ceiling() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("convoke+assist cast failed: {:?}", e));
@@ -649,6 +656,7 @@ fn test_assist_amount_zero_is_noop() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("zero-assist cast failed: {:?}", e));
@@ -715,6 +723,7 @@ fn test_assist_insufficient_mana_assisting_player() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -780,6 +789,7 @@ fn test_assist_spell_without_keyword_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -840,6 +850,7 @@ fn test_assist_multiplayer_any_opponent_can_assist() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("P3 assist failed: {:?}", e));

@@ -67,6 +67,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -142,6 +143,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(result.is_ok());
@@ -204,6 +206,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -265,6 +268,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -329,6 +333,7 @@ fn test_cast_spell_lifo_stack_order() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -366,6 +371,7 @@ fn test_cast_spell_lifo_stack_order() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -429,6 +435,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(
@@ -487,6 +494,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -539,6 +547,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -608,6 +617,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -644,6 +654,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -694,6 +705,7 @@ fn test_cast_spell_land_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -747,6 +759,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -804,6 +817,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

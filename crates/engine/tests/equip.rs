@@ -351,6 +351,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

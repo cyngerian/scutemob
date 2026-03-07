@@ -217,6 +217,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -339,6 +340,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -428,6 +430,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -515,6 +518,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -603,6 +607,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -704,6 +709,7 @@ fn test_prowess_until_end_of_turn_expires() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -819,6 +825,7 @@ fn test_prowess_multiple_spells_stack() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -865,6 +872,7 @@ fn test_prowess_multiple_spells_stack() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -969,6 +977,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

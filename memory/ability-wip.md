@@ -1,21 +1,21 @@
-# Ability WIP: Amass
+# Ability WIP: Devour
 
-ability: Amass
-cr: 701.47
+ability: Devour
+cr: 702.82
 priority: P4
 started: 2026-03-06
-phase: closed
+phase: close
 
 ## Review
-findings: 2 (0 HIGH, 1 MEDIUM, 1 LOW)
-review_file: memory/abilities/ability-review-amass.md
-plan_file: memory/abilities/ability-plan-amass.md
+findings: 4 (0 HIGH, 0 MEDIUM, 4 LOW)
+review_file: memory/abilities/ability-review-devour.md
+plan_file: memory/abilities/ability-plan-devour.md
 
 ## Step Checklist
-- [x] 1. Enum variant — `Effect::Amass { subtype, count }` in card_definition.rs:681; `army_token_spec()` helper at card_definition.rs:1279; re-exported from cards/mod.rs and lib.rs
-- [x] 2. Rule enforcement — effects/mod.rs:1073 (CR 701.47a: find/create Army, add counters, add subtype); `GameEvent::Amassed` in events.rs:714; hash Effect disc 41, GameEvent disc 98 in hash.rs
-- [x] 3. Trigger wiring — abilities.rs: `GameEvent::Amassed` arm added (no-op placeholder; no "whenever you amass" trigger card yet)
-- [x] 4. Unit tests — crates/engine/tests/amass.rs: 7 tests, all passing (1613 total)
-- [x] 5. Card definition — crates/engine/src/cards/defs/dreadhorde_invasion.rs
-- [x] 6. Game script — test-data/generated-scripts/stack/161_amass_dreadhorde_invasion.json (cast/resolve; upkeep trigger gap is pre-existing AtBeginningOfYourUpkeep infra gap, Amass validated by 7 unit tests)
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (Amass: validated)
+- [x] 1. Enum variant — types.rs:1134, hash.rs:619, view_model.rs:831
+- [x] 2. Rule enforcement — command.rs:247, casting.rs:77+2740, engine.rs:103, stack.rs:258, game_object.rs:553, resolution.rs:840-990, lands.rs:356, replay_harness.rs:1559
+- [x] 3. Trigger wiring — n/a (Devour is a replacement effect, CR 614.1c)
+- [x] 4. Unit tests — crates/engine/tests/devour.rs (10 tests, all passing)
+- [x] 5. Card definition — crates/engine/src/cards/defs/predator_dragon.rs
+- [x] 6. Game script — test-data/generated-scripts/stack/162_devour_predator_dragon.json
+- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (Devour: validated)

@@ -244,6 +244,7 @@ fn test_cascade_exiles_until_hit() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -414,6 +415,7 @@ fn test_cascade_skips_lands() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -586,6 +588,7 @@ fn test_cascade_combined_mana_value_skip() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

@@ -197,6 +197,7 @@ fn test_delve_basic_exile_cards_reduce_generic_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with delve failed: {:?}", e));
@@ -313,6 +314,7 @@ fn test_delve_partial_reduction() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Partial delve cast failed: {:?}", e));
@@ -407,6 +409,7 @@ fn test_delve_object_exiled_events() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Delve cast failed: {:?}", e));
@@ -508,6 +511,7 @@ fn test_delve_reject_no_keyword() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -589,6 +593,7 @@ fn test_delve_reject_too_many_cards() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -656,6 +661,7 @@ fn test_delve_reject_card_not_in_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -723,6 +729,7 @@ fn test_delve_reject_opponents_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -790,6 +797,7 @@ fn test_delve_reject_duplicate_cards() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -866,6 +874,7 @@ fn test_delve_zero_cards_normal_cast() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of delve spell failed: {:?}", e));
@@ -997,6 +1006,7 @@ fn test_delve_with_commander_tax() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Commander delve cast failed: {:?}", e));

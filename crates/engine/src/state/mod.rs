@@ -361,6 +361,8 @@ impl GameState {
             // CR 400.7: phasing flags are not preserved across zone changes.
             phased_out_indirectly: false,
             phased_out_controller: None,
+            // CR 400.7: devour count is not preserved across zone changes.
+            creatures_devoured: 0,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
@@ -497,6 +499,8 @@ impl GameState {
             // CR 400.7: phasing flags are not preserved across zone changes.
             phased_out_indirectly: false,
             phased_out_controller: None,
+            // CR 400.7: devour count is not preserved across zone changes.
+            creatures_devoured: 0,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone

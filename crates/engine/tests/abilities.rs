@@ -544,6 +544,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -626,6 +627,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -711,6 +713,7 @@ fn test_triggered_ability_apnap_ordering() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -800,6 +803,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -872,6 +876,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -946,6 +951,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1860,6 +1866,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

@@ -527,6 +527,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell should succeed");

@@ -838,6 +838,186 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
 
+                // CR 702.82a: Devour N -- "As this object enters, you may sacrifice any number
+                // of creatures. This permanent enters with N +1/+1 counters on it for each
+                // creature sacrificed this way."
+                // CR 702.82c: Multiple instances work separately; each N is processed over the
+                // same devour_sacrifices list.
+                // CR 614.1c: This is a static/replacement ability, not a triggered ability.
+                //
+                // Implementation: consume devour_sacrifices from the StackObject. For each
+                // Devour(N) instance, multiply N by the number of sacrificed creatures.
+                // The sacrifice happens HERE (during ETB), not at cast time.
+                {
+                    // Collect all Devour(n) instances from the card definition.
+                    let devour_instances: Vec<u32> = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Devour(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    if !devour_instances.is_empty() && !stack_obj.devour_sacrifices.is_empty() {
+                        let entering_controller = state
+                            .objects
+                            .get(&new_id)
+                            .map(|o| o.controller)
+                            .unwrap_or(stack_obj.controller);
+
+                        let mut sacrifice_count: u32 = 0;
+
+                        // Sacrifice each creature. Re-validate at resolution time since
+                        // state may have changed since cast time (CR 608.3b).
+                        for sac_id in &stack_obj.devour_sacrifices {
+                            let sac_id = *sac_id;
+                            // Validate: still on battlefield, still controlled by caster, still creature.
+                            let still_valid = state
+                                .objects
+                                .get(&sac_id)
+                                .map(|obj| {
+                                    obj.zone == ZoneId::Battlefield
+                                        && obj.controller == entering_controller
+                                        && obj
+                                            .characteristics
+                                            .card_types
+                                            .contains(&CardType::Creature)
+                                })
+                                .unwrap_or(false);
+
+                            if !still_valid {
+                                continue;
+                            }
+
+                            // Capture last-known information before zone move (CR 400.7).
+                            let (sac_owner, pre_death_controller, pre_death_counters) = {
+                                let obj = match state.objects.get(&sac_id) {
+                                    Some(o) => o,
+                                    None => continue,
+                                };
+                                (obj.owner, obj.controller, obj.counters.clone())
+                            };
+
+                            // CR 614: Check replacement effects (e.g., Rest in Peace).
+                            let action = crate::rules::replacement::check_zone_change_replacement(
+                                state,
+                                sac_id,
+                                crate::state::zone::ZoneType::Battlefield,
+                                crate::state::zone::ZoneType::Graveyard,
+                                sac_owner,
+                                &std::collections::HashSet::new(),
+                            );
+
+                            match action {
+                                crate::rules::replacement::ZoneChangeAction::Redirect {
+                                    to: dest,
+                                    events: repl_events,
+                                    ..
+                                } => {
+                                    events.extend(repl_events);
+                                    if let Ok((new_grave_id, _old)) =
+                                        state.move_object_to_zone(sac_id, dest)
+                                    {
+                                        match dest {
+                                            ZoneId::Exile => {
+                                                // Replacement (e.g., Rest in Peace) exiled instead of graveyard.
+                                                events.push(GameEvent::ObjectExiled {
+                                                    player: sac_owner,
+                                                    object_id: sac_id,
+                                                    new_exile_id: new_grave_id,
+                                                });
+                                            }
+                                            ZoneId::Command(_) => {
+                                                // Commander redirected to command zone -- no CreatureDied.
+                                            }
+                                            _ => {
+                                                events.push(GameEvent::CreatureDied {
+                                                    object_id: sac_id,
+                                                    new_grave_id,
+                                                    controller: pre_death_controller,
+                                                    pre_death_counters,
+                                                });
+                                            }
+                                        }
+                                        sacrifice_count += 1;
+                                    }
+                                }
+                                crate::rules::replacement::ZoneChangeAction::Proceed => {
+                                    if let Ok((new_grave_id, _old)) = state
+                                        .move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))
+                                    {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: sac_id,
+                                            new_grave_id,
+                                            controller: pre_death_controller,
+                                            pre_death_counters,
+                                        });
+                                        sacrifice_count += 1;
+                                    }
+                                }
+                                crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                                    ..
+                                } => {
+                                    // For simplicity, treat ChoiceRequired as Proceed (go to graveyard).
+                                    // Full interactive choice support is deferred.
+                                    if let Ok((new_grave_id, _old)) = state
+                                        .move_object_to_zone(sac_id, ZoneId::Graveyard(sac_owner))
+                                    {
+                                        events.push(GameEvent::CreatureDied {
+                                            object_id: sac_id,
+                                            new_grave_id,
+                                            controller: pre_death_controller,
+                                            pre_death_counters,
+                                        });
+                                        sacrifice_count += 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        if sacrifice_count > 0 {
+                            // CR 702.82b: Record the number of creatures devoured for
+                            // abilities that reference "it devoured".
+                            if let Some(obj) = state.objects.get_mut(&new_id) {
+                                obj.creatures_devoured = sacrifice_count;
+                            }
+
+                            // Add +1/+1 counters: for each Devour(N) instance, add N * sacrifice_count.
+                            let mut total_devour_counters: u32 = 0;
+                            for n in &devour_instances {
+                                total_devour_counters += n * sacrifice_count;
+                            }
+
+                            if total_devour_counters > 0 {
+                                if let Some(obj) = state.objects.get_mut(&new_id) {
+                                    let current = obj
+                                        .counters
+                                        .get(&CounterType::PlusOnePlusOne)
+                                        .copied()
+                                        .unwrap_or(0);
+                                    obj.counters = obj.counters.update(
+                                        CounterType::PlusOnePlusOne,
+                                        current + total_devour_counters,
+                                    );
+                                }
+                                events.push(GameEvent::CounterAdded {
+                                    object_id: new_id,
+                                    counter: CounterType::PlusOnePlusOne,
+                                    count: total_devour_counters,
+                                });
+                            }
+                        }
+                    }
+                }
+
                 // CR 702.103b: If the permanent is bestowed, re-apply the type
                 // transformation after move_object_to_zone (which resets to printed types).
                 // The permanent enters as an Aura enchantment with enchant creature,
@@ -2654,6 +2834,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
+                    creatures_devoured: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -2886,6 +3067,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.47a: suspend free-casts have no spliced effects.
                             spliced_effects: vec![],
                             spliced_card_ids: vec![],
+                            devour_sacrifices: vec![],
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -3758,6 +3940,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
+                    creatures_devoured: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -3946,6 +4129,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
+                    creatures_devoured: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -4153,6 +4337,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         echo_pending: false,
                         phased_out_indirectly: false,
                         phased_out_controller: None,
+                        creatures_devoured: 0,
                     };
 
                     // Add the token to the battlefield.

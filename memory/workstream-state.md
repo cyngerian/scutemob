@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify) | available | — | B9 closed 2026-03-06; generic trigger gap found (see handoff) |
+| W1: Abilities | Batch 10: ETB/dies patterns (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify) | ACTIVE | 2026-03-06 | Running full chain via /implement-ability; 7 abilities sequential, no intervention needed |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

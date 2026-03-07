@@ -232,6 +232,7 @@ fn test_entwine_basic_both_modes_execute() {
             splice_cards: vec![],
             entwine_paid: true,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -352,6 +353,7 @@ fn test_entwine_not_paid_only_first_mode() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -456,6 +458,7 @@ fn test_entwine_insufficient_mana_rejected() {
             splice_cards: vec![],
             entwine_paid: true,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -526,6 +529,7 @@ fn test_entwine_no_keyword_rejected() {
             splice_cards: vec![],
             entwine_paid: true,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -630,6 +634,7 @@ fn test_entwine_modes_in_printed_order() {
             splice_cards: vec![],
             entwine_paid: true,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -722,6 +727,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
             splice_cards: vec![],
             entwine_paid: true,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

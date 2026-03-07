@@ -189,6 +189,7 @@ fn test_surge_basic_cast_with_surge_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -259,6 +260,7 @@ fn test_surge_rejected_no_prior_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -318,6 +320,7 @@ fn test_surge_optional_normal_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -373,6 +376,7 @@ fn test_surge_after_resolved_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -427,6 +431,7 @@ fn test_surge_after_countered_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -518,6 +523,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             },
         );
         assert!(
@@ -587,6 +593,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -666,6 +673,7 @@ fn test_surge_card_without_keyword_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -737,6 +745,7 @@ fn test_surge_reset_at_turn_start() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -811,6 +820,7 @@ fn test_surge_reset_at_turn_start() {
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             },
         );
         assert!(
@@ -958,6 +968,7 @@ fn test_surge_commander_tax_stacks() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1029,6 +1040,7 @@ fn test_surge_cast_alt_cost_tracked() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

@@ -244,6 +244,19 @@ pub enum Command {
         /// `AbilityDefinition::Spell.modes` must be `Some(...)`. N must be < modes.len().
         #[serde(default)]
         escalate_modes: u32,
+        /// CR 702.82a: Creatures on the battlefield to sacrifice as the devour
+        /// ETB replacement effect resolves. Empty vec = no sacrifice (devour 0).
+        ///
+        /// When non-empty, each ObjectId must be:
+        /// - On the battlefield, controlled by the caster
+        /// - A creature (by current characteristics)
+        /// - Not duplicated (no ObjectId appears twice)
+        /// - Not the card being cast (can't devour itself)
+        ///
+        /// The sacrifice happens at resolution time as an ETB replacement effect,
+        /// not at cast time. Validated at cast time for early error detection.
+        #[serde(default)]
+        devour_sacrifices: Vec<ObjectId>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

@@ -353,6 +353,10 @@ pub fn handle_play_land(
         }
     }
 
+    // CR 702.82a: Devour N -- lands with Devour are not printed in Magic.
+    // ETB hook exists here for consistency with resolution.rs (gotchas-infra.md).
+    // No-op: lands have no StackObject to carry devour_sacrifices.
+
     // CR 702.30a: Mark lands with Echo as pending their echo trigger.
     // "At the beginning of your upkeep, if this permanent came under your
     // control since the beginning of your last upkeep, sacrifice it unless

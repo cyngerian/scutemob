@@ -621,6 +621,11 @@ impl HashInto for KeywordAbility {
                 123u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Devour (discriminant 124) -- CR 702.82
+            KeywordAbility::Devour(n) => {
+                124u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -807,6 +812,8 @@ impl HashInto for GameObject {
         self.phased_out_indirectly.hash_into(hasher);
         // Phasing (CR 702.26a) — player who controlled this permanent when it phased out
         self.phased_out_controller.hash_into(hasher);
+        // Devour (CR 702.82b) — number of creatures devoured on ETB
+        self.creatures_devoured.hash_into(hasher);
     }
 }
 
@@ -1895,6 +1902,10 @@ impl HashInto for StackObject {
             effect.hash_into(hasher);
         }
         for id in &self.spliced_card_ids {
+            id.hash_into(hasher);
+        }
+        // Devour (CR 702.82a) — creatures to sacrifice at ETB time
+        for id in &self.devour_sacrifices {
             id.hash_into(hasher);
         }
         // Note: StackObject retains its own individual boolean fields for now (separate from

@@ -549,6 +549,14 @@ pub struct GameObject {
     /// Reset to None when the permanent phases back in or on zone changes (CR 400.7).
     #[serde(default)]
     pub phased_out_controller: Option<PlayerId>,
+    /// CR 702.82b: The number of creatures this permanent devoured as it entered
+    /// the battlefield. "It devoured" means "sacrificed as a result of its devour
+    /// ability as it entered the battlefield."
+    ///
+    /// Used by abilities that reference the number of creatures devoured.
+    /// Reset to 0 on zone changes (CR 400.7).
+    #[serde(default)]
+    pub creatures_devoured: u32,
 }
 
 impl GameObject {

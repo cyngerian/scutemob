@@ -140,6 +140,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -243,6 +244,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -335,6 +337,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -425,6 +428,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -494,6 +498,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -558,6 +563,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1076,6 +1082,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1164,6 +1171,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1999,6 +2007,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     });
@@ -2310,6 +2319,7 @@ fn test_full_four_player_commander_game() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

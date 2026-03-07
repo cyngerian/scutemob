@@ -208,6 +208,7 @@ fn test_ward_basic_counter_on_targeting() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -344,6 +345,7 @@ fn test_ward_does_not_trigger_for_controller() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -445,6 +447,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -643,6 +646,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -818,6 +822,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -922,6 +927,7 @@ fn test_ward_multiplayer_opponent_check() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

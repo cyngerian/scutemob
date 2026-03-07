@@ -282,6 +282,7 @@ fn test_splice_basic_onto_arcane() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -371,6 +372,7 @@ fn test_splice_cost_added() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -452,6 +454,7 @@ fn test_splice_card_stays_in_hand() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -550,6 +553,7 @@ fn test_splice_wrong_subtype_rejected() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -632,6 +636,7 @@ fn test_splice_same_card_twice_rejected() {
             splice_cards: vec![splice_id, splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -714,6 +719,7 @@ fn test_splice_not_in_hand_rejected() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -811,6 +817,7 @@ fn test_splice_multiple_cards() {
             splice_cards: vec![splice_id_1, splice_id_2],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell with two splice cards should succeed");
@@ -913,6 +920,7 @@ fn test_splice_main_effect_first() {
             splice_cards: vec![splice_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -1038,6 +1046,7 @@ fn test_splice_onto_itself_rejected() {
             splice_cards: vec![self_id],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

@@ -14,6 +14,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Bloodthirst(2)),
             AbilityDefinition::Keyword(KeywordAbility::Menace),
         ],
-        ..Default::default()
     }
 }

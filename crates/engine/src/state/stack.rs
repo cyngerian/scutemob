@@ -255,6 +255,14 @@ pub struct StackObject {
     /// in hand regardless of what happens to the spell).
     #[serde(default)]
     pub spliced_card_ids: Vec<ObjectId>,
+    /// CR 702.82a: Creatures to sacrifice when this permanent enters the battlefield.
+    /// Populated from CastSpell.devour_sacrifices at cast time; consumed at resolution
+    /// time in resolution.rs for the Devour ETB replacement.
+    ///
+    /// Empty vec = player chose not to sacrifice (zero devour). The sacrifice and
+    /// counter placement happen during ETB resolution, not at cast time.
+    #[serde(default)]
+    pub devour_sacrifices: Vec<ObjectId>,
 }
 
 /// The kind of object on the stack.

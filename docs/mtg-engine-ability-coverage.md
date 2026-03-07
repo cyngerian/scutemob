@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Amass 701.47 validated: Effect disc 41, GameEvent disc 98, Dreadhorde Invasion, script stack/161, 7 tests)
+> Last audited: 2026-03-06 (Devour 702.82 validated: KW 124, resolution.rs ETB replacement, Predator Dragon, script stack/162, 10 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 55        | 0        | 0       | 38   | 12  |
-| **Total**| **204**| **148**  | **2**    | **0**   | **42**| **12** |
+| P4       | 105   | 56        | 0        | 0       | 37   | 12  |
+| **Total**| **204**| **149**  | **2**    | **0**   | **41**| **12** |
 
 ---
 
@@ -200,7 +200,7 @@ Keywords triggered by creatures entering, leaving, or dying.
 | Evoke | 702.74 | P2 | `validated` | `state/types.rs:293-301` (KeywordAbility::Evoke), `cards/card_definition.rs:168-175` (AbilityDefinition::Evoke { cost }), `state/stack.rs:59-65` (was_evoked on StackObject), `state/game_object.rs:311-317` (was_evoked on GameObject), `rules/casting.rs:56-632` (alternative cost handling, get_evoke_cost, flashback conflict), `rules/abilities.rs:568-587+1082-1103` (evoke sacrifice PendingTrigger + EvokeSacrificeTrigger kind), `rules/resolution.rs:185-190+452-458` (was_evoked transfer + EvokeSacrificeTrigger resolution), `state/hash.rs:362+510+927+1086+1131+2371` | Mulldrifter | `stack/074` | — | CR 702.74a fully enforced; evoke as alternative cost (CR 118.9); was_evoked flag on StackObject + GameObject; sacrifice trigger via PendingTrigger with is_evoke_sacrifice; EvokeSacrificeTrigger stack kind; flashback conflict rejected (CR 118.9a: only one alternative cost); commander tax applies on top of evoke cost; blink fizzles sacrifice trigger (new object); 8 unit tests in `tests/evoke.rs`; game script validated (all assertions pass) |
 | Encore | 702.141 | P4 | `validated` | `state/types.rs:810-818` (KeywordAbility::Encore, discriminant 94), `state/game_object.rs:451-486` (encore_sacrifice_at_end_step, encore_must_attack, encore_activated_by), `state/hash.rs:523-524+692-697+1131-1134+1563-1573+3160-3161`, `state/stack.rs:649-677` (StackObjectKind::EncoreAbility disc 29, EncoreSacrificeTrigger disc 30), `state/stubs.rs:340-354` (is_encore_sacrifice_trigger, encore_activator on PendingTrigger), `state/builder.rs:920-922`, `state/mod.rs:300-305+397-402` (CR 400.7 zone-change reset), `cards/card_definition.rs:297-306` (AbilityDefinition::Encore { cost } disc 27), `rules/command.rs:456-469` (Command::EncoreCard), `rules/engine.rs:379-384` (dispatch to handle_encore_card), `rules/abilities.rs:1448-1628` (handle_encore_card 14-check validation + get_encore_cost; sorcery-speed, graveyard zone, keyword check, split second block, mana cost payment, exile as cost, StackObjectKind::EncoreAbility push), `rules/abilities.rs:3871-3876` (flush: EncoreSacrificeTrigger kind), `rules/resolution.rs:2598-2733` (EncoreAbility resolution: for-each-opponent token creation, haste, encore_sacrifice_at_end_step/encore_must_attack/encore_activated_by tags), `rules/resolution.rs:2799-2808` (EncoreSacrificeTrigger resolution: controller check + sacrifice), `rules/turn_actions.rs:192-259` (end_step_actions: queue EncoreSacrificeTrigger for encore tokens), `testing/replay_harness.rs:588-593` (encore_card action type), `tools/replay-viewer/src/view_model.rs:508-512+745`, `tools/tui/src/play/panels/stack_view.rs:115-120` | Briarblade Adept (`briarblade_adept.rs`) | `tests/encore.rs` (10 tests) | `stack/131` | CR 702.141a fully enforced. Activated ability from graveyard (sorcery speed); exile card as cost (CR 602.2c); EncoreAbility on stack; resolution creates one token copy per living opponent: tokens gain Haste, tagged encore_sacrifice_at_end_step=true + encore_must_attack=Some(opponent_id) + encore_activated_by=Some(activator); end_step_actions queues EncoreSacrificeTrigger (sacrifice only if controller==activator); CR 400.7 zone-change resets; split second blocks; not a cast; eliminated opponents skipped; 10 unit tests cover 4p basic, 2p, haste, exile-as-cost, sacrifice-at-end-step, sorcery-speed (opponent turn, non-empty stack), not-in-graveyard, no-keyword, eliminated-opponent; game script pending_review. Attack trigger on Briarblade Adept omitted (targeted_trigger DSL gap). |
 | Champion | 702.72 | P4 | `none` | — | — | — | — | ETB exile a creature you control; leaves → return it |
-| Devour | 702.82 | P4 | `none` | — | — | — | — | ETB: sacrifice creatures for +1/+1 counters |
+| Devour | 702.82 | P4 | `validated` | `rules/resolution.rs`, `state/types.rs` (KW 124), `testing/replay_harness.rs` | Predator Dragon | `stack/162` | — | ETB replacement: optional sacrifice → +1/+1 counters (702.82a-c); devour_sacrifices on CastSpell/StackObject; creatures_devoured tracking; 10 unit tests |
 | Tribute | 702.104 | P4 | `none` | — | — | — | — | Opponent chooses: +1/+1 counters or ability triggers |
 | Fabricate | 702.123 | P4 | `none` | — | — | — | — | ETB: choose +1/+1 counters or create Servo tokens |
 | Decayed | 702.147 | P4 | `validated` | state/types.rs:616-628, state/game_object.rs:399-408, rules/combat.rs:285-300+396-401, rules/turn_actions.rs:606-632 | Shambling Ghast | decayed.rs (8 tests) | baseline/112 | Can't block; sacrifice at end of combat when it attacks. Flag-on-object pattern (like Myriad); persists even if keyword removed (ruling 2021-09-24). |
@@ -523,7 +523,7 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P4 Gaps (niche / historical)
 
-39 remaining (none), 12 n/a (digital-only + Banding + niche). 54/105 validated. Top unresolved by likely demand: Fuse, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+37 remaining (none), 12 n/a (digital-only + Banding + niche). 56/105 validated. Top unresolved by likely demand: Fuse, Fabricate, Champion, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
 
 **Resolved**: Shadow (CR 702.28) — validated 2026-02-28 (script combat/106, Dauthi Slayer, 7 unit tests in shadow.rs).
 

@@ -208,6 +208,7 @@ fn test_add_object_to_state() {
         echo_pending: false,
         phased_out_indirectly: false,
         phased_out_controller: None,
+        creatures_devoured: 0,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

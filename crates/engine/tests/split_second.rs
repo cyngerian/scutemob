@@ -181,6 +181,7 @@ fn test_split_second_blocks_casting_spells() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -222,6 +223,7 @@ fn test_split_second_blocks_casting_spells() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -308,6 +310,7 @@ fn test_split_second_blocks_activated_abilities() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -407,6 +410,7 @@ fn test_split_second_blocks_cycling() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -499,6 +503,7 @@ fn test_split_second_allows_mana_abilities() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -598,6 +603,7 @@ fn test_split_second_allows_pass_priority() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -684,6 +690,7 @@ fn test_split_second_blocks_caster_too() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -718,6 +725,7 @@ fn test_split_second_blocks_caster_too() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -804,6 +812,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -852,6 +861,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -932,6 +942,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

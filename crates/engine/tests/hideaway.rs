@@ -112,6 +112,7 @@ fn make_hideaway_trigger_stack_obj(
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     }

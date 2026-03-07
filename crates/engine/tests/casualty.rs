@@ -254,6 +254,7 @@ fn test_casualty_basic_copy() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
@@ -403,6 +404,7 @@ fn test_casualty_power_threshold() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -435,6 +437,7 @@ fn test_casualty_power_threshold() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -476,6 +479,7 @@ fn test_casualty_optional_no_sacrifice() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
@@ -538,6 +542,7 @@ fn test_casualty_not_a_creature() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -584,6 +589,7 @@ fn test_casualty_wrong_controller() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -659,6 +665,7 @@ fn test_casualty_spell_without_keyword() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -704,6 +711,7 @@ fn test_casualty_copy_is_not_cast() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
@@ -768,6 +776,7 @@ fn test_casualty_higher_power_accepted() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -812,6 +821,7 @@ fn test_casualty_creature_not_on_battlefield() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

@@ -436,6 +436,7 @@ fn test_commander_damage_survives_zone_change() {
                 echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,
+                creatures_devoured: 0,
             },
             ZoneId::Battlefield,
         )

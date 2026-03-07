@@ -212,6 +212,7 @@ fn test_replicate_zero_copies() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without replicate should succeed: {:?}", e));
@@ -267,6 +268,7 @@ fn test_replicate_one_copy() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -359,6 +361,7 @@ fn test_replicate_basic_two_copies() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=2 failed: {:?}", e));
@@ -480,6 +483,7 @@ fn test_replicate_no_keyword_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -523,6 +527,7 @@ fn test_replicate_copies_not_cast() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -585,6 +590,7 @@ fn test_replicate_mana_cost_added() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

@@ -146,6 +146,7 @@ fn test_clone_independence_object_modification() {
                 echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,
+                creatures_devoured: 0,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

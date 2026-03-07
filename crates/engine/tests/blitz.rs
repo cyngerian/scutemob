@@ -211,6 +211,7 @@ fn test_blitz_basic_cast_with_blitz_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -325,6 +326,7 @@ fn test_blitz_normal_cast_no_sacrifice_no_draw() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -417,6 +419,7 @@ fn test_blitz_sacrifice_at_end_step() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -522,6 +525,7 @@ fn test_blitz_draw_card_on_death() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -664,6 +668,7 @@ fn test_blitz_draw_on_sacrifice_at_end_step() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -788,6 +793,7 @@ fn test_blitz_creature_left_battlefield_before_end_step() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with blitz failed: {:?}", e));
@@ -902,6 +908,7 @@ fn test_blitz_card_without_blitz_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -981,6 +988,7 @@ fn test_blitz_alternative_cost_exclusivity() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1106,6 +1114,7 @@ fn test_blitz_commander_tax_applies() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -1144,6 +1153,7 @@ fn test_blitz_commander_tax_applies() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(

@@ -337,6 +337,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -370,6 +371,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -400,6 +402,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -430,6 +433,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -461,6 +465,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -492,6 +497,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -528,6 +534,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -869,6 +876,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -912,6 +920,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -943,6 +952,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -977,6 +987,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1011,6 +1022,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1042,6 +1054,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1073,6 +1086,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1103,6 +1117,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1133,6 +1148,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1163,6 +1179,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1197,6 +1214,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1230,6 +1248,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1261,6 +1280,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1289,6 +1309,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1325,6 +1346,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1360,6 +1382,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1393,6 +1416,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1434,6 +1458,7 @@ pub fn translate_player_action(
                 splice_cards: splice_ids,
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1462,6 +1487,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1493,6 +1519,7 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: true,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             })
         }
 
@@ -1525,6 +1552,45 @@ pub fn translate_player_action(
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes,
+                devour_sacrifices: vec![],
+            })
+        }
+
+        // CR 702.82a: Cast with Devour -- sacrifice creatures as an ETB replacement effect.
+        // `convoke_names` (reused parameter slot) lists the names of creatures on the
+        // battlefield controlled by the caster to sacrifice. Empty list = no sacrifice (devour 0).
+        // The sacrifice and counter placement happen at resolution (ETB replacement), not here.
+        "cast_spell_devour" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            // Resolve each devour creature name to an ObjectId on the battlefield.
+            let devour_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: devour_ids,
             })
         }
 

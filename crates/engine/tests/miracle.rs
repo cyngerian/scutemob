@@ -494,6 +494,7 @@ fn test_miracle_cast_for_miracle_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -605,6 +606,7 @@ fn test_miracle_sorcery_ignores_timing() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -796,6 +798,7 @@ fn test_miracle_cannot_combine_with_flashback() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     });
@@ -831,6 +834,7 @@ fn test_miracle_cannot_combine_with_flashback() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(

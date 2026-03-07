@@ -960,6 +960,7 @@ impl GameStateBuilder {
                 echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,
+                creatures_devoured: 0,
             };
 
             state.add_object(object, zone)?;

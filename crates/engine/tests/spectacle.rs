@@ -193,6 +193,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -263,6 +264,7 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -322,6 +324,7 @@ fn test_spectacle_normal_cast_without_spectacle() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -389,6 +392,7 @@ fn test_spectacle_no_keyword_rejects() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -453,6 +457,7 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -596,6 +601,7 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -691,6 +697,7 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -750,6 +757,7 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -852,6 +860,7 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -996,6 +1005,7 @@ fn test_spectacle_commander_tax_applies() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

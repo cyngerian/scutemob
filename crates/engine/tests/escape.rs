@@ -341,6 +341,7 @@ fn test_escape_basic_cast_from_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -476,6 +477,7 @@ fn test_escape_exile_cost_events() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -576,6 +578,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -684,6 +687,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -787,6 +791,7 @@ fn test_escape_with_counter() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -888,6 +893,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1002,6 +1008,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1091,6 +1098,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1185,6 +1193,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1275,6 +1284,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1377,6 +1387,7 @@ fn test_escape_requires_card_in_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1469,6 +1480,7 @@ fn test_escape_mana_value_unchanged() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1593,6 +1605,7 @@ fn test_escape_auto_detected_from_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1693,6 +1706,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1807,6 +1821,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1932,6 +1947,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 

@@ -239,6 +239,7 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -393,6 +394,7 @@ fn test_evoke_basic_cast_without_evoke() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -501,6 +503,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -615,6 +618,7 @@ fn test_evoke_does_not_change_mana_value() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -761,6 +765,7 @@ fn test_evoke_cannot_combine_with_flashback() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -838,6 +843,7 @@ fn test_evoke_non_evoke_spell_rejected() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -925,6 +931,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -1021,6 +1028,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

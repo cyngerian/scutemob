@@ -829,5 +829,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Outlast => "Outlast".to_string(),
         KeywordAbility::Amplify(n) => format!("Amplify {n}"),
         KeywordAbility::Bloodthirst(n) => format!("Bloodthirst {n}"),
+        KeywordAbility::Devour(n) => format!("Devour {n}"),
     }
 }

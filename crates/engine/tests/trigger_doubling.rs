@@ -218,6 +218,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -384,6 +385,7 @@ fn test_two_panharmonicons_triple_triggers() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -532,6 +534,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -678,6 +681,7 @@ fn test_panharmonicon_registration_via_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -739,6 +743,7 @@ fn test_panharmonicon_registration_via_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

@@ -2646,6 +2646,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         echo_pending: false,
         phased_out_indirectly: false,
         phased_out_controller: None,
+        creatures_devoured: 0,
     }
 }
 

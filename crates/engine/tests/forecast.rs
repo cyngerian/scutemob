@@ -703,6 +703,7 @@ fn test_forecast_blocked_by_split_second() {
         escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     });
 
     state

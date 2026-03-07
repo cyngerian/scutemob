@@ -229,6 +229,7 @@ pub fn copy_spell_on_stack(
         // CR 702.47a: copies do not inherit spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
 
     // Push the copy onto the stack (above the original).
@@ -433,6 +434,7 @@ pub fn resolve_cascade(
                 // CR 702.47a: cascade free-cast spells have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
+                devour_sacrifices: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 

@@ -75,6 +75,7 @@ pub fn handle_cast_spell(
     splice_cards: Vec<ObjectId>,
     entwine_paid: bool,
     escalate_modes: u32,
+    devour_sacrifices: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -2736,6 +2737,61 @@ pub fn handle_cast_spell(
         })
         .collect();
 
+    // CR 702.82a: Validate devour_sacrifices -- each ObjectId must be:
+    // - On the battlefield, controlled by the caster
+    // - A creature (by current characteristics)
+    // - Not duplicated (no ObjectId appears twice)
+    // - Not the card being cast (new_card_id is now on the stack, but card is the original)
+    //
+    // The actual sacrifice and counter placement happen at resolution (ETB replacement),
+    // not here. We validate at cast time for early error detection.
+    let validated_devour_sacrifices: Vec<ObjectId> = if !devour_sacrifices.is_empty() {
+        // Check for duplicates.
+        let mut seen = std::collections::HashSet::new();
+        for &id in &devour_sacrifices {
+            if !seen.insert(id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "duplicate ObjectId {id:?} in devour_sacrifices (CR 702.82a)"
+                )));
+            }
+        }
+        // Validate each sacrifice target.
+        for &sac_id in &devour_sacrifices {
+            let sac_obj = state.objects.get(&sac_id).ok_or_else(|| {
+                GameStateError::InvalidCommand(format!(
+                    "devour sacrifice target {sac_id:?} does not exist (CR 702.82a)"
+                ))
+            })?;
+            // Must be on the battlefield.
+            if sac_obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "devour sacrifice target {sac_id:?} is not on the battlefield (CR 702.82a)"
+                )));
+            }
+            // Must be controlled by the caster.
+            if sac_obj.controller != player {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "devour sacrifice target {sac_id:?} is not controlled by the caster (CR 702.82a)"
+                )));
+            }
+            // Must be a creature.
+            let sac_chars = crate::rules::layers::calculate_characteristics(state, sac_id)
+                .ok_or_else(|| {
+                    GameStateError::InvalidCommand(format!(
+                        "could not calculate characteristics for devour target {sac_id:?}"
+                    ))
+                })?;
+            if !sac_chars.card_types.contains(&CardType::Creature) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "devour sacrifice target {sac_id:?} is not a creature (CR 702.82a)"
+                )));
+            }
+        }
+        devour_sacrifices
+    } else {
+        vec![]
+    };
+
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
@@ -2800,6 +2856,8 @@ pub fn handle_cast_spell(
         spliced_effects: collected_spliced_effects,
         // CR 702.47a: ObjectIds of cards spliced onto this spell (for display/validation).
         spliced_card_ids: collected_spliced_ids,
+        // CR 702.82a: Creatures to sacrifice at ETB time (validated below).
+        devour_sacrifices: validated_devour_sacrifices,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2943,6 +3001,7 @@ pub fn handle_cast_spell(
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
+            devour_sacrifices: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3004,6 +3063,7 @@ pub fn handle_cast_spell(
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
+            devour_sacrifices: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3066,6 +3126,7 @@ pub fn handle_cast_spell(
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
+            devour_sacrifices: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3122,6 +3183,7 @@ pub fn handle_cast_spell(
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
+            devour_sacrifices: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3180,6 +3242,7 @@ pub fn handle_cast_spell(
             // CR 702.47a: trigger/copy stack objects have no spliced effects.
             spliced_effects: vec![],
             spliced_card_ids: vec![],
+            devour_sacrifices: vec![],
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

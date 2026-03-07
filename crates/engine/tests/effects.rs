@@ -202,6 +202,7 @@ fn test_effect_deal_damage_to_player() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -293,6 +294,7 @@ fn test_effect_deal_damage_to_creature() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -387,6 +389,7 @@ fn test_effect_exile_and_gain_life() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -498,6 +501,7 @@ fn test_effect_draw_cards() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1068,6 +1072,7 @@ fn test_effect_counter_spell_removes_from_stack() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     });
@@ -1206,6 +1211,7 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1321,6 +1327,7 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1437,6 +1444,7 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1580,6 +1588,7 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1689,6 +1698,7 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1822,6 +1832,7 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

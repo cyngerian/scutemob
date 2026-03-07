@@ -231,6 +231,7 @@ fn test_echo_etb_sets_pending() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell should succeed");

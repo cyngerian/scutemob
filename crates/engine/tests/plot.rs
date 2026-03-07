@@ -405,6 +405,7 @@ fn test_plot_cannot_cast_same_turn() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -476,6 +477,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -557,6 +559,7 @@ fn test_plot_free_cast_costs_zero() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -678,6 +681,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     });
@@ -757,6 +761,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1010,6 +1015,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1153,6 +1159,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -1250,6 +1257,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         // CR 702.47a: test objects have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
     });
@@ -1278,6 +1286,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1346,6 +1355,7 @@ fn test_plot_free_cast_requires_own_turn() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1421,6 +1431,7 @@ fn test_plot_normal_cast_still_works() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1489,6 +1500,7 @@ fn test_plot_cast_postcombat_main_phase() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
 
@@ -1613,6 +1625,7 @@ fn test_plot_turn_tracking_boundary() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -1646,6 +1659,7 @@ fn test_plot_turn_tracking_boundary() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(

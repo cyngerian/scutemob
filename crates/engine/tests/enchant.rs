@@ -102,6 +102,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -162,6 +163,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -222,6 +224,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -280,6 +283,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell should succeed");
@@ -465,6 +469,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             },
         );
         assert!(
@@ -516,6 +521,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 splice_cards: vec![],
                 entwine_paid: false,
                 escalate_modes: 0,
+                devour_sacrifices: vec![],
             },
         );
         assert!(
@@ -572,6 +578,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -635,6 +642,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     );
     assert!(
@@ -697,6 +705,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell should succeed");

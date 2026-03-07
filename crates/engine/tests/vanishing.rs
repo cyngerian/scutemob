@@ -289,6 +289,7 @@ fn test_vanishing_etb_counters_on_cast() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("CastSpell should succeed");

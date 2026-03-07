@@ -122,6 +122,7 @@ fn test_read_the_bones_scry_then_draw() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -305,6 +306,7 @@ fn test_path_to_exile_optional_search() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -806,6 +808,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect("casting Rest in Peace failed");

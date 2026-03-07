@@ -363,6 +363,7 @@ pub fn handle_activate_ability(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -606,6 +607,7 @@ pub fn handle_cycle_card(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -852,6 +854,7 @@ pub fn handle_activate_forecast(
         escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1022,6 +1025,7 @@ pub fn handle_unearth_card(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1293,6 +1297,7 @@ pub fn handle_ninjutsu(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1501,6 +1506,7 @@ pub fn handle_embalm_card(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1718,6 +1724,7 @@ pub fn handle_eternalize_card(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1934,6 +1941,7 @@ pub fn handle_encore_card(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -4094,6 +4102,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // CR 702.47a: storm copies have no spliced effects.
                         spliced_effects: vec![],
                         spliced_card_ids: vec![],
+                        devour_sacrifices: vec![],
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -4415,6 +4424,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // CR 702.47a: myriad copies have no spliced effects.
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
+                devour_sacrifices: vec![],
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -4794,6 +4804,7 @@ pub fn handle_crew_vehicle(
         // CR 702.47a: triggered abilities have no spliced effects.
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5039,6 +5050,7 @@ pub fn handle_scavenge_card(
         escalate_modes_paid: 0,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
     };
     state.stack_objects.push_back(stack_obj);
 

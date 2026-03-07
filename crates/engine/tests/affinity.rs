@@ -131,6 +131,7 @@ fn cast_spell(
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
 }
@@ -555,6 +556,7 @@ fn test_affinity_combined_with_improvise() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .expect(

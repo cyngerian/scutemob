@@ -419,7 +419,10 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, abil)| {
-                        let AbilityDefinition::Triggered { trigger_condition, .. } = abil else {
+                        let AbilityDefinition::Triggered {
+                            trigger_condition, ..
+                        } = abil
+                        else {
                             return None;
                         };
                         let fires = (matches!(

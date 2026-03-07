@@ -208,6 +208,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -317,6 +318,7 @@ fn test_surveil_zero_no_event() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -420,6 +422,7 @@ fn test_surveil_empty_library_still_emits_event() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -511,6 +514,7 @@ fn test_surveil_library_fewer_than_n() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -624,6 +628,7 @@ fn test_surveil_then_draw_sequence() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -762,6 +767,7 @@ fn test_whenever_you_surveil_trigger() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();
@@ -873,6 +879,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap();

@@ -103,6 +103,7 @@ fn cast_creature(
             splice_cards: vec![],
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

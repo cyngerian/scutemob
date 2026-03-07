@@ -1132,6 +1132,15 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 123.
     Bloodthirst(u32),
+    /// CR 702.82: Devour N -- "As this object enters, you may sacrifice any number of
+    /// creatures. This permanent enters with N +1/+1 counters on it for each creature
+    /// sacrificed this way."
+    ///
+    /// Static ability / ETB replacement effect (CR 614.1c). Multiple instances work
+    /// separately (CR 702.82c).
+    ///
+    /// Discriminant 124.
+    Devour(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

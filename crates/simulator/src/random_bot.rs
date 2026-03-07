@@ -156,6 +156,7 @@ pub(crate) fn action_to_command(
             splice_cards: Vec::new(),
             entwine_paid: false,
             escalate_modes: 0,
+            devour_sacrifices: Vec::new(),
         },
         LegalAction::TapForMana {
             source,

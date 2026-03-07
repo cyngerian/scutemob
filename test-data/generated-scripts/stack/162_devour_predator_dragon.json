@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_162",
+    "name": "Devour 2: Predator Dragon sacrifices two creatures — enters as 8/8",
+    "description": "p1 casts Predator Dragon ({3}{R}{R}{R}, 4/4 Dragon with Flying and Haste, Devour 2) using the cast_spell_devour action, sacrificing two creatures: Llanowar Elves and Elvish Mystic. Per CR 702.82a, Devour 2 is a replacement effect that fires as the permanent enters the battlefield — p1 sacrifices any number of creatures, and Predator Dragon enters with twice that many +1/+1 counters. With 2 creatures sacrificed and Devour 2 (N=2), the Dragon enters with 4 +1/+1 counters: base 4/4 + 4 counters = 8/8. Both sacrificed creatures move to p1's graveyard (CR 701.17a). The script also verifies the stack empties and no life loss occurs. The 'you may' in CR 702.82a means zero sacrifices is also valid — addressed in generation_notes.",
+    "cr_sections_tested": ["601.2", "608.2", "702.82a", "702.82b", "116.3", "701.17a"],
+    "corner_case_ref": null,
+    "tags": ["devour", "etb", "counter", "creature", "replacement-effect", "predator-dragon"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Predator Dragon card definition (crates/engine/src/cards/defs/predator_dragon.rs): CardId 'predator-dragon', cost {3}{R}{R}{R} (generic:3, red:3), 4/4 Dragon, keywords: Flying, Haste, Devour(2). CR 702.82a: 'As this enters, you may sacrifice any number of creatures. This permanent enters with N times that many +1/+1 counters on it,' where N=2 for Devour 2. CR 702.82b: 'creatures_devoured' field on the permanent tracks the sacrifice count for card interactions. The harness action is 'cast_spell_devour'; the JSON field 'convoke' (reused slot per replay_harness.rs:1560-1567) lists the names of creatures to sacrifice. find_on_battlefield() resolves each name to the first matching ObjectId on p1's battlefield. Using two distinct creature names (Llanowar Elves, Elvish Mystic) avoids the duplicate-ObjectId lookup limitation documented in script 063. Mana for cast: {3}{R}{R}{R} = colorless:3, red:3 in pool. The sacrifice is a replacement effect modifying the ETB event — it fires at resolution (as the permanent would enter), NOT during the casting announcement. So both creatures are still on the battlefield at cast time and are consumed at resolution. 2 creatures × N=2 = 4 +1/+1 counters → 4+4=8 power, 4+4=8 toughness. Both sacrificed creatures go to p1's graveyard via CR 701.17a (sacrifice). CR 702.82a optionality: 'you may sacrifice any number' — zero is valid; if the player passes an empty list, the Dragon enters as base 4/4 with 0 counters. This 0-sacrifice case is covered by unit tests in crates/engine/tests/devour.rs. It is not scripted here because the harness runs sequentially and a second fresh cast would require a second Predator Dragon in hand that the initial state does not provide.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 3, "red": 3 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Elvish Mystic", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Predator Dragon", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Predator Dragon with Devour 2, sacrificing Llanowar Elves and Elvish Mystic. Dragon resolves and enters as 8/8 with 4 +1/+1 counters. Both sacrificed creatures go to graveyard.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Predator Dragon in p1 hand; Llanowar Elves and Elvish Mystic on p1 battlefield; p1 has {3}{R}{R}{R} in mana pool; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Predator Dragon" }] },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Elvish Mystic" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "p1 has {3}{R}{R}{R} ready in pool to cast Predator Dragon. Llanowar Elves and Elvish Mystic are untapped creatures p1 controls — they will be sacrificed via Devour 2 when the Dragon enters the battlefield."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_devour",
+          "card": "Predator Dragon",
+          "targets": [],
+          "convoke": ["Llanowar Elves", "Elvish Mystic"],
+          "mana_paid": { "colorless": 3, "red": 3 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 announces Predator Dragon ({3}{R}{R}{R}); full cost paid from pool (colorless:3, red:3). CR 702.82a: Devour 2 — p1 declares Llanowar Elves and Elvish Mystic as the creatures to sacrifice. The sacrifice list is passed via the 'convoke' JSON field (harness reuse, replay_harness.rs:1560). Sacrifice and counter placement happen at ETB resolution (replacement effect), not at cast time."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Predator Dragon on stack (count 1); Llanowar Elves and Elvish Mystic still on battlefield (sacrifice fires at ETB resolution, not cast time); p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Elvish Mystic" }
+              ]
+            }
+          },
+          "note": "CR 702.82a: Devour is a replacement effect — the sacrifice occurs as the permanent enters the battlefield (at resolution), not during the casting announcement. Both creatures remain on the battlefield while Predator Dragon is on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority. Predator Dragon resolves as the top of stack (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Predator Dragon",
+          "resolution": [
+            {
+              "effect": "sacrifice_devour_creatures",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.82a",
+              "note": "CR 702.82a: As Predator Dragon enters the battlefield, the Devour 2 replacement effect fires. p1 sacrifices Llanowar Elves and Elvish Mystic (2 creatures). CR 701.17a: Each sacrificed creature moves to its owner's graveyard."
+            },
+            {
+              "effect": "permanent_enters_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Predator Dragon",
+              "owner": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Predator Dragon resolves and enters the battlefield. CR 702.82a: Devour 2 — 2 creatures sacrificed × N=2 = 4 +1/+1 counters placed on Predator Dragon as it enters. Base 4/4 + 4 counters = 8/8."
+            }
+          ],
+          "note": "CR 608.2: Predator Dragon spell resolves. CR 702.82a: ETB replacement effect fires — 2 creatures sacrificed, Predator Dragon enters with 4 +1/+1 counters (2 × Devour 2). Sacrificed creatures go to graveyard (CR 701.17a)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Predator Dragon on p1 battlefield with 4 +1/+1 counters (8/8 total P/T); Llanowar Elves and Elvish Mystic in p1 graveyard; stack empty; life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Predator Dragon", "counters": { "plus_one_plus_one": 4 } }],
+              "excludes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Elvish Mystic" }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Elvish Mystic" }
+              ]
+            },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.82a: Predator Dragon entered with 4 +1/+1 counters (2 sacrificed × Devour 2). Base 4/4 + 4 counters = 8/8 effective P/T. CR 701.17a: Sacrificed creatures (Llanowar Elves, Elvish Mystic) are in p1's graveyard. No life loss occurred — Devour does not affect life totals."
+        }
+      ]
+    }
+  ]
+}
