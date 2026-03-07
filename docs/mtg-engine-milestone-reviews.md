@@ -1880,11 +1880,25 @@ This validates the T2 strategy of "treat debug_assert failures as bugs found, no
 
 ---
 
+## W1-B9: Batch 9 Review (2026-03-06)
+
+Batch 9 implemented 6 counter/growth abilities: Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass.
+Per-ability findings were caught and fixed inline (implement→review→fix auto-chain). One cross-cutting gap
+was discovered during the Amass game-script phase.
+
+### New Finding
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B9-01 | **LOW** | `rules/turn_actions.rs` — `upkeep_actions()` | **Generic CardDef upkeep triggers never fire.** `upkeep_actions()` only queues hardcoded keyword ability triggers (Suspend, Vanishing, Fading, Echo, Cumulative Upkeep, Forecast). Cards that declare `TriggerCondition::AtBeginningOfYourUpkeep` in their `CardDefinition::abilities` vec (e.g., Dreadhorde Invasion) silently never have their upkeep trigger queued during actual gameplay. The same gap likely exists for `AtBeginningOfYourDraw`, `AtBeginningOfCombat`, etc. **Fix:** After the keyword-specific trigger block in `upkeep_actions()`, add a general pass that iterates battlefield permanents, reads their `CardDefinition::abilities`, and queues any triggered ability with `TriggerCondition::AtBeginningOfYourUpkeep` where the trigger controller matches the current active player. Similar passes needed for other step-based trigger conditions. Medium effort, cross-cutting. Recommend fixing before B10 game scripts if any B10 cards use upkeep triggers. | OPEN |
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 233 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3) |
+| Total unique issue IDs | 234 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 33 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03) |
@@ -1892,7 +1906,7 @@ This validates the T2 strategy of "treat debug_assert failures as bugs found, no
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
 | MEDIUM (CLOSED) | 49 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 39 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01) |
+| LOW (OPEN) | 40 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 1 B9: MR-B9-01) |
 | LOW (CLOSED) | 36 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03: see "W3 Remediation" section above) |
 | LOW (DEFERRED) | 5 |
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |

@@ -274,6 +274,7 @@ Address when touching the relevant subsystem for other reasons:
 
 | Issue | Trigger |
 |-------|---------|
+| MR-B9-01 (generic CardDef upkeep triggers) | Before scripting any B10+ card that has an upkeep, draw-step, or combat trigger in its CardDefinition. Fix: add a general CardDef trigger sweep in `upkeep_actions()` after the keyword-specific block. See `docs/mtg-engine-milestone-reviews.md` W1-B9 section for full description. |
 | MR-M6-06 (combat refactor) | Next time combat needs new keyword support |
 | MR-M8-14 (Colossus shuffle) | Next "shuffle into library" card |
 | MR-M9.5-06 (server bind) | Next replay-viewer feature work |
