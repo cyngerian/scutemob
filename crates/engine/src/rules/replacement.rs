@@ -1692,3 +1692,100 @@ pub fn apply_regeneration(
 
     events
 }
+
+/// CR 702.89a: Check if an Aura with umbra armor can replace destruction.
+///
+/// Scans the battlefield for Auras with the `UmbraArmor` keyword that are
+/// attached to the target permanent. Returns the `ObjectId`(s) of matching Auras.
+///
+/// If exactly one Aura matches it is auto-selected. If multiple match, the
+/// enchanted permanent's controller must choose (CR 616.1) -- callers should
+/// auto-select the first for now (TODO: add full CR 616.1 choice path).
+///
+/// Unlike regeneration (CR 701.19a), umbra armor is NOT a one-shot shield. It
+/// does not need to be registered in `state.replacement_effects`. The Aura simply
+/// needs to be on the battlefield with the keyword; when the Aura is destroyed by
+/// this replacement the protection ends automatically.
+pub fn check_umbra_armor(state: &GameState, object_id: ObjectId) -> Vec<ObjectId> {
+    use crate::state::types::KeywordAbility;
+    use crate::state::zone::ZoneId;
+
+    let mut auras: Vec<ObjectId> = state
+        .objects
+        .iter()
+        .filter_map(|(aura_id, aura_obj)| {
+            // Must be on the battlefield.
+            if !matches!(aura_obj.zone, ZoneId::Battlefield) {
+                return None;
+            }
+            // CR 702.26b: phased-out permanents are treated as though they do not exist.
+            // Exclude phased-out Auras so they cannot trigger umbra armor.
+            if !aura_obj.is_phased_in() {
+                return None;
+            }
+            // Must be attached to the target permanent.
+            if aura_obj.attached_to != Some(object_id) {
+                return None;
+            }
+            // Use layer-resolved characteristics to check for UmbraArmor
+            // (respects Humility / Dress Down ability removal -- CR 702.89a).
+            let chars = crate::rules::layers::calculate_characteristics(state, *aura_id)?;
+            if chars.keywords.contains(&KeywordAbility::UmbraArmor) {
+                Some(*aura_id)
+            } else {
+                None
+            }
+        })
+        .collect();
+    // Sort by ObjectId for deterministic selection when multiple Auras match
+    // (im::HashMap iteration order is non-deterministic; replay correctness requires
+    // stable ordering so the same Aura is always selected first -- CR 616.1 TODO).
+    auras.sort();
+    auras
+}
+
+/// CR 702.89a: Apply umbra armor replacement -- destroy the Aura instead of the enchanted permanent.
+///
+/// Instead of destroying the enchanted permanent:
+/// 1. Remove all damage marked on the permanent (CR 702.89a).
+/// 2. Clear the `deathtouch_damage` flag.
+/// 3. Destroy the Aura (move to its owner's graveyard via `move_object_to_zone`).
+///    Standard zone-change replacement effects on the Aura DO apply (e.g., commander redirect).
+///
+/// Unlike regeneration (CR 701.19a): the permanent is NOT tapped and NOT removed from combat.
+/// Effects that say "can't be regenerated" do NOT prevent umbra armor (separate mechanics).
+///
+/// Returns the events to emit.
+pub fn apply_umbra_armor(
+    state: &mut GameState,
+    protected_id: ObjectId,
+    aura_id: ObjectId,
+) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+
+    // 1. Remove all damage from the protected permanent and clear deathtouch flag.
+    if let Some(obj) = state.objects.get_mut(&protected_id) {
+        obj.damage_marked = 0;
+        obj.deathtouch_damage = false;
+    }
+
+    // 2. Destroy the Aura -- move to its owner's graveyard.
+    let aura_owner = match state.objects.get(&aura_id) {
+        Some(obj) => obj.owner,
+        None => return events, // Aura already gone -- nothing to do.
+    };
+    // Note: standard zone-change replacements on the Aura (e.g., commander redirect)
+    // are handled by the existing pending_zone_changes / SBA flow, not here.
+    // We simply move it directly (701.8a: destroy = move to graveyard).
+    if state
+        .move_object_to_zone(aura_id, ZoneId::Graveyard(aura_owner))
+        .is_ok()
+    {
+        events.push(GameEvent::UmbraArmorApplied {
+            protected_id,
+            aura_id,
+        });
+    }
+
+    events
+}

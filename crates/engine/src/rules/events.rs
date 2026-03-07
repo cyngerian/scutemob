@@ -868,6 +868,20 @@ pub enum GameEvent {
         shield_id: ReplacementId,
     },
 
+    // ── Umbra Armor event (CR 702.89a) ─────────────────────────────────────
+    /// Umbra armor replacement applied -- an Aura was destroyed to save the enchanted permanent.
+    ///
+    /// Emitted when a permanent that would be destroyed is instead saved by an Aura with
+    /// the umbra armor ability. The Aura moves to its owner's graveyard; all damage on the
+    /// protected permanent is cleared. Unlike regeneration, the permanent is NOT tapped
+    /// and NOT removed from combat.
+    UmbraArmorApplied {
+        /// The permanent that was saved (still on the battlefield, damage cleared).
+        protected_id: ObjectId,
+        /// The Aura that was destroyed to save it (now in graveyard).
+        aura_id: ObjectId,
+    },
+
     // ── Hideaway event (CR 702.75a) ────────────────────────────────────────
     /// A card was exiled face-down by a Hideaway ETB trigger (CR 702.75a).
     ///

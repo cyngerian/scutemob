@@ -1162,6 +1162,16 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 126.
     Champion,
+
+    /// CR 702.89a: Umbra armor -- "If enchanted permanent would be destroyed,
+    /// instead remove all damage marked on it and destroy this Aura."
+    ///
+    /// Static ability on Auras. Creates a continuous replacement effect while
+    /// the Aura is on the battlefield. Unlike regeneration, the protected
+    /// permanent is NOT tapped and NOT removed from combat.
+    ///
+    /// Discriminant 127.
+    UmbraArmor,
 }
 
 /// CR 702.72a: The filter for what can be championed.

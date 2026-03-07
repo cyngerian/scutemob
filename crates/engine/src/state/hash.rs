@@ -633,6 +633,8 @@ impl HashInto for KeywordAbility {
             }
             // Champion (discriminant 126) -- CR 702.72
             KeywordAbility::Champion => 126u8.hash_into(hasher),
+            // UmbraArmor (discriminant 127) -- CR 702.89
+            KeywordAbility::UmbraArmor => 127u8.hash_into(hasher),
         }
     }
 }
@@ -2835,6 +2837,15 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 army_id.hash_into(hasher);
                 count.hash_into(hasher);
+            }
+            // CR 702.89a: UmbraArmorApplied (discriminant 99)
+            GameEvent::UmbraArmorApplied {
+                protected_id,
+                aura_id,
+            } => {
+                99u8.hash_into(hasher);
+                protected_id.hash_into(hasher);
+                aura_id.hash_into(hasher);
             }
         }
     }

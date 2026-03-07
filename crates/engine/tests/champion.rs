@@ -1234,12 +1234,10 @@ fn test_champion_ltb_full_return_path() {
         .unwrap();
     state.turn.priority_holder = Some(p1);
 
-    let champion_bf_id =
-        find_object_in_zone(&state, "Mock Champion Creature", ZoneId::Battlefield)
-            .expect("champion should be on battlefield");
-    let fodder_exile_id =
-        find_object_in_zone(&state, "Mock Vanilla Creature", ZoneId::Exile)
-            .expect("fodder should be in exile");
+    let champion_bf_id = find_object_in_zone(&state, "Mock Champion Creature", ZoneId::Battlefield)
+        .expect("champion should be on battlefield");
+    let fodder_exile_id = find_object_in_zone(&state, "Mock Vanilla Creature", ZoneId::Exile)
+        .expect("fodder should be in exile");
 
     // Simulate the linked-ability state: champion has exiled the fodder.
     // CR 607.2a: champion_exiled_card is the "championed" designation.
@@ -1295,9 +1293,8 @@ fn test_champion_ltb_full_return_path() {
     );
 
     // Verify ownership: returned card is under its owner's (p1's) control.
-    let returned_id =
-        find_object_in_zone(&state, "Mock Vanilla Creature", ZoneId::Battlefield)
-            .expect("returned creature must be on battlefield");
+    let returned_id = find_object_in_zone(&state, "Mock Vanilla Creature", ZoneId::Battlefield)
+        .expect("returned creature must be on battlefield");
     let returned_obj = state.objects.get(&returned_id).unwrap();
     assert_eq!(
         returned_obj.controller, p1,

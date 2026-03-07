@@ -573,6 +573,24 @@ fn execute_effect_inner(
                         continue; // Skip destruction -- permanent stays on battlefield
                     }
 
+                    // CR 702.89a: Check umbra armor -- Aura saves the enchanted permanent.
+                    // Unlike regeneration, the permanent is NOT tapped and NOT removed from combat.
+                    // "Can't be regenerated" does NOT block umbra armor (separate mechanics -- ruling).
+                    // TODO (CR 616.1): when both regen and umbra armor apply simultaneously, the
+                    // controller should choose which applies first. Currently regen is checked first.
+                    {
+                        let auras = crate::rules::replacement::check_umbra_armor(state, id);
+                        if !auras.is_empty() {
+                            // Auto-select the first Aura. Multiple-Aura case: controller should
+                            // choose (CR 616.1). TODO: NeedsChoice path for multiple umbra armors.
+                            let aura_id = auras[0];
+                            let umbra_events =
+                                crate::rules::replacement::apply_umbra_armor(state, id, aura_id);
+                            events.extend(umbra_events);
+                            continue; // Skip destruction -- permanent stays on battlefield
+                        }
+                    }
+
                     let (card_types, owner, pre_death_controller, pre_death_counters) = state
                         .objects
                         .get(&id)

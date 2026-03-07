@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_165",
+    "name": "Umbra Armor — Hyena Umbra saves Llanowar Elves from Doom Blade",
+    "description": "Tests CR 702.89a (Umbra armor replacement effect). p1 casts Hyena Umbra ({W}) targeting their Llanowar Elves (1/1). Hyena Umbra resolves and attaches, granting the Elves +1/+1 and first strike. p1 passes priority. p2 casts Doom Blade ({1}{B}) targeting Llanowar Elves. During Doom Blade resolution the DestroyPermanent effect checks for umbra armor: Hyena Umbra is on the battlefield attached to Llanowar Elves and has KeywordAbility::UmbraArmor, so apply_umbra_armor fires. All damage on Llanowar Elves is cleared and Hyena Umbra is moved to p1's graveyard (GameEvent::UmbraArmorApplied). The 'continue' in the effect executor skips the actual destruction of Llanowar Elves. Final state: Llanowar Elves remains on p1's battlefield; Hyena Umbra is in p1's graveyard; the +1/+1 continuous effect and first strike grant from Hyena Umbra are gone (Aura no longer on battlefield, CR 613.5).",
+    "cr_sections_tested": [
+      "601.2",
+      "303.4b",
+      "608.2",
+      "613.4c",
+      "613.5",
+      "702.5a",
+      "702.89a",
+      "704.3",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": ["aura", "enchant", "umbra-armor", "replacement", "hyena-umbra", "doom-blade", "protection"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Hyena Umbra card definition (crates/engine/src/cards/defs/hyena_umbra.rs): mana_cost {W} (white:1), Enchantment—Aura, abilities: [Keyword(Enchant(EnchantTarget::Creature)), Static{ModifyPower(1), AttachedCreature, WhileSourceOnBattlefield}, Static{ModifyToughness(1), AttachedCreature, WhileSourceOnBattlefield}, Static{AddKeyword(FirstStrike), AttachedCreature, WhileSourceOnBattlefield}, Keyword(UmbraArmor)]. Llanowar Elves: 1/1 Elf Druid, {T}: Add {G}. Doom Blade oracle: 'Destroy target nonblack creature.' Llanowar Elves is green (nonblack) — valid target (CR 115.4).\n\nUmbra armor replacement is handled in two places in the engine: (1) Effect::DestroyPermanent in effects/mod.rs (lines 581-591) — for destroy effects from spells, which is the path used here; (2) the SBA lethal-damage path in rules/sba.rs. For Doom Blade, check_umbra_armor is called during Effect::DestroyPermanent execution. If auras are found, apply_umbra_armor runs: clears damage_marked and deathtouch_damage on the creature, moves the Aura to its owner's graveyard, emits GameEvent::UmbraArmorApplied, and continues to skip the destruction of the creature. The creature stays on the battlefield. The replacement fires during stack_resolve for Doom Blade, not as a separate SBA after.\n\nP/T assertion gap: The harness does not support zones.battlefield.p1.<card>.power assertions. The +1/+1 grant and first strike loss after Hyena Umbra leaves the battlefield (CR 613.5: continuous effects end when their source leaves the battlefield) are verified by unit tests in enchant.rs and layers.rs, not in this script. The script confirms correctness via zone state: Hyena Umbra in graveyard, Llanowar Elves on battlefield, Hyena Umbra excluded from battlefield.\n\nInitial state reasoning: p1 needs {W} to cast Hyena Umbra. p2 needs {1}{B} to cast Doom Blade. Turn is set to 3 to imply prior land drops occurred (mana already in pool; land_plays_remaining 0). The Aura cast step uses a 'permanent' target (not 'player') identical to the Rancor Aura cast in script 062.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": { "black": 1, "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Hyena Umbra", "is_commander": false, "owner": null }
+        ],
+        "p2": [
+          { "card": "Doom Blade", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Hyena Umbra targeting Llanowar Elves. Both pass priority. Hyena Umbra resolves and attaches.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Llanowar Elves on p1 battlefield; Hyena Umbra in p1 hand; Doom Blade in p2 hand; stack empty",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.hand.p1.count": 1,
+            "zones.hand.p2.count": 1,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {W} in pool ready to cast Hyena Umbra. Llanowar Elves is on the battlefield — it will be the Aura's enchant target."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Hyena Umbra",
+          "targets": [
+            { "type": "permanent", "card": "Llanowar Elves", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "white": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Hyena Umbra; {W} paid from pool. CR 702.5a: Enchant creature — Llanowar Elves (a creature) is a valid target."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Hyena Umbra on stack, p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "Hyena Umbra is on the stack targeting Llanowar Elves. Llanowar Elves is unaffected while the spell is on the stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Hyena Umbra resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Hyena Umbra",
+          "resolution": [
+            {
+              "effect": "aura_attached",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "card": "Hyena Umbra",
+              "owner": null,
+              "cr_ref": "303.4b",
+              "note": "CR 303.4b: Hyena Umbra enters the battlefield attached to Llanowar Elves. attached_to set; AuraAttached event emitted."
+            },
+            {
+              "effect": "continuous_effect_registered",
+              "card": "Hyena Umbra",
+              "owner": null,
+              "cr_ref": "613.4c",
+              "note": "CR 613.4c (layer 7c): +1/+1 P/T modification registered for Llanowar Elves (two separate ModifyPower/ModifyToughness effects). CR 702.7a (layer 6): first strike keyword granted to Llanowar Elves."
+            }
+          ],
+          "note": "CR 608.2: Hyena Umbra resolves as an Aura permanent, enters battlefield attached to Llanowar Elves."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Hyena Umbra resolves: both Hyena Umbra and Llanowar Elves on p1 battlefield; stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Hyena Umbra" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Hyena Umbra entered battlefield attached to Llanowar Elves. Llanowar Elves now has +1/+1 (2/2) and first strike in layer calculations — P/T assertion not directly supported by harness; verified by unit tests."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 passes priority. p2 casts Doom Blade targeting Llanowar Elves. Doom Blade resolves: umbra armor replacement fires during DestroyPermanent execution — Hyena Umbra is destroyed instead and Llanowar Elves is saved.",
+      "actions": [
+        {
+          "type": "priority_pass",
+          "player": "p1",
+          "note": "CR 116.3a: After Hyena Umbra resolved, p1 (active player) received priority. p1 passes so p2 may act."
+        },
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "cast_spell",
+          "card": "Doom Blade",
+          "targets": [
+            { "type": "permanent", "card": "Llanowar Elves", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "black": 1, "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p2 casts Doom Blade; {1}{B} paid. Llanowar Elves is green (nonblack) — valid target (CR 115.4)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Doom Blade on stack; Doom Blade left p2 hand; Llanowar Elves and Hyena Umbra still on battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p2.count": 0,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Hyena Umbra" }
+              ]
+            }
+          },
+          "note": "Doom Blade is on the stack. Llanowar Elves and Hyena Umbra are still on the battlefield awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Doom Blade resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Doom Blade",
+          "resolution": [
+            {
+              "effect": "umbra_armor_replacement",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p1" },
+              "card": "Hyena Umbra",
+              "owner": null,
+              "cr_ref": "702.89a",
+              "note": "CR 702.89a: Doom Blade's DestroyPermanent effect targets Llanowar Elves. Before destroying it, the engine calls check_umbra_armor(state, llanowar_elves_id) and finds Hyena Umbra (battlefield Aura with KeywordAbility::UmbraArmor attached to Llanowar Elves). apply_umbra_armor fires: (1) damage_marked on Llanowar Elves cleared to 0; (2) deathtouch_damage flag cleared; (3) Hyena Umbra moved to p1's graveyard via move_object_to_zone; (4) GameEvent::UmbraArmorApplied emitted. The 'continue' skips the actual destruction of Llanowar Elves. The creature remains on the battlefield unharmed."
+            }
+          ],
+          "note": "CR 608.2: Doom Blade resolves. CR 702.89a: Umbra armor replacement fires — Hyena Umbra is destroyed instead of Llanowar Elves. Doom Blade moves to p2's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Doom Blade resolves: Llanowar Elves still on p1 battlefield; Hyena Umbra in p1 graveyard (destroyed by umbra armor replacement); stack empty; Doom Blade in p2 graveyard",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Llanowar Elves" }],
+              "excludes": ["Hyena Umbra"]
+            },
+            "zones.graveyard.p1": { "includes": [{ "card": "Hyena Umbra" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Doom Blade" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.89a: Umbra armor replacement destroyed Hyena Umbra instead of Llanowar Elves. Llanowar Elves is on the battlefield with no damage marked. Hyena Umbra is in p1's graveyard — its continuous effects (+1/+1, first strike) ended when it left the battlefield (CR 613.5). Life totals unchanged. No SBAs apply: Llanowar Elves is a 1/1 with no damage (returned to base stats), and no lethal-damage SBA fires."
+        }
+      ]
+    }
+  ]
+}

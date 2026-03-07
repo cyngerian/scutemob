@@ -410,6 +410,23 @@ fn check_creature_sbas(
             }
         }
 
+        // CR 702.89a: Check umbra armor -- only applies to destruction (not 704.5f zero-toughness).
+        // Unlike regeneration, umbra armor does NOT tap the permanent or remove it from combat.
+        // "Can't be regenerated" does NOT block umbra armor (separate mechanics -- ruling).
+        // TODO (CR 616.1): when both regeneration and umbra armor apply simultaneously, the
+        // controller should choose which to apply first. Currently regen is checked first.
+        if is_destruction {
+            let auras = replacement::check_umbra_armor(state, id);
+            if !auras.is_empty() {
+                // Auto-select the first Aura. When multiple apply, the controller should choose
+                // (CR 616.1). TODO: surface a NeedsChoice here for the multiple-Aura case.
+                let aura_id = auras[0];
+                let umbra_events = replacement::apply_umbra_armor(state, id, aura_id);
+                events.extend(umbra_events);
+                continue; // Skip destruction -- permanent stays on battlefield
+            }
+        }
+
         let (owner, pre_death_controller, pre_death_counters) = match state.objects.get(&id) {
             Some(obj) => (obj.owner, obj.controller, obj.counters.clone()),
             None => continue, // Already removed in a previous SBA this pass.
