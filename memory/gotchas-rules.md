@@ -1,4 +1,4 @@
-# Rules Gotchas — Last verified: M9.5 + Batch 3 (2026-03-01)
+# Rules Gotchas — Last verified: M9.5 + Batch 10 (2026-03-07)
 
 ## MTG Rules Gotchas
 
@@ -176,6 +176,18 @@ benefits no player or only the active player. Engine needs non-termination detec
 CDAs like Devoid and Changeling function everywhere — hand, graveyard, exile, stack, even
 outside the game. When implementing a CDA, do NOT add a battlefield-only guard in
 `calculate_characteristics()`. The layer system iterates all objects regardless of zone.
+
+### #37 — Linked abilities fire even when the keyword is removed (CR 607.2a)
+Abilities linked by "exile with it" or "was exiled with" (Champion, Soulbond, etc.) still
+fire even if the keyword ability has been removed by a continuous effect. The detection
+check must use the *state field* (e.g., `champion_exiled_card.is_some()`) — never guard
+with `KeywordAbility::X` presence. Champion's LTB arm was caught doing this wrong.
+
+### #38 — Creature-equipment/fortification rules (CR 301.5b, 301.6 analog)
+A permanent that is both a Fortification and a creature cannot fortify a land (CR 301.6).
+Similarly equipment-creatures can't equip. Both checks must use layer-resolved types
+(`calculate_characteristics`), not base `card_types`, because the permanent may have been
+turned into a creature by a continuous effect applied after printing.
 
 ### #36 — Ability-batch-plan.md CR numbers can be wrong
 The batch plan was authored before MCP lookups. Planners have caught multiple errors:

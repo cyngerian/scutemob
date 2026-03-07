@@ -16,7 +16,7 @@
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-07
 
-### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
+### What Exists (M9.5 complete + 64 abilities through Batch 10, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, etc.)
 - `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution, ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste)

@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 9 (2026-03-06)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 10 (2026-03-07)
 
 ## Rust / im-rs Gotchas
 
@@ -169,7 +169,7 @@
   still skips it. If it's Approved but matches 0, `serde_json::from_str::<GameScript>` is silently
   failing — check JSON for schema violations. Common culprit fixed in e0ab8b7: `Dispute.step_index`
   and `action_index` are now `Option<usize>` — null JSON values for script-level disputes caused
-  silent parse failure for any script with a `disputes` entry.
+  silent parse failure for any script with a `disputes` entry. `Dispute` struct requires: `step_index` (int|null), `action_index` (int|null), `raised_by` (string — required), `description` (string), `resolution` (string|null), `resolved_by` (string|null), `resolved_date` (string|null). No `cr_ref` field — scripts with `cr_ref` silently fail to parse. Easiest fix: set `"disputes": []` when there are no active disputes.
 - **Upkeep triggers don't auto-fire in the harness.** The harness initializes a raw game state
   snapshot — it never processes a phase transition. Triggers that fire "at the beginning of upkeep"
   (e.g., Suspend's SuspendCounterTrigger) only appear if the engine advances from a previous phase.
