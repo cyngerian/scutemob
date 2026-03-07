@@ -147,6 +147,8 @@ fn test_storm_creates_copies() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -272,6 +274,8 @@ fn test_storm_copies_resolve_independently() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -407,6 +411,8 @@ fn test_storm_count_resets_each_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -514,6 +520,8 @@ fn test_spell_copy_is_not_cast() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

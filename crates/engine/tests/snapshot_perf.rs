@@ -149,6 +149,7 @@ fn test_clone_independence_object_modification() {
                 creatures_devoured: 0,
                 champion_exiled_card: None,
                 paired_with: None,
+                tribute_was_paid: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

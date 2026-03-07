@@ -276,6 +276,8 @@ fn test_jump_start_basic_cast_from_graveyard() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -406,6 +408,8 @@ fn test_jump_start_exile_on_resolution() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -529,6 +533,8 @@ fn test_jump_start_exile_on_counter() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -577,6 +583,8 @@ fn test_jump_start_exile_on_counter() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -684,6 +692,8 @@ fn test_jump_start_sorcery_timing() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -767,6 +777,8 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -863,6 +875,8 @@ fn test_jump_start_pays_normal_mana_cost() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -955,6 +969,8 @@ fn test_jump_start_discard_required() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1045,6 +1061,8 @@ fn test_jump_start_discard_must_be_in_hand() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1141,6 +1159,8 @@ fn test_jump_start_discard_any_card() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1231,6 +1251,8 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1338,6 +1360,8 @@ fn test_jump_start_flag_set_on_stack() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1430,6 +1454,8 @@ fn test_jump_start_insufficient_mana_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

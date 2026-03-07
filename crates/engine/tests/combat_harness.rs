@@ -175,7 +175,8 @@ fn test_harness_declare_attackers_basic() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -253,7 +254,8 @@ fn test_harness_declare_attackers_empty() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -369,7 +371,8 @@ fn test_harness_declare_blockers_basic() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -454,7 +457,8 @@ fn test_harness_declare_blockers_empty() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     );
@@ -522,7 +526,8 @@ fn test_harness_full_combat_unblocked_damage() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -562,7 +567,8 @@ fn test_harness_full_combat_unblocked_damage() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     )
@@ -626,7 +632,8 @@ fn test_harness_declare_attackers_default_target() {
         0,
         &[],
         0,
-        None, // target_creature_name: not used for combat harness actions
+        vec![], // modes_chosen: not used for combat harness actions
+        None,   // target_creature_name: not used for combat harness actions
         &state,
         &players,
     );

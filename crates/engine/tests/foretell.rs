@@ -433,6 +433,8 @@ fn test_foretell_cannot_cast_same_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -543,6 +545,8 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -920,6 +924,8 @@ fn test_foretell_mutual_exclusion_with_escape() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1027,6 +1033,8 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1130,6 +1138,8 @@ fn test_foretell_sorcery_timing_restriction() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1233,6 +1243,8 @@ fn test_foretell_instant_timing() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1462,6 +1474,8 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1594,6 +1608,8 @@ fn test_foretell_requires_is_foretold_flag() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

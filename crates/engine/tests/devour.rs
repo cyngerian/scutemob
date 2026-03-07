@@ -114,6 +114,8 @@ fn cast_devour_creature(
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices,
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -647,6 +649,8 @@ fn test_devour_only_own_creatures() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![opp_fodder_id],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -729,6 +733,8 @@ fn test_devour_cannot_sacrifice_self() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![devour_id],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

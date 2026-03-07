@@ -580,8 +580,10 @@ fn test_encore_sorcery_speed_non_empty_stack() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     };
     state.stack_objects.push_back(fake_stack_obj);
 

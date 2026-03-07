@@ -987,8 +987,10 @@ fn test_eternalize_split_second_blocks() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

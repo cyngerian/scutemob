@@ -964,6 +964,8 @@ impl GameStateBuilder {
                 champion_exiled_card: None,
                 // CR 702.95b: objects start unpaired.
                 paired_with: None,
+                // CR 702.104b: tribute_was_paid starts false.
+                tribute_was_paid: false,
             };
 
             state.add_object(object, zone)?;

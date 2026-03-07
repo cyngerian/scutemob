@@ -2804,6 +2804,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         creatures_devoured: 0,
         champion_exiled_card: None,
         paired_with: None,
+        tribute_was_paid: false,
     }
 }
 

@@ -549,6 +549,32 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 50.
     Soulbond { grants: Vec<SoulbondGrant> },
+
+    /// CR 702.102: Fuse. The second (right) half of a split card with fuse.
+    /// When fused, both halves' effects execute at resolution (left first,
+    /// then right — CR 702.102d).
+    ///
+    /// The card definition's top-level `name`, `mana_cost`, `types`, and
+    /// `AbilityDefinition::Spell` describe the left half. This variant
+    /// stores the right half's data.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Fuse)` for quick
+    /// presence-checking without scanning all abilities.
+    ///
+    /// Discriminant 51.
+    Fuse {
+        /// Name of the right half (e.g., "Tear" for "Wear // Tear").
+        name: String,
+        /// Mana cost of the right half (added to left half's cost when fused — CR 702.102c).
+        cost: ManaCost,
+        /// Card type of the right half (Instant, Sorcery, etc.).
+        card_type: CardType,
+        /// The spell effect of the right half.
+        effect: Effect,
+        /// Target requirements for the right half's spell.
+        targets: Vec<TargetRequirement>,
+    },
 }
 
 /// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).
@@ -1108,6 +1134,13 @@ pub enum TriggerCondition {
     /// investigate action. Does NOT fire when investigating 0 (no Investigated
     /// event is emitted in that case).
     WheneverYouInvestigate,
+    /// CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
+    ///
+    /// Fires inline at ETB time (via fire_when_enters_triggered_effects) only if
+    /// the entering permanent has `tribute_was_paid == false`. This is an
+    /// intervening-if condition: the trigger checks the condition at fire time
+    /// and again at resolution (CR 603.4).
+    TributeNotPaid,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────
@@ -1173,6 +1206,16 @@ pub struct ModeSelection {
     pub max_modes: usize,
     /// The available modes (effects). Indexed by the `ChooseOption` command.
     pub modes: Vec<Effect>,
+    /// CR 700.2d: If true, the same mode may be chosen more than once.
+    /// Default is false (standard modal behavior — no duplicate modes).
+    #[serde(default)]
+    pub allow_duplicate_modes: bool,
+    /// CR 700.2h / 702.172a: Per-mode additional costs for spree spells.
+    /// When `Some`, `mode_costs[i]` is the additional mana cost that must be
+    /// paid when mode `i` is chosen. Must have the same length as `modes`.
+    /// `None` for standard modal spells (no per-mode costs).
+    #[serde(default)]
+    pub mode_costs: Option<Vec<ManaCost>>,
 }
 
 // ── Token Specification ───────────────────────────────────────────────────────

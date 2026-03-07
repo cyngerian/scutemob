@@ -910,8 +910,10 @@ fn test_ninjutsu_split_second_blocks() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 

@@ -5,12 +5,17 @@ use super::data::*;
 // ─── public entry point ────────────────────────────────────────────────────
 
 pub fn parse_all(root: &Path) -> DashboardData {
+    let mut reviews = parse_milestone_reviews(root).unwrap_or_default();
+    let (src_loc, test_loc) = compute_engine_loc(root);
+    reviews.engine_loc = src_loc;
+    reviews.test_loc = test_loc;
+
     DashboardData {
         current_state: parse_claude_md(root).unwrap_or_default(),
         abilities: parse_ability_coverage(root).unwrap_or_default(),
         milestones: parse_roadmap(root, &parse_reviews_for_review_status(root)).unwrap_or_default(),
         corner_cases: parse_corner_case_audit(root).unwrap_or_default(),
-        reviews: parse_milestone_reviews(root).unwrap_or_default(),
+        reviews,
         scripts: count_scripts(root).unwrap_or_default(),
         cards: parse_card_worklist(root).unwrap_or_default(),
     }
@@ -374,30 +379,6 @@ fn parse_milestone_reviews(root: &Path) -> anyhow::Result<ReviewStatistics> {
         }
         if line.starts_with("## ") {
             break;
-        }
-
-        // Parse LOC lines like "**Engine source LOC (M0-M9.4)**: ~17,800 lines"
-        if line.starts_with("**Engine source LOC") {
-            if let Some(idx) = line.find("~") {
-                let num_str = &line[idx + 1..]
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("0")
-                    .replace(',', "");
-                stats.engine_loc = num_str.parse().unwrap_or(0);
-            }
-            continue;
-        }
-        if line.starts_with("**Engine test LOC") {
-            if let Some(idx) = line.find("~") {
-                let num_str = &line[idx + 1..]
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("0")
-                    .replace(',', "");
-                stats.test_loc = num_str.parse().unwrap_or(0);
-            }
-            continue;
         }
 
         // Table rows
@@ -822,6 +803,34 @@ fn extract_card_name(block: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Count lines of `.rs` files under a directory, recursively.
+fn count_lines_recursive(dir: &Path) -> u32 {
+    let mut total = 0u32;
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return 0,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            total += count_lines_recursive(&path);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            if let Ok(content) = fs::read_to_string(&path) {
+                total += content.lines().count() as u32;
+            }
+        }
+    }
+    total
+}
+
+/// Compute engine source and test LOC by walking the filesystem.
+/// Returns (source_loc, test_loc).
+fn compute_engine_loc(root: &Path) -> (u32, u32) {
+    let src_loc = count_lines_recursive(&root.join("crates/engine/src"));
+    let test_loc = count_lines_recursive(&root.join("crates/engine/tests"));
+    (src_loc, test_loc)
 }
 
 fn parse_card_entry(item: &serde_json::Value, status: &str) -> CardWorklistEntry {

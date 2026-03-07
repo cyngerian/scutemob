@@ -357,6 +357,15 @@ pub fn handle_play_land(
     // ETB hook exists here for consistency with resolution.rs (gotchas-infra.md).
     // No-op: lands have no StackObject to carry devour_sacrifices.
 
+    // CR 702.104a: Tribute N -- lands with Tribute are not printed in Magic.
+    // ETB hook exists here for consistency with resolution.rs (gotchas-infra.md).
+    // Bot play: opponent always declines; tribute_was_paid remains false (default).
+    // No-op for lands (no StackObject, no opponent selection needed).
+
+    // CR 702.123a: Fabricate N -- lands with Fabricate are not printed in Magic.
+    // ETB hook exists in fire_when_enters_triggered_effects (replacement.rs).
+    // No-op for lands.
+
     // CR 702.30a: Mark lands with Echo as pending their echo trigger.
     // "At the beginning of your upkeep, if this permanent came under your
     // control since the beginning of your last upkeep, sacrifice it unless

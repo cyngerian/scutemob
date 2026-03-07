@@ -406,6 +406,8 @@ fn test_plot_cannot_cast_same_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -478,6 +480,8 @@ fn test_plot_cast_from_exile_on_later_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -560,6 +564,8 @@ fn test_plot_free_cast_costs_zero() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -682,8 +688,10 @@ fn test_plot_requires_main_phase_empty_stack() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     let result = process_command(
@@ -762,6 +770,8 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1016,6 +1026,8 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1160,6 +1172,8 @@ fn test_plot_mana_value_unchanged_on_stack() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1258,8 +1272,10 @@ fn test_plot_free_cast_requires_empty_stack() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     let result = process_command(
@@ -1287,6 +1303,8 @@ fn test_plot_free_cast_requires_empty_stack() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1356,6 +1374,8 @@ fn test_plot_free_cast_requires_own_turn() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1432,6 +1452,8 @@ fn test_plot_normal_cast_still_works() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1501,6 +1523,8 @@ fn test_plot_cast_postcombat_main_phase() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1626,6 +1650,8 @@ fn test_plot_turn_tracking_boundary() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -1660,6 +1686,8 @@ fn test_plot_turn_tracking_boundary() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(

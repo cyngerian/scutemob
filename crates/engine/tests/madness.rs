@@ -457,6 +457,8 @@ fn test_madness_cast_from_exile() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -562,6 +564,8 @@ fn test_madness_sorcery_ignores_timing() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -701,6 +705,8 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -784,6 +790,8 @@ fn test_madness_non_madness_exile_cannot_cast() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -946,6 +954,8 @@ fn test_madness_mana_value_unchanged() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1081,6 +1091,8 @@ fn test_madness_effect_discard_goes_to_exile() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

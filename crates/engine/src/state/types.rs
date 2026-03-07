@@ -1199,6 +1199,45 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 130.
     Fortify,
+
+    /// CR 702.104: Tribute N -- "As this creature enters, choose an opponent.
+    /// That player may put an additional N +1/+1 counters on it as it enters."
+    ///
+    /// Static ability that functions at ETB time (CR 702.104a). The creature's
+    /// controller chooses an opponent, who may pay tribute (place N counters)
+    /// or decline (triggering the "tribute wasn't paid" ability).
+    ///
+    /// Discriminant 131.
+    Tribute(u32),
+
+    /// CR 702.123: Fabricate N -- "When this permanent enters, you may put N
+    /// +1/+1 counters on it. If you don't, create N 1/1 colorless Servo
+    /// artifact creature tokens."
+    ///
+    /// Triggered ability (CR 702.123a). Multiple instances trigger separately
+    /// (CR 702.123b).
+    ///
+    /// Discriminant 132.
+    Fabricate(u32),
+
+    /// CR 702.102: Fuse — if a split card has fuse, the controller may cast
+    /// both halves from their hand, paying both costs and executing both effects
+    /// in order (left first, then right — CR 702.102d).
+    ///
+    /// Static ability (CR 702.102a). No parameter.
+    ///
+    /// Discriminant 133.
+    Fuse,
+
+    /// CR 702.172a: Spree — static ability on modal spells. "Choose one or more
+    /// modes. As an additional cost to cast this spell, pay the costs associated
+    /// with those modes." Each mode has its own additional cost (CR 700.2h).
+    ///
+    /// Static ability. Marker for quick presence-checking (`keywords.contains`).
+    /// The per-mode costs are stored in `ModeSelection.mode_costs`.
+    ///
+    /// Discriminant 134.
+    Spree,
 }
 
 /// CR 702.72a: The filter for what can be championed.

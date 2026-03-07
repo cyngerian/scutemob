@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: 1706 tests passing; ~155 validated; 40/42 P1; 16/17 P2 (Modal deferred); 37/40 P3; 64/88 P4 (+Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify); Batch 0-10 complete; Batch 11 next; 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: 1754 tests passing; ~160 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 66/88 P4; Batch 0-11 complete; Batch 12 next; 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-07
 

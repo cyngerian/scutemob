@@ -158,12 +158,72 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             {
                 if let Some(cid) = card_id.clone() {
                     if let Some(def) = registry.get(cid) {
-                        // CR 702.127a + CR 709.3b: If the aftermath half was cast, use the
-                        // aftermath effect instead of the first-half Spell effect.
-                        // CR 702.42b: For entwined modal spells, collect the modes so we
-                        // can execute all of them (or just mode[0] when not entwined).
-                        let (spell_effect, spell_modes) =
-                            if stack_obj.cast_with_aftermath {
+                        // CR 702.102d: If this is a fused split spell, execute the left half
+                        // first, then the right half, in order. Targets for the left half
+                        // come from the full target list; targets for the right half also
+                        // use the same list (since we don't split targets in this impl).
+                        if stack_obj.was_fused {
+                            let left_effect = def.abilities.iter().find_map(|a| {
+                                if let crate::cards::card_definition::AbilityDefinition::Spell {
+                                    effect,
+                                    ..
+                                } = a
+                                {
+                                    Some(effect.clone())
+                                } else {
+                                    None
+                                }
+                            });
+                            let right_effect = def.abilities.iter().find_map(|a| {
+                                if let crate::cards::card_definition::AbilityDefinition::Fuse {
+                                    effect,
+                                    ..
+                                } = a
+                                {
+                                    Some(effect.clone())
+                                } else {
+                                    None
+                                }
+                            });
+                            // Target index contract for fused split spells (CR 702.102):
+                            // The combined target list is shared by both halves using a
+                            // single EffectContext. Left-half targets occupy indices
+                            // 0..left_target_count; right-half targets follow at indices
+                            // left_target_count.. . Card definition authors must ensure
+                            // `DeclaredTarget { index: N }` uses globally-offset indices —
+                            // e.g., if the left half declares one target at index 0, the
+                            // right half's first target must use index 1, not index 0.
+                            let legal_targets: Vec<SpellTarget> = stack_obj
+                                .targets
+                                .iter()
+                                .filter(|t| is_target_legal(state, t))
+                                .cloned()
+                                .collect();
+                            let mut ctx = EffectContext::new_with_kicker(
+                                controller,
+                                source_object,
+                                legal_targets,
+                                stack_obj.kicker_times_paid,
+                            );
+                            ctx.was_overloaded = stack_obj.was_overloaded;
+                            ctx.was_bargained = stack_obj.was_bargained;
+                            ctx.was_cleaved = stack_obj.was_cleaved;
+                            // CR 702.102d: Execute left half first.
+                            if let Some(eff) = left_effect {
+                                let eff_events = execute_effect(state, &eff, &mut ctx);
+                                events.extend(eff_events);
+                            }
+                            // CR 702.102d: Execute right half second.
+                            if let Some(eff) = right_effect {
+                                let eff_events = execute_effect(state, &eff, &mut ctx);
+                                events.extend(eff_events);
+                            }
+                        } else {
+                            // CR 702.127a + CR 709.3b: If the aftermath half was cast, use the
+                            // aftermath effect instead of the first-half Spell effect.
+                            // CR 702.42b: For entwined modal spells, collect the modes so we
+                            // can execute all of them (or just mode[0] when not entwined).
+                            let (spell_effect, spell_modes) = if stack_obj.cast_with_aftermath {
                                 let eff = def.abilities.iter().find_map(|a| {
                                 if let crate::cards::card_definition::AbilityDefinition::Aftermath {
                                     effect,
@@ -190,91 +250,104 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 }
                             }).map(|(e, m)| (Some(e), m)).unwrap_or((None, None))
                             };
-                        if spell_effect.is_some() || spell_modes.is_some() {
-                            // CR 608.2b: Partial fizzle — filter out illegal targets before
-                            // executing effects. Illegal targets are simply skipped; they are
-                            // not affected by the spell's effect. Full fizzle (all illegal)
-                            // is handled above before we reach this point.
-                            let legal_targets: Vec<SpellTarget> = stack_obj
-                                .targets
-                                .iter()
-                                .filter(|t| is_target_legal(state, t))
-                                .cloned()
-                                .collect();
-                            // CR 702.33d: Pass kicker status to the effect context so
-                            // Condition::WasKicked can be checked during resolution.
-                            // CR 702.96a: Pass overload status so Condition::WasOverloaded works.
-                            // CR 702.47b: Clone legal_targets before the move so splice effects
-                            // can use the same target list as the main spell.
-                            let legal_targets_for_splice = legal_targets.clone();
+                            if spell_effect.is_some() || spell_modes.is_some() {
+                                // CR 608.2b: Partial fizzle — filter out illegal targets before
+                                // executing effects. Illegal targets are simply skipped; they are
+                                // not affected by the spell's effect. Full fizzle (all illegal)
+                                // is handled above before we reach this point.
+                                let legal_targets: Vec<SpellTarget> = stack_obj
+                                    .targets
+                                    .iter()
+                                    .filter(|t| is_target_legal(state, t))
+                                    .cloned()
+                                    .collect();
+                                // CR 702.33d: Pass kicker status to the effect context so
+                                // Condition::WasKicked can be checked during resolution.
+                                // CR 702.96a: Pass overload status so Condition::WasOverloaded works.
+                                // CR 702.47b: Clone legal_targets before the move so splice effects
+                                // can use the same target list as the main spell.
+                                let legal_targets_for_splice = legal_targets.clone();
 
-                            // CR 702.42b / CR 702.120a: Mode dispatch.
-                            // Entwine takes precedence (all modes). If escalate was paid,
-                            // execute modes 0..=escalate_modes_paid. Otherwise, mode[0] only.
-                            // If no modes, execute the spell's main effect as before.
-                            let effects_to_run: Vec<crate::cards::card_definition::Effect> =
-                                if let Some(modes) = spell_modes {
-                                    if stack_obj.was_entwined {
-                                        // CR 702.42b: "follow the text of each of the modes in
-                                        // the order written on the card"
-                                        modes.modes.clone()
-                                    } else if stack_obj.escalate_modes_paid > 0 {
-                                        // CR 702.120a: execute modes 0..=escalate_modes_paid
-                                        // (escalate cost was paid once per extra mode beyond
-                                        // the first).
-                                        let count = (stack_obj.escalate_modes_paid as usize + 1)
+                                // CR 700.2 / CR 702.42b / CR 702.120a: Mode dispatch.
+                                // Priority order:
+                                // 1. Entwine takes precedence — all modes in printed order (CR 702.42b).
+                                // 2. Explicit modes_chosen — execute chosen modes in index order (CR 700.2a).
+                                // 3. Escalate backward compat — execute modes 0..=escalate_modes_paid.
+                                // 4. Auto-select mode[0] (default for bots/backward compat).
+                                // If no modes, execute the spell's main effect as before.
+                                let effects_to_run: Vec<crate::cards::card_definition::Effect> =
+                                    if let Some(modes) = spell_modes {
+                                        if stack_obj.was_entwined {
+                                            // CR 702.42b: "follow the text of each of the modes in
+                                            // the order written on the card"
+                                            modes.modes.clone()
+                                        } else if !stack_obj.modes_chosen.is_empty() {
+                                            // CR 700.2a: execute the explicitly chosen modes in index
+                                            // order. Invalid indices are silently skipped (validated
+                                            // at cast time in casting.rs).
+                                            stack_obj
+                                                .modes_chosen
+                                                .iter()
+                                                .filter_map(|&idx| modes.modes.get(idx).cloned())
+                                                .collect()
+                                        } else if stack_obj.escalate_modes_paid > 0 {
+                                            // CR 702.120a: backward compat — escalate without explicit
+                                            // modes_chosen executes modes 0..=escalate_modes_paid.
+                                            let count = (stack_obj.escalate_modes_paid as usize
+                                                + 1)
                                             .min(modes.modes.len());
-                                        modes.modes[..count].to_vec()
+                                            modes.modes[..count].to_vec()
+                                        } else {
+                                            // Auto-select first mode (default for bots and backward
+                                            // compat with existing scripts/tests).
+                                            modes.modes.into_iter().take(1).collect()
+                                        }
+                                    } else if let Some(effect) = spell_effect {
+                                        vec![effect]
                                     } else {
-                                        // Auto-select first mode (Batch 11 will add full
-                                        // interactive mode selection).
-                                        modes.modes.into_iter().take(1).collect()
-                                    }
-                                } else if let Some(effect) = spell_effect {
-                                    vec![effect]
-                                } else {
-                                    vec![]
-                                };
+                                        vec![]
+                                    };
 
-                            let mut ctx = EffectContext::new_with_kicker(
-                                controller,
-                                source_object,
-                                legal_targets,
-                                stack_obj.kicker_times_paid,
-                            );
-                            ctx.was_overloaded = stack_obj.was_overloaded;
-                            // CR 702.166b: Pass bargained status so Condition::WasBargained works.
-                            ctx.was_bargained = stack_obj.was_bargained;
-                            // CR 702.148a: Pass cleave status so Condition::WasCleaved works.
-                            ctx.was_cleaved = stack_obj.was_cleaved;
-
-                            // CR 702.42b: Execute each effect in order. For entwined spells,
-                            // state changes from earlier modes are visible to later modes.
-                            for effect in &effects_to_run {
-                                let effect_events = execute_effect(state, effect, &mut ctx);
-                                events.extend(effect_events);
-                            }
-
-                            // CR 702.47b: Execute spliced effects after the main spell effect.
-                            // "The effects of the main spell must happen first." (CR 702.47b)
-                            // Each spliced effect uses the same resolution context (controller,
-                            // source_object) per CR 702.47c: text gained refers to the spell,
-                            // not the spliced card.
-                            for spliced_effect in &stack_obj.spliced_effects {
-                                let mut splice_ctx = EffectContext::new_with_kicker(
+                                let mut ctx = EffectContext::new_with_kicker(
                                     controller,
                                     source_object,
-                                    legal_targets_for_splice.clone(),
+                                    legal_targets,
                                     stack_obj.kicker_times_paid,
                                 );
-                                splice_ctx.was_overloaded = stack_obj.was_overloaded;
-                                splice_ctx.was_bargained = stack_obj.was_bargained;
-                                splice_ctx.was_cleaved = stack_obj.was_cleaved;
-                                let splice_events =
-                                    execute_effect(state, spliced_effect, &mut splice_ctx);
-                                events.extend(splice_events);
+                                ctx.was_overloaded = stack_obj.was_overloaded;
+                                // CR 702.166b: Pass bargained status so Condition::WasBargained works.
+                                ctx.was_bargained = stack_obj.was_bargained;
+                                // CR 702.148a: Pass cleave status so Condition::WasCleaved works.
+                                ctx.was_cleaved = stack_obj.was_cleaved;
+
+                                // CR 702.42b: Execute each effect in order. For entwined spells,
+                                // state changes from earlier modes are visible to later modes.
+                                for effect in &effects_to_run {
+                                    let effect_events = execute_effect(state, effect, &mut ctx);
+                                    events.extend(effect_events);
+                                }
+
+                                // CR 702.47b: Execute spliced effects after the main spell effect.
+                                // "The effects of the main spell must happen first." (CR 702.47b)
+                                // Each spliced effect uses the same resolution context (controller,
+                                // source_object) per CR 702.47c: text gained refers to the spell,
+                                // not the spliced card.
+                                for spliced_effect in &stack_obj.spliced_effects {
+                                    let mut splice_ctx = EffectContext::new_with_kicker(
+                                        controller,
+                                        source_object,
+                                        legal_targets_for_splice.clone(),
+                                        stack_obj.kicker_times_paid,
+                                    );
+                                    splice_ctx.was_overloaded = stack_obj.was_overloaded;
+                                    splice_ctx.was_bargained = stack_obj.was_bargained;
+                                    splice_ctx.was_cleaved = stack_obj.was_cleaved;
+                                    let splice_events =
+                                        execute_effect(state, spliced_effect, &mut splice_ctx);
+                                    events.extend(splice_events);
+                                }
                             }
-                        }
+                        } // close else { (non-fuse path)
                     }
                 }
             }
@@ -1016,6 +1089,46 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 });
                             }
                         }
+                    }
+                }
+
+                // CR 702.104a: Tribute N -- "As this creature enters, choose an opponent.
+                // That player may put an additional N +1/+1 counters on it as it enters."
+                // CR 702.104b: Objects with tribute have triggered abilities that check
+                // "if tribute wasn't paid."
+                //
+                // Implementation: Deterministic bot play -- opponent always declines tribute.
+                // The creature enters without extra counters, and the "tribute wasn't paid"
+                // triggered ability fires. `tribute_was_paid` stays false (default).
+                //
+                // Future: when interactive opponent choices are implemented, this block
+                // should prompt the chosen opponent and conditionally add counters +
+                // set tribute_was_paid = true.
+                {
+                    let tribute_instances: Vec<u32> = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Tribute(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    if !tribute_instances.is_empty() {
+                        // Bot play: opponent does not pay tribute.
+                        // tribute_was_paid remains false (default).
+                        // The "if tribute wasn't paid" triggered ability will fire
+                        // via fire_when_enters_triggered_effects with TributeNotPaid condition.
+                        //
+                        // (No counters are placed; no state mutation needed here.)
+                        let _ = tribute_instances; // explicitly consumed; no-op in bot play
                     }
                 }
 
@@ -3290,6 +3403,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     creatures_devoured: 0,
                     champion_exiled_card: None,
                     paired_with: None,
+                    tribute_was_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -3528,6 +3642,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             spliced_effects: vec![],
                             spliced_card_ids: vec![],
                             devour_sacrifices: vec![],
+                            // CR 700.2a: suspend free-casts have no explicit mode choices.
+                            modes_chosen: vec![],
+                            // CR 702.102a: suspend free-casts are not fused spells.
+                            was_fused: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -4403,6 +4521,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     creatures_devoured: 0,
                     champion_exiled_card: None,
                     paired_with: None,
+                    tribute_was_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -4594,6 +4713,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     creatures_devoured: 0,
                     champion_exiled_card: None,
                     paired_with: None,
+                    tribute_was_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -4804,6 +4924,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         creatures_devoured: 0,
                         champion_exiled_card: None,
                         paired_with: None,
+                        tribute_was_paid: false,
                     };
 
                     // Add the token to the battlefield.

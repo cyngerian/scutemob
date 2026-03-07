@@ -275,6 +275,9 @@ pub fn translate_player_action(
     // CR 702.120a: For `cast_spell_escalate`, the number of additional modes beyond the
     // first for which the escalate cost is paid. 0 for all other action types.
     escalate_modes: u32,
+    // CR 700.2a / 601.2b: For `cast_spell_modal`, the explicit mode indices to choose.
+    // Empty for all other action types or when mode[0] should be auto-selected.
+    modes_chosen: Vec<usize>,
     // CR 702.97a: For `scavenge_card`, the name of the creature on the battlefield
     // to receive +1/+1 counters. Required for `scavenge_card`; `None` for all other
     // action types.
@@ -338,6 +341,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -372,6 +377,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -403,6 +410,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -434,6 +443,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -466,6 +477,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -498,6 +511,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -535,6 +550,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -877,6 +894,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -921,6 +940,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -953,6 +974,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -988,6 +1011,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1023,6 +1048,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1055,6 +1082,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1087,6 +1116,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1118,6 +1149,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1149,6 +1182,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1180,6 +1215,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1215,6 +1252,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1249,6 +1288,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1281,6 +1322,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1310,6 +1353,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1347,6 +1392,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1383,6 +1430,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1417,6 +1466,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1459,6 +1510,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1488,6 +1541,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1520,6 +1575,8 @@ pub fn translate_player_action(
                 entwine_paid: true,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1553,6 +1610,8 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             })
         }
 
@@ -1591,6 +1650,79 @@ pub fn translate_player_action(
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: devour_ids,
+                modes_chosen: vec![],
+                fuse: false,
+            })
+        }
+
+        // CR 700.2a / 601.2b: Cast a modal spell with explicit mode indices chosen.
+        // `modes_chosen` specifies which mode indices (0-indexed) to execute at resolution.
+        // For "choose one" spells: exactly one index (e.g., [0], [1], [2]).
+        // For "choose two" spells: exactly two indices (e.g., [0, 2]).
+        // For "choose up to N": between 1 and N indices.
+        "cast_spell_modal" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: modes_chosen.clone(),
+                fuse: false,
+            })
+        }
+
+        // CR 702.102a: Cast a fused split card from hand, paying the combined mana cost
+        // of both halves (CR 702.102c). At resolution, the left half's effect executes
+        // first, then the right half's (CR 702.102d). Card must be in the caster's hand
+        // and must have KeywordAbility::Fuse and AbilityDefinition::Fuse.
+        "cast_spell_fuse" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: true,
             })
         }
 

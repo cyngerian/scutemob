@@ -545,6 +545,8 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -628,6 +630,8 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -714,6 +718,8 @@ fn test_triggered_ability_apnap_ordering() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -804,6 +810,8 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -877,6 +885,8 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -952,6 +962,8 @@ fn test_triggered_ability_resolves_after_all_pass() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1867,6 +1879,8 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

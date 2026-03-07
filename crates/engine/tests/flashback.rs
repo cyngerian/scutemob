@@ -258,6 +258,8 @@ fn test_flashback_basic_cast_from_graveyard() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -366,6 +368,8 @@ fn test_flashback_exile_on_resolution() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -491,6 +495,8 @@ fn test_flashback_exile_on_counter() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -542,6 +548,8 @@ fn test_flashback_exile_on_counter() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -650,6 +658,8 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -725,6 +735,8 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -816,6 +828,8 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -912,6 +926,8 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1019,6 +1035,8 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1109,6 +1127,8 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1192,6 +1212,8 @@ fn test_flashback_mana_value_unchanged() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

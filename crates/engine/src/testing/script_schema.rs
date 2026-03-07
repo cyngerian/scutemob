@@ -324,6 +324,11 @@ pub enum ScriptAction {
         /// Defaults to 0.
         #[serde(default)]
         escalate_modes: u32,
+        /// CR 700.2a / 601.2b: For `cast_spell_modal`. Explicit mode indices (0-indexed) to
+        /// choose at cast time. Empty = non-modal spell or auto-select mode[0].
+        /// Example: [0] for mode 0; [1, 2] for modes 1 and 2.
+        #[serde(default)]
+        modes: Vec<usize>,
         /// CR 702.97a: For `scavenge_card`. Name of the creature on the battlefield
         /// to receive +1/+1 counters equal to the scavenged card's power.
         /// Required when action is `scavenge_card`.

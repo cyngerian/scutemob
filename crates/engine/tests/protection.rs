@@ -92,6 +92,8 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -176,6 +178,8 @@ fn test_protection_from_red_allows_green_spell() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -270,6 +274,8 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -347,6 +353,8 @@ fn test_protection_from_all_blocks_all_targeting() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

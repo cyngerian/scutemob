@@ -113,8 +113,10 @@ fn make_hideaway_trigger_stack_obj(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     }
 }
 

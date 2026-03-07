@@ -642,6 +642,20 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Soulbond => 129u8.hash_into(hasher),
             // Fortify (discriminant 130) -- CR 702.67
             KeywordAbility::Fortify => 130u8.hash_into(hasher),
+            // Tribute (discriminant 131) -- CR 702.104
+            KeywordAbility::Tribute(n) => {
+                131u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Fabricate (discriminant 132) -- CR 702.123
+            KeywordAbility::Fabricate(n) => {
+                132u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            // Fuse (discriminant 133) -- CR 702.102
+            KeywordAbility::Fuse => 133u8.hash_into(hasher),
+            // Spree (discriminant 134) -- CR 702.172
+            KeywordAbility::Spree => 134u8.hash_into(hasher),
         }
     }
 }
@@ -846,6 +860,8 @@ impl HashInto for GameObject {
         self.champion_exiled_card.hash_into(hasher);
         // Soulbond (CR 702.95b) — ObjectId of the creature this is paired with
         self.paired_with.hash_into(hasher);
+        // Tribute (CR 702.104b) — whether tribute was paid for this permanent
+        self.tribute_was_paid.hash_into(hasher);
     }
 }
 
@@ -2003,6 +2019,12 @@ impl HashInto for StackObject {
         for id in &self.devour_sacrifices {
             id.hash_into(hasher);
         }
+        // Modal choice (CR 700.2a) — explicit mode indices chosen at cast time
+        for idx in &self.modes_chosen {
+            idx.hash_into(hasher);
+        }
+        // Fuse (CR 702.102a) — spell was cast as a fused split spell (both halves from hand)
+        self.was_fused.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3151,6 +3173,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenConnives => 19u8.hash_into(hasher),
             // CR 701.16a: "Whenever you investigate" — discriminant 20
             TriggerCondition::WheneverYouInvestigate => 20u8.hash_into(hasher),
+            // CR 702.104b: "When ~ enters, if tribute wasn't paid" — discriminant 21
+            TriggerCondition::TributeNotPaid => 21u8.hash_into(hasher),
         }
     }
 }
@@ -3237,6 +3261,17 @@ impl HashInto for ModeSelection {
         self.min_modes.hash_into(hasher);
         self.max_modes.hash_into(hasher);
         self.modes.hash_into(hasher);
+        // CR 700.2d: allow_duplicate_modes flag affects legality of mode choices.
+        self.allow_duplicate_modes.hash_into(hasher);
+        // CR 700.2h / 702.172a: per-mode costs for spree spells.
+        if let Some(costs) = &self.mode_costs {
+            true.hash_into(hasher);
+            for cost in costs {
+                cost.hash_into(hasher);
+            }
+        } else {
+            false.hash_into(hasher);
+        }
     }
 }
 
@@ -3803,6 +3838,21 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Soulbond { grants } => {
                 50u8.hash_into(hasher);
                 grants.hash_into(hasher);
+            }
+            // Fuse (discriminant 51) -- CR 702.102
+            AbilityDefinition::Fuse {
+                name,
+                cost,
+                card_type,
+                effect,
+                targets,
+            } => {
+                51u8.hash_into(hasher);
+                name.hash_into(hasher);
+                cost.hash_into(hasher);
+                card_type.hash_into(hasher);
+                effect.hash_into(hasher);
+                targets.hash_into(hasher);
             }
         }
     }

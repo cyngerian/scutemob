@@ -848,5 +848,9 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::LivingMetal => "Living Metal".to_string(),
         KeywordAbility::Soulbond => "Soulbond".to_string(),
         KeywordAbility::Fortify => "Fortify".to_string(),
+        KeywordAbility::Tribute(n) => format!("Tribute {n}"),
+        KeywordAbility::Fabricate(n) => format!("Fabricate {n}"),
+        KeywordAbility::Fuse => "Fuse".to_string(),
+        KeywordAbility::Spree => "Spree".to_string(),
     }
 }

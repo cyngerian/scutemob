@@ -495,6 +495,8 @@ fn test_miracle_cast_for_miracle_cost() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -607,6 +609,8 @@ fn test_miracle_sorcery_ignores_timing() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -799,8 +803,10 @@ fn test_miracle_cannot_combine_with_flashback() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     state.turn.priority_holder = Some(p1);
@@ -835,6 +841,8 @@ fn test_miracle_cannot_combine_with_flashback() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(

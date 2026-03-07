@@ -338,18 +338,25 @@ fn render_reviews_summary(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_engine_size(f: &mut Frame, area: Rect, app: &App) {
     let r = &app.data.reviews;
+    let fmt_loc = |n: u32| -> String {
+        if n >= 1000 {
+            format!("{}k", n / 1000)
+        } else {
+            n.to_string()
+        }
+    };
     let lines = vec![
         Line::from(vec![
-            Span::styled("Src: ", Style::default().fg(Color::Gray)),
+            Span::styled("Src:  ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("~{} LOC", r.engine_loc),
+                format!("{} LOC", fmt_loc(r.engine_loc)),
                 Style::default().fg(Color::White),
             ),
         ]),
         Line::from(vec![
             Span::styled("Test: ", Style::default().fg(Color::Gray)),
             Span::styled(
-                format!("~{} LOC", r.test_loc),
+                format!("{} LOC", fmt_loc(r.test_loc)),
                 Style::default().fg(Color::White),
             ),
         ]),

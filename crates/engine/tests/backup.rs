@@ -90,6 +90,8 @@ fn cast_and_resolve(
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -866,9 +868,11 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         was_cleaved: false,
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
     };
     state.stack_objects.push_back(backup_trigger);
 

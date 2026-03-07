@@ -100,6 +100,8 @@ fn cast_creature(
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

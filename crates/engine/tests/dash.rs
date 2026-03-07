@@ -169,6 +169,8 @@ fn test_dash_basic_cast_with_dash_cost() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -282,6 +284,8 @@ fn test_dash_normal_cast_no_return() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -380,6 +384,8 @@ fn test_dash_return_to_hand_at_end_step() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -485,6 +491,8 @@ fn test_dash_creature_left_battlefield_before_end_step() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -650,6 +658,8 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -721,6 +731,8 @@ fn test_dash_cannot_combine_with_evoke() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -846,6 +858,8 @@ fn test_dash_commander_tax_applies() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -886,6 +900,8 @@ fn test_dash_commander_tax_applies() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(

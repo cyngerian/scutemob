@@ -19,6 +19,5 @@ pub fn card() -> CardDefinition {
                 }],
             },
         ],
-        ..Default::default()
     }
 }

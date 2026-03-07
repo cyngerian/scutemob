@@ -257,6 +257,29 @@ pub enum Command {
         /// not at cast time. Validated at cast time for early error detection.
         #[serde(default)]
         devour_sacrifices: Vec<ObjectId>,
+        /// CR 700.2a / 601.2b: Mode indices chosen for a modal spell.
+        /// Empty vec = non-modal spell or auto-select mode[0] (backward compatible).
+        /// For "choose one" spells: exactly 1 index (e.g., [0], [1], [2]).
+        /// For "choose two" spells: exactly 2 indices (e.g., [0, 2]).
+        /// For "choose up to N" spells: 1..=N indices.
+        ///
+        /// Validated in `handle_cast_spell`: each index must be < modes.len(),
+        /// no duplicates (unless allow_duplicate_modes is set on ModeSelection),
+        /// and count must be between min_modes and max_modes.
+        ///
+        /// When `entwine_paid` is true, this field is ignored (all modes are chosen).
+        /// When `escalate_modes` > 0 and this field is empty, falls back to 0..=escalate_modes.
+        #[serde(default)]
+        modes_chosen: Vec<usize>,
+        /// CR 702.102a: If true, the player is casting both halves of a split card
+        /// with fuse from their hand. The total cost is the sum of both halves'
+        /// mana costs (CR 702.102c). At resolution, both halves execute in order
+        /// (left first, then right — CR 702.102d).
+        ///
+        /// Validated in `handle_cast_spell`: card must be in hand, must have
+        /// `KeywordAbility::Fuse`, and `AbilityDefinition::Fuse` must exist.
+        #[serde(default)]
+        fuse: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

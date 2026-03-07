@@ -910,8 +910,9 @@ pub fn fire_when_enters_triggered_effects(
     card_id: Option<&crate::state::player::CardId>,
     registry: &crate::cards::registry::CardRegistry,
 ) -> Vec<GameEvent> {
-    use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
+    use crate::cards::card_definition::{AbilityDefinition, Effect, TokenSpec, TriggerCondition};
     use crate::effects::{execute_effect, EffectContext};
+    use crate::state::types::{CounterType, KeywordAbility, SubType};
 
     let Some(cid) = card_id else {
         return Vec::new();
@@ -927,19 +928,125 @@ pub fn fire_when_enters_triggered_effects(
         .map(|o| o.kicker_times_paid)
         .unwrap_or(0);
 
+    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for ETB trigger context.
+    let tribute_was_paid = state
+        .objects
+        .get(&new_id)
+        .map(|o| o.tribute_was_paid)
+        .unwrap_or(false);
+
     let mut evts = Vec::new();
     for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEntersBattlefield,
-            effect,
-            ..
-        } = ability
-        {
-            let mut ctx =
-                EffectContext::new_with_kicker(controller, new_id, vec![], kicker_times_paid);
-            evts.extend(execute_effect(state, effect, &mut ctx));
+        match ability {
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect,
+                ..
+            } => {
+                let mut ctx =
+                    EffectContext::new_with_kicker(controller, new_id, vec![], kicker_times_paid);
+                evts.extend(execute_effect(state, effect, &mut ctx));
+            }
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::TributeNotPaid,
+                effect,
+                ..
+            } => {
+                // CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
+                // Intervening-if condition (CR 603.4): only fire if tribute was not paid.
+                if !tribute_was_paid {
+                    let mut ctx = EffectContext::new_with_kicker(
+                        controller,
+                        new_id,
+                        vec![],
+                        kicker_times_paid,
+                    );
+                    evts.extend(execute_effect(state, effect, &mut ctx));
+                }
+            }
+            _ => {}
         }
     }
+
+    // CR 702.123a: Fabricate N -- "When this permanent enters, you may put N
+    // +1/+1 counters on it. If you don't, create N 1/1 colorless Servo
+    // artifact creature tokens."
+    // CR 702.123b: Multiple instances trigger separately.
+    //
+    // NOTE: Fires inline for bot play rather than going on the stack. In
+    // interactive play, Fabricate is a triggered ability that uses the stack
+    // (CR 702.123a: "When this permanent enters" is triggered ability language).
+    // This inline approximation must be replaced with proper stack-based
+    // resolution before adding human player support.
+    //
+    // Bot play: always choose counters if the permanent is still on the battlefield.
+    // Ruling 2016-09-20: if the permanent is no longer on the battlefield, create tokens.
+    {
+        let fabricate_instances: Vec<u32> = def
+            .abilities
+            .iter()
+            .filter_map(|a| match a {
+                AbilityDefinition::Keyword(KeywordAbility::Fabricate(n)) => Some(*n),
+                _ => None,
+            })
+            .collect();
+
+        for n in fabricate_instances {
+            let permanent_on_bf = state
+                .objects
+                .get(&new_id)
+                .map(|o| o.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if permanent_on_bf {
+                // Bot choice: put N +1/+1 counters on it (CR 702.123a).
+                if n > 0 {
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        let current = obj
+                            .counters
+                            .get(&CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0);
+                        obj.counters = obj
+                            .counters
+                            .update(CounterType::PlusOnePlusOne, current + n);
+                    }
+                    evts.push(super::events::GameEvent::CounterAdded {
+                        object_id: new_id,
+                        counter: CounterType::PlusOnePlusOne,
+                        count: n,
+                    });
+                }
+            } else {
+                // Ruling 2016-09-20: if permanent left the battlefield, create Servo tokens.
+                if n > 0 {
+                    let servo_spec = TokenSpec {
+                        name: "Servo".to_string(),
+                        power: 1,
+                        toughness: 1,
+                        colors: im::OrdSet::new(),
+                        card_types: [CardType::Artifact, CardType::Creature]
+                            .into_iter()
+                            .collect(),
+                        subtypes: [SubType("Servo".to_string())].into_iter().collect(),
+                        keywords: im::OrdSet::new(),
+                        count: n,
+                        tapped: false,
+                        mana_color: None,
+                        mana_abilities: vec![],
+                        activated_abilities: vec![],
+                    };
+                    let mut ctx = EffectContext::new(controller, new_id, vec![]);
+                    evts.extend(execute_effect(
+                        state,
+                        &Effect::CreateToken { spec: servo_spec },
+                        &mut ctx,
+                    ));
+                }
+            }
+        }
+    }
+
     evts
 }
 

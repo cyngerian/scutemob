@@ -194,6 +194,8 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -265,6 +267,8 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -325,6 +329,8 @@ fn test_spectacle_normal_cast_without_spectacle() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -393,6 +399,8 @@ fn test_spectacle_no_keyword_rejects() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -458,6 +466,8 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -602,6 +612,8 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -698,6 +710,8 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -758,6 +772,8 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -861,6 +877,8 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1006,6 +1024,8 @@ fn test_spectacle_commander_tax_applies() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

@@ -230,6 +230,12 @@ pub fn copy_spell_on_stack(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2g / 707.10: Copies of modal spells copy the mode(s) chosen for the original.
+        // The controller of the copy cannot choose a different mode.
+        modes_chosen: original.modes_chosen.clone(),
+        // CR 707.2: Copies copy choices made during casting, including the fuse choice.
+        // A copy of a fused split spell also resolves both halves (left then right).
+        was_fused: original.was_fused,
     };
 
     // Push the copy onto the stack (above the original).
@@ -435,6 +441,10 @@ pub fn resolve_cascade(
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
                 devour_sacrifices: vec![],
+                // CR 700.2a: cascade free-casts have no explicit mode choices (auto-mode[0]).
+                modes_chosen: vec![],
+                // CR 702.102a: cascade free-cast spells are not fused (requires hand — CR 702.102a).
+                was_fused: false,
             };
             state.stack_objects.push_back(stack_obj);
 

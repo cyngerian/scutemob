@@ -368,6 +368,8 @@ impl GameState {
             champion_exiled_card: old_object.champion_exiled_card,
             // CR 702.95e / CR 400.7: soulbond pairing is broken on zone change (new object identity).
             paired_with: None,
+            // CR 400.7: tribute_was_paid is not preserved across zone changes.
+            tribute_was_paid: false,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -519,6 +521,8 @@ impl GameState {
             champion_exiled_card: old_object.champion_exiled_card,
             // CR 702.95e / CR 400.7: soulbond pairing is broken on zone change (new object identity).
             paired_with: None,
+            // CR 400.7: tribute_was_paid is not preserved across zone changes.
+            tribute_was_paid: false,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

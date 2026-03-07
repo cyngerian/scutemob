@@ -141,6 +141,8 @@ fn test_cast_commander_from_command_zone_first_time() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -245,6 +247,8 @@ fn test_cast_commander_from_command_zone_second_time() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -338,6 +342,8 @@ fn test_cast_commander_from_command_zone_third_time() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -429,6 +435,8 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -499,6 +507,8 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -564,6 +574,8 @@ fn test_cast_commander_sorcery_speed_enforced() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -1083,6 +1095,8 @@ fn test_partner_commanders_separate_tax_tracking() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1172,6 +1186,8 @@ fn test_partner_commanders_separate_tax_tracking() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -2008,8 +2024,10 @@ fn test_companion_rejected_with_non_empty_stack() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     assert_eq!(
@@ -2320,6 +2338,8 @@ fn test_full_four_player_commander_game() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

@@ -217,6 +217,7 @@ impl ReplaySession {
                         assist_player,
                         assist_amount,
                         replicate_count,
+                        modes,
                         target_creature,
                         ..
                     } => {
@@ -247,6 +248,7 @@ impl ReplaySession {
                                 *replicate_count,
                                 &[],
                                 0,
+                                modes.clone(),
                                 target_creature.as_deref(),
                                 &current_state,
                                 &player_map,

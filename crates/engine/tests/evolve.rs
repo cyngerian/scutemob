@@ -91,6 +91,8 @@ fn cast_and_resolve(
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -840,6 +842,8 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1178,6 +1182,8 @@ fn test_evolve_multiplayer_only_same_controller() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("P2 CastSpell should succeed");

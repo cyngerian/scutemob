@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_170",
+    "name": "Tribute — Fanatic of Xenagos, tribute declined (not paid)",
+    "description": "p1 casts Fanatic of Xenagos ({1}{R}{G}, 3/3 Centaur Warrior, Trample, Tribute 1). P2 declines tribute (bot auto-declines). Because tribute was not paid, the TributeNotPaid trigger fires inline at ETB time (CR 702.104b + 603.4): Fanatic gets a +1/+1 counter (effective 4/4) and gains haste until end of turn. All effects apply immediately as Fanatic enters — no separate stack trigger step (engine fires tribute trigger inline like other ETB triggers). Asserts: Fanatic on p1 battlefield with +1/+1 counter, stack empty.",
+    "cr_sections_tested": ["702.104a", "702.104b", "603.4", "601.2", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["tribute", "etb", "trigger", "intervening-if", "counter", "haste", "trample", "fanatic-of-xenagos"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-07",
+    "generation_notes": "Tribute fires inline in fire_when_enters_triggered_effects() (replacement.rs:950) — not as a separate stack object. The trigger effect executes immediately during ETB processing: AddCounter(+1/+1, 1) on source, then ApplyContinuousEffect(Haste, UntilEndOfTurn) on source. Script simplified to match engine behavior: no intermediate 'TributeTrigger on stack' step.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "red": 1, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Fanatic of Xenagos", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Fanatic of Xenagos. It resolves and enters the battlefield. P2 (chosen tribute opponent) auto-declines tribute. The TributeNotPaid trigger fires inline at ETB: Fanatic gets +1/+1 counter (4/4 effective) and haste until EOT.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Fanatic of Xenagos in p1 hand; battlefield empty; p1 has {1}{R}{G} in pool; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Fanatic of Xenagos" }] },
+            "zones.battlefield.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {1}{R}{G} in pool — exactly enough to cast Fanatic of Xenagos. Battlefield is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Fanatic of Xenagos",
+          "targets": [],
+          "mana_paid": { "colorless": 1, "red": 1, "green": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Fanatic of Xenagos ({1}{R}{G}). Fanatic moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Fanatic of Xenagos on stack (count 1); p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 0
+          },
+          "note": "Fanatic of Xenagos is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Fanatic of Xenagos resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Fanatic of Xenagos",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": { "type": "permanent", "card": "Fanatic of Xenagos", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Fanatic of Xenagos enters the battlefield. CR 702.104a: Tribute 1 — p2 declines (bot auto-declines), tribute_was_paid stays false. CR 702.104b + 603.4: TributeNotPaid trigger fires inline — Fanatic gets +1/+1 counter and haste until EOT."
+            }
+          ],
+          "note": "Fanatic resolves. ETB processing fires tribute trigger inline: +1/+1 counter added, haste continuous effect applied."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.3: SBAs checked. Fanatic toughness = 4 (3 base + 1 counter), no damage — no SBAs."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Fanatic of Xenagos on p1 battlefield with 1 +1/+1 counter (4/4 effective); stack empty; life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Fanatic of Xenagos" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.104b: Tribute not paid — +1/+1 counter granted (Fanatic now 4/4) and haste granted until EOT. Stack empty."
+        }
+      ]
+    }
+  ]
+}

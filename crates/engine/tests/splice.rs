@@ -283,6 +283,8 @@ fn test_splice_basic_onto_arcane() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -373,6 +375,8 @@ fn test_splice_cost_added() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -455,6 +459,8 @@ fn test_splice_card_stays_in_hand() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -554,6 +560,8 @@ fn test_splice_wrong_subtype_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -637,6 +645,8 @@ fn test_splice_same_card_twice_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -720,6 +730,8 @@ fn test_splice_not_in_hand_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -818,6 +830,8 @@ fn test_splice_multiple_cards() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CastSpell with two splice cards should succeed");
@@ -921,6 +935,8 @@ fn test_splice_main_effect_first() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -1047,6 +1063,8 @@ fn test_splice_onto_itself_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 

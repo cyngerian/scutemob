@@ -263,6 +263,19 @@ pub struct StackObject {
     /// counter placement happen during ETB resolution, not at cast time.
     #[serde(default)]
     pub devour_sacrifices: Vec<ObjectId>,
+    /// CR 700.2a / 601.2b: Mode indices chosen at cast time for a modal spell.
+    /// Empty for non-modal spells or when mode[0] is auto-selected (backward compatible).
+    /// Propagated to copies per CR 700.2g / 707.10.
+    #[serde(default)]
+    pub modes_chosen: Vec<usize>,
+    /// CR 702.102a: If true, this spell was cast as a fused split spell
+    /// (both halves from hand). At resolution, both halves' effects execute
+    /// in order (left first, then right — CR 702.102d). The spell has
+    /// combined characteristics of both halves (CR 702.102b, 709.4d).
+    ///
+    /// Propagated to copies per CR 707.2 (copies copy choices made during casting).
+    #[serde(default)]
+    pub was_fused: bool,
 }
 
 /// The kind of object on the stack.

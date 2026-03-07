@@ -836,6 +836,8 @@ fn test_whenever_you_proliferate_trigger_fires() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

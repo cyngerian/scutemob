@@ -113,6 +113,8 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         entwine_paid: false,
                         escalate_modes: 0,
                         devour_sacrifices: Vec::new(),
+                        modes_chosen: Vec::new(),
+                        fuse: false,
                     };
                     app.execute_command(cmd)?;
                 } else {

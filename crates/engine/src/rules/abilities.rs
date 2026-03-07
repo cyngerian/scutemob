@@ -438,6 +438,10 @@ pub fn handle_activate_ability(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -687,6 +691,10 @@ pub fn handle_cycle_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -934,6 +942,10 @@ pub fn handle_activate_forecast(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: forecast abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: forecast abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1105,6 +1117,10 @@ pub fn handle_unearth_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1377,6 +1393,10 @@ pub fn handle_ninjutsu(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1586,6 +1606,10 @@ pub fn handle_embalm_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1804,6 +1828,10 @@ pub fn handle_eternalize_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2021,6 +2049,10 @@ pub fn handle_encore_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -4824,6 +4856,12 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         spliced_effects: vec![],
                         spliced_card_ids: vec![],
                         devour_sacrifices: vec![],
+                        // CR 700.2g: storm copies inherit modes_chosen from the original.
+                        // (Storm copies are handled via copy_spell_on_stack in copy.rs
+                        //  which propagates modes_chosen; this site is a fallback stub.)
+                        modes_chosen: vec![],
+                        // CR 702.102a: storm copies are never fused spells.
+                        was_fused: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5190,6 +5228,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 spliced_effects: vec![],
                 spliced_card_ids: vec![],
                 devour_sacrifices: vec![],
+                // CR 700.2a: myriad attack copies are not modal spells; no modes chosen.
+                modes_chosen: vec![],
+                // CR 702.102a: myriad attack copies are never fused spells.
+                was_fused: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -5570,6 +5612,10 @@ pub fn handle_crew_vehicle(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: triggered abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5816,6 +5862,10 @@ pub fn handle_scavenge_card(
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        // CR 700.2a: scavenge abilities are not modal spells; no modes chosen.
+        modes_chosen: vec![],
+        // CR 702.102a: scavenge abilities are never fused spells.
+        was_fused: false,
     };
     state.stack_objects.push_back(stack_obj);
 

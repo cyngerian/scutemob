@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_172",
+    "name": "Fuse: Wear // Tear destroys artifact and enchantment simultaneously",
+    "description": "P1 casts Wear // Tear fused from hand, paying the combined mana cost {1}{R}{W} (CR 702.102c). P2 controls Sol Ring (artifact) and Rest in Peace (enchantment). The fused spell resolves: Wear (left half, target index 0) destroys Sol Ring first, then Tear (right half, target index 1) destroys Rest in Peace (CR 702.102d). After resolution both permanents are in P2's graveyard and the stack is empty.",
+    "cr_sections_tested": ["601.2", "608.2", "701.7a", "702.102", "702.102b", "702.102c", "702.102d"],
+    "corner_case_ref": null,
+    "tags": ["fuse", "split-card", "wear-tear", "destroy", "artifact", "enchantment", "multi-target"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Tests the Fuse keyword (CR 702.102) using the Wear // Tear split card. Fuse is a static ability that allows casting both halves of a split card from hand by paying the combined mana cost. Wear costs {1}{R} and Tear costs {W}; combined fuse cost is {1}{R}{W} = generic:1, red:1, white:1 (CR 702.102c). The harness action 'cast_spell_fuse' sets fuse:true on Command::CastSpell. Targets are provided in index order: index 0 = Sol Ring (artifact, for Wear), index 1 = Rest in Peace (enchantment, for Tear). At resolution, left half (Wear) executes first destroying Sol Ring, then right half (Tear) executes destroying Rest in Peace (CR 702.102d). Rhystic Study was initially considered but avoided because it triggers whenever an opponent casts a spell, which would add an extra trigger to the stack after casting Wear // Tear and complicate the scenario. Rest in Peace is a non-Aura enchantment from the Available Cards list that does not trigger on spell cast. Wear // Tear card definition: card_id 'wear-tear', Fuse keyword, AbilityDefinition::Spell with TargetArtifact at index 0, AbilityDefinition::Fuse with TargetEnchantment at index 1. The fused spell becomes p1's graveyard after resolution (owner = p1). Destroyed permanents go to p2's graveyard (owned and controlled by p2).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 1, "red": 1, "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Sol Ring", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Rest in Peace", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Wear // Tear", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Wear // Tear fused, targeting Sol Ring (artifact) and Rest in Peace (enchantment) controlled by P2",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Wear // Tear in p1 hand; Sol Ring and Rest in Peace on p2's battlefield",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p2": {
+              "includes": [
+                { "card": "Sol Ring" },
+                { "card": "Rest in Peace" }
+              ]
+            },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Starting position: p1 has the fuse spell, p2 has both targets."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_fuse",
+          "card": "Wear // Tear",
+          "targets": [
+            { "type": "permanent", "card": "Sol Ring", "controller": "p2", "player": null },
+            { "type": "permanent", "card": "Rest in Peace", "controller": "p2", "player": null }
+          ],
+          "mana_paid": { "colorless": 1, "red": 1, "white": 1 },
+          "mana_source": [],
+          "cr_ref": "702.102c",
+          "note": "CR 702.102a,c: p1 casts Wear // Tear fused from hand, paying combined cost {1}{R}{W}. Target index 0 = Sol Ring (artifact, for Wear half), target index 1 = Rest in Peace (enchantment, for Tear half)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Wear // Tear is on the stack, p1's hand is empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Fused spell is on the stack as a single object with combined characteristics (CR 702.102b)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — fused Wear // Tear resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Wear // Tear",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Sol Ring", "controller": "p2" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 702.102d: Left half (Wear) resolves first. CR 701.7a: Sol Ring is destroyed, moved to p2's graveyard."
+            },
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Rest in Peace", "controller": "p2" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 702.102d: Right half (Tear) resolves second. CR 701.7a: Rest in Peace is destroyed, moved to p2's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Fused spell resolves. CR 702.102d: Wear (destroy artifact) executes before Tear (destroy enchantment)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: Sol Ring and Rest in Peace in p2's graveyard; Wear // Tear in p1's graveyard; stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": {
+              "excludes": [
+                { "card": "Sol Ring" },
+                { "card": "Rest in Peace" }
+              ]
+            },
+            "zones.graveyard.p2": {
+              "includes": [
+                { "card": "Sol Ring" },
+                { "card": "Rest in Peace" }
+              ]
+            },
+            "zones.graveyard.p1": {
+              "includes": [
+                { "card": "Wear // Tear" }
+              ]
+            }
+          },
+          "note": "CR 702.102d: Both halves resolved. Sol Ring and Rest in Peace destroyed and in p2's graveyard. Wear // Tear goes to p1's graveyard (owner = p1)."
+        }
+      ]
+    }
+  ]
+}

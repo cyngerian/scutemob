@@ -102,6 +102,8 @@ pub fn process_command(
             entwine_paid,
             escalate_modes,
             devour_sacrifices,
+            modes_chosen,
+            fuse,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -130,6 +132,8 @@ pub fn process_command(
                 entwine_paid,
                 escalate_modes,
                 devour_sacrifices,
+                modes_chosen,
+                fuse,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).

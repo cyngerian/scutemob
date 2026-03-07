@@ -162,6 +162,8 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CR 702.126a: should succeed when tapping 3 artifacts for 3 generic pips");
@@ -268,6 +270,8 @@ fn test_improvise_cannot_pay_colored_mana() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -343,6 +347,8 @@ fn test_improvise_reject_no_keyword() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -411,6 +417,8 @@ fn test_improvise_reject_tapped_artifact() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -478,6 +486,8 @@ fn test_improvise_reject_not_artifact() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -545,6 +555,8 @@ fn test_improvise_reject_opponent_artifact() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -621,6 +633,8 @@ fn test_improvise_reject_too_many_artifacts() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -696,6 +710,8 @@ fn test_improvise_zero_artifacts_normal_cast() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("CR 702.126a: should succeed with zero artifacts (normal full-mana cast)");
@@ -817,6 +833,8 @@ fn test_improvise_with_commander_tax() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect(
@@ -943,6 +961,8 @@ fn test_improvise_combined_with_convoke() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("edge case: spell with both convoke and improvise should succeed");
@@ -1026,6 +1046,8 @@ fn test_improvise_artifact_creature_can_be_used() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("ruling: artifact creature should be valid for improvise");
@@ -1103,6 +1125,8 @@ fn test_improvise_summoning_sickness_irrelevant() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .expect("ruling: summoning sickness should NOT prevent improvise");

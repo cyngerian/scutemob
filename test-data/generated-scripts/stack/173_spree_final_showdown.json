@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_173",
+    "name": "Spree — Final Showdown mode 2 destroys all creatures",
+    "description": "P1 casts Final Showdown (a Spree instant) choosing only mode 2 (+{3}{W}{W}: destroy all creatures). Total cost is {W} base + {3}{W}{W} mode 2 = {3}{W}{W}{W}. P2 controls Llanowar Elves and Elvish Mystic. Both players pass priority; on resolution mode 2 fires and all creatures are destroyed. Asserts that P2's battlefield is cleared and P1's life is unchanged.",
+    "cr_sections_tested": ["601.2", "702.172", "702.172a", "608.2", "701.7a", "704.5g"],
+    "corner_case_ref": null,
+    "tags": ["stack", "spree", "modal", "destroy-all", "instant", "final-showdown"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Spree (CR 702.172) is a variant of the modal mechanic. A Spree spell has a base cost and one or more additive mode costs; the caster chooses which modes to add and pays the sum. Here only mode 2 (+{3}{W}{W}: destroy all creatures) is chosen, making the total cost {W}+{3}{W}{W} = {3}{W}{W}{W} (generic:3, white:3). Modes 0 and 1 are DSL gaps (lose-all-abilities and gain-indestructible are not yet representable) so they are intentionally omitted to keep the script engine-runnable. P2 has two 1/1 creatures (Llanowar Elves, Elvish Mystic). After resolution, destroy all creatures fires (CR 701.7a), both creatures go to P2's graveyard (CR 704.5g / SBAs), and the battlefield is empty. P1's life remains 40. The cast uses harness action cast_spell_modal with modes:[2]. Final Showdown is not in the Available Cards list; it is verified to exist in the engine card registry as a Spree instant.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "generic": 3, "white": 3 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false },
+          { "card": "Elvish Mystic", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Final Showdown", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Final Showdown choosing only mode 2 (destroy all creatures)",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Final Showdown in p1 hand; p2 controls two creatures; p1 has {3}{W}{W}{W} available",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p2.count": 2,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Setup verified before spell is cast."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_modal",
+          "card": "Final Showdown",
+          "modes": [2],
+          "targets": [],
+          "mana_paid": { "generic": 3, "white": 3 },
+          "mana_source": [],
+          "cr_ref": "702.172a",
+          "note": "CR 702.172a: Spree spell. P1 pays base cost {W} plus mode-2 additional cost {3}{W}{W}, totalling {3}{W}{W}{W}. Mode 2 chosen: destroy all creatures."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Final Showdown on stack, p1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Final Showdown is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority; top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Final Showdown",
+          "resolution": [
+            {
+              "effect": "destroy_all",
+              "target": { "type": "all_creatures" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Mode 2 resolves — all creatures are destroyed; Llanowar Elves and Elvish Mystic move to p2's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Spell resolves; mode 2 effect executes; Final Showdown moves to p1's graveyard."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.3: SBAs checked after resolution. Creatures were already destroyed by the spell effect; no additional SBAs needed."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: p2 battlefield empty, p1 life unchanged, Final Showdown in p1 graveyard",
+          "assertions": {
+            "zones.battlefield.p2.count": 0,
+            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.graveyard.p2": { "includes": [{ "card": "Elvish Mystic" }] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Final Showdown" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Mode 2 (destroy all creatures) resolved correctly. Both of p2's creatures are in the graveyard. P1's life is unaffected."
+        }
+      ]
+    }
+  ]
+}

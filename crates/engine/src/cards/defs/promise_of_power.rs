@@ -21,6 +21,8 @@ pub fn card() -> CardDefinition {
                 modes: Some(ModeSelection {
                     min_modes: 1,
                     max_modes: 1,
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
                     modes: vec![
                         // Mode 0: Draw 5 cards, then lose 5 life
                         Effect::Sequence(vec![

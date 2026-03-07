@@ -203,6 +203,8 @@ fn test_effect_deal_damage_to_player() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -295,6 +297,8 @@ fn test_effect_deal_damage_to_creature() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -390,6 +394,8 @@ fn test_effect_exile_and_gain_life() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -502,6 +508,8 @@ fn test_effect_draw_cards() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1073,8 +1081,10 @@ fn test_effect_counter_spell_removes_from_stack() {
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
+        modes_chosen: vec![],
         was_entwined: false,
         escalate_modes_paid: 0,
+        was_fused: false,
     });
 
     // Fire CounterSpell targeting the spell's source object.
@@ -1212,6 +1222,8 @@ fn test_rhystic_study_draws_card_when_opponent_casts() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1328,6 +1340,8 @@ fn test_opponent_casts_trigger_does_not_fire_on_own_spell() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1445,6 +1459,8 @@ fn test_opponent_casts_trigger_multiplayer_fires_for_correct_player() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1589,6 +1605,8 @@ fn test_opponent_casts_trigger_multiple_studies_each_trigger_independently() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1699,6 +1717,8 @@ fn test_opponent_casts_trigger_carries_casting_player_as_target() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();
@@ -1833,6 +1853,8 @@ fn test_rhystic_study_enrich_path_trigger_fires() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap();

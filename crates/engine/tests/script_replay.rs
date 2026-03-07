@@ -158,6 +158,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     replicate_count,
                     splice_card_names,
                     escalate_modes,
+                    modes,
                     target_creature,
                     ..
                 } => {
@@ -188,6 +189,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             *replicate_count,
                             splice_card_names,
                             *escalate_modes,
+                            modes.clone(),
                             target_creature.as_deref(),
                             &state,
                             &players,

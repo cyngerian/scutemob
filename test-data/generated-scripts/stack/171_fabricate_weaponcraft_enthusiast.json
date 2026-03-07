@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_171",
+    "name": "Fabricate 2 — Weaponcraft Enthusiast chooses counters",
+    "description": "p1 casts Weaponcraft Enthusiast ({2}{B}, 0/1 Aetherborn Artificer, Fabricate 2). When it enters the battlefield, Fabricate 2 fires inline (same pattern as Tribute — ETB trigger executed immediately, not as a separate stack object per CR 702.123a): the bot always chooses counters, so Weaponcraft Enthusiast receives 2 +1/+1 counters and becomes effectively 2/3. Final state: Enthusiast on battlefield with 2 +1/+1 counters, stack empty, life totals unchanged.",
+    "cr_sections_tested": ["702.123", "702.123a", "601.2", "608.2", "116.3", "704.3"],
+    "corner_case_ref": null,
+    "tags": ["fabricate", "etb", "trigger", "counter", "weaponcraft-enthusiast", "aetherborn"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Fabricate fires inline in fire_when_enters_triggered_effects() — not as a separate stack object. Bot always chooses counters (never tokens). Weaponcraft Enthusiast: {2}{B}, 0/1. Fabricate 2 grants exactly 2 +1/+1 counters when counters are chosen (CR 702.123a). Post-resolution: effective P/T is 2/3 (0+2 / 1+2). p1 needs {2}{B} = 2 colorless + 1 black. SBA check: toughness 3, no damage — no actions taken.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Weaponcraft Enthusiast", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Weaponcraft Enthusiast. It resolves and enters the battlefield. Fabricate 2 fires inline at ETB: bot chooses counters, so Enthusiast gets 2 +1/+1 counters (becomes 2/3 effective).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Weaponcraft Enthusiast in p1 hand; battlefield empty; p1 has {2}{B} in pool; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Weaponcraft Enthusiast" }] },
+            "zones.battlefield.p1.count": 0,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {2}{B} in pool — exactly enough to cast Weaponcraft Enthusiast. Battlefield is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Weaponcraft Enthusiast",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "black": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Weaponcraft Enthusiast ({2}{B}). Card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Weaponcraft Enthusiast on stack (count 1); p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 0
+          },
+          "note": "Weaponcraft Enthusiast is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Weaponcraft Enthusiast resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Weaponcraft Enthusiast",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": { "type": "permanent", "card": "Weaponcraft Enthusiast", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Weaponcraft Enthusiast enters the battlefield. CR 702.123a: Fabricate 2 — bot chooses counters (not tokens). 2 +1/+1 counters are placed on Weaponcraft Enthusiast immediately (inline ETB processing, no separate stack trigger step)."
+            }
+          ],
+          "note": "Weaponcraft Enthusiast resolves. ETB processing fires Fabricate 2 trigger inline: bot selects counters, 2 +1/+1 counters are added. Enthusiast is now effectively 2/3."
+        },
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.3: SBAs checked. Weaponcraft Enthusiast toughness = 3 (1 base + 2 from counters), no damage marked — no SBAs triggered."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Weaponcraft Enthusiast on p1 battlefield with 2 +1/+1 counters (2/3 effective); stack empty; life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Weaponcraft Enthusiast" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.123a: Fabricate 2 + counter choice = 2 +1/+1 counters on Weaponcraft Enthusiast (0+2 / 1+2 = 2/3 effective). No tokens created. Stack empty."
+        }
+      ]
+    }
+  ]
+}

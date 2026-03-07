@@ -157,6 +157,8 @@ pub(crate) fn action_to_command(
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: Vec::new(),
+            modes_chosen: Vec::new(),
+            fuse: false,
         },
         LegalAction::TapForMana {
             source,

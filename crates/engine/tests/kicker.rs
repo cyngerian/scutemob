@@ -140,6 +140,8 @@ fn test_kicker_basic_cast_with_kicker() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with kicker failed: {:?}", e));
@@ -256,6 +258,8 @@ fn test_kicker_basic_cast_without_kicker() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without kicker failed: {:?}", e));
@@ -356,6 +360,8 @@ fn test_kicker_insufficient_mana_with_kicker() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -434,6 +440,8 @@ fn test_kicker_non_kicker_spell_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -516,6 +524,8 @@ fn test_kicker_standard_kicker_rejects_multiple() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
 
@@ -606,6 +616,8 @@ fn test_kicker_permanent_etb_kicked() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger kicked failed: {:?}", e));
@@ -709,6 +721,8 @@ fn test_kicker_permanent_etb_not_kicked() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Torch Slinger not kicked failed: {:?}", e));
@@ -804,6 +818,8 @@ fn test_kicker_does_not_change_mana_value() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell Burst Lightning kicked failed: {:?}", e));
@@ -943,6 +959,8 @@ fn test_kicker_with_commander_tax() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("Commander + kicker cast failed: {:?}", e));
@@ -1064,6 +1082,8 @@ fn test_kicker_spell_cast_event_emitted() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell kicked failed: {:?}", e));

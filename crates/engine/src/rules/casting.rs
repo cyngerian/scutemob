@@ -76,6 +76,8 @@ pub fn handle_cast_spell(
     entwine_paid: bool,
     escalate_modes: u32,
     devour_sacrifices: Vec<ObjectId>,
+    mut modes_chosen: Vec<usize>,
+    fuse: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -95,6 +97,9 @@ pub fn handle_cast_spell(
     let cast_with_spectacle = alt_cost == Some(AltCostKind::Spectacle);
     let cast_with_surge = alt_cost == Some(AltCostKind::Surge);
     let cast_with_cleave = alt_cost == Some(AltCostKind::Cleave);
+    // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
+    // indicates the player's intent to cast both halves. Validated below.
+    let casting_with_fuse = fuse;
     // CR 601.2: Casting a spell requires priority.
     if state.turn.priority_holder != Some(player) {
         return Err(GameStateError::NotPriorityHolder {
@@ -120,6 +125,7 @@ pub fn handle_cast_spell(
     let (
         casting_from_command_zone,
         casting_from_graveyard,
+        casting_from_hand,
         casting_with_flashback,
         casting_with_madness,
         card_has_escape_keyword,
@@ -322,6 +328,7 @@ pub fn handle_cast_spell(
         (
             casting_from_command_zone,
             casting_from_graveyard,
+            casting_from_hand,
             casting_with_flashback,
             casting_with_madness,
             card_has_escape_keyword,
@@ -401,6 +408,15 @@ pub fn handle_cast_spell(
     let is_instant_speed = if casting_with_aftermath {
         let aftermath_type = get_aftermath_card_type(&card_id, &state.card_registry);
         aftermath_type == Some(CardType::Instant) || chars.keywords.contains(&KeywordAbility::Flash)
+    } else {
+        is_instant_speed
+    };
+
+    // CR 702.102b + CR 709.4d: A fused spell has the combined characteristics of both halves.
+    // If either half is an instant, the combined spell can be cast at instant speed.
+    let is_instant_speed = if casting_with_fuse {
+        let right_type = get_fuse_card_type(&card_id, &state.card_registry);
+        is_instant_speed || right_type == Some(CardType::Instant)
     } else {
         is_instant_speed
     };
@@ -746,6 +762,37 @@ pub fn handle_cast_spell(
             return Err(GameStateError::InvalidCommand(
                 "aftermath: card has Aftermath keyword but no AbilityDefinition::Aftermath defined"
                     .into(),
+            ));
+        }
+    }
+
+    // CR 702.102a: Fuse validation.
+    // Fuse is a static ability (not an alternative cost) that allows casting both halves
+    // of a split card from hand, paying the combined mana cost (CR 702.102c).
+    if casting_with_fuse {
+        // CR 702.102a: Card must have the Fuse keyword.
+        if !chars.keywords.contains(&KeywordAbility::Fuse) {
+            return Err(GameStateError::InvalidCommand(
+                "fuse: card does not have the Fuse keyword (CR 702.102a)".into(),
+            ));
+        }
+        // CR 702.102a: Fuse only applies when casting from hand.
+        if !casting_from_hand {
+            return Err(GameStateError::InvalidCommand(
+                "fuse: can only fuse when casting from hand (CR 702.102a)".into(),
+            ));
+        }
+        // Validate the fuse ability definition exists.
+        if get_fuse_data(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "fuse: card has Fuse keyword but no AbilityDefinition::Fuse defined".into(),
+            ));
+        }
+        // CR 702.102a: Fuse requires hand. Most alt costs that change zone are incompatible.
+        // Reject combination with any alternative cost for safety.
+        if alt_cost.is_some() {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine fuse with an alternative cost (CR 702.102a: from hand only)".into(),
             ));
         }
     }
@@ -1755,6 +1802,30 @@ pub fn handle_cast_spell(
         base_mana_cost
     };
 
+    // CR 702.102c: For fused split spells, add the right half's mana cost to the base cost.
+    // Fuse is NOT an alternative cost — it pays BOTH halves' mana costs combined.
+    // This addition happens after the base cost is selected and before commander tax.
+    let base_cost_before_tax = if casting_with_fuse {
+        match get_fuse_data(&card_id, &state.card_registry) {
+            Some(right_cost) => base_cost_before_tax.map(|left| ManaCost {
+                white: left.white + right_cost.white,
+                blue: left.blue + right_cost.blue,
+                black: left.black + right_cost.black,
+                red: left.red + right_cost.red,
+                green: left.green + right_cost.green,
+                generic: left.generic + right_cost.generic,
+                colorless: left.colorless + right_cost.colorless,
+            }),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "fuse: card has Fuse keyword but no fuse cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        base_cost_before_tax
+    };
+
     // Step 3: Apply commander tax ON TOP of the selected base cost (CR 118.9d / CR 903.8).
     let mana_cost: Option<ManaCost> = if casting_from_command_zone {
         let tax = {
@@ -1932,6 +2003,64 @@ pub fn handle_cast_spell(
             None => {
                 return Err(GameStateError::InvalidCommand(
                     "spell has escalate keyword but no escalate cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        mana_cost
+    };
+
+    // CR 702.172a / 700.2h: Spree -- for each chosen mode, add that mode's per-mode
+    // additional cost to the total mana cost. Spree requires at least one mode to be chosen.
+    // CR 118.8d: Additional costs don't change the spell's mana value, only what is paid.
+    // Note: `modes_chosen` is the raw (not-yet-validated) list; invalid indices return None
+    // from `costs.get(idx)` and are safely skipped. Validation happens below at line ~2874.
+    let mana_cost = if chars.keywords.contains(&KeywordAbility::Spree) {
+        // CR 702.172a: Spree requires at least one mode to be chosen.
+        // When entwine_paid is true all modes are chosen; otherwise modes_chosen must be non-empty.
+        if !entwine_paid && modes_chosen.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "spree spell requires at least one mode to be chosen (CR 702.172a)".into(),
+            ));
+        }
+        // Look up per-mode costs from ModeSelection.
+        let mode_costs = card_id.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                        m.mode_costs.clone()
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+        match mode_costs {
+            Some(costs) => {
+                let mut total = mana_cost.unwrap_or_default();
+                // Determine which mode indices to charge for.
+                // If entwine_paid, charge all modes; otherwise charge only the chosen modes.
+                let indices_to_charge: Vec<usize> = if entwine_paid {
+                    (0..costs.len()).collect()
+                } else {
+                    modes_chosen.clone()
+                };
+                for idx in indices_to_charge {
+                    if let Some(cost) = costs.get(idx) {
+                        total.white += cost.white;
+                        total.blue += cost.blue;
+                        total.black += cost.black;
+                        total.red += cost.red;
+                        total.green += cost.green;
+                        total.generic += cost.generic;
+                        total.colorless += cost.colorless;
+                    }
+                }
+                Some(total)
+            }
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spree spell has no per-mode costs defined in ModeSelection (CR 700.2h)".into(),
                 ));
             }
         }
@@ -2797,6 +2926,77 @@ pub fn handle_cast_spell(
         vec![]
     };
 
+    // CR 700.2a / 601.2b: Validate explicit mode choices for modal spells.
+    // If modes_chosen is non-empty, the spell must be modal and the indices must be valid.
+    // When entwine_paid is true, modes_chosen is ignored (all modes are chosen).
+    let validated_modes_chosen: Vec<usize> = if !modes_chosen.is_empty() && !entwine_paid {
+        // Look up ModeSelection from the card definition.
+        let mode_selection = card_id.as_ref().and_then(|cid| {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                        Some(m.clone())
+                    } else {
+                        None
+                    }
+                })
+            })
+        });
+        match mode_selection {
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "modes_chosen specified but spell has no modal structure (modes: Some(...)) (CR 700.2a)".into(),
+                ));
+            }
+            Some(ms) => {
+                // CR 700.2a: Each chosen index must be within range.
+                for &idx in &modes_chosen {
+                    if idx >= ms.modes.len() {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "mode index {} is out of range (spell has {} modes) (CR 700.2a)",
+                            idx,
+                            ms.modes.len()
+                        )));
+                    }
+                }
+                // CR 700.2d: Duplicate modes are only allowed when allow_duplicate_modes is set.
+                if !ms.allow_duplicate_modes {
+                    let mut seen = std::collections::HashSet::new();
+                    for &idx in &modes_chosen {
+                        if !seen.insert(idx) {
+                            return Err(GameStateError::InvalidCommand(format!(
+                                "mode index {} chosen more than once; use allow_duplicate_modes: true to allow (CR 700.2d)",
+                                idx
+                            )));
+                        }
+                    }
+                }
+                // CR 700.2a: Count must be between min_modes and max_modes.
+                let chosen_count = modes_chosen.len();
+                if chosen_count < ms.min_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "must choose at least {} mode(s); only {} chosen (CR 700.2a)",
+                        ms.min_modes, chosen_count
+                    )));
+                }
+                if chosen_count > ms.max_modes {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "may choose at most {} mode(s); {} chosen (CR 700.2a)",
+                        ms.max_modes, chosen_count
+                    )));
+                }
+                // CR 700.2a: modes always execute in ascending printed order.
+                modes_chosen.sort_unstable();
+                modes_chosen
+            }
+        }
+    } else {
+        // Empty = non-modal spell or auto-select mode[0] (backward compatible).
+        // Also used when entwine_paid overrides mode selection.
+        modes_chosen
+    };
+    // TODO(CR 700.2c): per-mode targeting — each mode may have its own targets; currently deferred, all targets treated uniformly
+
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
@@ -2863,6 +3063,11 @@ pub fn handle_cast_spell(
         spliced_card_ids: collected_spliced_ids,
         // CR 702.82a: Creatures to sacrifice at ETB time (validated below).
         devour_sacrifices: validated_devour_sacrifices,
+        // CR 700.2a / 601.2b: Mode indices chosen at cast time. Validated below.
+        // Empty = auto-select mode[0] (backward compatible).
+        modes_chosen: validated_modes_chosen,
+        // CR 702.102a: Whether this spell was cast as a fused split spell (both halves from hand).
+        was_fused: casting_with_fuse,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3007,6 +3212,10 @@ pub fn handle_cast_spell(
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             devour_sacrifices: vec![],
+            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+            modes_chosen: vec![],
+            // CR 702.102a: trigger/copy stack objects are never fused spells.
+            was_fused: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3069,6 +3278,10 @@ pub fn handle_cast_spell(
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             devour_sacrifices: vec![],
+            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+            modes_chosen: vec![],
+            // CR 702.102a: trigger/copy stack objects are never fused spells.
+            was_fused: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3132,6 +3345,10 @@ pub fn handle_cast_spell(
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             devour_sacrifices: vec![],
+            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+            modes_chosen: vec![],
+            // CR 702.102a: trigger/copy stack objects are never fused spells.
+            was_fused: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3189,6 +3406,10 @@ pub fn handle_cast_spell(
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             devour_sacrifices: vec![],
+            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+            modes_chosen: vec![],
+            // CR 702.102a: trigger/copy stack objects are never fused spells.
+            was_fused: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3248,6 +3469,10 @@ pub fn handle_cast_spell(
             spliced_effects: vec![],
             spliced_card_ids: vec![],
             devour_sacrifices: vec![],
+            // CR 700.2a: triggered abilities are not modal spells; no modes chosen.
+            modes_chosen: vec![],
+            // CR 702.102a: trigger/copy stack objects are never fused spells.
+            was_fused: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -4724,6 +4949,51 @@ fn get_splice_info(
                 } = a
                 {
                     Some((cost.clone(), onto_subtype.clone(), *effect.clone()))
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.102c: Look up the fuse (right half) cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Fuse { cost, .. }`, or `None`
+/// if the card has no definition or no fuse ability defined.
+fn get_fuse_data(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Fuse { cost, .. } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.102b + CR 709.4d: Look up the fuse (right half) card type.
+///
+/// Used for timing validation — if the right half is an instant, the fused
+/// spell can be cast at instant speed (combined characteristics rule).
+///
+/// Returns `Some(CardType)` from `AbilityDefinition::Fuse { card_type, .. }`,
+/// or `None` if the card has no fuse ability definition.
+fn get_fuse_card_type(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<CardType> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Fuse { card_type, .. } = a {
+                    Some(*card_type)
                 } else {
                     None
                 }

@@ -29,6 +29,5 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(3),
         toughness: Some(3),
-        ..Default::default()
     }
 }

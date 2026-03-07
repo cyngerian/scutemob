@@ -576,6 +576,12 @@ pub struct GameObject {
     /// are met (CR 702.95e: control change or stops being a creature).
     #[serde(default)]
     pub paired_with: Option<ObjectId>,
+    /// CR 702.104b: Whether tribute was paid for this permanent. When true,
+    /// the chosen opponent placed N +1/+1 counters on it as it entered.
+    /// Used by "if tribute wasn't paid" intervening-if trigger conditions.
+    /// Reset to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub tribute_was_paid: bool,
 }
 
 impl GameObject {

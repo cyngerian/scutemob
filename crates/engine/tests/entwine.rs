@@ -88,6 +88,8 @@ fn entwine_test_spell_def() -> CardDefinition {
                 modes: Some(ModeSelection {
                     min_modes: 1,
                     max_modes: 1,
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
                     modes: vec![
                         // Mode 0: gain 3 life.
                         Effect::GainLife {
@@ -233,6 +235,8 @@ fn test_entwine_basic_both_modes_execute() {
             entwine_paid: true,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -354,6 +358,8 @@ fn test_entwine_not_paid_only_first_mode() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -459,6 +465,8 @@ fn test_entwine_insufficient_mana_rejected() {
             entwine_paid: true,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -530,6 +538,8 @@ fn test_entwine_no_keyword_rejected() {
             entwine_paid: true,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -635,6 +645,8 @@ fn test_entwine_modes_in_printed_order() {
             entwine_paid: true,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -728,6 +740,8 @@ fn test_entwine_was_entwined_flag_on_stack() {
             entwine_paid: true,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

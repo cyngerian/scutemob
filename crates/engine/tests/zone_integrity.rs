@@ -211,6 +211,7 @@ fn test_add_object_to_state() {
         creatures_devoured: 0,
         champion_exiled_card: None,
         paired_with: None,
+        tribute_was_paid: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

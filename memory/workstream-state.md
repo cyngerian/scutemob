@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 11: Modal choice + deps | available | — | Batch 10 complete; claim to start B11 |
+| W1: Abilities | Batch 11: Modal Choice, Tribute, Fabricate, Fuse, Spree | ACTIVE | 2026-03-07 | Chained auto-run — no manual intervention |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

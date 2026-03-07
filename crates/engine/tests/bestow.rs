@@ -187,6 +187,8 @@ fn test_bestow_cast_as_aura_basic() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -382,6 +384,8 @@ fn test_bestow_cast_normally_as_creature() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -531,6 +535,8 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -781,6 +787,8 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             },
         );
         assert!(
@@ -857,6 +865,8 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 entwine_paid: false,
                 escalate_modes: 0,
                 devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
             },
         );
         assert!(
@@ -951,6 +961,8 @@ fn test_bestow_cannot_combine_with_flashback() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
@@ -1068,6 +1080,8 @@ fn test_bestow_cannot_combine_with_evoke() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1143,6 +1157,8 @@ fn test_bestow_non_bestow_spell_rejected() {
             entwine_paid: false,
             escalate_modes: 0,
             devour_sacrifices: vec![],
+            modes_chosen: vec![],
+            fuse: false,
         },
     );
     assert!(
