@@ -16,13 +16,13 @@ pub use cards::{
 // Convenience re-exports of primary types
 pub use state::types::ALL_CREATURE_TYPES;
 pub use state::{
-    AbilityInstance, AffinityTarget, AttackTarget, CardId, CardType, Characteristics, Color,
-    CombatState, ContinuousEffect, CounterType, CumulativeUpkeepCost, DamageTargetFilter,
-    EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantTarget, GameObject, GameState,
-    GameStateBuilder, GameStateError, KeywordAbility, LandwalkType, LayerModification, ManaAbility,
-    ManaColor, ManaCost, ManaPool, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus,
-    PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId, PlayerState,
-    ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
+    AbilityInstance, AffinityTarget, AttackTarget, CardId, CardType, ChampionFilter,
+    Characteristics, Color, CombatState, ContinuousEffect, CounterType, CumulativeUpkeepCost,
+    DamageTargetFilter, EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantTarget,
+    GameObject, GameState, GameStateBuilder, GameStateError, KeywordAbility, LandwalkType,
+    LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool, ObjectFilter, ObjectId,
+    ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId,
+    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
     ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
     Target, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnState,
     Zone, ZoneId, ZoneType,

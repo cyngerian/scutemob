@@ -2175,6 +2175,8 @@ fn execute_effect_inner(
                                         graft_entering_creature: None,
                                         backup_abilities: None,
                                         backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
                                     });
                                 }
                             }
@@ -2649,6 +2651,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         phased_out_indirectly: false,
         phased_out_controller: None,
         creatures_devoured: 0,
+        champion_exiled_card: None,
     }
 }
 
@@ -2810,6 +2813,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         graft_entering_creature: None,
                         backup_abilities: None,
                         backup_n: None,
+                        champion_filter: None,
+                        champion_exiled_card: None,
                     });
                 }
             }

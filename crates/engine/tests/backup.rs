@@ -808,8 +808,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         .in_zone(ZoneId::Battlefield);
 
     // Target creature that will RECEIVE the abilities -- a plain vanilla 2/2.
-    let target_bear = ObjectSpec::creature(p1, "Runeclaw Bear", 2, 2)
-        .in_zone(ZoneId::Battlefield);
+    let target_bear = ObjectSpec::creature(p1, "Runeclaw Bear", 2, 2).in_zone(ZoneId::Battlefield);
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -877,7 +876,10 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // (a) Target bear should have 1 +1/+1 counter.
-    let bear_obj = state.objects.get(&bear_id).expect("bear still on battlefield");
+    let bear_obj = state
+        .objects
+        .get(&bear_id)
+        .expect("bear still on battlefield");
     let bear_counters = bear_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)
@@ -920,7 +922,10 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
     }
 
     // (c) Source (Backup Valkyrie) should have 0 +1/+1 counters from this trigger.
-    let source_obj = state.objects.get(&source_id).expect("source still on battlefield");
+    let source_obj = state
+        .objects
+        .get(&source_id)
+        .expect("source still on battlefield");
     let source_counters = source_obj
         .counters
         .get(&CounterType::PlusOnePlusOne)

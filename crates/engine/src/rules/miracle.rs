@@ -141,6 +141,8 @@ pub fn handle_choose_miracle(
         graft_entering_creature: None,
         backup_abilities: None,
         backup_n: None,
+        champion_filter: None,
+        champion_exiled_card: None,
     });
 
     Ok(vec![])

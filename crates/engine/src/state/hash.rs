@@ -30,8 +30,8 @@ use super::stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDouble
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
 use super::types::{
-    AffinityTarget, CardType, Color, CounterType, CumulativeUpkeepCost, EnchantTarget,
-    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost,
+    EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
@@ -631,6 +631,20 @@ impl HashInto for KeywordAbility {
                 125u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Champion (discriminant 126) -- CR 702.72
+            KeywordAbility::Champion => 126u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for ChampionFilter {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            ChampionFilter::AnyCreature => 0u8.hash_into(hasher),
+            ChampionFilter::Subtype(st) => {
+                1u8.hash_into(hasher);
+                st.hash_into(hasher);
+            }
         }
     }
 }
@@ -819,6 +833,8 @@ impl HashInto for GameObject {
         self.phased_out_controller.hash_into(hasher);
         // Devour (CR 702.82b) — number of creatures devoured on ETB
         self.creatures_devoured.hash_into(hasher);
+        // Champion (CR 702.72a) — ObjectId of exiled card tracked by linked LTB trigger
+        self.champion_exiled_card.hash_into(hasher);
     }
 }
 
@@ -1843,6 +1859,24 @@ impl HashInto for StackObjectKind {
                 for kw in abilities_to_grant {
                     kw.hash_into(hasher);
                 }
+            }
+            // ChampionETBTrigger (discriminant 47) -- CR 702.72a
+            StackObjectKind::ChampionETBTrigger {
+                source_object,
+                champion_filter,
+            } => {
+                47u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                champion_filter.hash_into(hasher);
+            }
+            // ChampionLTBTrigger (discriminant 48) -- CR 702.72a
+            StackObjectKind::ChampionLTBTrigger {
+                source_object,
+                exiled_card,
+            } => {
+                48u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                exiled_card.hash_into(hasher);
             }
         }
     }
@@ -3699,6 +3733,11 @@ impl HashInto for AbilityDefinition {
             AbilityDefinition::Outlast { cost } => {
                 48u8.hash_into(hasher);
                 cost.hash_into(hasher);
+            }
+            // Champion (discriminant 49) -- CR 702.72
+            AbilityDefinition::Champion { filter } => {
+                49u8.hash_into(hasher);
+                filter.hash_into(hasher);
             }
         }
     }

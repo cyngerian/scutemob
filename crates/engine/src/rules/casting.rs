@@ -2670,6 +2670,8 @@ pub fn handle_cast_spell(
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }

@@ -557,6 +557,17 @@ pub struct GameObject {
     /// Reset to 0 on zone changes (CR 400.7).
     #[serde(default)]
     pub creatures_devoured: u32,
+    /// CR 702.72a / CR 607.2a: The ObjectId of the card exiled by this
+    /// permanent's champion ETB trigger. Used by the linked LTB trigger
+    /// to return the correct card to the battlefield.
+    ///
+    /// Set when the ChampionETBTrigger resolves and a card is exiled.
+    /// Preserved across zone changes so the LTB trigger can read it from the
+    /// post-move object (look-back information, CR 603.10a).
+    /// If `None`, no card was championed (champion was sacrificed instead
+    /// or the ETB trigger hasn't resolved yet).
+    #[serde(default)]
+    pub champion_exiled_card: Option<ObjectId>,
 }
 
 impl GameObject {

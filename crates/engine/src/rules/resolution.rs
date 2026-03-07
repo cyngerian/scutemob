@@ -21,7 +21,8 @@ use crate::state::stack::StackObjectKind;
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{
-    AltCostKind, CardType, Color, CounterType, EnchantTarget, KeywordAbility, SubType,
+    AltCostKind, CardType, ChampionFilter, Color, CounterType, EnchantTarget, KeywordAbility,
+    SubType,
 };
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -1505,6 +1506,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 graft_entering_creature: None,
                                 backup_abilities: None,
                                 backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
                             });
                     }
                 }
@@ -2742,6 +2745,263 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 1. Put N +1/+1 counters on target creature.
         // 2. If target is another creature (not the source), grant keyword abilities
         //    until EOT via Layer 6 continuous effect (CR 702.165a, 702.165d).
+        // CR 702.72a: Champion ETB trigger resolves -- "sacrifice it unless you exile
+        // another [object] you control." Auto-selects first qualifying permanent to exile.
+        // If no qualifying permanent exists, sacrifice the champion instead.
+        StackObjectKind::ChampionETBTrigger {
+            source_object,
+            champion_filter,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 400.7: Check if the champion is still on the battlefield.
+            let source_on_bf = state
+                .objects
+                .get(&source_object)
+                .is_some_and(|obj| obj.zone == ZoneId::Battlefield);
+
+            if source_on_bf {
+                // Find first qualifying permanent controlled by the champion's controller
+                // that is not the champion itself.
+                let target_opt: Option<crate::state::game_object::ObjectId> = {
+                    let candidates: Vec<_> = state
+                        .objects
+                        .iter()
+                        .filter_map(|(&id, obj)| {
+                            if id == source_object {
+                                return None;
+                            }
+                            if obj.zone != ZoneId::Battlefield {
+                                return None;
+                            }
+                            if obj.controller != controller {
+                                return None;
+                            }
+                            if !obj.is_phased_in() {
+                                return None;
+                            }
+                            // Check the champion filter using layer-resolved characteristics.
+                            let matches = if let Some(chars) =
+                                crate::rules::layers::calculate_characteristics(state, id)
+                            {
+                                match &champion_filter {
+                                    ChampionFilter::AnyCreature => {
+                                        chars.card_types.contains(&CardType::Creature)
+                                    }
+                                    ChampionFilter::Subtype(st) => chars.subtypes.contains(st),
+                                }
+                            } else {
+                                // Fall back to base characteristics.
+                                let obj = state.objects.get(&id)?;
+                                match &champion_filter {
+                                    ChampionFilter::AnyCreature => {
+                                        obj.characteristics.card_types.contains(&CardType::Creature)
+                                    }
+                                    ChampionFilter::Subtype(st) => {
+                                        obj.characteristics.subtypes.contains(st)
+                                    }
+                                }
+                            };
+                            if matches {
+                                Some(id)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    candidates.into_iter().next()
+                };
+
+                if let Some(target_id) = target_opt {
+                    // Exile the qualifying permanent.
+                    let target_owner = state
+                        .objects
+                        .get(&target_id)
+                        .map(|o| o.owner)
+                        .unwrap_or(controller);
+                    if let Ok((new_exile_id, _old)) =
+                        state.move_object_to_zone(target_id, ZoneId::Exile)
+                    {
+                        // CR 702.72a / CR 607.2a: Record the exiled card ID on the champion.
+                        if let Some(champion_obj) = state.objects.get_mut(&source_object) {
+                            champion_obj.champion_exiled_card = Some(new_exile_id);
+                        }
+                        events.push(GameEvent::ObjectExiled {
+                            player: controller,
+                            object_id: target_id,
+                            new_exile_id,
+                        });
+                        let _ = target_owner; // suppress unused warning
+                    }
+                } else {
+                    // No qualifying target: sacrifice the champion (CR 702.72a).
+                    let source_info = state.objects.get(&source_object).and_then(|obj| {
+                        if obj.zone == ZoneId::Battlefield {
+                            Some((obj.owner, obj.controller, obj.counters.clone()))
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some((owner, pre_sacrifice_controller, pre_death_counters)) = source_info
+                    {
+                        // CR 701.17a: Sacrifice is NOT destruction — no indestructible check.
+                        let action = crate::rules::replacement::check_zone_change_replacement(
+                            state,
+                            source_object,
+                            crate::state::zone::ZoneType::Battlefield,
+                            crate::state::zone::ZoneType::Graveyard,
+                            owner,
+                            &std::collections::HashSet::new(),
+                        );
+                        match action {
+                            crate::rules::replacement::ZoneChangeAction::Redirect {
+                                to: dest,
+                                events: repl_events,
+                                ..
+                            } => {
+                                events.extend(repl_events);
+                                if let Ok((new_id, _old)) =
+                                    state.move_object_to_zone(source_object, dest)
+                                {
+                                    match dest {
+                                        ZoneId::Exile => {
+                                            events.push(GameEvent::ObjectExiled {
+                                                player: owner,
+                                                object_id: source_object,
+                                                new_exile_id: new_id,
+                                            });
+                                        }
+                                        _ => {
+                                            events.push(GameEvent::CreatureDied {
+                                                object_id: source_object,
+                                                new_grave_id: new_id,
+                                                controller: pre_sacrifice_controller,
+                                                pre_death_counters,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            crate::rules::replacement::ZoneChangeAction::Proceed => {
+                                if let Ok((new_grave_id, _old)) = state
+                                    .move_object_to_zone(source_object, ZoneId::Graveyard(owner))
+                                {
+                                    events.push(GameEvent::CreatureDied {
+                                        object_id: source_object,
+                                        new_grave_id,
+                                        controller: pre_sacrifice_controller,
+                                        pre_death_counters,
+                                    });
+                                }
+                            }
+                            crate::rules::replacement::ZoneChangeAction::ChoiceRequired {
+                                player,
+                                choices,
+                                event_description,
+                            } => {
+                                use crate::state::replacement_effect::PendingZoneChange;
+                                state.pending_zone_changes.push_back(PendingZoneChange {
+                                    object_id: source_object,
+                                    original_from: crate::state::zone::ZoneType::Battlefield,
+                                    original_destination: crate::state::zone::ZoneType::Graveyard,
+                                    affected_player: player,
+                                    already_applied: Vec::new(),
+                                });
+                                events.push(GameEvent::ReplacementChoiceRequired {
+                                    player,
+                                    event_description,
+                                    choices,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            // If champion is not on the battlefield, the trigger does nothing (CR 400.7).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.72a: Champion LTB trigger resolves -- "return the exiled card to the
+        // battlefield under its owner's control." Checks if the exiled card is still in exile.
+        StackObjectKind::ChampionLTBTrigger {
+            source_object: _,
+            exiled_card,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 607.2a: Check if the exiled card is still in exile.
+            let exiled_info = state.objects.get(&exiled_card).and_then(|obj| {
+                if obj.zone == ZoneId::Exile {
+                    Some((obj.owner, obj.card_id.clone()))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((owner, card_id)) = exiled_info {
+                // CR 702.72a: Return the card to the battlefield under its OWNER's control.
+                if let Ok((new_id, _old)) =
+                    state.move_object_to_zone(exiled_card, ZoneId::Battlefield)
+                {
+                    // Set controller to owner (CR 702.72a: "under its owner's control").
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.controller = owner;
+                    }
+
+                    // Run the full ETB pipeline.
+                    let registry = state.card_registry.clone();
+                    let self_evts = super::replacement::apply_self_etb_from_definition(
+                        state,
+                        new_id,
+                        owner,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(self_evts);
+                    let etb_evts = super::replacement::apply_etb_replacements(state, new_id, owner);
+                    events.extend(etb_evts);
+
+                    super::replacement::register_permanent_replacement_abilities(
+                        state,
+                        new_id,
+                        owner,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    super::replacement::register_static_continuous_effects(
+                        state,
+                        new_id,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: owner,
+                        object_id: new_id,
+                    });
+
+                    let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
+                        state,
+                        new_id,
+                        owner,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                    events.extend(etb_trigger_evts);
+                }
+            }
+            // If exiled card is not in exile (already moved), do nothing (CR 607.2a).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         StackObjectKind::BackupTrigger {
             source_object,
             target_creature,
@@ -2913,6 +3173,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
+                    champion_exiled_card: None,
                 };
 
                 // Add the token to the battlefield.
@@ -3045,6 +3306,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 graft_entering_creature: None,
                                 backup_abilities: None,
                                 backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
                             });
                     }
                 }
@@ -4021,6 +4284,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
+                    champion_exiled_card: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4210,6 +4474,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_indirectly: false,
                     phased_out_controller: None,
                     creatures_devoured: 0,
+                    champion_exiled_card: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4418,6 +4683,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         phased_out_indirectly: false,
                         phased_out_controller: None,
                         creatures_devoured: 0,
+                        champion_exiled_card: None,
                     };
 
                     // Add the token to the battlefield.
@@ -4729,7 +4995,9 @@ pub fn counter_stack_object(
         | StackObjectKind::ForecastAbility { .. }
         | StackObjectKind::GraftTrigger { .. }
         | StackObjectKind::ScavengeAbility { .. }
-        | StackObjectKind::BackupTrigger { .. } => {
+        | StackObjectKind::BackupTrigger { .. }
+        | StackObjectKind::ChampionETBTrigger { .. }
+        | StackObjectKind::ChampionLTBTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
             // are placed and no abilities are granted (CR 702.165a).

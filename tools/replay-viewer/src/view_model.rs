@@ -564,6 +564,12 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::BackupTrigger { source_object, .. } => {
             ("backup_trigger", Some(*source_object))
         }
+        StackObjectKind::ChampionETBTrigger { source_object, .. } => {
+            ("champion_etb_trigger", Some(*source_object))
+        }
+        StackObjectKind::ChampionLTBTrigger { source_object, .. } => {
+            ("champion_ltb_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -834,5 +840,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Bloodthirst(n) => format!("Bloodthirst {n}"),
         KeywordAbility::Devour(n) => format!("Devour {n}"),
         KeywordAbility::Backup(n) => format!("Backup {n}"),
+        KeywordAbility::Champion => "Champion".to_string(),
     }
 }

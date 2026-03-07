@@ -1006,4 +1006,28 @@ pub enum StackObjectKind {
         /// Empty if targeting self (CR 702.165a: "if that's another creature").
         abilities_to_grant: Vec<crate::state::types::KeywordAbility>,
     },
+    /// CR 702.72a: Champion ETB trigger on the stack.
+    ///
+    /// "When this permanent enters, sacrifice it unless you exile another
+    /// [object] you control." When this resolves, the engine auto-selects
+    /// the first qualifying permanent to exile (simplified -- no player choice
+    /// for now). If none exists, the champion is sacrificed.
+    ///
+    /// Discriminant 47.
+    ChampionETBTrigger {
+        source_object: ObjectId,
+        champion_filter: crate::state::types::ChampionFilter,
+    },
+    /// CR 702.72a: Champion LTB trigger on the stack.
+    ///
+    /// "When this permanent leaves the battlefield, return the exiled card
+    /// to the battlefield under its owner's control." When this resolves,
+    /// the engine checks if the exiled card is still in exile; if so, it
+    /// moves it to the battlefield under its owner's control.
+    ///
+    /// Discriminant 48.
+    ChampionLTBTrigger {
+        source_object: ObjectId,
+        exiled_card: ObjectId,
+    },
 }

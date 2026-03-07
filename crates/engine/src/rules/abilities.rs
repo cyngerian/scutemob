@@ -29,7 +29,9 @@ use crate::state::stubs::{
     PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
 };
 use crate::state::targeting::{SpellTarget, Target};
-use crate::state::types::{CardType, CounterType, CumulativeUpkeepCost, KeywordAbility};
+use crate::state::types::{
+    CardType, ChampionFilter, CounterType, CumulativeUpkeepCost, KeywordAbility,
+};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 
@@ -557,6 +559,8 @@ pub fn handle_cycle_card(
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -2066,6 +2070,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2140,6 +2146,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 graft_entering_creature: None,
                                 backup_abilities: None,
                                 backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
                             });
                         }
                     }
@@ -2203,6 +2211,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         });
                     }
                 }
@@ -2268,6 +2278,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 graft_entering_creature: None,
                                 backup_abilities: None,
                                 backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
                             });
                         }
                     }
@@ -2347,10 +2359,85 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             graft_entering_creature: None,
                                             backup_abilities: Some(abilities_below),
                                             backup_n: Some(*n),
+                                            champion_filter: None,
+                                            champion_exiled_card: None,
                                         });
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // CR 702.72a: Champion ETB trigger.
+                // "When this permanent enters, sacrifice it unless you exile
+                // another [object] you control."
+                {
+                    if let Some(obj) = state.objects.get(object_id) {
+                        if obj
+                            .characteristics
+                            .keywords
+                            .contains(&KeywordAbility::Champion)
+                        {
+                            let controller = obj.controller;
+                            // Look up champion filter from card registry.
+                            let filter = obj
+                                .card_id
+                                .as_ref()
+                                .and_then(|cid| state.card_registry.get(cid.clone()))
+                                .and_then(|def| {
+                                    def.abilities.iter().find_map(|a| {
+                                        if let crate::cards::card_definition::AbilityDefinition::Champion {
+                                            filter,
+                                        } = a
+                                        {
+                                            Some(filter.clone())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                })
+                                .unwrap_or(ChampionFilter::AnyCreature);
+
+                            triggers.push(PendingTrigger {
+                                source: *object_id,
+                                ability_index: 0,
+                                controller,
+                                kind: PendingTriggerKind::ChampionETB,
+                                triggering_event: Some(TriggerEvent::SelfEntersBattlefield),
+                                entering_object_id: Some(*object_id),
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: Some(filter),
+                                champion_exiled_card: None,
+                            });
                         }
                     }
                 }
@@ -2506,6 +2593,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             graft_entering_creature: None,
                                             backup_abilities: None,
                                             backup_n: None,
+                                            champion_filter: None,
+                                            champion_exiled_card: None,
                                         });
                                     }
                                 }
@@ -2611,6 +2700,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     graft_entering_creature: Some(*object_id),
                                     backup_abilities: None,
                                     backup_n: None,
+                                    champion_filter: None,
+                                    champion_exiled_card: None,
                                 });
                             }
                         }
@@ -3134,6 +3225,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         });
                     }
                 }
@@ -3325,6 +3418,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         });
                     }
                 }
@@ -3402,6 +3497,59 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
+                        });
+                    }
+                }
+
+                // CR 702.72a: Champion LTB trigger. When a Champion permanent leaves the
+                // battlefield (here: dies), check if it had a champion_exiled_card and
+                // fire the LTB trigger to return that card to the battlefield.
+                //
+                // CR 603.10a: LTB triggers look back in time -- champion_exiled_card is
+                // preserved in move_object_to_zone so we can read it from the graveyard object.
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    if let Some(exiled_id) = dead_obj.champion_exiled_card {
+                        let champion_controller = *death_controller;
+                        triggers.push(PendingTrigger {
+                            source: *new_grave_id,
+                            ability_index: 0,
+                            controller: champion_controller,
+                            kind: PendingTriggerKind::ChampionLTB,
+                            triggering_event: Some(TriggerEvent::SelfDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: Some(exiled_id),
                         });
                     }
                 }
@@ -3465,6 +3613,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         });
                     }
                 }
@@ -3590,6 +3740,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             graft_entering_creature: None,
                             backup_abilities: None,
                             backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
                         });
                     }
                 }
@@ -3697,6 +3849,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         graft_entering_creature: None,
                                         backup_abilities: None,
                                         backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
                                     });
                                 }
                             }
@@ -3784,6 +3938,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         graft_entering_creature: None,
                                         backup_abilities: None,
                                         backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
                                     });
                                 }
                             }
@@ -3872,6 +4028,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         graft_entering_creature: None,
                                         backup_abilities: None,
                                         backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
                                     });
                                 }
                             }
@@ -3902,6 +4060,161 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         Some(obj_id),
                         None,
                     );
+                }
+            }
+
+            // CR 702.72a: Champion LTB trigger -- when the champion permanent is destroyed
+            // (non-creature), check champion_exiled_card on the graveyard object.
+            GameEvent::PermanentDestroyed { new_grave_id, .. } => {
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    if let Some(exiled_id) = dead_obj.champion_exiled_card {
+                        let champion_controller = dead_obj.controller;
+                        triggers.push(PendingTrigger {
+                            source: *new_grave_id,
+                            ability_index: 0,
+                            controller: champion_controller,
+                            kind: PendingTriggerKind::ChampionLTB,
+                            triggering_event: None,
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: Some(exiled_id),
+                        });
+                    }
+                }
+            }
+
+            // CR 702.72a: Champion LTB trigger -- when the champion permanent is exiled,
+            // check champion_exiled_card on the exile-zone object.
+            GameEvent::ObjectExiled { new_exile_id, .. } => {
+                if let Some(exiled_obj) = state.objects.get(new_exile_id) {
+                    // CR 607.2a / CR 603.10a: rely solely on champion_exiled_card (linked-ability
+                    // tracking), not on keyword presence. The keyword may have been removed (e.g.
+                    // Humility) before the permanent left the battlefield; the LTB trigger still
+                    // fires because the championed-card designation is a linked-ability state, not
+                    // a keyword-dependent state.
+                    if let Some(exiled_card_id) = exiled_obj.champion_exiled_card {
+                        let champion_controller = exiled_obj.controller;
+                        triggers.push(PendingTrigger {
+                            source: *new_exile_id,
+                            ability_index: 0,
+                            controller: champion_controller,
+                            kind: PendingTriggerKind::ChampionLTB,
+                            triggering_event: None,
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: Some(exiled_card_id),
+                        });
+                    }
+                }
+            }
+
+            // CR 702.72a: Champion LTB trigger -- when the champion permanent bounces to hand,
+            // check champion_exiled_card on the hand object.
+            GameEvent::ObjectReturnedToHand { new_hand_id, .. } => {
+                if let Some(hand_obj) = state.objects.get(new_hand_id) {
+                    // CR 607.2a / CR 603.10a: rely solely on champion_exiled_card (linked-ability
+                    // tracking), not on keyword presence. The keyword may have been removed before
+                    // the permanent bounced; the LTB trigger still fires per CR 607.2a.
+                    if let Some(exiled_id) = hand_obj.champion_exiled_card {
+                        let champion_controller = hand_obj.controller;
+                        triggers.push(PendingTrigger {
+                            source: *new_hand_id,
+                            ability_index: 0,
+                            controller: champion_controller,
+                            kind: PendingTriggerKind::ChampionLTB,
+                            triggering_event: None,
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: Some(exiled_id),
+                        });
+                    }
                 }
             }
 
@@ -3995,6 +4308,8 @@ fn collect_triggers_for_event(
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -4513,6 +4828,23 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         } else {
                             abilities
                         },
+                    }
+                }
+                PendingTriggerKind::ChampionETB => {
+                    // CR 702.72a: Champion ETB trigger.
+                    StackObjectKind::ChampionETBTrigger {
+                        source_object: trigger.source,
+                        champion_filter: trigger
+                            .champion_filter
+                            .clone()
+                            .unwrap_or(ChampionFilter::AnyCreature),
+                    }
+                }
+                PendingTriggerKind::ChampionLTB => {
+                    // CR 702.72a: Champion LTB trigger.
+                    StackObjectKind::ChampionLTBTrigger {
+                        source_object: trigger.source,
+                        exiled_card: trigger.champion_exiled_card.unwrap_or(trigger.source),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

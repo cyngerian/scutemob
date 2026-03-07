@@ -101,6 +101,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -175,6 +177,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -250,6 +254,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -326,6 +332,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -399,6 +407,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -493,6 +503,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 graft_entering_creature: None,
                 backup_abilities: None,
                 backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
             });
         }
     }
@@ -554,6 +566,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -616,6 +630,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -670,6 +686,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -724,6 +742,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -787,6 +807,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             graft_entering_creature: None,
             backup_abilities: None,
             backup_n: None,
+            champion_filter: None,
+            champion_exiled_card: None,
         });
     }
 
@@ -1220,6 +1242,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         graft_entering_creature: None,
                         backup_abilities: None,
                         backup_n: None,
+                        champion_filter: None,
+                        champion_exiled_card: None,
                     });
                 }
             }

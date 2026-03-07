@@ -41,8 +41,8 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    AffinityTarget, CardType, Color, CounterType, CumulativeUpkeepCost, EnchantTarget,
-    KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost,
+    EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -363,6 +363,9 @@ impl GameState {
             phased_out_controller: None,
             // CR 400.7: devour count is not preserved across zone changes.
             creatures_devoured: 0,
+            // CR 702.72a / CR 603.10a: champion_exiled_card is preserved across zone changes
+            // so the LTB trigger can read it from the post-move object (last-known information).
+            champion_exiled_card: old_object.champion_exiled_card,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
@@ -501,6 +504,9 @@ impl GameState {
             phased_out_controller: None,
             // CR 400.7: devour count is not preserved across zone changes.
             creatures_devoured: 0,
+            // CR 702.72a / CR 603.10a: champion_exiled_card is preserved across zone changes
+            // so the LTB trigger can read it from the post-move object (last-known information).
+            champion_exiled_card: old_object.champion_exiled_card,
         };
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone

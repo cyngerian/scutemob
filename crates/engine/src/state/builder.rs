@@ -961,6 +961,7 @@ impl GameStateBuilder {
                 phased_out_indirectly: false,
                 phased_out_controller: None,
                 creatures_devoured: 0,
+                champion_exiled_card: None,
             };
 
             state.add_object(object, zone)?;

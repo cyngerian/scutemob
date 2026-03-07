@@ -174,6 +174,12 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::BackupTrigger { source_object, .. } => {
                     ("Backup: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::ChampionETBTrigger { source_object, .. } => {
+                    ("Champion ETB: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::ChampionLTBTrigger { source_object, .. } => {
+                    ("Champion LTB: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

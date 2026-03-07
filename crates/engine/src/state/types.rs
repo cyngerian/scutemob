@@ -1150,6 +1150,30 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 125.
     Backup(u32),
+    /// CR 702.72: Champion an [object] -- "When this permanent enters, sacrifice
+    /// it unless you exile another [object] you control. When this permanent
+    /// leaves the battlefield, return the exiled card to the battlefield under
+    /// its owner's control."
+    ///
+    /// Two linked triggered abilities (CR 607.2k). The champion filter
+    /// (creature, Faerie, etc.) is carried by `ChampionFilter` in the
+    /// `PendingTriggerKind::ChampionETB` trigger and looked up from the
+    /// card registry at trigger time.
+    ///
+    /// Discriminant 126.
+    Champion,
+}
+
+/// CR 702.72a: The filter for what can be championed.
+///
+/// "Champion a creature" = `AnyCreature`
+/// "Champion a [subtype]" = `Subtype(SubType)` (e.g., Faerie, Goblin)
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ChampionFilter {
+    /// "Champion a creature" -- any creature you control (other than self).
+    AnyCreature,
+    /// "Champion a [subtype]" -- any permanent with this subtype you control (other than self).
+    Subtype(SubType),
 }
 
 /// All creature subtypes from CR 205.3m.

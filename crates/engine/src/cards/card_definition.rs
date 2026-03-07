@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
-    CardId, CardType, Color, CounterType, CumulativeUpkeepCost, KeywordAbility, ManaColor,
-    ManaCost, ManaPool, SubType, SuperType,
+    CardId, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost, KeywordAbility,
+    ManaColor, ManaCost, ManaPool, SubType, SuperType,
 };
 
 // ── Card Definition ───────────────────────────────────────────────────────────
@@ -529,6 +529,15 @@ pub enum AbilityDefinition {
     /// Cards should also include AbilityDefinition::Keyword(KeywordAbility::Outlast)
     /// for quick presence-checking. Discriminant 48.
     Outlast { cost: ManaCost },
+    /// CR 702.72: Champion an [object]. Two linked triggered abilities (CR 607.2k):
+    /// 1. ETB: "sacrifice it unless you exile another [object] you control"
+    /// 2. LTB: "return the exiled card to the battlefield under its owner's control"
+    ///
+    /// The filter specifies what can be championed (creature, Faerie, etc.).
+    /// `enrich_spec_from_def` adds `KeywordAbility::Champion` to the keywords.
+    ///
+    /// Discriminant 49.
+    Champion { filter: ChampionFilter },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

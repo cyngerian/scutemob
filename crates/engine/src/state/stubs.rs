@@ -94,6 +94,12 @@ pub enum PendingTriggerKind {
     /// Carries backup_abilities (keyword abilities to grant, locked at trigger time per
     /// CR 702.165d) and backup_n (number of +1/+1 counters to place).
     Backup,
+    /// CR 702.72a: Champion ETB trigger -- "sacrifice it unless you exile
+    /// another [object] you control."
+    ChampionETB,
+    /// CR 702.72a: Champion LTB trigger -- "return the exiled card to the
+    /// battlefield under its owner's control."
+    ChampionLTB,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -314,6 +320,18 @@ pub struct PendingTrigger {
     /// Only meaningful when `kind == PendingTriggerKind::Backup`.
     #[serde(default)]
     pub backup_n: Option<u32>,
+    /// CR 702.72a: The champion filter (creature, Faerie, etc.) for the ETB trigger.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::ChampionETB`.
+    /// Looked up from the card registry at trigger-collection time.
+    #[serde(default)]
+    pub champion_filter: Option<super::types::ChampionFilter>,
+    /// CR 702.72a: The ObjectId of the card exiled by the champion ETB trigger.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::ChampionLTB`.
+    /// Captured from `champion_exiled_card` on the post-move object at trigger time.
+    #[serde(default)]
+    pub champion_exiled_card: Option<ObjectId>,
 }
 
 impl PendingTriggerKind {

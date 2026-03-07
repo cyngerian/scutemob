@@ -25,8 +25,8 @@ use crate::testing::script_schema::{
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, Color, Command, Cost, Effect, GameState,
-    GameStateBuilder, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step, TimingRestriction,
-    TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    GameStateBuilder, KeywordAbility, ManaAbility, ManaColor, ObjectSpec, PlayerId, Step,
+    TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -1771,6 +1771,14 @@ pub fn enrich_spec_from_def(
                 };
                 spec = spec.with_activated_ability(ab);
             }
+        }
+    }
+
+    // CR 702.72: AbilityDefinition::Champion { .. } adds KeywordAbility::Champion marker.
+    // The champion filter is looked up at trigger time from the card registry.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Champion { .. } = ability {
+            spec = spec.with_keyword(KeywordAbility::Champion);
         }
     }
 
