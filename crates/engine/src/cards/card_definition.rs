@@ -877,6 +877,15 @@ pub enum Effect {
     /// controller's next turn. Enforcement of attack requirements is deferred
     /// to a future session.
     Goad { target: EffectTarget },
+    /// CR 701.60a: Suspect -- set the suspected designation on the target permanent.
+    /// A suspected permanent has menace and "This creature can't block" for as long
+    /// as it's suspected (CR 701.60c). The designation is NOT a copiable value
+    /// (CR 701.60b). Suspecting an already-suspected permanent is a no-op (CR 701.60d).
+    Suspect { target: EffectTarget },
+    /// CR 701.60a: Unsuspect -- remove the suspected designation from the target
+    /// permanent. Clears `is_suspected`, removing the menace grant and unblocking
+    /// the can't-block restriction.
+    Unsuspect { target: EffectTarget },
     /// CR 701.19a: Regenerate -- create a one-shot regeneration shield on the target
     /// permanent. The next time that permanent would be destroyed this turn, instead
     /// remove all damage marked on it, tap it, and remove it from combat (if in combat).

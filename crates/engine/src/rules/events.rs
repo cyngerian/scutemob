@@ -788,6 +788,28 @@ pub enum GameEvent {
         goading_player: PlayerId,
     },
 
+    // ── Suspect events (CR 701.60) ────────────────────────────────────────
+    /// A permanent was suspected (CR 701.60a).
+    ///
+    /// Emitted by `Effect::Suspect` when a creature is marked as suspected.
+    /// The suspected permanent has menace and "This creature can't block"
+    /// for as long as it's suspected (CR 701.60c).
+    CreatureSuspected {
+        /// The permanent that was suspected.
+        object_id: ObjectId,
+        /// The controller of the effect that caused the suspicion.
+        controller: PlayerId,
+    },
+    /// A permanent is no longer suspected (CR 701.60a).
+    ///
+    /// Emitted by `Effect::Unsuspect` when the suspected designation is removed.
+    CreatureUnsuspected {
+        /// The permanent whose suspected designation was removed.
+        object_id: ObjectId,
+        /// The controller of the effect that removed the suspicion.
+        controller: PlayerId,
+    },
+
     // ── Miracle events (CR 702.94) ────────────────────────────────────────
     /// CR 702.94a: A card with miracle was drawn as the first card this turn.
     /// The player may choose to reveal it and trigger the miracle ability.

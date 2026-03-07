@@ -838,6 +838,8 @@ impl HashInto for GameObject {
         self.exiled_by_hideaway.hash_into(hasher);
         // Renowned (CR 702.112b) — designation flag
         self.is_renowned.hash_into(hasher);
+        // Suspect (CR 701.60b) — designation flag
+        self.is_suspected.hash_into(hasher);
         // Encore (CR 702.141a) — token must be sacrificed at beginning of next end step
         self.encore_sacrifice_at_end_step.hash_into(hasher);
         // Encore (CR 702.141a) — mandatory attack target for this turn
@@ -2979,6 +2981,24 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 card_id.hash_into(hasher);
             }
+            // B13: CreatureSuspected (discriminant 104) -- CR 701.60
+            GameEvent::CreatureSuspected {
+                object_id,
+                controller,
+            } => {
+                104u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
+            // B13: CreatureUnsuspected (discriminant 105) -- CR 701.60
+            GameEvent::CreatureUnsuspected {
+                object_id,
+                controller,
+            } => {
+                105u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                controller.hash_into(hasher);
+            }
         }
     }
 }
@@ -3602,6 +3622,16 @@ impl HashInto for Effect {
                 43u8.hash_into(hasher);
                 player.hash_into(hasher);
                 n.hash_into(hasher);
+            }
+            // B13: Suspect (discriminant 44) -- CR 701.60a
+            Effect::Suspect { target } => {
+                44u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            // B13: Unsuspect (discriminant 45) -- CR 701.60a
+            Effect::Unsuspect { target } => {
+                45u8.hash_into(hasher);
+                target.hash_into(hasher);
             }
         }
     }

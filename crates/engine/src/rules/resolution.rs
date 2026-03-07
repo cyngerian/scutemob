@@ -3629,6 +3629,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    // CR 701.60b: tokens are not suspected by default.
+                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -4750,6 +4752,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    // CR 701.60b: tokens are not suspected by default.
+                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -4944,6 +4948,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_suspended: false,
                     exiled_by_hideaway: None,
                     is_renowned: false,
+                    // CR 701.60b: tokens are not suspected by default.
+                    is_suspected: false,
                     encore_sacrifice_at_end_step: false,
                     encore_must_attack: None,
                     encore_activated_by: None,
@@ -5155,6 +5161,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_suspended: false,
                         exiled_by_hideaway: None,
                         is_renowned: false,
+                        // CR 701.60b: tokens are not suspected by default.
+                        is_suspected: false,
                         encore_sacrifice_at_end_step: true, // sacrificed at end step
                         encore_must_attack: Some(opponent_id), // must attack this opponent
                         // Ruling 2020-11-10: track the original activator so the end-step

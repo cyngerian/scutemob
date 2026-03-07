@@ -59,6 +59,19 @@ pub fn calculate_characteristics(
         EffectLayer::PtSwitch,
     ];
 
+    // CR 701.60c: A suspected permanent has menace and "This creature can't block"
+    // for as long as it's suspected. Menace is inserted into base keywords BEFORE the
+    // layer loop so that Layer 6 ability-removal effects (e.g., Humility) can correctly
+    // strip it. This matches the ruling (2024-02-02): if a suspected creature loses all
+    // abilities, it loses menace, but the suspected designation itself persists.
+    //
+    // "Can't block" is enforced separately in combat.rs (like Decayed) by checking
+    // `obj.is_suspected` directly. The designation persists through ability-removal;
+    // only the GRANTS (menace, can't-block) are affected by ability removal.
+    if obj.is_suspected && obj.zone == ZoneId::Battlefield {
+        chars.keywords.insert(KeywordAbility::Menace);
+    }
+
     for &layer in &layers_in_order {
         // CR 702.73a + CR 613.3: Changeling is a characteristic-defining ability that adds
         // all creature subtypes in Layer 4 (TypeChange), before any non-CDA Layer 4 effects.

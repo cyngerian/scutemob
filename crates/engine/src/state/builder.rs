@@ -971,6 +971,8 @@ impl GameStateBuilder {
                 is_suspended: false,
                 exiled_by_hideaway: None,
                 is_renowned: false,
+                // CR 701.60b: suspected designation starts false.
+                is_suspected: false,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,

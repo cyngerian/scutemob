@@ -345,6 +345,8 @@ impl GameState {
             exiled_by_hideaway: None,
             // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
             is_renowned: false,
+            // CR 701.60a / CR 400.7: suspected designation is cleared on zone change.
+            is_suspected: false,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.
             encore_sacrifice_at_end_step: false,
             // CR 400.7: encore mandatory attack target is not preserved across zone changes.
@@ -500,6 +502,8 @@ impl GameState {
             exiled_by_hideaway: None,
             // CR 400.7: renowned designation is not preserved across zone changes (CR 702.112b).
             is_renowned: false,
+            // CR 701.60a / CR 400.7: suspected designation is cleared on zone change.
+            is_suspected: false,
             // CR 400.7: encore sacrifice flag is not preserved across zone changes.
             encore_sacrifice_at_end_step: false,
             // CR 400.7: encore mandatory attack target is not preserved across zone changes.

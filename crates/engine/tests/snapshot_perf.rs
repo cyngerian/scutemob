@@ -136,6 +136,7 @@ fn test_clone_independence_object_modification() {
                 is_suspended: false,
                 exiled_by_hideaway: None,
                 is_renowned: false,
+                is_suspected: false,
                 encore_sacrifice_at_end_step: false,
                 encore_must_attack: None,
                 encore_activated_by: None,

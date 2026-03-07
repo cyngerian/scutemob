@@ -550,6 +550,19 @@ pub fn handle_declare_blockers(
             )));
         }
 
+        // CR 701.60c: A suspected permanent has "This creature can't block."
+        // Checked on the raw GameObject (like Decayed) so the restriction persists
+        // even under ability-removal effects (Humility strips the Menace grant but
+        // the designation and can't-block restriction remain).
+        // TODO: Under true Humility, can't-block should also be removed; this is a
+        // known minor inaccuracy deferred to a future session.
+        if obj.is_suspected {
+            return Err(GameStateError::InvalidCommand(format!(
+                "Object {:?} is suspected and cannot block (CR 701.60c)",
+                blocker_id
+            )));
+        }
+
         // MR-M6-02: a creature can only block one attacker.
         // Check both existing combat.blockers and within-this-declaration duplicates.
         if seen_blocker_ids.contains(blocker_id)
@@ -835,6 +848,11 @@ pub fn handle_declare_blockers(
 
             // CR 702.147a: Decayed creatures can't block.
             if provoked_chars.keywords.contains(&KeywordAbility::Decayed) {
+                continue; // Requirement impossible -- skip
+            }
+
+            // CR 701.60c: Suspected creatures can't block.
+            if provoked_obj.is_suspected {
                 continue; // Requirement impossible -- skip
             }
 

@@ -474,6 +474,16 @@ pub struct GameObject {
     /// NOT an ability -- persists even if abilities are removed (e.g., Humility).
     #[serde(default)]
     pub is_renowned: bool,
+    /// CR 701.60b: Suspected designation. Set by the keyword action Suspect
+    /// (CR 701.60a). Lasts until the permanent leaves the battlefield or a spell
+    /// or ability causes it to no longer be suspected.
+    ///
+    /// NOT a copiable value (CR 701.60b) -- copies of suspected permanents are
+    /// NOT suspected. NOT an ability -- the designation persists even if the
+    /// permanent loses abilities (e.g., Humility), though the granted Menace and
+    /// can't-block ability would be removed by ability-removal effects.
+    #[serde(default)]
+    pub is_suspected: bool,
     /// CR 702.141a: If true, this token was created by an encore ability and
     /// must be sacrificed at the beginning of the next end step.
     ///

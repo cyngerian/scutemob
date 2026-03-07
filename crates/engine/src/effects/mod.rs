@@ -1712,6 +1712,47 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.60a: Suspect -- set the suspected designation on the target permanent.
+        // A suspected permanent has menace and "This creature can't block" (CR 701.60c).
+        // Suspecting an already-suspected permanent is a no-op (CR 701.60d).
+        Effect::Suspect { target } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    if let Some(obj) = state.objects.get_mut(&id) {
+                        // CR 701.60d: A suspected permanent can't become suspected again.
+                        if !obj.is_suspected {
+                            obj.is_suspected = true;
+                            events.push(GameEvent::CreatureSuspected {
+                                object_id: id,
+                                controller: ctx.controller,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // CR 701.60a: Unsuspect -- remove the suspected designation from the target
+        // permanent. Clears `is_suspected`, removing the menace grant and unblocking
+        // the can't-block restriction.
+        Effect::Unsuspect { target } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    if let Some(obj) = state.objects.get_mut(&id) {
+                        if obj.is_suspected {
+                            obj.is_suspected = false;
+                            events.push(GameEvent::CreatureUnsuspected {
+                                object_id: id,
+                                controller: ctx.controller,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         // CR 701.19a: Regenerate -- create a one-shot regeneration shield on the
         // target permanent. The shield is a UntilEndOfTurn replacement effect that
         // intercepts the next WouldBeDestroyed event for this specific permanent.
@@ -2826,6 +2867,8 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         is_suspended: false,
         exiled_by_hideaway: None,
         is_renowned: false,
+        // CR 701.60b: tokens are not suspected by default.
+        is_suspected: false,
         encore_sacrifice_at_end_step: false,
         encore_must_attack: None,
         encore_activated_by: None,
