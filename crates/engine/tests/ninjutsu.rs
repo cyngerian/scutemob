@@ -915,6 +915,7 @@ fn test_ninjutsu_split_second_blocks() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 

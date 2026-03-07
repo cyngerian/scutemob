@@ -341,6 +341,7 @@ fn test_enrage_noncombat_damage_triggers() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CastSpell (Shock) failed");

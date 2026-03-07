@@ -190,6 +190,7 @@ fn test_bestow_cast_as_aura_basic() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -388,6 +389,7 @@ fn test_bestow_cast_normally_as_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -540,6 +542,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -793,6 +796,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             },
         );
         assert!(
@@ -872,6 +876,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             },
         );
         assert!(
@@ -969,6 +974,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -1089,6 +1095,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1167,6 +1174,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(

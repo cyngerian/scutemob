@@ -212,6 +212,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -325,6 +326,7 @@ fn test_surveil_zero_no_event() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -432,6 +434,7 @@ fn test_surveil_empty_library_still_emits_event() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -527,6 +530,7 @@ fn test_surveil_library_fewer_than_n() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -644,6 +648,7 @@ fn test_surveil_then_draw_sequence() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -787,6 +792,7 @@ fn test_whenever_you_surveil_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -903,6 +909,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

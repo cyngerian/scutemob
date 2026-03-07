@@ -118,6 +118,7 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell ({}) failed: {:?}", name, e))

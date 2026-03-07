@@ -161,6 +161,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     modes,
                     target_creature,
                     x_value,
+                    collect_evidence_cards,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -193,6 +194,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             modes.clone(),
                             target_creature.as_deref(),
                             *x_value,
+                            collect_evidence_cards,
                             &state,
                             &players,
                         );

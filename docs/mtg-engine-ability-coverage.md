@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Suspect validated: Effect::Suspect/Unsuspect, is_suspected on GameObject, menace grant in layers.rs, can't-block in combat.rs, Frantic Scapegoat card def, script etb-triggers/180, 9 tests in suspect.rs)
+> Last audited: 2026-03-07 (Collect Evidence validated: AbilityDefinition::CollectEvidence + Condition::EvidenceWasCollected, casting.rs validation+exile, evidence_collected on StackObject/GameObject/EffectContext, Crimestopper Sprite card def, script etb-triggers/181, 11 tests in collect_evidence.rs)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 73        | 0        | 0       | 20   | 12  |
-| **Total**| **204**| **167**  | **2**    | **0**   | **23**| **12** |
+| P4       | 105   | 74        | 0        | 0       | 19   | 12  |
+| **Total**| **204**| **168**  | **2**    | **0**   | **22**| **12** |
 
 ---
 
@@ -325,7 +325,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Offspring | 702.175 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |
 | Impending | 702.176 | P4 | `validated` | `cards/card_definition.rs:383` (AbilityDefinition::Impending), `state/types.rs:112,890` (KeywordAbility::Impending, AltCostKind::Impending), `rules/casting.rs:83,876-1073,1190-1193,1767-1768,3171-3203` (alt cost validation, mutual exclusion, cost payment, get_impending_cost/count), `rules/resolution.rs:293,358-373,1226-1272` (ETB time counters, counter-removal trigger resolution), `rules/layers.rs:85-95` (Layer 4 type removal while impending+counters), `rules/turn_actions.rs:302-328` (end-step trigger queuing), `rules/abilities.rs:3679-3686` (trigger dispatch), `state/stack.rs:185,754-771` (was_impended, ImpendingCounterTrigger), `state/hash.rs` (hash arms disc 99/33/32), `rules/copy.rs:208,398` (cascade/copy interaction), `testing/replay_harness.rs:914-927` (cast_spell_impending action) | Overlord of the Hauntwoods | `stack/136` | — | CR 702.176a: 4 sub-abilities (alt cost, ETB time counters, Layer 4 type removal, end-step counter removal); 11 unit tests in `tests/impending.rs`; alt-cost mutual exclusion with all 14 other alt-cost keywords; commander tax interaction tested |
 | Gift | 702.174 | P4 | `none` | — | — | — | — | Choose an opponent to receive a gift |
-| Collect evidence | 701.59 | P4 | `none` | — | — | — | — | Exile cards from graveyard with total MV >= N |
+| Collect evidence | 701.59 | P4 | `validated` | `cards/card_definition.rs:595` (AbilityDefinition::CollectEvidence), `cards/card_definition.rs:1289` (Condition::EvidenceWasCollected), `rules/casting.rs:82,2402-2460` (collect_evidence_cards on CastSpell, validation + GY exile), `state/stack.rs:210` (evidence_collected on StackObject), `state/game_object.rs:562-565` (evidence_collected on GameObject), `effects/mod.rs:81,3211` (evidence_collected on EffectContext, Condition eval), `testing/replay_harness.rs:1336-1370` (cast_spell_collect_evidence action) | Crimestopper Sprite | `etb-triggers/181` | — | CR 701.59a-c fully enforced; additional cost exiles cards from caster's GY with total MV >= threshold; linked ability via Condition::EvidenceWasCollected; 11 unit tests in `tests/collect_evidence.rs`; game script approved |
 | Suspect | 701.60 | P4 | `validated` | `cards/card_definition.rs:880-888` (Effect::Suspect/Unsuspect), `state/game_object.rs:486` (is_suspected), `rules/layers.rs:62-71` (menace grant), `rules/combat.rs:553-561,854-855` (can't-block enforcement), `effects/mod.rs:1715-1746` (execution + events) | Frantic Scapegoat | `etb-triggers/180` | — | CR 701.60a-d fully enforced; suspected designation grants menace (Layer 6) + can't block; persists through ability removal; no-op if already suspected; 9 unit tests in `tests/suspect.rs`; game script approved |
 | Surveil | 701.25 | P2 | `validated` | `cards/card_definition.rs:293-303` (Effect::Surveil), `rules/events.rs:678-684` (GameEvent::Surveilled), `state/game_object.rs:147-150` (TriggerEvent::ControllerSurveils), `cards/card_definition.rs:577-582` (TriggerCondition::WheneverYouSurveil), `effects/mod.rs:917-953` (execution), `rules/abilities.rs:846-865` (trigger dispatch), `testing/replay_harness.rs:635-651` (enrichment), `state/hash.rs:959,1736,1996,2259` (hash arms) | Consider | `stack/071` | — | CR 701.25a/c/d fully enforced; deterministic fallback (all surveilled cards go to graveyard); surveil 0 suppresses event (CR 701.25c); event fires even with empty/partial library (CR 701.25d); WheneverYouSurveil trigger pipeline complete; 7 unit tests in `tests/surveil.rs`; game script pending_review (all assertions pass) |
 | Adapt (keyword action) | 701.46 | P3 | `validated` | — | — | — | — | See Section 9 (primary row); implementation tracked there |

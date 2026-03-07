@@ -853,6 +853,8 @@ impl HashInto for GameObject {
         self.is_prototyped.hash_into(hasher);
         // Bargain (CR 702.166b) — permanent was cast with bargain cost paid
         self.was_bargained.hash_into(hasher);
+        // Collect Evidence (CR 701.59c) — permanent was cast with collect evidence cost paid
+        self.evidence_collected.hash_into(hasher);
         // Note: Surge's "was_surged" is tracked via cast_alt_cost == Some(AltCostKind::Surge),
         // which is already hashed as part of cast_alt_cost above.
         // Echo (CR 702.30a) — permanent has echo pending (echo trigger not yet resolved)
@@ -2076,6 +2078,8 @@ impl HashInto for StackObject {
         self.was_fused.hash_into(hasher);
         // X value (CR 107.3m) — the value of X chosen at cast time
         self.x_value.hash_into(hasher);
+        // Collect Evidence (CR 701.59c) — additional cost paid; graveyard cards were exiled
+        self.evidence_collected.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3315,6 +3319,8 @@ impl HashInto for Condition {
                 12u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // EvidenceWasCollected condition (discriminant 13) — CR 701.59c
+            Condition::EvidenceWasCollected => 13u8.hash_into(hasher),
         }
     }
 }
@@ -3984,6 +3990,15 @@ impl HashInto for AbilityDefinition {
                 } else {
                     0u8.hash_into(hasher);
                 }
+            }
+            // CollectEvidence (discriminant 53) -- CR 701.59a
+            AbilityDefinition::CollectEvidence {
+                threshold,
+                mandatory,
+            } => {
+                53u8.hash_into(hasher);
+                threshold.hash_into(hasher);
+                mandatory.hash_into(hasher);
             }
         }
     }

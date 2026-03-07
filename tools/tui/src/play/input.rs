@@ -116,6 +116,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         modes_chosen: Vec::new(),
                         fuse: false,
                         x_value: 0,
+                        collect_evidence_cards: Vec::new(),
                     };
                     app.execute_command(cmd)?;
                 } else {

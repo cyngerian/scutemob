@@ -221,6 +221,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -347,6 +348,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -440,6 +442,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -531,6 +534,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -623,6 +627,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -728,6 +733,7 @@ fn test_prowess_until_end_of_turn_expires() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -847,6 +853,7 @@ fn test_prowess_multiple_spells_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -897,6 +904,7 @@ fn test_prowess_multiple_spells_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1005,6 +1013,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

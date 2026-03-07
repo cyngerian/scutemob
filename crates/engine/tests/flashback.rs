@@ -261,6 +261,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -372,6 +373,7 @@ fn test_flashback_exile_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -500,6 +502,7 @@ fn test_flashback_exile_on_counter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -554,6 +557,7 @@ fn test_flashback_exile_on_counter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -665,6 +669,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -743,6 +748,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -837,6 +843,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -936,6 +943,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1046,6 +1054,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1139,6 +1148,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1225,6 +1235,7 @@ fn test_flashback_mana_value_unchanged() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

@@ -222,6 +222,7 @@ fn test_prototype_basic_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with prototype failed: {:?}", e));
@@ -348,6 +349,7 @@ fn test_prototype_normal_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -467,6 +469,7 @@ fn test_prototype_color_change() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -560,6 +563,7 @@ fn test_prototype_mana_value() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -652,6 +656,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -904,6 +909,7 @@ fn test_prototype_retains_keyword_ability() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -996,6 +1002,7 @@ fn test_prototype_negative_not_prototype_keyword() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1131,6 +1138,7 @@ fn test_prototype_stack_characteristics() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

@@ -443,6 +443,8 @@ pub fn handle_activate_ability(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -697,6 +699,8 @@ pub fn handle_cycle_card(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -949,6 +953,8 @@ pub fn handle_activate_forecast(
         // CR 702.102a: forecast abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: forecast abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1237,6 +1243,8 @@ pub fn handle_activate_bloodrush(
         modes_chosen: vec![],
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1424,6 +1432,8 @@ pub fn handle_unearth_card(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1701,6 +1711,8 @@ pub fn handle_ninjutsu(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1915,6 +1927,8 @@ pub fn handle_embalm_card(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2138,6 +2152,8 @@ pub fn handle_eternalize_card(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2360,6 +2376,8 @@ pub fn handle_encore_card(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5250,6 +5268,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // CR 702.102a: storm copies are never fused spells.
                         was_fused: false,
                         x_value: 0,
+                        // CR 701.59c: storm copies are never collect evidence casts.
+                        evidence_collected: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5635,6 +5655,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // CR 702.102a: myriad attack copies are never fused spells.
                 was_fused: false,
                 x_value: 0,
+                // CR 701.59c: myriad attack copies are never collect evidence casts.
+                evidence_collected: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6020,6 +6042,8 @@ pub fn handle_crew_vehicle(
         // CR 702.102a: triggered abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: triggered/activated abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -6271,6 +6295,8 @@ pub fn handle_scavenge_card(
         // CR 702.102a: scavenge abilities are never fused spells.
         was_fused: false,
         x_value: 0,
+        // CR 701.59c: scavenge abilities are never collect evidence casts.
+        evidence_collected: false,
     };
     state.stack_objects.push_back(stack_obj);
 

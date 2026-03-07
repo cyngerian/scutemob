@@ -160,6 +160,7 @@ pub(crate) fn action_to_command(
             modes_chosen: Vec::new(),
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: Vec::new(),
         },
         LegalAction::TapForMana {
             source,

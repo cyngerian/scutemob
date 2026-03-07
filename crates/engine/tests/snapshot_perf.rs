@@ -152,6 +152,7 @@ fn test_clone_independence_object_modification() {
                 paired_with: None,
                 tribute_was_paid: false,
                 x_value: 0,
+                evidence_collected: false,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

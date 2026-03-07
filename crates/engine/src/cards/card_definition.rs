@@ -576,6 +576,24 @@ pub enum AbilityDefinition {
         targets: Vec<TargetRequirement>,
     },
 
+    /// CR 701.59a: Collect evidence N — keyword action as additional cost.
+    ///
+    /// "As an additional cost to cast this spell, you may collect evidence N."
+    /// (Or mandatory: "collect evidence N" without "you may".)
+    ///
+    /// The player exiles cards from their graveyard with total mana value >= N
+    /// to pay this additional cost (CR 701.59a). Unlike Delve, the exiled cards
+    /// do NOT reduce the mana cost — the full mana cost is still paid.
+    ///
+    /// `threshold`: the minimum total mana value of exiled cards (N).
+    /// `mandatory`: if true, player MUST collect evidence; if false, it is optional.
+    ///
+    /// At resolution, `Condition::EvidenceWasCollected` checks whether the cost
+    /// was paid, enabling "if evidence was collected" linked ability effects (CR 701.59c).
+    ///
+    /// Discriminant 53.
+    CollectEvidence { threshold: u32, mandatory: bool },
+
     /// CR 207.2c: Bloodrush — ability word. Activated ability from hand.
     ///
     /// "{cost}, Discard this card: Target attacking creature gets +N/+M
@@ -1262,6 +1280,13 @@ pub enum Condition {
     /// opponent of the source object's controller has >= N poison counters.
     /// Eliminated opponents (has_lost == true) are ignored.
     OpponentHasPoisonCounters(u32),
+    /// CR 701.59c: "if evidence was collected" — true when the collect evidence
+    /// additional cost was paid for this spell (CR 701.59a).
+    ///
+    /// This is a linked ability check (CR 607): only the specific spell that paid
+    /// the collect evidence cost will have `evidence_collected == true`.
+    /// Checked at resolution time via `EffectContext.evidence_collected`.
+    EvidenceWasCollected,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

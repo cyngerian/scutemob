@@ -286,6 +286,10 @@ pub fn translate_player_action(
     // CR 107.3m: For `cast_spell` (and variants) with X in the mana cost.
     // The value chosen for X at cast time. 0 for non-X spells (default).
     x_value: u32,
+    // CR 701.59a: For `cast_spell_collect_evidence`, names of cards in the caster's
+    // graveyard to exile as the collect evidence additional cost.
+    // Empty for all other action types or when the player chooses not to pay.
+    collect_evidence_names: &[String],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -349,6 +353,7 @@ pub fn translate_player_action(
                 fuse: false,
                 // CR 107.3m: Propagate x_value from the script action to CastSpell.
                 x_value,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -386,6 +391,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -420,6 +426,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -454,6 +461,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -489,6 +497,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -524,6 +533,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -564,6 +574,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -935,6 +946,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -982,6 +994,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1017,6 +1030,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1055,6 +1069,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1093,6 +1108,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1128,6 +1144,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1163,6 +1180,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1197,6 +1215,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1231,6 +1250,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1265,6 +1285,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1303,6 +1324,50 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
+            })
+        }
+
+        // CR 701.59a: Cast a spell with collect evidence from the player's hand, exiling
+        // cards from the caster's graveyard with total mana value >= N as an additional cost.
+        // Collect evidence is an additional cost (CR 118.8), not an alternative cost -- the
+        // spell's normal mana cost is still paid in full. Unlike Delve, the exiled cards do
+        // NOT reduce the mana cost (CR 701.59a).
+        "cast_spell_collect_evidence" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            // CR 701.59a: Resolve each evidence card name to an ObjectId in the caster's graveyard.
+            let evidence_ids: Vec<crate::state::game_object::ObjectId> = collect_evidence_names
+                .iter()
+                .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
+                .collect();
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
+                x_value: 0,
+                collect_evidence_cards: evidence_ids,
             })
         }
 
@@ -1340,6 +1405,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1375,6 +1441,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1407,6 +1474,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1447,6 +1515,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1486,6 +1555,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1523,6 +1593,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1568,6 +1639,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1600,6 +1672,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1635,6 +1708,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1671,6 +1745,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1712,6 +1787,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1749,6 +1825,7 @@ pub fn translate_player_action(
                 modes_chosen: modes_chosen.clone(),
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 
@@ -1785,6 +1862,7 @@ pub fn translate_player_action(
                 modes_chosen: vec![],
                 fuse: true,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             })
         }
 

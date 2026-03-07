@@ -531,6 +531,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CastSpell should succeed");

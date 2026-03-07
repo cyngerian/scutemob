@@ -96,6 +96,7 @@ fn cast_and_resolve(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));

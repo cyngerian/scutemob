@@ -95,6 +95,7 @@ fn test_protection_from_red_blocks_red_spell_targeting() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -182,6 +183,7 @@ fn test_protection_from_red_allows_green_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -279,6 +281,7 @@ fn test_protection_from_creatures_blocks_creature_ability() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -359,6 +362,7 @@ fn test_protection_from_all_blocks_all_targeting() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

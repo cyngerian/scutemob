@@ -178,6 +178,7 @@ fn test_harness_declare_attackers_basic() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     );
@@ -258,6 +259,7 @@ fn test_harness_declare_attackers_empty() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     );
@@ -376,6 +378,7 @@ fn test_harness_declare_blockers_basic() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     );
@@ -463,6 +466,7 @@ fn test_harness_declare_blockers_empty() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     );
@@ -533,6 +537,7 @@ fn test_harness_full_combat_unblocked_damage() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     )
@@ -575,6 +580,7 @@ fn test_harness_full_combat_unblocked_damage() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     )
@@ -641,6 +647,7 @@ fn test_harness_declare_attackers_default_target() {
         vec![], // modes_chosen: not used for combat harness actions
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
+        &[],    // collect_evidence_names: not used for combat harness actions
         &state,
         &players,
     );

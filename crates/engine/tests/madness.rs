@@ -460,6 +460,7 @@ fn test_madness_cast_from_exile() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -568,6 +569,7 @@ fn test_madness_sorcery_ignores_timing() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -710,6 +712,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -796,6 +799,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -961,6 +965,7 @@ fn test_madness_mana_value_unchanged() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1099,6 +1104,7 @@ fn test_madness_effect_discard_goes_to_exile() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

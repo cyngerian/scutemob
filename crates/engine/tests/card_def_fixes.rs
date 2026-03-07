@@ -126,6 +126,7 @@ fn test_read_the_bones_scry_then_draw() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -313,6 +314,7 @@ fn test_path_to_exile_optional_search() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -818,6 +820,7 @@ fn test_rest_in_peace_etb_exiles_graveyards() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("casting Rest in Peace failed");

@@ -355,6 +355,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

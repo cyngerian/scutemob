@@ -840,6 +840,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

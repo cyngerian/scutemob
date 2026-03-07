@@ -230,6 +230,7 @@ fn test_702_96_normal_cast_targets_single() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -348,6 +349,7 @@ fn test_702_96_overloaded_cast_destroys_all_matching() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -460,6 +462,7 @@ fn test_702_96_overloaded_no_targets_cannot_fizzle() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -558,6 +561,7 @@ fn test_702_96_overloaded_bypasses_hexproof() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Overloaded CastSpell failed: {:?}", e));
@@ -665,6 +669,7 @@ fn test_702_96_alternative_cost_exclusivity_with_evoke() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -740,6 +745,7 @@ fn test_702_96_pays_overload_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -818,6 +824,7 @@ fn test_702_96_no_targets_allowed_when_overloaded() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -910,6 +917,7 @@ fn test_702_96_condition_was_overloaded_false_when_not_overloaded() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast failed: {:?}", e));
@@ -1079,6 +1087,7 @@ fn test_702_96_commander_tax_applies_to_overload_cost() {
                 modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| {
@@ -1256,6 +1265,7 @@ fn test_702_96_commander_tax_overload_insufficient_mana_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1377,6 +1387,7 @@ fn test_702_96_overloaded_hits_all_opponents_multiplayer() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("4-player overloaded CastSpell failed: {:?}", e));

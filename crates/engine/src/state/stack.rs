@@ -200,6 +200,14 @@ pub struct StackObject {
     /// this should be propagated to copies in the copy system.
     #[serde(default)]
     pub was_bargained: bool,
+    /// CR 701.59c: If true, this spell was cast with its collect evidence cost paid
+    /// (exiled cards from graveyard with total mana value >= N as an additional cost).
+    /// Used by `Condition::EvidenceWasCollected` to check at resolution time.
+    /// Enables linked "if evidence was collected" ability effects (CR 701.59c / 607).
+    ///
+    /// Must always be false for copies (`is_copy: true`) -- copies are not cast.
+    #[serde(default)]
+    pub evidence_collected: bool,
     /// CR 702.117a: If true, this spell was cast by paying its surge cost
     /// (an alternative cost). Used to enable "if surge cost was paid" conditional
     /// effects on permanents (e.g., Crush of Tentacles, Reckless Bushwhacker).

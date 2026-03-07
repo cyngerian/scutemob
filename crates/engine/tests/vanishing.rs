@@ -293,6 +293,7 @@ fn test_vanishing_etb_counters_on_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CastSpell should succeed");

@@ -433,6 +433,7 @@ fn test_investigate_clue_can_be_activated() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

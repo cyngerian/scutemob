@@ -117,6 +117,7 @@ fn cast_devour_creature(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -653,6 +654,7 @@ fn test_devour_only_own_creatures() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -738,6 +740,7 @@ fn test_devour_cannot_sacrifice_self() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

@@ -248,6 +248,7 @@ fn test_cascade_exiles_until_hit() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -422,6 +423,7 @@ fn test_cascade_skips_lands() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -598,6 +600,7 @@ fn test_cascade_combined_mana_value_skip() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

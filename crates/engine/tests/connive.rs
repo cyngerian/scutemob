@@ -196,6 +196,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -335,6 +336,7 @@ fn test_connive_land_discard_no_counter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -461,6 +463,7 @@ fn test_connive_n_multiple_draws_and_discards() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -579,6 +582,7 @@ fn test_connive_empty_library_still_connives() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -696,6 +700,7 @@ fn test_connive_etb_trigger_on_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -826,6 +831,7 @@ fn test_connive_self_trigger_fires_on_connive() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -994,6 +1000,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

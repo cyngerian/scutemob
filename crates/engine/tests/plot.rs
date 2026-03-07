@@ -409,6 +409,7 @@ fn test_plot_cannot_cast_same_turn() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -484,6 +485,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -569,6 +571,7 @@ fn test_plot_free_cast_costs_zero() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -696,6 +699,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     });
 
     let result = process_command(
@@ -777,6 +781,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1034,6 +1039,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1181,6 +1187,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1284,6 +1291,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     });
 
     let result = process_command(
@@ -1314,6 +1322,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1386,6 +1395,7 @@ fn test_plot_free_cast_requires_own_turn() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1465,6 +1475,7 @@ fn test_plot_normal_cast_still_works() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1537,6 +1548,7 @@ fn test_plot_cast_postcombat_main_phase() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1665,6 +1677,7 @@ fn test_plot_turn_tracking_boundary() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -1702,6 +1715,7 @@ fn test_plot_turn_tracking_boundary() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(

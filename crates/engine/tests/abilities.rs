@@ -550,6 +550,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -636,6 +637,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -725,6 +727,7 @@ fn test_triggered_ability_apnap_ordering() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -819,6 +822,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -896,6 +900,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -974,6 +979,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1894,6 +1900,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

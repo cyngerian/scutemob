@@ -156,6 +156,7 @@ fn cast_and_enter_battlefield(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

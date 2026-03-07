@@ -213,6 +213,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -323,6 +324,7 @@ fn test_convoke_colored_mana_match() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -426,6 +428,7 @@ fn test_convoke_generic_mana_any_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -514,6 +517,7 @@ fn test_convoke_reject_no_keyword() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -584,6 +588,7 @@ fn test_convoke_reject_tapped_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -653,6 +658,7 @@ fn test_convoke_reject_not_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -723,6 +729,7 @@ fn test_convoke_reject_not_controlled() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -804,6 +811,7 @@ fn test_convoke_reject_too_many_creatures() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -925,6 +933,7 @@ fn test_convoke_with_commander_tax() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -1026,6 +1035,7 @@ fn test_convoke_no_summoning_sickness() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1102,6 +1112,7 @@ fn test_convoke_zero_creatures() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1193,6 +1204,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

@@ -340,6 +340,13 @@ pub enum ScriptAction {
         /// Example: 5 means X=5 for a spell like {X}{G}.
         #[serde(default)]
         x_value: u32,
+        /// CR 701.59a: For `cast_spell_collect_evidence`. Names of cards in the caster's
+        /// graveyard to exile as the collect evidence additional cost.
+        /// Empty = player chose not to collect evidence (optional cost) or not applicable.
+        /// Total mana value of named cards must be >= N (the evidence threshold).
+        /// Example: ["Lightning Bolt", "Grizzly Bears"]
+        #[serde(default)]
+        collect_evidence_cards: Vec<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

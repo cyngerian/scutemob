@@ -132,6 +132,7 @@ fn make_partner_with_trigger_stack_obj(
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     }
 }
 

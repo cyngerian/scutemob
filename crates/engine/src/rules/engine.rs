@@ -105,6 +105,7 @@ pub fn process_command(
             modes_chosen,
             fuse,
             x_value,
+            collect_evidence_cards,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -136,6 +137,7 @@ pub fn process_command(
                 modes_chosen,
                 fuse,
                 x_value,
+                collect_evidence_cards,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).

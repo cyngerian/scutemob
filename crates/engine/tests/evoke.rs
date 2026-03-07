@@ -243,6 +243,7 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -401,6 +402,7 @@ fn test_evoke_basic_cast_without_evoke() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -513,6 +515,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -631,6 +634,7 @@ fn test_evoke_does_not_change_mana_value() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -781,6 +785,7 @@ fn test_evoke_cannot_combine_with_flashback() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -862,6 +867,7 @@ fn test_evoke_non_evoke_spell_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -953,6 +959,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -1053,6 +1060,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

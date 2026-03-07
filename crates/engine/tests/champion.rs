@@ -281,6 +281,7 @@ fn setup_champion_on_bf(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -376,6 +377,7 @@ fn test_champion_basic_etb_exiles_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -505,6 +507,7 @@ fn test_champion_no_target_sacrifices_self() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -633,6 +636,7 @@ fn test_champion_ltb_returns_exiled_card() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -750,6 +754,7 @@ fn test_champion_non_champion_no_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -866,6 +871,7 @@ fn test_champion_subtype_filter_rejects_wrong_type() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -978,6 +984,7 @@ fn test_champion_subtype_filter_accepts_faerie() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -1086,6 +1093,7 @@ fn test_champion_changeling_matches_faerie_filter() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -1196,6 +1204,7 @@ fn test_champion_cannot_target_itself() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

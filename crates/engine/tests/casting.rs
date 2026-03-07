@@ -71,6 +71,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -150,6 +151,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(result.is_ok());
@@ -216,6 +218,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -281,6 +284,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -349,6 +353,7 @@ fn test_cast_spell_lifo_stack_order() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -390,6 +395,7 @@ fn test_cast_spell_lifo_stack_order() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -457,6 +463,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(
@@ -519,6 +526,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -575,6 +583,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -648,6 +657,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -688,6 +698,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -742,6 +753,7 @@ fn test_cast_spell_land_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -799,6 +811,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -860,6 +873,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

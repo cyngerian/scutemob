@@ -93,6 +93,7 @@ fn cast_and_resolve(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -871,6 +872,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],

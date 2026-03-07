@@ -12,7 +12,7 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: 1800 tests passing; ~167 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 73/88 P4; Batch 0-12 complete; Batch 13 in-progress (Discover, Suspect done); 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: 1778 tests passing; ~168 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 74/88 P4; Batch 0-12 complete; Batch 13 in-progress (Discover, Suspect, Collect Evidence done); 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-07 (B13 in-progress)
 

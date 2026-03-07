@@ -359,6 +359,8 @@ impl GameState {
             is_prototyped: false,
             // CR 400.7: bargained status is not preserved across zone changes.
             was_bargained: false,
+            // CR 400.7: collect evidence status is not preserved across zone changes.
+            evidence_collected: false,
             // CR 400.7: echo pending flag is not preserved across zone changes.
             echo_pending: false,
             // CR 400.7: phasing flags are not preserved across zone changes.
@@ -516,6 +518,8 @@ impl GameState {
             is_prototyped: false,
             // CR 400.7: bargained status is not preserved across zone changes.
             was_bargained: false,
+            // CR 400.7: collect evidence status is not preserved across zone changes.
+            evidence_collected: false,
             // CR 400.7: echo pending flag is not preserved across zone changes.
             echo_pending: false,
             // CR 400.7: phasing flags are not preserved across zone changes.

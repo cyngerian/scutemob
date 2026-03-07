@@ -238,6 +238,9 @@ pub fn copy_spell_on_stack(
         was_fused: original.was_fused,
         // CR 107.3m: Copies inherit the same X value as the original (ruling 2022-10-07).
         x_value: original.x_value,
+        // CR 701.59c: Copies of a spell with evidence collected are also considered to have
+        // had the collect evidence cost paid (CR 707.2 — copies copy choices made during casting).
+        evidence_collected: original.evidence_collected,
     };
 
     // Push the copy onto the stack (above the original).
@@ -448,6 +451,8 @@ pub fn resolve_cascade(
                 // CR 702.102a: cascade free-cast spells are not fused (requires hand — CR 702.102a).
                 was_fused: false,
                 x_value: 0,
+                // CR 701.59c: cascade free-cast spells are not collect evidence casts.
+                evidence_collected: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -678,6 +683,8 @@ pub fn resolve_discover(
                 modes_chosen: vec![],
                 was_fused: false,
                 x_value: 0,
+                // CR 701.59c: discover free-cast spells are not collect evidence casts.
+                evidence_collected: false,
             };
             state.stack_objects.push_back(stack_obj);
 

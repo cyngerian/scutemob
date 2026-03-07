@@ -203,6 +203,7 @@ fn test_impending_basic_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with impending failed: {:?}", e));
@@ -315,6 +316,7 @@ fn test_impending_not_a_creature_while_counters() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -527,6 +529,7 @@ fn test_impending_normal_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -827,6 +830,7 @@ fn test_impending_alt_cost_exclusivity() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -960,6 +964,7 @@ fn test_impending_commander_tax() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1013,6 +1018,7 @@ fn test_impending_commander_tax() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

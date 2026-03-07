@@ -703,6 +703,7 @@ fn test_forecast_blocked_by_split_second() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
         spliced_effects: vec![],
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],

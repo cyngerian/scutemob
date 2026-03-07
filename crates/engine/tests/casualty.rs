@@ -258,6 +258,7 @@ fn test_casualty_basic_copy() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
@@ -411,6 +412,7 @@ fn test_casualty_power_threshold() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -447,6 +449,7 @@ fn test_casualty_power_threshold() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -492,6 +495,7 @@ fn test_casualty_optional_no_sacrifice() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
@@ -558,6 +562,7 @@ fn test_casualty_not_a_creature() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -608,6 +613,7 @@ fn test_casualty_wrong_controller() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -687,6 +693,7 @@ fn test_casualty_spell_without_keyword() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -736,6 +743,7 @@ fn test_casualty_copy_is_not_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
@@ -804,6 +812,7 @@ fn test_casualty_higher_power_accepted() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -852,6 +861,7 @@ fn test_casualty_creature_not_on_battlefield() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

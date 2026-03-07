@@ -75,6 +75,10 @@ pub struct EffectContext {
     /// Used by `Condition::WasCleaved`. Set from `StackObject.was_cleaved`
     /// at spell resolution.
     pub was_cleaved: bool,
+    /// CR 701.59c: If true, this spell was cast with its collect evidence cost paid.
+    /// Used by `Condition::EvidenceWasCollected`. Set from `StackObject.evidence_collected`
+    /// at spell resolution.
+    pub evidence_collected: bool,
     /// CR 107.3m: The value of X for this spell or ability.
     /// Set from StackObject.x_value at resolution so EffectAmount::XValue resolves correctly.
     /// 0 for non-X spells and for abilities that don't carry an X value.
@@ -93,6 +97,7 @@ impl EffectContext {
             was_overloaded: false,
             was_bargained: false,
             was_cleaved: false,
+            evidence_collected: false,
             x_value: 0,
         }
     }
@@ -113,6 +118,7 @@ impl EffectContext {
             was_overloaded: false,
             was_bargained: false,
             was_cleaved: false,
+            evidence_collected: false,
             x_value: 0,
         }
     }
@@ -1514,6 +1520,7 @@ fn execute_effect_inner(
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
                             was_cleaved: ctx.was_cleaved,
+                            evidence_collected: ctx.evidence_collected,
                             x_value: ctx.x_value,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
@@ -1535,6 +1542,7 @@ fn execute_effect_inner(
                             was_overloaded: ctx.was_overloaded,
                             was_bargained: ctx.was_bargained,
                             was_cleaved: ctx.was_cleaved,
+                            evidence_collected: ctx.evidence_collected,
                             x_value: ctx.x_value,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
@@ -2876,6 +2884,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         plotted_turn: 0,
         is_prototyped: false,
         was_bargained: false,
+        evidence_collected: false,
         echo_pending: false,
         phased_out_indirectly: false,
         phased_out_controller: None,
@@ -3198,6 +3207,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
         Condition::WasBargained => ctx.was_bargained,
         // CR 702.148a: "if this spell's cleave cost was paid" — true when cleaved.
         Condition::WasCleaved => ctx.was_cleaved,
+        // CR 701.59c: "if evidence was collected" — true when collect evidence cost was paid.
+        Condition::EvidenceWasCollected => ctx.evidence_collected,
         // CR 207.2c (Corrupted ability word): "if an opponent has N or more poison counters."
         // In multiplayer Commander, true if ANY living opponent of the controller has >= N
         // poison counters. Eliminated opponents (has_lost == true) are excluded.

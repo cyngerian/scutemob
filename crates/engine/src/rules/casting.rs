@@ -79,6 +79,7 @@ pub fn handle_cast_spell(
     mut modes_chosen: Vec<usize>,
     fuse: bool,
     x_value: u32,
+    collect_evidence_cards: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -2393,6 +2394,98 @@ pub fn handle_cast_spell(
         None
     };
 
+    // CR 701.59a / CR 601.2b,f: Collect Evidence -- validate the graveyard cards.
+    // Collect Evidence is an additional cost: the player exiles cards from their graveyard
+    // with total mana value >= N. Unlike Delve, the exiled cards do NOT reduce mana cost.
+    // This validation block determines `evidence_was_collected: bool` used when building
+    // the StackObject.
+    let evidence_was_collected: bool = if !collect_evidence_cards.is_empty() {
+        // 1. Validate the spell has CollectEvidence ability definition.
+        let registry = state.card_registry.clone();
+        let evidence_threshold =
+            card_id
+                .clone()
+                .and_then(|cid| registry.get(cid))
+                .and_then(|def| {
+                    def.abilities.iter().find_map(|a| {
+                        if let AbilityDefinition::CollectEvidence { threshold, .. } = a {
+                            Some(*threshold)
+                        } else {
+                            None
+                        }
+                    })
+                });
+        let evidence_threshold = match evidence_threshold {
+            Some(t) => t,
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell does not have collect evidence (CR 701.59a)".into(),
+                ));
+            }
+        };
+        // 2. Validate uniqueness (no duplicate ObjectIds).
+        let mut seen_ids = std::collections::HashSet::new();
+        for &id in &collect_evidence_cards {
+            if !seen_ids.insert(id) {
+                return Err(GameStateError::InvalidCommand(
+                    "collect evidence: duplicate card ObjectId in exiled list (CR 701.59a)".into(),
+                ));
+            }
+        }
+        // 3. Validate each card is in the caster's own graveyard.
+        for &id in &collect_evidence_cards {
+            let card_zone = state.object(id)?.zone;
+            if card_zone != ZoneId::Graveyard(player) {
+                return Err(GameStateError::InvalidCommand(
+                    "collect evidence: card must be in caster's graveyard (CR 701.59a)".into(),
+                ));
+            }
+        }
+        // 4. Sum the mana values of all exiled cards.
+        let total_mv: u32 = collect_evidence_cards
+            .iter()
+            .map(|&id| {
+                state
+                    .objects
+                    .get(&id)
+                    .and_then(|o| o.characteristics.mana_cost.as_ref())
+                    .map(|mc| mc.mana_value())
+                    .unwrap_or(0)
+            })
+            .sum();
+        // 5. Validate total mana value >= threshold (CR 701.59a: "N or greater").
+        if total_mv < evidence_threshold {
+            return Err(GameStateError::InvalidCommand(format!(
+                "collect evidence: total mana value {} is less than required {} (CR 701.59a)",
+                total_mv, evidence_threshold
+            )));
+        }
+        true
+    } else {
+        // Player chose not to collect evidence (optional) OR spell has no collect evidence.
+        // If the spell has mandatory collect evidence, reject.
+        let registry = state.card_registry.clone();
+        let mandatory_evidence = card_id
+            .clone()
+            .and_then(|cid| registry.get(cid))
+            .and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::CollectEvidence { mandatory, .. } = a {
+                        Some(*mandatory)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .unwrap_or(false);
+        if mandatory_evidence {
+            return Err(GameStateError::InvalidCommand(
+                "collect evidence: this spell requires collect evidence as a mandatory cost (CR 701.59a)".into(),
+            ));
+        }
+        false
+    };
+
     // Validate casting window.
     // CR 702.35 ruling: Madness ignores timing restrictions — a sorcery cast via madness
     // can be cast any time the player has priority, like an instant.
@@ -2864,6 +2957,22 @@ pub fn handle_cast_spell(
         });
     }
 
+    // CR 701.59a / CR 601.2f-h: Pay the collect evidence additional cost -- exile
+    // cards from the caster's graveyard with total mana value >= N.
+    // This happens as part of cost payment (CR 601.2h), after mana payment.
+    // The cards go directly to the exile zone (they are not sacrificed -- CR 701.59a).
+    // Collect evidence is optional -- only execute if evidence_was_collected is true.
+    if evidence_was_collected {
+        for &ev_id in &collect_evidence_cards {
+            let (new_exile_id, _) = state.move_object_to_zone(ev_id, ZoneId::Exile)?;
+            events.push(GameEvent::ObjectExiled {
+                player,
+                object_id: ev_id,
+                new_exile_id,
+            });
+        }
+    }
+
     // CR 601.2c: Move the card to the Stack zone (CR 400.7: new ObjectId).
     let (new_card_id, _old_obj) = state.move_object_to_zone(card, ZoneId::Stack)?;
 
@@ -3084,6 +3193,9 @@ pub fn handle_cast_spell(
         was_fused: casting_with_fuse,
         // CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
         x_value,
+        // CR 701.59c: Record whether this spell was cast with collect evidence cost paid.
+        // Used by Condition::EvidenceWasCollected at resolution time (linked ability, CR 607).
+        evidence_collected: evidence_was_collected,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3233,6 +3345,8 @@ pub fn handle_cast_spell(
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
             x_value: 0,
+            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
+            evidence_collected: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3300,6 +3414,8 @@ pub fn handle_cast_spell(
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
             x_value: 0,
+            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
+            evidence_collected: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3368,6 +3484,8 @@ pub fn handle_cast_spell(
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
             x_value: 0,
+            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
+            evidence_collected: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3430,6 +3548,8 @@ pub fn handle_cast_spell(
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
             x_value: 0,
+            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
+            evidence_collected: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3494,6 +3614,8 @@ pub fn handle_cast_spell(
             // CR 702.102a: trigger/copy stack objects are never fused spells.
             was_fused: false,
             x_value: 0,
+            // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
+            evidence_collected: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

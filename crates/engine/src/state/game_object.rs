@@ -557,6 +557,12 @@ pub struct GameObject {
     /// at resolution time when the permanent enters the battlefield.
     #[serde(default)]
     pub was_bargained: bool,
+    /// CR 701.59c: If true, this permanent was cast with its collect evidence cost paid
+    /// (exiled cards from graveyard with total mana value >= N as an additional cost).
+    /// Propagated from `StackObject.evidence_collected` at resolution time.
+    /// Used by ETB triggers that check `Condition::EvidenceWasCollected`.
+    #[serde(default)]
+    pub evidence_collected: bool,
     /// CR 702.30a: If true, this permanent has Echo and has not yet had its echo
     /// trigger resolve. Set to true when the permanent enters the battlefield with
     /// the Echo keyword. Cleared when the echo trigger resolves (either paid or

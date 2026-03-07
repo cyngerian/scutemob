@@ -216,6 +216,7 @@ fn test_replicate_zero_copies() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without replicate should succeed: {:?}", e));
@@ -275,6 +276,7 @@ fn test_replicate_one_copy() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -371,6 +373,7 @@ fn test_replicate_basic_two_copies() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=2 failed: {:?}", e));
@@ -496,6 +499,7 @@ fn test_replicate_no_keyword_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -543,6 +547,7 @@ fn test_replicate_copies_not_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -609,6 +614,7 @@ fn test_replicate_mana_cost_added() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

@@ -144,6 +144,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -251,6 +252,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -347,6 +349,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -441,6 +444,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -514,6 +518,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -582,6 +587,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1104,6 +1110,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -1196,6 +1203,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -2037,6 +2045,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     });
 
     assert_eq!(
@@ -2350,6 +2359,7 @@ fn test_full_four_player_commander_game() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

@@ -980,6 +980,7 @@ impl GameStateBuilder {
                 plotted_turn: 0,
                 is_prototyped: false,
                 was_bargained: false,
+                evidence_collected: false,
                 echo_pending: false,
                 phased_out_indirectly: false,
                 phased_out_controller: None,

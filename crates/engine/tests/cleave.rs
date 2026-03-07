@@ -274,6 +274,7 @@ fn test_702_148_cleave_basic_cast_sets_was_cleaved() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -365,6 +366,7 @@ fn test_702_148_normal_cast_does_not_set_was_cleaved() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -453,6 +455,7 @@ fn test_702_148_cleave_mutually_exclusive_with_other_alt_costs() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -534,6 +537,7 @@ fn test_702_148_cleave_condition_routes_to_if_true_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave CastSpell failed: {:?}", e));
@@ -621,6 +625,7 @@ fn test_702_148_normal_cast_routes_to_if_false_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -715,6 +720,7 @@ fn test_702_148_cleave_on_non_cleave_card_fails() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -809,6 +815,7 @@ fn test_702_148_boardwipe_cleave_destroys_all_creatures() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Cleave board-wipe CastSpell failed: {:?}", e));
@@ -919,6 +926,7 @@ fn test_702_148_boardwipe_normal_cast_routes_to_if_false_no_destruction() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("Normal board-wipe CastSpell failed: {:?}", e));

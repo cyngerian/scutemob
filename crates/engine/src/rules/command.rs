@@ -285,6 +285,16 @@ pub enum Command {
         /// replacement effects and triggers that reference X (e.g., Ravenous) can read it.
         #[serde(default)]
         x_value: u32,
+        /// CR 701.59a: Cards in the caster's graveyard to exile as the collect evidence
+        /// additional cost. Empty vec = not collecting evidence (either the spell lacks
+        /// collect evidence, or the player chose not to pay the optional cost).
+        ///
+        /// The total mana value of the exiled cards must be >= N where N is the collect
+        /// evidence threshold from `AbilityDefinition::CollectEvidence { threshold }`.
+        /// Unlike Delve, these cards do NOT reduce mana cost — the normal mana cost is
+        /// still paid in full. Validated in `handle_cast_spell`.
+        #[serde(default)]
+        collect_evidence_cards: Vec<ObjectId>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

@@ -208,6 +208,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             ctx.was_overloaded = stack_obj.was_overloaded;
                             ctx.was_bargained = stack_obj.was_bargained;
                             ctx.was_cleaved = stack_obj.was_cleaved;
+                            // CR 701.59c: Propagate collect evidence status to effect context.
+                            ctx.evidence_collected = stack_obj.evidence_collected;
                             // CR 107.3m: Propagate X value to effect context.
                             ctx.x_value = stack_obj.x_value;
                             // CR 702.102d: Execute left half first.
@@ -321,6 +323,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ctx.was_bargained = stack_obj.was_bargained;
                                 // CR 702.148a: Pass cleave status so Condition::WasCleaved works.
                                 ctx.was_cleaved = stack_obj.was_cleaved;
+                                // CR 701.59c: Pass collect evidence status so Condition::EvidenceWasCollected works.
+                                ctx.evidence_collected = stack_obj.evidence_collected;
                                 // CR 107.3m: Propagate X value to effect context.
                                 ctx.x_value = stack_obj.x_value;
 
@@ -346,6 +350,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     splice_ctx.was_overloaded = stack_obj.was_overloaded;
                                     splice_ctx.was_bargained = stack_obj.was_bargained;
                                     splice_ctx.was_cleaved = stack_obj.was_cleaved;
+                                    // CR 701.59c: Propagate collect evidence status to splice context.
+                                    splice_ctx.evidence_collected = stack_obj.evidence_collected;
                                     // CR 107.3m: Propagate X value to splice context.
                                     splice_ctx.x_value = stack_obj.x_value;
                                     let splice_events =
@@ -425,6 +431,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.166b: Transfer bargained status from stack to permanent so ETB
                     // triggers can check Condition::WasBargained.
                     obj.was_bargained = stack_obj.was_bargained;
+                    // CR 701.59c: Transfer collect evidence status from stack to permanent so
+                    // ETB triggers can check Condition::EvidenceWasCollected.
+                    obj.evidence_collected = stack_obj.evidence_collected;
                     // CR 107.3m: Transfer X value from stack to permanent for ETB replacement
                     // effects and triggers that reference X (e.g., Ravenous CR 702.156a).
                     obj.x_value = stack_obj.x_value;
@@ -3638,6 +3647,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    evidence_collected: false,
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
@@ -3890,6 +3900,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.102a: suspend free-casts are not fused spells.
                             was_fused: false,
                             x_value: 0,
+                            // CR 701.59c: suspend free-casts are not collect evidence casts.
+                            evidence_collected: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -4761,6 +4773,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    evidence_collected: false,
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
@@ -4957,6 +4970,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     plotted_turn: 0,
                     is_prototyped: false,
                     was_bargained: false,
+                    evidence_collected: false,
                     echo_pending: false,
                     phased_out_indirectly: false,
                     phased_out_controller: None,
@@ -5172,6 +5186,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         plotted_turn: 0,
                         is_prototyped: false,
                         was_bargained: false,
+                        evidence_collected: false,
                         echo_pending: false,
                         phased_out_indirectly: false,
                         phased_out_controller: None,

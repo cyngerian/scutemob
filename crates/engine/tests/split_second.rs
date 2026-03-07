@@ -185,6 +185,7 @@ fn test_split_second_blocks_casting_spells() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -230,6 +231,7 @@ fn test_split_second_blocks_casting_spells() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -320,6 +322,7 @@ fn test_split_second_blocks_activated_abilities() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -423,6 +426,7 @@ fn test_split_second_blocks_cycling() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -519,6 +523,7 @@ fn test_split_second_allows_mana_abilities() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -622,6 +627,7 @@ fn test_split_second_allows_pass_priority() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -712,6 +718,7 @@ fn test_split_second_blocks_caster_too() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -750,6 +757,7 @@ fn test_split_second_blocks_caster_too() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -840,6 +848,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -892,6 +901,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -977,6 +987,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

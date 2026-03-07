@@ -184,6 +184,7 @@ fn test_extort_basic_drain_on_spell_cast() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -313,6 +314,7 @@ fn test_extort_triggers_on_creature_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -406,6 +408,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -510,6 +513,7 @@ fn test_extort_multiple_instances_trigger_separately() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -642,6 +646,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -739,6 +744,7 @@ fn test_extort_resolves_before_triggering_spell() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -851,6 +857,7 @@ fn test_extort_multiplayer_4_player_drain() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

@@ -223,6 +223,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -393,6 +394,7 @@ fn test_two_panharmonicons_triple_triggers() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -545,6 +547,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -695,6 +698,7 @@ fn test_panharmonicon_registration_via_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -760,6 +764,7 @@ fn test_panharmonicon_registration_via_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();

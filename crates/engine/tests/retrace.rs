@@ -247,6 +247,7 @@ fn test_retrace_basic_cast_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -382,6 +383,7 @@ fn test_retrace_card_returns_to_graveyard_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -505,6 +507,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -555,6 +558,7 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap();
@@ -661,6 +665,7 @@ fn test_retrace_normal_timing_sorcery_cannot_cast_on_opponents_turn() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -752,6 +757,7 @@ fn test_retrace_discard_must_be_land() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -842,6 +848,7 @@ fn test_retrace_discard_must_be_in_hand() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -932,6 +939,7 @@ fn test_retrace_no_retrace_keyword_cannot_cast_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1019,6 +1027,7 @@ fn test_retrace_pays_normal_mana_cost() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1110,6 +1119,7 @@ fn test_retrace_without_land_provided_cannot_cast_from_graveyard() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1191,6 +1201,7 @@ fn test_retrace_normal_hand_cast_no_land_discard_needed() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 
@@ -1305,6 +1316,7 @@ fn test_retrace_recast_after_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("First retrace cast should succeed");
@@ -1357,6 +1369,7 @@ fn test_retrace_recast_after_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
 

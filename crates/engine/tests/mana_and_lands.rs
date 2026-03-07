@@ -289,6 +289,7 @@ fn test_play_land_stack_nonempty_fails() {
         escalate_modes_paid: 0,
         was_fused: false,
         x_value: 0,
+        evidence_collected: false,
     });
 
     let result = mtg_engine::process_command(

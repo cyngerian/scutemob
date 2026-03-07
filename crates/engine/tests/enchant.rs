@@ -106,6 +106,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -170,6 +171,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -234,6 +236,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -296,6 +299,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CastSpell should succeed");
@@ -485,6 +489,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             },
         );
         assert!(
@@ -540,6 +545,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 modes_chosen: vec![],
                 fuse: false,
                 x_value: 0,
+                collect_evidence_cards: vec![],
             },
         );
         assert!(
@@ -600,6 +606,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -667,6 +674,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -733,6 +741,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect("CastSpell should succeed");

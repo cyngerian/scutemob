@@ -135,6 +135,7 @@ fn cast_spell(
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
 }
@@ -563,6 +564,7 @@ fn test_affinity_combined_with_improvise() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .expect(

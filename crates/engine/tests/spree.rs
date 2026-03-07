@@ -262,6 +262,7 @@ fn test_spree_single_mode_adds_mode_cost() {
             modes_chosen: vec![0], // mode 0 only
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with mode 0 failed: {:?}", e));
@@ -332,6 +333,7 @@ fn test_spree_two_modes_adds_both_costs() {
             modes_chosen: vec![0, 1], // modes 0 and 1
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [0,1] failed: {:?}", e));
@@ -405,6 +407,7 @@ fn test_spree_all_three_modes() {
             modes_chosen: vec![0, 1, 2], // all three modes
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with all 3 modes failed: {:?}", e));
@@ -474,6 +477,7 @@ fn test_spree_zero_modes_rejected() {
             modes_chosen: vec![], // ZERO modes — invalid for Spree
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -534,6 +538,7 @@ fn test_spree_insufficient_mana_rejected() {
             modes_chosen: vec![0, 1], // needs {4}{W} but only {2}{W} provided
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -586,6 +591,7 @@ fn test_spree_duplicate_mode_rejected() {
             modes_chosen: vec![0, 0], // duplicate mode 0 — invalid
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
@@ -642,6 +648,7 @@ fn test_spree_mode_order_ascending() {
             modes_chosen: vec![2, 0], // supplied in reverse order
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [2,0] failed: {:?}", e));
@@ -748,6 +755,7 @@ fn test_spree_non_spree_spell_unchanged() {
             modes_chosen: vec![],
             fuse: false,
             x_value: 0,
+            collect_evidence_cards: vec![],
         },
     );
     assert!(
