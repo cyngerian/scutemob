@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 8 (2026-03-06)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 9 (2026-03-06)
 
 ## Rust / im-rs Gotchas
 
@@ -140,12 +140,12 @@
   This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
-- **Discriminant chain after Batch 8**: KeywordAbility next = 119, StackObjectKind next = 44,
-  AbilityDefinition next = 47. B8 used: KW 112-118 (Vanishing, Fading, Echo, CumulativeUpkeep,
-  Recover, Forecast, Phasing), AbilDef 41-46 (same order), SOK 37-43 (VanishingCounterTrigger,
-  VanishingSacrificeTrigger, FadingTrigger, EchoTrigger, CumulativeUpkeepTrigger, RecoverTrigger,
-  ForecastAbility). Check card_definition.rs for exact values.
+- **Discriminant chain after Batch 9**: KeywordAbility next = 124, StackObjectKind next = 46,
+  AbilityDefinition next = 49. B9 used: KW 119-123 (Graft, Scavenge, Outlast, Amplify, Bloodthirst;
+  Amass has no KW variant), AbilDef 47-48 (Scavenge, Outlast), SOK 44-45 (GraftTrigger, ScavengeAbility).
+  Effect::Amass disc 41; GameEvent::Amassed disc 98.
   **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
+- **`tools/replay-viewer/src/view_model.rs` has TWO exhaustive matches** that need updating for every new ability: (1) `StackObjectKind` match in `stack_kind_info()` — add arm for every new SOK variant; (2) `KeywordAbility` match in the keyword display function — add arm for every new KW variant. The `ability-impl-runner` misses the `KeywordAbility` match ~50% of the time. Always run `cargo build --workspace` (not just `-p mtg-engine`) after implement/fix phases to catch compile errors in the replay-viewer. Confirmed pattern from Outlast (B9).
 - **HAZARD: `ability-impl-planner` generates wrong discriminants.** The planner (Opus) sometimes
   assigns already-taken KW/AbilDef discriminants (uses the first available value without reading
   what's actually in use). Always verify the full discriminant chain from the previous batch before
