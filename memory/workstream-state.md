@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 11: Modal Choice, Tribute, Fabricate, Fuse, Spree | ACTIVE | 2026-03-07 | Chained auto-run — no manual intervention |
+| W1: Abilities | Batch 12: Ability Words (Enrage, Alliance, Corrupted, Ravenous, Bloodrush) | available | — | Batch 11 complete; claim to start B12 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,27 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-07
+**Workstream**: W1: Abilities — Batch 11
+
+Batch 11 complete. All 5 abilities implemented, reviewed, card+script+coverage done:
+- Modal Choice (CR 700.2): modes_chosen Vec<usize> on CastSpell+StackObject; casting validation; resolution dispatch; copy propagation; allow_duplicate_modes. P2 now 17/17. Abzan Charm; script 169.
+- Tribute (CR 702.104 — NOT 702.107): TributeNotPaid TriggerCondition; tribute_was_paid on GameObject; inline ETB; bot auto-declines. Fanatic of Xenagos; script 170. Review: clean.
+- Fabricate (CR 702.123): KW 132 inline ETB; bot chooses counters; Servo token fallback (2016-09-20 ruling). 1 MEDIUM fix (token fallback test). Weaponcraft Enthusiast; script 171.
+- Fuse (CR 702.102): KW 133, AbilDef::Fuse disc 51; was_fused on StackObject; hand-only; combined cost; left-then-right; copy propagates was_fused. 2 HIGH fixes (copy.rs was_fused propagation + doc). Wear//Tear; script 172.
+- Spree (CR 702.172 — NOT 702.165): KW 134; mode_costs on ModeSelection; per-mode cost accumulation; modes_chosen.sort_unstable() for CR 700.2a. 1 MEDIUM fix (mode order test). Final Showdown; script 173.
+
+1754 tests passing. 160 validated. P4 66/88. Scripts 169-173.
+New infra: modes_chosen (Modal Choice); tribute_was_paid+TributeNotPaid (Tribute); Fabricate(u32) KW 131→ wait, Tribute=131, Fabricate=132, Fuse=133, Spree=134; AbilDef::Fuse disc 51; was_fused on StackObject; mode_costs on ModeSelection.
+CR corrections: Tribute=702.104, Spree=702.172.
+
+**Next**: Claim W1-B12. Check docs/ability-batch-plan.md for Batch 12 (Enrage, Alliance, Corrupted, Ravenous, Bloodrush — ability words, all Low effort, reuse existing trigger patterns).
+
+**Commit**: f9df635 W1-B11: Batch 11 complete
+**Commit prefix used**: W1-B11:
 
 ## Last Handoff
 
