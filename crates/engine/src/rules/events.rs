@@ -657,6 +657,46 @@ pub enum GameEvent {
         card_id: ObjectId,
     },
 
+    // ── B13: Discover events (CR 701.57) ─────────────────────────────────
+    /// Cards were exiled from the top of a library during discover resolution
+    /// (CR 701.57a). Emitted once per discover action listing all exiled card IDs
+    /// in order exiled, NOT including the discovered card.
+    ///
+    /// The discovered card (if any) is removed from the exiled list before this
+    /// event is emitted — it is tracked separately by `DiscoverCast` (when cast)
+    /// or `DiscoverToHand` (when the player declines to cast). This matches the
+    /// behavior of `CascadeExiled`, which also excludes the cast card.
+    DiscoverExiled {
+        /// The player performing the discover action.
+        player: PlayerId,
+        /// ObjectIds of all cards exiled during the discover search (in order
+        /// exiled), excluding the discovered card (which appears in DiscoverCast
+        /// or DiscoverToHand). These are the cards placed on the library bottom.
+        cards_exiled: Vec<ObjectId>,
+    },
+
+    /// A card was cast without paying its mana cost as a result of discover
+    /// (CR 701.57a). Emitted after `DiscoverExiled` when the player casts the
+    /// found card. The remaining exiled cards are placed on the bottom of the
+    /// library in a random order (deterministic: ObjectId order).
+    DiscoverCast {
+        /// The player who performed the discover action.
+        player: PlayerId,
+        /// ObjectId of the card that was cast (now in the Stack zone).
+        card_id: ObjectId,
+    },
+
+    /// The discovered card was put into the player's hand instead of being cast
+    /// (CR 701.57a). Emitted when the player declines to cast the discovered card,
+    /// or when the card cannot be legally cast. Unlike Cascade, Discover puts the
+    /// card into hand rather than the library bottom.
+    DiscoverToHand {
+        /// The player who performed the discover action.
+        player: PlayerId,
+        /// ObjectId of the card that was put into the player's hand.
+        card_id: ObjectId,
+    },
+
     // ── M9.4: Storm / spell copy events ──────────────────────────────────
     /// A spell was copied on the stack (CR 707.10, CR 702.40a).
     ///

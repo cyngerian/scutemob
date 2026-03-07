@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Bloodrush validated: AbilDef disc 52, BloodrushAbility SOK disc 51, ActivateBloodrush command, Ghor-Clan Rampager card def, script combat/178, 8 tests in bloodrush.rs)
+> Last audited: 2026-03-07 (Discover validated: KW disc 136, Effect::Discover + resolve_discover in copy.rs, 3 GameEvents, Geological Appraiser card def, script etb-triggers/179, 7 tests in discover.rs)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 71        | 0        | 0       | 22   | 12  |
-| **Total**| **204**| **165**  | **2**    | **0**   | **25**| **12** |
+| P4       | 105   | 72        | 0        | 0       | 21   | 12  |
+| **Total**| **204**| **166**  | **2**    | **0**   | **24**| **12** |
 
 ---
 
@@ -320,7 +320,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Daybound/Nightbound | 702.145 | P4 | `none` | — | — | — | Transform | DFC auto-transform based on day/night cycle |
 | Investigate | 701.16 | P3 | `validated` | `cards/card_definition.rs:325` (Effect::Investigate), `effects/mod.rs:484` (execution), `rules/events.rs:706` (GameEvent::Investigated), `state/game_object.rs:193` (TriggerEvent::ControllerInvestigates), `state/hash.rs` (hash arms), `rules/abilities.rs:1447` (trigger dispatch) | Magnifying Glass, Thraben Inspector | `stack/099` (pending_review) | 6 unit tests in investigate.rs | CR 701.16a: "Investigate" means "Create a Clue token"; Effect::Investigate wraps clue_token_spec(1) x N; TriggerEvent::ControllerInvestigates wired; Thraben Inspector uses Effect::Investigate on ETB |
 | Amass | 701.47 | P4 | `validated` | `cards/card_definition.rs:673` (Effect::Amass), `effects/mod.rs:1073-1185` (execution), `rules/events.rs:713` (GameEvent::Amassed), `state/hash.rs:2753,3347` (hash arms disc 98/41), `rules/abilities.rs:3411` (trigger dispatch) | Dreadhorde Invasion | `stack/161` | 7 tests in `amass.rs` | CR 701.47a: keyword action (no KeywordAbility variant); Effect::Amass { subtype, count }; creates 0/0 black Army token if none controlled, else adds +1/+1 counters to existing Army; adds subtype (e.g., Zombie); GameEvent::Amassed always emitted per CR 701.47b |
-| Discover | 701.57 | P4 | `none` | — | — | — | Cascade | Keyword action variant of Cascade without the free cast restriction |
+| Discover | 701.57 | P4 | `validated` | `cards/card_definition.rs:938` (Effect::Discover), `rules/copy.rs:532` (resolve_discover), `effects/mod.rs:1875` (dispatch), `state/types.rs:1247` (KeywordAbility::Discover disc 136), `state/hash.rs:662,2961,3600` (hash arms), `rules/events.rs:660` (DiscoverExiled/DiscoverCast/DiscoverToHand events) | Geological Appraiser | `etb-triggers/179` | 7 tests in `discover.rs` | CR 701.57a: keyword action — exile cards until MV < N found; cast without paying or put to hand; rest go to library bottom. Implemented via resolve_discover() in copy.rs (shares exile-and-cast pattern with Cascade). Cards trigger discover via ETB Effect::Discover { player, n }. |
 | Forage | 701.61 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
 | Offspring | 702.175 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |
 | Impending | 702.176 | P4 | `validated` | `cards/card_definition.rs:383` (AbilityDefinition::Impending), `state/types.rs:112,890` (KeywordAbility::Impending, AltCostKind::Impending), `rules/casting.rs:83,876-1073,1190-1193,1767-1768,3171-3203` (alt cost validation, mutual exclusion, cost payment, get_impending_cost/count), `rules/resolution.rs:293,358-373,1226-1272` (ETB time counters, counter-removal trigger resolution), `rules/layers.rs:85-95` (Layer 4 type removal while impending+counters), `rules/turn_actions.rs:302-328` (end-step trigger queuing), `rules/abilities.rs:3679-3686` (trigger dispatch), `state/stack.rs:185,754-771` (was_impended, ImpendingCounterTrigger), `state/hash.rs` (hash arms disc 99/33/32), `rules/copy.rs:208,398` (cascade/copy interaction), `testing/replay_harness.rs:914-927` (cast_spell_impending action) | Overlord of the Hauntwoods | `stack/136` | — | CR 702.176a: 4 sub-abilities (alt cost, ETB time counters, Layer 4 type removal, end-step counter removal); 11 unit tests in `tests/impending.rs`; alt-cost mutual exclusion with all 14 other alt-cost keywords; commander tax interaction tested |

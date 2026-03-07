@@ -506,6 +506,228 @@ pub fn resolve_cascade(
     (events, cast_id)
 }
 
+/// Resolve the Discover keyword action for one player (CR 701.57).
+///
+/// CR 701.57a: Exile cards from the top of the specified player's library
+/// until you exile a nonland card with mana value N or less. You may cast
+/// that card without paying its mana cost. If you don't cast it, put that
+/// card into your hand. Put the remaining exiled cards on the bottom of your
+/// library in a random order.
+///
+/// Key differences from Cascade (CR 702.85):
+/// - MV threshold is `<= discover_n` (Cascade uses `< spell_mana_value`)
+/// - If the player does not cast the card, it goes to HAND (not library bottom)
+/// - Uses a fixed N parameter rather than the casting spell's MV
+///
+/// CR 701.57b: A player has "discovered" even if some or all actions were
+/// impossible (e.g., empty library, no qualifying card found). This function
+/// always returns without error in those cases.
+///
+/// Deterministic fallback: always casts the discovered card if possible
+/// (interactive "may cast" choice deferred to M10+).
+///
+/// Returns `(events, discovered_card_id)` where `discovered_card_id` is the
+/// ObjectId of the card placed on the stack (if cast) or in the player's hand
+/// (if not cast), or `None` if no qualifying card was found.
+pub fn resolve_discover(
+    state: &mut GameState,
+    player: PlayerId,
+    discover_n: u32,
+) -> (Vec<GameEvent>, Option<ObjectId>) {
+    let mut events = Vec::new();
+    let mut exiled_ids: Vec<ObjectId> = Vec::new();
+    let mut result_id: Option<ObjectId> = None;
+
+    // Step 1: Exile cards one at a time from the top of the player's library.
+    // CR 701.57a: "Exile cards from the top of your library until you exile a
+    // nonland card with mana value N or less."
+    loop {
+        let library_zone_id = ZoneId::Library(player);
+        let top_card_id = {
+            let library = state.zones.get(&library_zone_id);
+            // top() returns the last element (push_back appends; top = last = drawn first)
+            library.and_then(|z| z.top())
+        };
+
+        let Some(top_id) = top_card_id else {
+            // CR 701.57b: library empty — discover completes with no qualifying card.
+            break;
+        };
+
+        // Exile the top card.
+        let (exile_id, _old) = match state.move_object_to_zone(top_id, ZoneId::Exile) {
+            Ok(r) => r,
+            Err(_) => break,
+        };
+        exiled_ids.push(exile_id);
+
+        // Check if this card qualifies: nonland with mana value <= discover_n.
+        // CR 701.57a: "nonland card with mana value N or less"
+        // Note: Cascade uses strictly-less-than (< spell_MV); Discover uses <= N.
+        let calc_chars = calculate_characteristics(state, exile_id);
+        let is_land = calc_chars
+            .as_ref()
+            .map(|c| c.card_types.contains(&CardType::Land))
+            .unwrap_or_else(|| {
+                state
+                    .objects
+                    .get(&exile_id)
+                    .map(|obj| obj.characteristics.card_types.contains(&CardType::Land))
+                    .unwrap_or(false)
+            });
+
+        let card_mv = calc_chars
+            .as_ref()
+            .and_then(|c| c.mana_cost.as_ref())
+            .map(|mc| mc.mana_value())
+            .unwrap_or_else(|| {
+                state
+                    .objects
+                    .get(&exile_id)
+                    .and_then(|obj| obj.characteristics.mana_cost.as_ref())
+                    .map(|mc| mc.mana_value())
+                    .unwrap_or(0)
+            });
+
+        if !is_land && card_mv <= discover_n {
+            // Found the qualifying card (the "discovered card" per CR 701.57c).
+            //
+            // Deterministic fallback: always cast the discovered card.
+            // CR 701.57a gives the player a choice: "You may cast that card without
+            // paying its mana cost. If you don't, put that card into your hand."
+            //
+            // TODO(M10): When player-choice infrastructure is implemented, insert a
+            // PlayerChoice command here that asks the discovering player whether they
+            // want to cast the discovered card. On "decline", emit DiscoverToHand
+            // and move the card to hand instead of the stack. This is the primary
+            // behavioral difference between Discover and Cascade (which has no
+            // "put into hand" option). Until then, the engine always casts, matching
+            // Cascade's deterministic policy.
+            //
+            // Step 2: Cast it without paying its mana cost (CR 701.57a).
+            // Unlike Cascade, Discover is NOT inherently a cast trigger — the free
+            // cast here does NOT trigger "whenever you cast a spell" abilities because
+            // Discover is a keyword action, not a cast trigger. However, putting the
+            // card on the stack IS still casting it (it goes through the stack).
+            let stack_entry_id = state.next_object_id();
+
+            // Move card from exile to stack zone (new ObjectId via CR 400.7).
+            let (stack_source_id, _old) = match state.move_object_to_zone(exile_id, ZoneId::Stack) {
+                Ok(r) => r,
+                Err(_) => {
+                    // Failed to move — leave in exile; fall through to hand-fallback.
+                    // The discovered card stays in exile; move it to hand instead.
+                    let hand_zone = ZoneId::Hand(player);
+                    if let Ok((hand_id, _)) = state.move_object_to_zone(exile_id, hand_zone) {
+                        // Remove from exiled list since it's now in hand.
+                        exiled_ids.pop();
+                        events.push(GameEvent::DiscoverToHand {
+                            player,
+                            card_id: hand_id,
+                        });
+                        result_id = Some(hand_id);
+                    }
+                    break;
+                }
+            };
+            // Remove the discovered card from the exiled list (it was cast, not put
+            // on library bottom along with the other exiled cards).
+            exiled_ids.pop();
+
+            // Create a StackObject for the discovered spell.
+            // Discover free-cast IS casting — it triggers "whenever you cast a spell"
+            // abilities (same as cascade per CR 702.85c precedent; discover has no
+            // explicit exception). However, this is a keyword action, not a cascade-style
+            // triggered ability, so the parent trigger is still resolving as we do this.
+            let stack_obj = StackObject {
+                id: stack_entry_id,
+                controller: player,
+                kind: StackObjectKind::Spell {
+                    source_object: stack_source_id,
+                },
+                targets: vec![],
+                cant_be_countered: false,
+                is_copy: false,
+                cast_with_flashback: false,
+                kicker_times_paid: 0,
+                was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
+                was_suspended: false,
+                was_overloaded: false,
+                cast_with_jump_start: false,
+                cast_with_aftermath: false,
+                was_dashed: false,
+                was_blitzed: false,
+                was_plotted: false,
+                was_prototyped: false,
+                was_impended: false,
+                was_bargained: false,
+                was_surged: false,
+                was_casualty_paid: false,
+                was_cleaved: false,
+                was_entwined: false,
+                escalate_modes_paid: 0,
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                was_fused: false,
+                x_value: 0,
+            };
+            state.stack_objects.push_back(stack_obj);
+
+            // Discover free-cast triggers "whenever you cast a spell".
+            if let Some(ps) = state.players.get_mut(&player) {
+                ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+            }
+
+            events.push(GameEvent::SpellCast {
+                player,
+                stack_object_id: stack_entry_id,
+                source_object_id: stack_source_id,
+            });
+            events.push(GameEvent::DiscoverCast {
+                player,
+                card_id: stack_source_id,
+            });
+
+            result_id = Some(stack_source_id);
+            break;
+        }
+        // Non-qualifying card (land or MV > N): continue exiling.
+    }
+
+    // Emit DiscoverExiled for all cards that were exiled (not including the
+    // discovered card if it was cast — it was popped from exiled_ids before
+    // going onto the stack). Prepend so exile event precedes cast/hand events.
+    // CR 701.57b: emit even if no cards were exiled (empty library case).
+    events.insert(
+        0,
+        GameEvent::DiscoverExiled {
+            player,
+            cards_exiled: exiled_ids.clone(),
+        },
+    );
+
+    // Step 3: Put remaining exiled cards on the bottom of the library in a
+    // random order (CR 701.57a). Deterministic: sort by ObjectId ascending.
+    exiled_ids.sort();
+    let library_zone_id = ZoneId::Library(player);
+    for exile_id in exiled_ids {
+        if let Err(_e) = state.move_object_to_bottom_of_zone(exile_id, library_zone_id) {
+            // Card stays in current zone — no silent data loss.
+            // Unreachable in well-formed game state.
+        }
+    }
+
+    (events, result_id)
+}
+
 /// Create a Layer 1 copy continuous effect: `copier_id` copies `source_id`.
 ///
 /// Returns a `ContinuousEffect` with the following properties:

@@ -1244,6 +1244,23 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 135.
     Ravenous,
+    /// CR 701.57: Discover N — keyword action. Exile cards from the top of your
+    /// library until you exile a nonland card with mana value N or less. You may
+    /// cast that card without paying its mana cost. If you don't cast it, put that
+    /// card into your hand. Put the remaining exiled cards on the bottom of your
+    /// library in a random order.
+    ///
+    /// Discover is a keyword action (CR 701.57), not a triggered ability like
+    /// Cascade (CR 702.85). Cards bear this keyword as a marker; the actual
+    /// discover action is invoked by their triggered abilities via Effect::Discover.
+    ///
+    /// Key differences from Cascade:
+    /// - MV threshold is <= N (not < spell_MV like Cascade)
+    /// - Declined discovered card goes to hand (not library bottom)
+    /// - Uses a fixed N parameter, not the spell's MV
+    ///
+    /// Discriminant 136.
+    Discover,
 }
 
 /// CR 702.72a: The filter for what can be championed.

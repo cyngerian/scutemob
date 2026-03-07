@@ -659,6 +659,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Spree => 134u8.hash_into(hasher),
             // Ravenous (discriminant 135) -- CR 702.156
             KeywordAbility::Ravenous => 135u8.hash_into(hasher),
+            // Discover (discriminant 136) -- CR 701.57
+            KeywordAbility::Discover => 136u8.hash_into(hasher),
         }
     }
 }
@@ -2956,6 +2958,27 @@ impl HashInto for GameEvent {
                 target_id.hash_into(hasher);
                 controller.hash_into(hasher);
             }
+            // B13: DiscoverExiled (discriminant 101) -- CR 701.57a
+            GameEvent::DiscoverExiled {
+                player,
+                cards_exiled,
+            } => {
+                101u8.hash_into(hasher);
+                player.hash_into(hasher);
+                cards_exiled.hash_into(hasher);
+            }
+            // B13: DiscoverCast (discriminant 102) -- CR 701.57a
+            GameEvent::DiscoverCast { player, card_id } => {
+                102u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_id.hash_into(hasher);
+            }
+            // B13: DiscoverToHand (discriminant 103) -- CR 701.57a
+            GameEvent::DiscoverToHand { player, card_id } => {
+                103u8.hash_into(hasher);
+                player.hash_into(hasher);
+                card_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -3573,6 +3596,12 @@ impl HashInto for Effect {
                 42u8.hash_into(hasher);
                 fortification.hash_into(hasher);
                 target.hash_into(hasher);
+            }
+            // CR 701.57a: Discover (discriminant 43)
+            Effect::Discover { player, n } => {
+                43u8.hash_into(hasher);
+                player.hash_into(hasher);
+                n.hash_into(hasher);
             }
         }
     }

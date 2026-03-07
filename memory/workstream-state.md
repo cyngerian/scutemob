@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 13: Newer Set Mechanics (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle) | available | — | Batch 12 complete; claim to start B13 |
+| W1: Abilities | Batch 13: Newer Set Mechanics (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle) | ACTIVE | 2026-03-07 | Chained run — all 8 abilities, no intervention; KW 136, AbilDef 53, SOK 52 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

@@ -1851,6 +1851,32 @@ fn execute_effect_inner(
             });
         }
 
+        // CR 701.57a: Discover N — exile cards from the top of the specified
+        // player's library until you exile a nonland card with mana value <= N.
+        // You may cast that card without paying its mana cost. If you don't cast
+        // it, put that card into your hand. Put the remaining exiled cards on the
+        // bottom of your library in a random order.
+        //
+        // Key differences from Cascade (CR 702.85):
+        // - MV threshold is <= N (not < spell_MV like Cascade)
+        // - Declined card goes to hand (Cascade puts all non-cast cards on library bottom)
+        //
+        // CR 701.57b: Always completes even if no qualifying card is found
+        // (empty library, all lands, etc.).
+        //
+        // Deterministic fallback: always casts the discovered card (interactive
+        // "may cast" choice deferred to M10+).
+        Effect::Discover { player, n } => {
+            // Resolve the PlayerTarget to a single PlayerId. Discover is always
+            // performed by one player (the controller or a specified opponent).
+            let players = resolve_player_target_list(state, player, ctx);
+            if let Some(player_id) = players.into_iter().next() {
+                let (discover_events, _result_id) =
+                    crate::rules::copy::resolve_discover(state, player_id, *n);
+                events.extend(discover_events);
+            }
+        }
+
         Effect::Nothing => {}
 
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's

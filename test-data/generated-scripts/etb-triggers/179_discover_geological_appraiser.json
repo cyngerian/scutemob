@@ -1,0 +1,209 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_etb_179",
+    "name": "Discover 3 — Geological Appraiser ETB exiles land then casts qualifying card",
+    "description": "Tests the full Discover 3 flow (CR 701.57a) triggered by Geological Appraiser's ETB ability. P1 casts Geological Appraiser ({2}{R}{R}, 3/2). Both players pass priority; the creature resolves and enters the battlefield. During that resolution, its WhenEntersBattlefield ETB ability fires inline (via fire_when_enters_triggered_effects) and executes Effect::Discover{n:3}: Forest (a land) is exiled and sent to library bottom (DiscoverExiled); Night's Whisper (nonland sorcery, MV 2 <= 3) is exiled and cast for free onto the stack (DiscoverCast). Both players pass again; Night's Whisper resolves, p1 draws 2 cards and loses 2 life (40 -> 38). Two library cards (Island, Mountain) are pre-placed so the draw can succeed.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "701.57a",
+      "701.57b",
+      "118.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "discover",
+      "etb",
+      "keyword-action",
+      "geological-appraiser",
+      "free-cast",
+      "library-exile",
+      "inline-etb"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Geological Appraiser card definition (crates/engine/src/cards/defs/geological_appraiser.rs): mana_cost {2}{R}{R}, power 3, toughness 2; AbilityDefinition::Triggered with WhenEntersBattlefield and Effect::Discover { player: Controller, n: 3 }. Critical engine behavior: WhenEntersBattlefield triggers with Effect::Discover are executed INLINE during creature resolution via fire_when_enters_triggered_effects (replacement.rs line 966: execute_effect called directly). This is NOT a separate stack trigger — the Discover happens during the same resolution pass as the creature entering. As a result, ONE priority_round resolves the creature AND executes Discover, placing Night's Whisper on the stack. Library layout top-to-bottom: Forest (index 0 = top), Night's Whisper (index 1), Island (index 2), Mountain (index 3 = bottom). After Discover: Forest goes to library bottom (DiscoverExiled), Night's Whisper cast for free (DiscoverCast) — library has 3 cards (Island, Mountain, Forest at bottom). Night's Whisper oracle text: 'You draw 2 cards and you lose 2 life.' Night's Whisper chosen because it has no targets (unlike Lightning Bolt which requires a target that the discover free-cast cannot auto-supply). Mana pre-loaded: 2 colorless + 2 red for {2}{R}{R}.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "red": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Geological Appraiser", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Night's Whisper", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Mountain", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Geological Appraiser; when it resolves, its ETB fires Discover 3 inline, exiling Forest (skipped), then casting Night's Whisper for free; Night's Whisper then resolves drawing 2 and costing 2 life",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Geological Appraiser in p1 hand, library has 4 cards (Forest on top), stack empty, p1 at 40 life",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Geological Appraiser" }] },
+            "zones.library.p1.count": 4,
+            "players.p1.life": 40
+          },
+          "note": "Library top-to-bottom: Forest (land, exiled and sent to bottom by Discover), Night's Whisper (MV 2 <= 3, qualifies), Island, Mountain."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Geological Appraiser",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "red": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Geological Appraiser paying {2}{R}{R}. Card moves from hand to the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Geological Appraiser on stack, p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Geological Appraiser spell is on the stack awaiting priority passes."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Geological Appraiser resolves. During resolution, its WhenEntersBattlefield ETB fires inline via fire_when_enters_triggered_effects, executing Discover 3: Forest exiled and sent to library bottom (DiscoverExiled), Night's Whisper exiled and cast for free onto the stack (DiscoverCast). CR 701.57a."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Geological Appraiser",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Geological Appraiser",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Geological Appraiser resolves and enters the battlefield as a 3/2 creature."
+            },
+            {
+              "effect": "discover",
+              "card": "Geological Appraiser",
+              "controller": "p1",
+              "amount": 3,
+              "cr_ref": "701.57a",
+              "note": "CR 701.57a: Discover 3 executes inline during creature resolution. Exile from library top: (1) Forest — land, sent to library bottom (DiscoverExiled event); (2) Night's Whisper — nonland, MV 2 <= 3, qualifies. Night's Whisper cast for free onto the stack (DiscoverCast event). Deterministic engine always casts (no player choice until M10)."
+            }
+          ],
+          "note": "CR 701.57a: WhenEntersBattlefield triggers with Effect::Discover execute inline (not as a separate stack object). Geological Appraiser enters, Discover 3 fires, Night's Whisper is on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Geological Appraiser resolves with inline Discover 3: it is on battlefield, Night's Whisper is on stack (cast for free), library has 3 cards (Forest at bottom), hand empty",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Geological Appraiser" }]
+            },
+            "zones.stack.count": 1,
+            "zones.library.p1.count": 3,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 701.57a: Night's Whisper (MV 2) was cast for free by Discover 3 and is on the stack. Forest was sent to library bottom — library has 3 cards (Island, Mountain, Forest). Stack has exactly 1 object."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Night's Whisper resolves from the stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Night's Whisper",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Night's Whisper resolves. p1 draws 2 cards (Island and Mountain from library top)."
+            },
+            {
+              "effect": "lose_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: p1 loses 2 life. Life total: 40 -> 38."
+            }
+          ],
+          "note": "CR 608.2: Night's Whisper (cast for free by Discover 3) resolves. p1 draws 2 and loses 2 life. Card moves to p1's graveyard."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: p1 at 38 life with 2 cards in hand, Geological Appraiser on battlefield, Night's Whisper in graveyard, Forest in library, stack empty",
+          "assertions": {
+            "players.p1.life": 38,
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 2,
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Geological Appraiser" }]
+            },
+            "zones.graveyard.p1": {
+              "includes": [{ "card": "Night's Whisper" }]
+            },
+            "zones.library.p1.count": 1
+          },
+          "note": "CR 701.57a + 118.2: Full Discover 3 flow complete. Geological Appraiser is on the battlefield. Night's Whisper (discovered, cast for free) drew 2 cards and lost 2 life. Library has 1 card (Forest at bottom). Hand has 2 cards (Island and Mountain drawn by Night's Whisper). Stack is empty."
+        }
+      ]
+    }
+  ]
+}

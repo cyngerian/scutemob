@@ -935,6 +935,28 @@ pub enum Effect {
     /// Always emits a Proliferated event (even with 0 eligible targets) to
     /// support "whenever you proliferate" triggers (ruling 2023-02-04).
     Proliferate,
+    /// CR 701.57a: Discover N — exile cards from the top of the specified player's
+    /// library until you exile a nonland card with mana value N or less. You may
+    /// cast that card without paying its mana cost. If you don't cast it, put that
+    /// card into your hand. Put the remaining exiled cards on the bottom of your
+    /// library in a random order.
+    ///
+    /// Key differences from Cascade (CR 702.85):
+    /// - MV threshold is <= N (Cascade uses < spell_MV)
+    /// - Declined card goes to hand (Cascade puts it on library bottom)
+    /// - Uses a fixed N, not the spell's own MV
+    ///
+    /// CR 701.57b: A player has "discovered" even if some or all actions were
+    /// impossible (e.g., empty library).
+    ///
+    /// Deterministic fallback: always casts the discovered card (interactive choice
+    /// "may cast" deferred to M10+). If the card cannot be cast, it goes to hand.
+    Discover {
+        /// The player who performs the discover action (usually the controller).
+        player: PlayerTarget,
+        /// The discover value N — qualifying cards have mana value <= N.
+        n: u32,
+    },
     /// CR 702.75a / CR 607.2a: Play the card exiled face-down by this
     /// permanent's Hideaway ETB trigger without paying its mana cost.
     ///

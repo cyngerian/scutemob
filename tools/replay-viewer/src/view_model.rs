@@ -860,5 +860,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Fuse => "Fuse".to_string(),
         KeywordAbility::Spree => "Spree".to_string(),
         KeywordAbility::Ravenous => "Ravenous".to_string(),
+        KeywordAbility::Discover => "Discover".to_string(),
     }
 }
