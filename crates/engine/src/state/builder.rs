@@ -962,6 +962,8 @@ impl GameStateBuilder {
                 phased_out_controller: None,
                 creatures_devoured: 0,
                 champion_exiled_card: None,
+                // CR 702.95b: objects start unpaired.
+                paired_with: None,
             };
 
             state.add_object(object, zone)?;

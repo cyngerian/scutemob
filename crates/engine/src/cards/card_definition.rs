@@ -10,6 +10,7 @@
 use im::OrdSet;
 use serde::{Deserialize, Serialize};
 
+use crate::state::continuous_effect::{EffectLayer, LayerModification};
 use crate::state::game_object::{ActivatedAbility, ManaAbility};
 use crate::state::replacement_effect::{ReplacementModification, ReplacementTrigger};
 use crate::state::{
@@ -538,6 +539,28 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 49.
     Champion { filter: ChampionFilter },
+    /// CR 702.95a: Soulbond -- two ETB triggered abilities plus static "as long as
+    /// paired" grants. `enrich_spec_from_def` adds `KeywordAbility::Soulbond`.
+    ///
+    /// `grants` specifies continuous effects applied to BOTH paired creatures via
+    /// `EffectDuration::WhilePaired` CEs registered at SoulbondTrigger resolution.
+    ///
+    /// Example (Wolfir Silverheart): `grants: [SoulbondGrant { layer: PtModify, modification: ModifyBoth(4) }]`
+    ///
+    /// Discriminant 50.
+    Soulbond { grants: Vec<SoulbondGrant> },
+}
+
+/// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).
+///
+/// Registered as a `ContinuousEffect` with `EffectDuration::WhilePaired` when the
+/// SoulbondTrigger resolves. Active as long as both creatures remain paired.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SoulbondGrant {
+    /// Which layer the modification applies in (CR 613.1).
+    pub layer: EffectLayer,
+    /// What the modification does (e.g., ModifyBoth(4) for +4/+4).
+    pub modification: LayerModification,
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

@@ -2195,6 +2195,7 @@ fn execute_effect_inner(
                                         backup_n: None,
                                         champion_filter: None,
                                         champion_exiled_card: None,
+                                        soulbond_pair_target: None,
                                     });
                                 }
                             }
@@ -2670,6 +2671,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         phased_out_controller: None,
         creatures_devoured: 0,
         champion_exiled_card: None,
+        paired_with: None,
     }
 }
 
@@ -2833,6 +2835,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         backup_n: None,
                         champion_filter: None,
                         champion_exiled_card: None,
+                        soulbond_pair_target: None,
                     });
                 }
             }

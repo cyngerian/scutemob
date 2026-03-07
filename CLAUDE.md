@@ -11,9 +11,10 @@
 
 ## Current State
 
-- **Active Milestone**: M9.5 DONE — advancing to M10 (Networking Layer)
-- **Status**: 1641 tests passing; ~148 validated; 40/42 P1; 16/17 P2 (Modal deferred); 37/40 P3; 57/88 P4 (+Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass); Batch 0+1+2+3+4+5+6+7+8+9 complete; Batch 10 next; 0 HIGH/MEDIUM; ~40 LOW deferred
-- **Last Updated**: 2026-03-06
+- **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
+- **Status**: 1699 tests passing; ~154 validated; 40/42 P1; 16/17 P2 (Modal deferred); 37/40 P3; 63/88 P4 (+Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond); Batch 0-9 complete; Batch 10 in-progress (6/7 done, Fortify remaining); 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
+- **Last Updated**: 2026-03-07
 
 ### What Exists (M9.5 complete + 59 abilities, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry
@@ -58,6 +59,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | Workstream Coordination | `docs/workstream-coordination.md` | Cross-session coordination for 4 parallel workstreams (abilities, TUI, LOWs, M10) |
 | Ability Batch Plan | `docs/ability-batch-plan.md` | 16 batches covering all ~75 implementable abilities (P3+P4) with dependency map |
 | Card Pipeline & Scaling | `docs/mtg-engine-card-pipeline.md` | Card definition organization, Rust DSL rationale, scaling strategy (112 → 27k), authoring pipeline |
+| Strategic Review | `docs/mtg-engine-strategic-review.md` | 2026-03-07 project review: path-to-playable compression, M10/M11/M12 restructuring, action items |
 | Codebase Analysis | `codebase_analysis_220260228.md` | Comprehensive codebase snapshot (2026-02-28): architecture, file inventory, stats |
 | This file | `CLAUDE.md` | Current project state; session context |
 
@@ -87,6 +89,7 @@ Before starting work, check which files apply to your task:
 | Implementing a single ability end-to-end | Use `/implement-ability` — orchestrates plan → implement → review → fix → card → script → close |
 | Fixing LOW issues | `docs/mtg-engine-low-issues-remediation.md` |
 | Authoring card definitions | `docs/mtg-engine-card-pipeline.md`; worklist at `test-data/test-decks/PLAN.md` |
+| Planning M10, M11, or M12 | `docs/mtg-engine-strategic-review.md` (must read before starting) |
 | Deciding what to work on / coordinating workstreams | `docs/workstream-coordination.md` |
 
 Use `/review-subsystem <name>` to load the right file and see open issues in one step.

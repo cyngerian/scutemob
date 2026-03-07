@@ -1,11 +1,19 @@
 # Workstream Coordination Plan
 
-> **Purpose**: Coordinate four parallel workstreams to avoid dependency conflicts,
-> minimize context-switching overhead, and maintain a clear path to M10.
+> **Purpose**: Coordinate parallel workstreams to avoid dependency conflicts,
+> minimize context-switching overhead, and maintain a clear path to playable.
 >
 > **Load this file** at the start of any session to orient on which workstream to advance.
 >
-> **Last updated**: 2026-02-28
+> **Strategic review (2026-03-07)**: `docs/mtg-engine-strategic-review.md` restructures
+> the path forward. Key impacts on workstreams:
+> - M11 (UI) is now independent of M10 (networking) — can start immediately
+> - M10 splits into M10a (basic multiplayer) and M10b (resilience/social)
+> - M12 (card pipeline) downscoped — agent-based scaling replaces pipeline crate
+> - Transform/Morph should be prioritized in W1 to unblock 9 ability batches
+> - Web-vs-Tauri decision pending — affects W2 and M11 architecture
+>
+> **Last updated**: 2026-03-07
 
 ---
 

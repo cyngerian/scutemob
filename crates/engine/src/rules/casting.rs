@@ -2672,6 +2672,7 @@ pub fn handle_cast_spell(
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }

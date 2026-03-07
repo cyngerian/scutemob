@@ -1030,4 +1030,21 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         exiled_card: ObjectId,
     },
+    /// CR 702.95a: Soulbond ETB trigger on the stack.
+    ///
+    /// Fired when a creature with soulbond enters (SelfETB) OR when another
+    /// creature enters while an unpaired soulbond creature is on the battlefield
+    /// (OtherETB). In both cases, source_object is the soulbond creature.
+    ///
+    /// At resolution (CR 702.95c): both source_object and pair_target must still
+    /// be on the battlefield as creatures controlled by the same player and both
+    /// unpaired, otherwise fizzle.
+    ///
+    /// Discriminant 49.
+    SoulbondTrigger {
+        /// The creature with the soulbond ability.
+        source_object: ObjectId,
+        /// The creature to pair with (auto-selected at trigger time).
+        pair_target: ObjectId,
+    },
 }

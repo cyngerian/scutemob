@@ -54,6 +54,10 @@ pub enum EffectDuration {
     UntilEndOfTurn,
     /// Never expires on its own (e.g., certain spell effects with no stated duration).
     Indefinite,
+    /// Active as long as both ObjectIds are on the battlefield and paired with each other
+    /// (CR 702.95a "for as long as both remain creatures on the battlefield under your control").
+    /// Used for soulbond "as long as paired" grants registered at SoulbondTrigger resolution.
+    WhilePaired(ObjectId, ObjectId),
 }
 
 /// Which objects a continuous effect applies to.

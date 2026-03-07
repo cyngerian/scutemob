@@ -561,6 +561,7 @@ pub fn handle_cycle_card(
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -2072,6 +2073,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2148,6 +2150,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 backup_n: None,
                                 champion_filter: None,
                                 champion_exiled_card: None,
+                                soulbond_pair_target: None,
                             });
                         }
                     }
@@ -2213,6 +2216,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -2280,6 +2284,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 backup_n: None,
                                 champion_filter: None,
                                 champion_exiled_card: None,
+                                soulbond_pair_target: None,
                             });
                         }
                     }
@@ -2361,6 +2366,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             backup_n: Some(*n),
                                             champion_filter: None,
                                             champion_exiled_card: None,
+                                            soulbond_pair_target: None,
                                         });
                                     }
                                 }
@@ -2437,7 +2443,206 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 backup_n: None,
                                 champion_filter: Some(filter),
                                 champion_exiled_card: None,
+                                soulbond_pair_target: None,
                             });
+                        }
+                    }
+                }
+
+                // CR 702.95a: Soulbond — two ETB triggered abilities:
+                //   Trigger 1 (SelfETB): When a creature with soulbond enters, if its
+                //   controller controls another unpaired creature, pair them.
+                //   Trigger 2 (OtherETB): When any creature enters, for each unpaired
+                //   soulbond creature controlled by the same player, pair them.
+                //
+                // CR 603.4: Intervening-if — "you control another unpaired creature" is
+                // checked at trigger time AND at resolution.
+                {
+                    let entering_controller = state.objects.get(object_id).map(|o| o.controller);
+                    let entering_is_creature =
+                        crate::rules::layers::calculate_characteristics(state, *object_id)
+                            .or_else(|| {
+                                state
+                                    .objects
+                                    .get(object_id)
+                                    .map(|o| o.characteristics.clone())
+                            })
+                            .map(|chars| chars.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false);
+
+                    if entering_is_creature {
+                        if let Some(controller) = entering_controller {
+                            // Trigger 1 (SoulbondSelfETB): entering creature itself has Soulbond.
+                            let entering_has_soulbond = {
+                                let base = state
+                                    .objects
+                                    .get(object_id)
+                                    .map(|o| {
+                                        o.characteristics
+                                            .keywords
+                                            .contains(&KeywordAbility::Soulbond)
+                                    })
+                                    .unwrap_or(false);
+                                let layer = crate::rules::layers::calculate_characteristics(
+                                    state, *object_id,
+                                )
+                                .map(|c| c.keywords.contains(&KeywordAbility::Soulbond))
+                                .unwrap_or(false);
+                                base || layer
+                            };
+
+                            if entering_has_soulbond {
+                                // Intervening-if: controller has another unpaired creature.
+                                let pair_target: Option<ObjectId> = state
+                                    .objects
+                                    .values()
+                                    .find(|obj| {
+                                        obj.zone == ZoneId::Battlefield
+                                            && obj.is_phased_in()
+                                            && obj.controller == controller
+                                            && obj.id != *object_id
+                                            && obj.paired_with.is_none()
+                                            && obj
+                                                .characteristics
+                                                .card_types
+                                                .contains(&CardType::Creature)
+                                    })
+                                    .map(|obj| obj.id);
+
+                                if let Some(partner_id) = pair_target {
+                                    triggers.push(PendingTrigger {
+                                        source: *object_id,
+                                        ability_index: 0,
+                                        controller,
+                                        kind: PendingTriggerKind::SoulbondSelfETB,
+                                        triggering_event: Some(
+                                            TriggerEvent::AnyPermanentEntersBattlefield,
+                                        ),
+                                        entering_object_id: Some(*object_id),
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        madness_exiled_card: None,
+                                        madness_cost: None,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        modular_counter_count: None,
+                                        evolve_entering_creature: None,
+                                        suspend_card_id: None,
+                                        hideaway_count: None,
+                                        partner_with_name: None,
+                                        ingest_target_player: None,
+                                        flanking_blocker_id: None,
+                                        rampage_n: None,
+                                        provoke_target_creature: None,
+                                        renown_n: None,
+                                        poisonous_n: None,
+                                        poisonous_target_player: None,
+                                        enlist_enlisted_creature: None,
+                                        encore_activator: None,
+                                        echo_cost: None,
+                                        cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
+                                        graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
+                                        soulbond_pair_target: Some(partner_id),
+                                    });
+                                }
+                            }
+
+                            // Trigger 2 (SoulbondOtherETB): other unpaired soulbond creatures
+                            // controlled by same player pair with the entering creature.
+                            // The entering creature must also be unpaired (checked at trigger time).
+                            let entering_is_unpaired = state
+                                .objects
+                                .get(object_id)
+                                .map(|o| o.paired_with.is_none())
+                                .unwrap_or(false);
+
+                            if entering_is_unpaired {
+                                let soulbond_sources: Vec<(ObjectId, PlayerId)> =
+                                    state
+                                        .objects
+                                        .values()
+                                        .filter(|obj| {
+                                            obj.zone == ZoneId::Battlefield
+                                            && obj.is_phased_in()
+                                            && obj.controller == controller
+                                            && obj.id != *object_id
+                                            && obj.paired_with.is_none()
+                                            && obj.characteristics.card_types
+                                                .contains(&CardType::Creature)
+                                            && (obj.characteristics.keywords
+                                                .contains(&KeywordAbility::Soulbond)
+                                                || crate::rules::layers::calculate_characteristics(
+                                                    state, obj.id,
+                                                )
+                                                .map(|c| {
+                                                    c.keywords.contains(&KeywordAbility::Soulbond)
+                                                })
+                                                .unwrap_or(false))
+                                        })
+                                        .map(|obj| (obj.id, obj.controller))
+                                        .collect();
+
+                                for (sb_id, sb_controller) in soulbond_sources {
+                                    // Skip if sb_id has Soulbond and already fired SelfETB for this
+                                    // same pair (sb_id == object_id handled by filter above).
+                                    // This arm fires for OTHER soulbond creatures pairing INTO
+                                    // the entering creature — only skip if entering creature itself
+                                    // has soulbond (handled by Trigger 1 above).
+                                    if entering_has_soulbond && sb_id == *object_id {
+                                        continue;
+                                    }
+                                    triggers.push(PendingTrigger {
+                                        source: sb_id,
+                                        ability_index: 0,
+                                        controller: sb_controller,
+                                        kind: PendingTriggerKind::SoulbondOtherETB,
+                                        triggering_event: Some(
+                                            TriggerEvent::AnyPermanentEntersBattlefield,
+                                        ),
+                                        entering_object_id: Some(*object_id),
+                                        targeting_stack_id: None,
+                                        triggering_player: None,
+                                        exalted_attacker_id: None,
+                                        defending_player_id: None,
+                                        madness_exiled_card: None,
+                                        madness_cost: None,
+                                        miracle_revealed_card: None,
+                                        miracle_cost: None,
+                                        modular_counter_count: None,
+                                        evolve_entering_creature: None,
+                                        suspend_card_id: None,
+                                        hideaway_count: None,
+                                        partner_with_name: None,
+                                        ingest_target_player: None,
+                                        flanking_blocker_id: None,
+                                        rampage_n: None,
+                                        provoke_target_creature: None,
+                                        renown_n: None,
+                                        poisonous_n: None,
+                                        poisonous_target_player: None,
+                                        enlist_enlisted_creature: None,
+                                        encore_activator: None,
+                                        echo_cost: None,
+                                        cumulative_upkeep_cost: None,
+                                        recover_cost: None,
+                                        recover_card: None,
+                                        graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
+                                        champion_filter: None,
+                                        champion_exiled_card: None,
+                                        soulbond_pair_target: Some(*object_id),
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -2595,6 +2800,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             backup_n: None,
                                             champion_filter: None,
                                             champion_exiled_card: None,
+                                            soulbond_pair_target: None,
                                         });
                                     }
                                 }
@@ -2702,6 +2908,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     backup_n: None,
                                     champion_filter: None,
                                     champion_exiled_card: None,
+                                    soulbond_pair_target: None,
                                 });
                             }
                         }
@@ -3227,6 +3434,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3420,6 +3628,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3499,6 +3708,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3550,6 +3760,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3615,6 +3826,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3742,6 +3954,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: None,
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -3851,6 +4064,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         backup_n: None,
                                         champion_filter: None,
                                         champion_exiled_card: None,
+                                        soulbond_pair_target: None,
                                     });
                                 }
                             }
@@ -3940,6 +4154,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         backup_n: None,
                                         champion_filter: None,
                                         champion_exiled_card: None,
+                                        soulbond_pair_target: None,
                                     });
                                 }
                             }
@@ -4030,6 +4245,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         backup_n: None,
                                         champion_filter: None,
                                         champion_exiled_card: None,
+                                        soulbond_pair_target: None,
                                     });
                                 }
                             }
@@ -4107,6 +4323,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -4161,6 +4378,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_card_id),
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -4213,6 +4431,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             backup_n: None,
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
+                            soulbond_pair_target: None,
                         });
                     }
                 }
@@ -4310,6 +4529,7 @@ fn collect_triggers_for_event(
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -4845,6 +5065,14 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::ChampionLTBTrigger {
                         source_object: trigger.source,
                         exiled_card: trigger.champion_exiled_card.unwrap_or(trigger.source),
+                    }
+                }
+                PendingTriggerKind::SoulbondSelfETB | PendingTriggerKind::SoulbondOtherETB => {
+                    // CR 702.95a: Soulbond ETB triggers (self-ETB and other-ETB).
+                    // source = soulbond creature; pair_target = the creature to pair with.
+                    StackObjectKind::SoulbondTrigger {
+                        source_object: trigger.source,
+                        pair_target: trigger.soulbond_pair_target.unwrap_or(trigger.source),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

@@ -438,6 +438,7 @@ fn test_commander_damage_survives_zone_change() {
                 phased_out_controller: None,
                 creatures_devoured: 0,
                 champion_exiled_card: None,
+                paired_with: None,
             },
             ZoneId::Battlefield,
         )

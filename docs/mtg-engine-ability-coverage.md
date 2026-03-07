@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Living Metal 702.161 validated: KW 128, Layer 4 type-change in layers.rs, Steel Guardian, script stack/166, 7 tests)
+> Last audited: 2026-03-07 (Soulbond 702.95 validated: paired_with on GameObject, SoulbondSelfETB+SoulbondOtherETB triggers, SOK 49, Silverblade Paladin, script stack/167, 10 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 60        | 0        | 0       | 33   | 12  |
-| **Total**| **204**| **153**  | **2**    | **0**   | **37**| **12** |
+| P4       | 105   | 61        | 0        | 0       | 32   | 12  |
+| **Total**| **204**| **154**  | **2**    | **0**   | **36**| **12** |
 
 ---
 
@@ -278,7 +278,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Prototype | 702.160 | P4 | `validated` | `state/types.rs:882` (KeywordAbility::Prototype disc 98), `cards/card_definition.rs:373` (AbilityDefinition::Prototype{cost,power,toughness} disc 31), `rules/command.rs:163` (CastSpell.prototype: bool), `state/game_object.rs:517` (is_prototyped), `state/stack.rs:184` (was_prototyped), `rules/casting.rs:68,972-993` (prototype cost selection + stack char overwrite), `rules/resolution.rs:335-346` (ETB prototype char application), `state/mod.rs:310-316,433-438` (CR 718.4 zone-change revert), `rules/copy.rs:204-205` (CR 718.3c was_prototyped propagation), `rules/commander.rs:210-216` (prototype cost in color identity), `testing/replay_harness.rs:853` (cast_spell_prototype action) | Blitz Automaton | `stack/135` | 10 tests in `tests/prototype.rs` | CR 702.160 + CR 718; NOT an alternative cost (CR 118.9); prototype changes P/T, mana cost, color on stack+battlefield only; reverts to printed chars on zone change (CR 718.4); copies inherit was_prototyped (CR 718.3c); abilities/name/types unchanged (CR 718.5) |
 | Living Metal | 702.161 | P4 | `validated` | `state/types.rs`, `rules/layers.rs` | Steel Guardian | `stack/166` | — | KW 128; Layer 4 type-change during controller's turn (CR 702.161a); 7 tests in `living_metal.rs`; all real cards are DFC Transform (blocked subsystem), uses synthetic card |
 | Umbra Armor | 702.89 | P4 | `validated` | `state/types.rs`, `rules/replacement.rs`, `rules/sba.rs`, `effects/mod.rs` | Hyena Umbra | `stack/165` | Enchant | Aura destroyed instead of enchanted permanent; KW 127, disc 99; 11 tests in `umbra_armor.rs` |
-| Soulbond | 702.95 | P4 | `none` | — | — | — | — | Pair with another creature for shared abilities |
+| Soulbond | 702.95 | P4 | `validated` | `state/types.rs`, `state/game_object.rs`, `rules/resolution.rs`, `rules/sba.rs`, `rules/layers.rs`, `rules/abilities.rs`, `cards/card_definition.rs` | Silverblade Paladin | `stack/167` | — | KW Soulbond; `paired_with` on GameObject; SoulbondSelfETB+SoulbondOtherETB triggers; SoulbondTrigger SOK 49; SoulbondGrant+EffectDuration::WhilePaired in layers; fizzle check via calculate_characteristics; 10 tests in `soulbond.rs` |
 | Haunt | 702.55 | P4 | `none` | — | — | — | — | When this dies, exile haunting a creature |
 | Extort | 702.101 | P3 | `validated` | `state/types.rs:324`, `state/game_object.rs:174`, `cards/card_definition.rs:224`, `effects/mod.rs:261`, `rules/abilities.rs:640`, `state/builder.rs:561`, `state/hash.rs:376`, `tools/replay-viewer/src/view_model.rs:610` | Syndic of Tithes | `stack/078` | — | CR 702.101a+b: triggered ability on spell cast, may pay {W/B}, drain 1 from each opponent; multiple instances trigger separately; 7 unit tests in `tests/extort.rs` |
 | Cipher | 702.99 | P4 | `none` | — | — | — | — | Encode spell on creature; cast copy on combat damage |

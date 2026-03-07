@@ -1508,6 +1508,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 backup_n: None,
                                 champion_filter: None,
                                 champion_exiled_card: None,
+                                soulbond_pair_target: None,
                             });
                     }
                 }
@@ -3002,6 +3003,120 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.95a/702.95c: Soulbond ETB trigger resolution.
+        StackObjectKind::SoulbondTrigger {
+            source_object,
+            pair_target,
+        } => {
+            use crate::state::continuous_effect::{
+                ContinuousEffect, EffectDuration, EffectFilter, EffectId,
+            };
+            let controller = stack_obj.controller;
+
+            // CR 702.95c: Both source and target must still be on the battlefield as creatures
+            // controlled by the same player, and both must be unpaired.
+            // Use calculate_characteristics (layer-resolved) for the creature check, consistent
+            // with check_soulbond_unpairing in sba.rs (CR 702.95c: "no longer a creature").
+            let source_ok = state
+                .objects
+                .get(&source_object)
+                .map(|o| {
+                    o.zone == ZoneId::Battlefield
+                        && o.is_phased_in()
+                        && o.controller == controller
+                        && o.paired_with.is_none()
+                })
+                .unwrap_or(false)
+                && crate::rules::layers::calculate_characteristics(state, source_object)
+                    .map(|c| c.card_types.contains(&CardType::Creature))
+                    .unwrap_or(false);
+            let target_ok = pair_target != source_object
+                && state
+                    .objects
+                    .get(&pair_target)
+                    .map(|o| {
+                        o.zone == ZoneId::Battlefield
+                            && o.is_phased_in()
+                            && o.controller == controller
+                            && o.paired_with.is_none()
+                    })
+                    .unwrap_or(false)
+                && crate::rules::layers::calculate_characteristics(state, pair_target)
+                    .map(|c| c.card_types.contains(&CardType::Creature))
+                    .unwrap_or(false);
+
+            if source_ok && target_ok {
+                // CR 702.95b: Set paired_with symmetrically on both creatures.
+                if let Some(src) = state.objects.get_mut(&source_object) {
+                    src.paired_with = Some(pair_target);
+                }
+                if let Some(tgt) = state.objects.get_mut(&pair_target) {
+                    tgt.paired_with = Some(source_object);
+                }
+
+                // Register WhilePaired CEs for any soulbond grants from the card definition.
+                // Look up the soulbond creature's card definition for grants.
+                let registry = state.card_registry.clone();
+                let card_id = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|o| o.card_id.clone());
+                if let Some(cid) = card_id {
+                    if let Some(def) = registry.get(cid) {
+                        for ability in &def.abilities {
+                            if let crate::cards::card_definition::AbilityDefinition::Soulbond {
+                                grants,
+                            } = ability
+                            {
+                                for grant in grants {
+                                    // Grant applies to the soulbond creature itself.
+                                    let ts = state.timestamp_counter;
+                                    state.timestamp_counter += 1;
+                                    let effect_id = EffectId(state.next_object_id().0);
+                                    state.continuous_effects.push_back(ContinuousEffect {
+                                        id: effect_id,
+                                        source: Some(source_object),
+                                        layer: grant.layer,
+                                        filter: EffectFilter::SingleObject(source_object),
+                                        modification: grant.modification.clone(),
+                                        duration: EffectDuration::WhilePaired(
+                                            source_object,
+                                            pair_target,
+                                        ),
+                                        timestamp: ts,
+                                        is_cda: false,
+                                    });
+                                    // Grant applies to the paired partner too.
+                                    let ts2 = state.timestamp_counter;
+                                    state.timestamp_counter += 1;
+                                    let effect_id2 = EffectId(state.next_object_id().0);
+                                    state.continuous_effects.push_back(ContinuousEffect {
+                                        id: effect_id2,
+                                        source: Some(source_object),
+                                        layer: grant.layer,
+                                        filter: EffectFilter::SingleObject(pair_target),
+                                        modification: grant.modification.clone(),
+                                        duration: EffectDuration::WhilePaired(
+                                            source_object,
+                                            pair_target,
+                                        ),
+                                        timestamp: ts2,
+                                        is_cda: false,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // CR 702.95c: If either check fails, neither creature becomes paired (fizzle).
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         StackObjectKind::BackupTrigger {
             source_object,
             target_creature,
@@ -3174,6 +3289,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_controller: None,
                     creatures_devoured: 0,
                     champion_exiled_card: None,
+                    paired_with: None,
                 };
 
                 // Add the token to the battlefield.
@@ -3308,6 +3424,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 backup_n: None,
                                 champion_filter: None,
                                 champion_exiled_card: None,
+                                soulbond_pair_target: None,
                             });
                     }
                 }
@@ -4285,6 +4402,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_controller: None,
                     creatures_devoured: 0,
                     champion_exiled_card: None,
+                    paired_with: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4475,6 +4593,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     phased_out_controller: None,
                     creatures_devoured: 0,
                     champion_exiled_card: None,
+                    paired_with: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4684,6 +4803,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         phased_out_controller: None,
                         creatures_devoured: 0,
                         champion_exiled_card: None,
+                        paired_with: None,
                     };
 
                     // Add the token to the battlefield.
@@ -4997,7 +5117,8 @@ pub fn counter_stack_object(
         | StackObjectKind::ScavengeAbility { .. }
         | StackObjectKind::BackupTrigger { .. }
         | StackObjectKind::ChampionETBTrigger { .. }
-        | StackObjectKind::ChampionLTBTrigger { .. } => {
+        | StackObjectKind::ChampionLTBTrigger { .. }
+        | StackObjectKind::SoulbondTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
             // are placed and no abilities are granted (CR 702.165a).

@@ -212,6 +212,25 @@ pub fn is_effect_active(state: &GameState, effect: &ContinuousEffect) -> bool {
         // Active until explicitly removed during cleanup (CR 514.2).
         EffectDuration::UntilEndOfTurn => true,
         EffectDuration::Indefinite => true,
+        // CR 702.95a: Active as long as both creatures are on the battlefield,
+        // phased in, and still have their paired_with pointing at each other.
+        EffectDuration::WhilePaired(a, b) => {
+            let a_ok = state
+                .objects
+                .get(&a)
+                .map(|o| {
+                    o.zone == ZoneId::Battlefield && o.is_phased_in() && o.paired_with == Some(b)
+                })
+                .unwrap_or(false);
+            let b_ok = state
+                .objects
+                .get(&b)
+                .map(|o| {
+                    o.zone == ZoneId::Battlefield && o.is_phased_in() && o.paired_with == Some(a)
+                })
+                .unwrap_or(false);
+            a_ok && b_ok
+        }
     }
 }
 

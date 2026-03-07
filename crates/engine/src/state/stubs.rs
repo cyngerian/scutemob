@@ -100,6 +100,15 @@ pub enum PendingTriggerKind {
     /// CR 702.72a: Champion LTB trigger -- "return the exiled card to the
     /// battlefield under its owner's control."
     ChampionLTB,
+    /// CR 702.95a: Soulbond self-ETB trigger -- fired when the soulbond creature
+    /// enters the battlefield (first sentence of CR 702.95a). The soulbond creature
+    /// is the source; soulbond_pair_target carries the auto-selected partner.
+    SoulbondSelfETB,
+    /// CR 702.95a: Soulbond other-ETB trigger -- fired when another creature enters
+    /// while an unpaired soulbond creature is already on the battlefield (second
+    /// sentence of CR 702.95a). The soulbond creature is the source;
+    /// soulbond_pair_target carries the entering creature.
+    SoulbondOtherETB,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -332,6 +341,13 @@ pub struct PendingTrigger {
     /// Captured from `champion_exiled_card` on the post-move object at trigger time.
     #[serde(default)]
     pub champion_exiled_card: Option<ObjectId>,
+    /// CR 702.95a: The ObjectId of the creature selected as the pairing target.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::SoulbondSelfETB` or
+    /// `SoulbondOtherETB`. Auto-selected at trigger-collection time; carried
+    /// through to `flush_pending_triggers` to build the `SoulbondTrigger` SOK.
+    #[serde(default)]
+    pub soulbond_pair_target: Option<ObjectId>,
 }
 
 impl PendingTriggerKind {

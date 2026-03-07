@@ -1183,6 +1183,15 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 128.
     LivingMetal,
+
+    /// CR 702.95a: Soulbond -- "When this creature enters, if you control both
+    /// this creature and another creature and both are unpaired, you may pair
+    /// this creature with another unpaired creature you control for as long as
+    /// both remain creatures on the battlefield under your control." (plus the
+    /// symmetric other-ETB trigger sentence.)
+    ///
+    /// Discriminant 129.
+    Soulbond,
 }
 
 /// CR 702.72a: The filter for what can be championed.

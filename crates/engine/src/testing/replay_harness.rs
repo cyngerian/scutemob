@@ -1782,6 +1782,14 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 702.95: AbilityDefinition::Soulbond { .. } adds KeywordAbility::Soulbond marker.
+    // The soulbond grants are looked up at SoulbondTrigger resolution from the card registry.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Soulbond { .. } = ability {
+            spec = spec.with_keyword(KeywordAbility::Soulbond);
+        }
+    }
+
     // CR 702.107a: Expand AbilityDefinition::Outlast into an ActivatedAbility.
     // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
     // Activate only as a sorcery."

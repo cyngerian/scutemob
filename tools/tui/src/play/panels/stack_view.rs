@@ -180,6 +180,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::ChampionLTBTrigger { source_object, .. } => {
                     ("Champion LTB: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::SoulbondTrigger { source_object, .. } => {
+                    ("Soulbond: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

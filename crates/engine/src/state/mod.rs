@@ -366,7 +366,17 @@ impl GameState {
             // CR 702.72a / CR 603.10a: champion_exiled_card is preserved across zone changes
             // so the LTB trigger can read it from the post-move object (last-known information).
             champion_exiled_card: old_object.champion_exiled_card,
+            // CR 702.95e / CR 400.7: soulbond pairing is broken on zone change (new object identity).
+            paired_with: None,
         };
+
+        // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
+        // We already have old_object.paired_with from the clone taken before removal.
+        if let Some(partner_id) = old_object.paired_with {
+            if let Some(partner) = self.objects.get_mut(&partner_id) {
+                partner.paired_with = None;
+            }
+        }
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's
@@ -507,7 +517,16 @@ impl GameState {
             // CR 702.72a / CR 603.10a: champion_exiled_card is preserved across zone changes
             // so the LTB trigger can read it from the post-move object (last-known information).
             champion_exiled_card: old_object.champion_exiled_card,
+            // CR 702.95e / CR 400.7: soulbond pairing is broken on zone change (new object identity).
+            paired_with: None,
         };
+
+        // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
+        if let Some(partner_id) = old_object.paired_with {
+            if let Some(partner) = self.objects.get_mut(&partner_id) {
+                partner.paired_with = None;
+            }
+        }
 
         // CR 718.4: When a prototyped permanent leaves the battlefield to any zone
         // that is not the stack or battlefield, revert characteristics to the card's

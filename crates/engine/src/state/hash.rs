@@ -37,8 +37,9 @@ use super::zone::{Zone, ZoneId, ZoneType};
 use super::GameState;
 use crate::cards::card_definition::{
     AbilityDefinition, Condition, ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget,
-    ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, TargetController, TargetFilter,
-    TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
+    ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget, SoulbondGrant, TargetController,
+    TargetFilter, TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine,
+    ZoneTarget,
 };
 use crate::rules::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent, LossReason};
 
@@ -637,6 +638,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::UmbraArmor => 127u8.hash_into(hasher),
             // LivingMetal (discriminant 128) -- CR 702.161
             KeywordAbility::LivingMetal => 128u8.hash_into(hasher),
+            // Soulbond (discriminant 129) -- CR 702.95
+            KeywordAbility::Soulbond => 129u8.hash_into(hasher),
         }
     }
 }
@@ -839,6 +842,8 @@ impl HashInto for GameObject {
         self.creatures_devoured.hash_into(hasher);
         // Champion (CR 702.72a) — ObjectId of exiled card tracked by linked LTB trigger
         self.champion_exiled_card.hash_into(hasher);
+        // Soulbond (CR 702.95b) — ObjectId of the creature this is paired with
+        self.paired_with.hash_into(hasher);
     }
 }
 
@@ -920,7 +925,17 @@ impl HashInto for EffectLayer {
 
 impl HashInto for EffectDuration {
     fn hash_into(&self, hasher: &mut Hasher) {
-        (*self as u8).hash_into(hasher);
+        match self {
+            EffectDuration::WhileSourceOnBattlefield => 0u8.hash_into(hasher),
+            EffectDuration::UntilEndOfTurn => 1u8.hash_into(hasher),
+            EffectDuration::Indefinite => 2u8.hash_into(hasher),
+            // CR 702.95a: WhilePaired includes both ObjectIds for uniqueness.
+            EffectDuration::WhilePaired(a, b) => {
+                3u8.hash_into(hasher);
+                a.hash_into(hasher);
+                b.hash_into(hasher);
+            }
+        }
     }
 }
 
@@ -1881,6 +1896,15 @@ impl HashInto for StackObjectKind {
                 48u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 exiled_card.hash_into(hasher);
+            }
+            // SoulbondTrigger (discriminant 49) -- CR 702.95a
+            StackObjectKind::SoulbondTrigger {
+                source_object,
+                pair_target,
+            } => {
+                49u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                pair_target.hash_into(hasher);
             }
         }
     }
@@ -3752,7 +3776,19 @@ impl HashInto for AbilityDefinition {
                 49u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
+            // Soulbond (discriminant 50) -- CR 702.95
+            AbilityDefinition::Soulbond { grants } => {
+                50u8.hash_into(hasher);
+                grants.hash_into(hasher);
+            }
         }
+    }
+}
+
+impl HashInto for SoulbondGrant {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.layer.hash_into(hasher);
+        self.modification.hash_into(hasher);
     }
 }
 

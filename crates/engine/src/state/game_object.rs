@@ -568,6 +568,14 @@ pub struct GameObject {
     /// or the ETB trigger hasn't resolved yet).
     #[serde(default)]
     pub champion_exiled_card: Option<ObjectId>,
+    /// CR 702.95b: The ObjectId of the creature this permanent is currently
+    /// paired with via soulbond. Both paired creatures point to each other.
+    ///
+    /// Set when a SoulbondTrigger resolves. Cleared to `None` on zone changes
+    /// (CR 400.7 + CR 702.95e) and by the soulbond SBA when unpairing conditions
+    /// are met (CR 702.95e: control change or stops being a creature).
+    #[serde(default)]
+    pub paired_with: Option<ObjectId>,
 }
 
 impl GameObject {

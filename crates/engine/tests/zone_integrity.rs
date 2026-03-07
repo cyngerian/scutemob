@@ -210,6 +210,7 @@ fn test_add_object_to_state() {
         phased_out_controller: None,
         creatures_devoured: 0,
         champion_exiled_card: None,
+        paired_with: None,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

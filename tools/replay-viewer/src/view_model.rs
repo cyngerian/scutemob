@@ -570,6 +570,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::ChampionLTBTrigger { source_object, .. } => {
             ("champion_ltb_trigger", Some(*source_object))
         }
+        StackObjectKind::SoulbondTrigger { source_object, .. } => {
+            ("soulbond_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -843,5 +846,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Champion => "Champion".to_string(),
         KeywordAbility::UmbraArmor => "Umbra Armor".to_string(),
         KeywordAbility::LivingMetal => "Living Metal".to_string(),
+        KeywordAbility::Soulbond => "Soulbond".to_string(),
     }
 }

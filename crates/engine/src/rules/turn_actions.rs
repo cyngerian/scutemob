@@ -103,6 +103,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -179,6 +180,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -256,6 +258,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -334,6 +337,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -409,6 +413,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -505,6 +510,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 backup_n: None,
                 champion_filter: None,
                 champion_exiled_card: None,
+                soulbond_pair_target: None,
             });
         }
     }
@@ -568,6 +574,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -632,6 +639,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -688,6 +696,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -744,6 +753,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -809,6 +819,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             backup_n: None,
             champion_filter: None,
             champion_exiled_card: None,
+            soulbond_pair_target: None,
         });
     }
 
@@ -1244,6 +1255,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         backup_n: None,
                         champion_filter: None,
                         champion_exiled_card: None,
+                        soulbond_pair_target: None,
                     });
                 }
             }

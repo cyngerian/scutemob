@@ -216,6 +216,10 @@ fn apply_sbas_once(state: &mut GameState) -> Vec<GameEvent> {
     events.extend(check_aura_sbas(state));
     events.extend(check_equipment_sbas(state, &chars_map));
     events.extend(check_counter_annihilation(state));
+    // CR 702.95e: Soulbond unpairing -- clean up invalid pairings due to controller
+    // change or a creature stopping being a creature. Zone changes are handled directly
+    // in `move_object_to_zone`, but those two conditions require SBA cleanup.
+    check_soulbond_unpairing(state);
     // CR 903.9a / CR 704.6d: check for commanders in graveyard or exile and
     // return them to the command zone. Called after counter annihilation per
     // the plan (704.6d runs after 704.5 SBAs).
@@ -1092,4 +1096,62 @@ pub fn has_keyword(state: &GameState, id: ObjectId, keyword: KeywordAbility) -> 
     calculate_characteristics(state, id)
         .map(|chars| chars.keywords.contains(&keyword))
         .unwrap_or(false)
+}
+
+// ── Soulbond unpairing SBA (CR 702.95e) ──────────────────────────────────────
+
+/// CR 702.95e: A paired creature becomes unpaired if any of the following occur:
+/// - Another player gains control of it or the creature it's paired with.
+/// - It or the paired creature stops being a creature.
+/// - It or the paired creature leaves the battlefield (handled in move_object_to_zone).
+///
+/// This SBA cleans up invalid pairings. It produces no events -- the continuous
+/// effects with `WhilePaired` duration automatically become inactive when the
+/// `paired_with` field is cleared. This function mutates state directly rather
+/// than returning events, because unpairing is not itself a game event.
+fn check_soulbond_unpairing(state: &mut GameState) {
+    // Collect pairs that need to be broken.
+    // We need two passes: first collect invalid pairs, then clear them.
+    let pairs_to_clear: Vec<(ObjectId, ObjectId)> = state
+        .objects
+        .iter()
+        .filter(|(_, obj)| {
+            obj.zone == ZoneId::Battlefield && obj.is_phased_in() && obj.paired_with.is_some()
+        })
+        .filter_map(|(&id, obj)| {
+            let partner_id = obj.paired_with?;
+            // Check if partner still exists and is on the battlefield.
+            let partner = state.objects.get(&partner_id)?;
+            if partner.zone != ZoneId::Battlefield || !partner.is_phased_in() {
+                // Partner left battlefield -- clear both (belt-and-suspenders;
+                // move_object_to_zone should have already cleared these).
+                return Some((id, partner_id));
+            }
+            // CR 702.95e check: controller must be the same for both.
+            if obj.controller != partner.controller {
+                return Some((id, partner_id));
+            }
+            // CR 702.95e check: both must still be creatures.
+            let obj_is_creature = calculate_characteristics(state, id)
+                .map(|c| c.card_types.contains(&CardType::Creature))
+                .unwrap_or(false);
+            let partner_is_creature = calculate_characteristics(state, partner_id)
+                .map(|c| c.card_types.contains(&CardType::Creature))
+                .unwrap_or(false);
+            if !obj_is_creature || !partner_is_creature {
+                return Some((id, partner_id));
+            }
+            None
+        })
+        .collect();
+
+    // Clear paired_with on both objects.
+    for (a, b) in pairs_to_clear {
+        if let Some(obj) = state.objects.get_mut(&a) {
+            obj.paired_with = None;
+        }
+        if let Some(obj) = state.objects.get_mut(&b) {
+            obj.paired_with = None;
+        }
+    }
 }

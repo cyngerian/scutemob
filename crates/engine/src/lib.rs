@@ -9,7 +9,7 @@ pub use cards::{
     army_token_spec, clue_token_spec, food_token_spec, treasure_token_spec, AbilityDefinition,
     CardDefinition, CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost,
     Effect, EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition,
-    ModeSelection, PlayerTarget, TargetController, TargetFilter, TargetRequirement,
+    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 
