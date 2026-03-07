@@ -557,6 +557,10 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::GraftTrigger { source_object, .. } => {
             ("graft_trigger", Some(*source_object))
         }
+        StackObjectKind::ScavengeAbility { .. } => {
+            // No source_object -- card was already exiled as cost (CR 702.97a, CR 400.7).
+            ("scavenge_ability", None)
+        }
     }
 }
 
@@ -821,5 +825,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Forecast => "Forecast".to_string(),
         KeywordAbility::Phasing => "Phasing".to_string(),
         KeywordAbility::Graft(n) => format!("Graft {n}"),
+        KeywordAbility::Scavenge => "Scavenge".to_string(),
     }
 }

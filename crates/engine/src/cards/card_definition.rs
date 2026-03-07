@@ -514,6 +514,15 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 46.
     Forecast { cost: ManaCost, effect: Effect },
+    /// CR 702.97: Scavenge [cost]. The card's scavenge ability can be activated
+    /// from its owner's graveyard by paying this cost plus exiling the card. When
+    /// the ability resolves, put +1/+1 counters equal to the card's power on
+    /// target creature.
+    ///
+    /// Cards with this ability should also include
+    /// `AbilityDefinition::Keyword(KeywordAbility::Scavenge)` for quick
+    /// presence-checking without scanning all abilities. Discriminant 47.
+    Scavenge { cost: ManaCost },
 }
 
 // ── Cost ─────────────────────────────────────────────────────────────────────

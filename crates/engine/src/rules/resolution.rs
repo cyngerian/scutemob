@@ -2311,6 +2311,89 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.97a: Scavenge activated ability resolves.
+        // "Put a number of +1/+1 counters equal to the power of the card you exiled
+        // on target creature."
+        //
+        // The card was already exiled as cost at activation time. `power_snapshot`
+        // holds the card's power as it last existed in the graveyard (Varolz ruling
+        // 2013-04-15).
+        //
+        // Fizzle check (CR 608.2b): if the target creature is no longer on the
+        // battlefield or is no longer a creature, the ability does nothing.
+        StackObjectKind::ScavengeAbility {
+            source_card_id: _,
+            power_snapshot,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Extract the target creature from the stack object's targets.
+            let target_creature_id = stack_obj.targets.first().and_then(|t| {
+                if let crate::state::targeting::Target::Object(id) = t.target {
+                    Some(id)
+                } else {
+                    None
+                }
+            });
+
+            let target_id = match target_creature_id {
+                Some(id) => id,
+                None => {
+                    // No target recorded -- ability fizzles.
+                    events.push(GameEvent::AbilityResolved {
+                        controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                    return Ok(events);
+                }
+            };
+
+            // CR 608.2b: Fizzle check -- target must still be on the battlefield and
+            // must still be a creature at resolution time.
+            let target_valid = state
+                .objects
+                .get(&target_id)
+                .map(|obj| {
+                    if obj.zone != ZoneId::Battlefield {
+                        return false;
+                    }
+                    // Re-check creature type via layer-resolved characteristics.
+                    crate::rules::layers::calculate_characteristics(state, target_id)
+                        .map(|c| {
+                            c.card_types
+                                .contains(&crate::state::types::CardType::Creature)
+                        })
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false);
+
+            if target_valid && power_snapshot > 0 {
+                // CR 702.97a: Add power_snapshot +1/+1 counters to the target creature.
+                if let Some(obj) = state.objects.get_mut(&target_id) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj
+                        .counters
+                        .update(CounterType::PlusOnePlusOne, current + power_snapshot);
+                }
+                events.push(GameEvent::CounterAdded {
+                    object_id: target_id,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: power_snapshot,
+                });
+            }
+            // If target is invalid or power_snapshot == 0, ability fizzles / adds 0
+            // counters -- either way emit AbilityResolved.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 702.116a: Myriad trigger resolves -- create token copies of the source
         // creature for each opponent other than the defending player, each tapped and
         // attacking that opponent.
@@ -4217,8 +4300,12 @@ pub fn counter_stack_object(
         | StackObjectKind::CumulativeUpkeepTrigger { .. }
         | StackObjectKind::RecoverTrigger { .. }
         | StackObjectKind::ForecastAbility { .. }
-        | StackObjectKind::GraftTrigger { .. } => {
+        | StackObjectKind::GraftTrigger { .. }
+        | StackObjectKind::ScavengeAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
+            // already in exile (exiled as cost during activation). No counters are
+            // placed on the target, but the source card stays in exile (CR 702.97a).
             // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
             // activation is already consumed (once-per-turn tracked) and the card
             // remains in hand (CR 702.57a).

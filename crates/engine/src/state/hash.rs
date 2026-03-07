@@ -607,6 +607,8 @@ impl HashInto for KeywordAbility {
                 119u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Scavenge (discriminant 120) -- CR 702.97
+            KeywordAbility::Scavenge => 120u8.hash_into(hasher),
         }
     }
 }
@@ -1781,6 +1783,15 @@ impl HashInto for StackObjectKind {
                 44u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 entering_creature.hash_into(hasher);
+            }
+            // ScavengeAbility (discriminant 45) -- CR 702.97a
+            StackObjectKind::ScavengeAbility {
+                source_card_id,
+                power_snapshot,
+            } => {
+                45u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                power_snapshot.hash_into(hasher);
             }
         }
     }
@@ -3606,6 +3617,11 @@ impl HashInto for AbilityDefinition {
                 46u8.hash_into(hasher);
                 cost.hash_into(hasher);
                 effect.hash_into(hasher);
+            }
+            // Scavenge (discriminant 47) -- CR 702.97
+            AbilityDefinition::Scavenge { cost } => {
+                47u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

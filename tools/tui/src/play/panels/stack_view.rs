@@ -167,6 +167,10 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::GraftTrigger { source_object, .. } => {
                     ("Graft: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::ScavengeAbility { .. } => {
+                    // No source_object -- card was already exiled as cost (CR 702.97a).
+                    ("Scavenge: ".to_string(), None)
+                }
             };
 
             let (name, name_color) = source_id

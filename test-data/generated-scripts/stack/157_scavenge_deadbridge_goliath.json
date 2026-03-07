@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_157",
+    "name": "Scavenge — Deadbridge Goliath puts 5 counters on a creature",
+    "description": "Tests the Scavenge activated ability (CR 702.97a) on Deadbridge Goliath (5/5 Insect, Scavenge {4}{G}{G}). Deadbridge Goliath is in p1's graveyard. Bog Raiders (2/2 Zombie) is on p1's battlefield. During p1's precombat main phase with an empty stack, p1 activates Scavenge by paying {4}{G}{G} and exiling Deadbridge Goliath from the graveyard as part of the cost. Per the 2013-04-15 ruling, exiling the card is part of the activation cost — Deadbridge Goliath moves to exile immediately at activation time, before the ScavengeAbility is placed on the stack. The ScavengeAbility then resolves: 5 +1/+1 counters (equal to Deadbridge Goliath's power of 5, snapshotted before exile per CR 702.97a) are placed on Bog Raiders, making it an effective 7/7. Final state: Deadbridge Goliath is in exile, Bog Raiders is on the battlefield with 5 +1/+1 counters (effective 7/7), and the stack is empty.",
+    "cr_sections_tested": ["702.97a", "602.2", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["scavenge", "counter", "graveyard", "exile", "activated-ability", "deadbridge-goliath"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Deadbridge Goliath oracle text: Scavenge {4}{G}{G} ({4}{G}{G}, Exile this card from your graveyard: Put a number of +1/+1 counters equal to this card's power on target creature. Scavenge only as a sorcery.) P/T: 5/5. CR 702.97a: The number of +1/+1 counters equals the power of the exiled card. Engine implementation: handle_scavenge_card() in abilities.rs. The harness uses action='scavenge_card' with card='Deadbridge Goliath' (in graveyard) and target_creature='Bog Raiders' (on battlefield). The engine exiles the card as cost (move_object_to_zone to Exile), snapshots power=5 BEFORE exile (Varolz ruling 2013-04-15), then pushes ScavengeAbility onto the stack. After activation: Deadbridge Goliath is in exile (not graveyard), ScavengeAbility is on the stack (count 1). After resolution: Bog Raiders has 5 plus_one_plus_one counters (effective 7/7), stack empty. Sorcery speed enforcement (CR 702.97a): active player only, main phase only, empty stack — all satisfied. Mana cost: {4}{G}{G} = colorless:4, green:2. parse_counter_type supports 'plus_one_plus_one' (confirmed in replay_harness.rs line 1577). The 'permanent.Bog Raiders.counters.plus_one_plus_one' assertion path is supported (confirmed in script 156).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 4, "green": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          {
+            "card": "Bog Raiders",
+            "is_commander": false,
+            "owner": null,
+            "tapped": false
+          }
+        ]
+      },
+      "hand": {},
+      "graveyard": {
+        "p1": [
+          { "card": "Deadbridge Goliath", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 activates Scavenge on Deadbridge Goliath ({4}{G}{G}), exiling it as cost and targeting Bog Raiders. ScavengeAbility goes on the stack. Both players pass — ability resolves: 5 +1/+1 counters placed on Bog Raiders (now effective 7/7).",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Deadbridge Goliath in p1 graveyard; Bog Raiders on battlefield (2/2 base); stack empty; p1 has {4}{G}{G} in pool",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Deadbridge Goliath" }] },
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "permanent.Bog Raiders.counters.plus_one_plus_one": 0,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Deadbridge Goliath (5/5 Insect, Scavenge {4}{G}{G}) is in p1's graveyard. Bog Raiders (base 2/2 Zombie, Swampwalk) is on p1's battlefield with no counters. Stack is empty. p1 has colorless:4, green:2 in their mana pool — sufficient to pay the Scavenge cost."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "scavenge_card",
+          "card": "Deadbridge Goliath",
+          "target_creature": "Bog Raiders",
+          "targets": [],
+          "mana_paid": { "colorless": 4, "green": 2 },
+          "mana_source": [],
+          "cr_ref": "702.97a",
+          "note": "CR 702.97a: p1 activates Scavenge on Deadbridge Goliath from their graveyard. Cost: pay {4}{G}{G} and exile Deadbridge Goliath. Exiling is part of the cost (2013-04-15 ruling) — Deadbridge Goliath is immediately moved to exile at activation time. Power is snapshotted at 5 before exile. ScavengeAbility targeting Bog Raiders is placed on the stack. Sorcery speed enforced: active player (p1), main phase, empty stack — all conditions met (CR 702.97a)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: Deadbridge Goliath is in exile (cost paid); ScavengeAbility is on the stack targeting Bog Raiders; Bog Raiders still has no counters",
+          "assertions": {
+            "zones.graveyard.p1": { "excludes": [{ "card": "Deadbridge Goliath" }] },
+            "zones.stack.count": 1,
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "permanent.Bog Raiders.counters.plus_one_plus_one": 0
+          },
+          "note": "CR 702.97a: Exiling Deadbridge Goliath was the cost — it is in exile, no longer in p1's graveyard. The ScavengeAbility (targeting Bog Raiders) is on the stack. Bog Raiders has not yet received any counters."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — ScavengeAbility resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "ScavengeAbility",
+          "resolution": [
+            {
+              "effect": "add_counters",
+              "target": { "type": "permanent", "card": "Bog Raiders", "controller": "p1" },
+              "amount": 5,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.97a",
+              "note": "CR 702.97a: ScavengeAbility resolves. Places a number of +1/+1 counters equal to Deadbridge Goliath's power (5, snapshotted before exile) onto target creature Bog Raiders. Bog Raiders receives 5 +1/+1 counters — effective P/T becomes 7/7 (base 2/2 + 5/5 from counters)."
+            }
+          ],
+          "note": "CR 608.2: ScavengeAbility resolves. 5 +1/+1 counters placed on Bog Raiders (power of exiled Deadbridge Goliath = 5). Stack is now empty."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Deadbridge Goliath in exile; Bog Raiders on battlefield with 5 +1/+1 counters (effective 7/7); stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Bog Raiders" }] },
+            "permanent.Bog Raiders.counters.plus_one_plus_one": 5,
+            "zones.graveyard.p1": { "excludes": [{ "card": "Deadbridge Goliath" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.97a: Scavenge resolved successfully. Deadbridge Goliath is in exile (exiled as part of the activation cost). Bog Raiders now has 5 +1/+1 counters — effective P/T 7/7 (base 2/2 + 5 counters). Stack is empty. No SBAs triggered (Bog Raiders has positive toughness, life totals unchanged)."
+        }
+      ]
+    }
+  ]
+}

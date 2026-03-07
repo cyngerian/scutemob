@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Graft 702.58 validated: KW 119, Simic Initiate, script stack/156, 9 tests)
+> Last audited: 2026-03-06 (Scavenge 702.97 validated: KW 120, AbilDef 47, SOK 45, Deadbridge Goliath, script stack/157, 10 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 50        | 0        | 0       | 43   | 12  |
-| **Total**| **204**| **143**  | **2**    | **0**   | **47**| **12** |
+| P4       | 105   | 51        | 0        | 0       | 42   | 12  |
+| **Total**| **204**| **144**  | **2**    | **0**   | **46**| **12** |
 
 ---
 
@@ -218,7 +218,7 @@ Keywords involving counter manipulation and creature growth.
 | Modular | 702.43 | P3 | `validated` | `state/types.rs`, `state/hash.rs`, `state/stack.rs:269`, `state/stubs.rs`, `state/builder.rs:641`, `rules/resolution.rs:309+ModularTrigger`, `rules/abilities.rs` | Arcbound Worker | `stack/092` | — | CR 702.43a fully enforced; ETB counter placement (static) + dies trigger (targeted, dynamic counter count from pre_death_counters); StackObjectKind::ModularTrigger; auto-targets first artifact creature; 9 unit tests in modular.rs; script pending_review |
 | Graft | 702.58 | P4 | `validated` | `state/types.rs:1096`, `rules/abilities.rs:2415`, `rules/resolution.rs:640+2234`, `state/stack.rs`, `state/stubs.rs`, `state/hash.rs` | Simic Initiate | `stack/156` | — | CR 702.58a fully enforced; static ETB with N +1/+1 counters + triggered ability (intervening-if: has +1/+1 counter, may move one to entering creature); StackObjectKind::GraftTrigger; PendingTriggerKind::Graft; KeywordAbility::Graft(u32) disc 119; 9 unit tests in graft.rs; script validated |
 | Evolve | 702.100 | P3 | `validated` | `state/types.rs:496`, `state/hash.rs:429`, `state/hash.rs:1244`, `state/stubs.rs:157`, `rules/abilities.rs:900`, `rules/resolution.rs:1015` | Cloudfin Raptor | `stack/093` | — | CR 702.100a fully enforced; intervening-if re-checked at resolution (CR 603.4); ETB creature comparison (P > P and/or T > T); StackObjectKind::EvolveTrigger; uses last-known P/T if entering creature leaves battlefield (ruling 2013-04-15); 10 unit tests in evolve.rs; script pending_review |
-| Scavenge | 702.97 | P4 | `none` | — | — | — | — | Exile from graveyard → put +1/+1 counters on creature |
+| Scavenge | 702.97 | P4 | `validated` | `state/types.rs:1112`, `cards/card_definition.rs:525`, `rules/abilities.rs:4847`, `rules/engine.rs:432`, `rules/resolution.rs`, `rules/command.rs:552`, `state/stack.rs:978`, `state/hash.rs` | Deadbridge Goliath | `stack/157` | — | CR 702.97a fully enforced; activated ability from graveyard, sorcery-speed, pay cost + exile card, snapshot power, put +1/+1 counters on target creature; KeywordAbility::Scavenge disc 120; AbilityDefinition::Scavenge disc 47; StackObjectKind::ScavengeAbility disc 45; 10 unit tests in scavenge.rs; script validated |
 | Outlast | 702.107 | P4 | `none` | — | — | — | — | Tap + mana → +1/+1 counter (sorcery speed) |
 | Amplify | 702.38 | P4 | `none` | — | — | — | — | Reveal creature cards from hand for +1/+1 counters |
 | Adapt | 701.46 | P3 | `validated` | `state/types.rs:560`, `cards/card_definition.rs:793`, `effects/mod.rs:2731`, `state/hash.rs:445,2431` | Sharktocrab | `baseline/105` | — | CR 701.46a fully enforced; keyword action (not keyword ability); KeywordAbility::Adapt(u32) enum + Condition::SourceHasNoCountersOfType + Conditional effect; resolution-time check per ruling 2019-01-25 (activation always legal); re-adapt after losing counters verified; 6 unit tests in `adapt.rs`; game script approved |

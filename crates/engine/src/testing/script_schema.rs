@@ -324,6 +324,12 @@ pub enum ScriptAction {
         /// Defaults to 0.
         #[serde(default)]
         escalate_modes: u32,
+        /// CR 702.97a: For `scavenge_card`. Name of the creature on the battlefield
+        /// to receive +1/+1 counters equal to the scavenged card's power.
+        /// Required when action is `scavenge_card`.
+        /// Example: "Grizzly Bears"
+        #[serde(default)]
+        target_creature: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

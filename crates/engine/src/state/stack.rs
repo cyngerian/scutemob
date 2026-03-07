@@ -966,4 +966,17 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         entering_creature: ObjectId,
     },
+    /// CR 702.97a: Scavenge activated ability on the stack.
+    ///
+    /// When this ability resolves: put `power_snapshot` +1/+1 counters on the
+    /// target creature. The card was already exiled as cost; `power_snapshot`
+    /// is the card's power as it last existed in the graveyard (Varolz ruling
+    /// 2013-04-15). The target creature is stored in the StackObject's `targets`
+    /// field.
+    ///
+    /// Discriminant 45.
+    ScavengeAbility {
+        source_card_id: Option<crate::state::player::CardId>,
+        power_snapshot: u32,
+    },
 }

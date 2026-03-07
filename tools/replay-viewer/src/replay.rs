@@ -217,6 +217,7 @@ impl ReplaySession {
                         assist_player,
                         assist_amount,
                         replicate_count,
+                        target_creature,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -246,6 +247,7 @@ impl ReplaySession {
                                 *replicate_count,
                                 &[],
                                 0,
+                                target_creature.as_deref(),
                                 &current_state,
                                 &player_map,
                             );

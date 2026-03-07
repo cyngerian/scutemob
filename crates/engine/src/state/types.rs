@@ -1103,6 +1103,13 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 119.
     Graft(u32),
+    /// CR 702.97: Scavenge [cost] -- activated ability from graveyard.
+    /// "[Cost], Exile this card from your graveyard: Put a number of +1/+1
+    /// counters equal to the power of the card you exiled on target creature.
+    /// Activate only as a sorcery."
+    ///
+    /// Discriminant 120.
+    Scavenge,
 }
 
 /// All creature subtypes from CR 205.3m.

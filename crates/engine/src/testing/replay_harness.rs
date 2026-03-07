@@ -275,6 +275,10 @@ pub fn translate_player_action(
     // CR 702.120a: For `cast_spell_escalate`, the number of additional modes beyond the
     // first for which the escalate cost is paid. 0 for all other action types.
     escalate_modes: u32,
+    // CR 702.97a: For `scavenge_card`, the name of the creature on the battlefield
+    // to receive +1/+1 counters. Required for `scavenge_card`; `None` for all other
+    // action types.
+    target_creature_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -653,6 +657,21 @@ pub fn translate_player_action(
             Some(Command::EncoreCard {
                 player,
                 card: card_id,
+            })
+        }
+
+        // CR 702.97a: Activate a scavenge ability from the graveyard.
+        // card_name is the name of the card with scavenge in the player's graveyard.
+        // target_creature_name is the name of the creature to receive +1/+1 counters.
+        // The card is exiled immediately as cost (CR 702.97a); counters placed at resolution.
+        "scavenge_card" => {
+            let card_id = find_in_graveyard(state, player, card_name?)?;
+            let target_name = target_creature_name?;
+            let target_id = find_on_battlefield_by_name(state, target_name)?;
+            Some(Command::ScavengeCard {
+                player,
+                card: card_id,
+                target_creature: target_id,
             })
         }
 

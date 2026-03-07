@@ -13,6 +13,5 @@ pub fn card() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Graft(1)),
         ],
-        ..Default::default()
     }
 }

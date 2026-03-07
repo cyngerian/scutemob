@@ -4828,3 +4828,239 @@ pub fn check_intervening_if(
             .unwrap_or(true),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Scavenge (CR 702.97)
+// ---------------------------------------------------------------------------
+
+/// Handle a ScavengeCard command: validate, pay cost, snapshot power, exile card,
+/// push scavenge ability onto the stack targeting the specified creature.
+///
+/// CR 702.97a: Scavenge is an activated ability from the graveyard.
+/// "[Cost], Exile this card from your graveyard: Put a number of +1/+1 counters
+/// equal to the power of the card you exiled on target creature. Activate only
+/// as a sorcery."
+///
+/// KEY RULE: Power is snapshotted BEFORE exile (Varolz ruling 2013-04-15 -- "the
+/// number of counters that a card's scavenge ability puts on a creature is based on
+/// the card's power as it last existed in the graveyard").
+pub fn handle_scavenge_card(
+    state: &mut GameState,
+    player: PlayerId,
+    card: ObjectId,
+    target_creature: ObjectId,
+) -> Result<Vec<crate::rules::events::GameEvent>, GameStateError> {
+    // 1. Priority check (CR 602.2).
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // 2. Split second check (CR 702.61a): activated abilities cannot be used when
+    //    a spell with split second is on the stack.
+    if casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; scavenge cannot be activated (CR 702.61a)"
+                .into(),
+        ));
+    }
+
+    // 3. Zone check (CR 702.97a): card must be in player's own graveyard.
+    {
+        let obj = state.object(card)?;
+        if obj.zone != ZoneId::Graveyard(player) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ScavengeCard: card {:?} is not in Graveyard({:?}); scavenge can only be activated from your graveyard (CR 702.97a)",
+                card, player
+            )));
+        }
+    }
+
+    // 4. Keyword check (CR 702.97a): card must have KeywordAbility::Scavenge.
+    {
+        let obj = state.object(card)?;
+        if !obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Scavenge)
+        {
+            return Err(GameStateError::InvalidCommand(format!(
+                "ScavengeCard: card {:?} does not have the Scavenge keyword (CR 702.97a)",
+                card
+            )));
+        }
+    }
+
+    // 5. Sorcery speed check (CR 702.97a: "activate only as a sorcery").
+    //    Active player only, main phase only (PreCombatMain or PostCombatMain), empty stack.
+    {
+        use crate::state::turn::Step;
+        if state.turn.active_player != player {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: scavenge can only be activated during your own turn (CR 702.97a)"
+                    .into(),
+            ));
+        }
+        let step = state.turn.step;
+        if step != Step::PreCombatMain && step != Step::PostCombatMain {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: scavenge can only be activated during a main phase (CR 702.97a)"
+                    .into(),
+            ));
+        }
+        if !state.stack_objects.is_empty() {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: scavenge can only be activated with an empty stack (CR 702.97a)"
+                    .into(),
+            ));
+        }
+    }
+
+    // 6. Target validation: target_creature must be a creature on the battlefield.
+    {
+        let target_on_battlefield = state
+            .objects
+            .get(&target_creature)
+            .map(|o| o.zone == ZoneId::Battlefield)
+            .unwrap_or(false);
+        if !target_on_battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: target_creature is not on the battlefield (CR 702.97a)".into(),
+            ));
+        }
+        let target_is_creature =
+            crate::rules::layers::calculate_characteristics(state, target_creature)
+                .map(|c| c.card_types.contains(&CardType::Creature))
+                .unwrap_or(false);
+        if !target_is_creature {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: target_creature is not a creature (CR 702.97a)".into(),
+            ));
+        }
+    }
+
+    // 7. Look up scavenge cost from CardRegistry.
+    let card_id_opt = state.object(card)?.card_id.clone();
+    let scavenge_cost = match get_scavenge_cost(&card_id_opt, &state.card_registry.clone()) {
+        Some(cost) => cost,
+        None => {
+            return Err(GameStateError::InvalidCommand(
+                "ScavengeCard: no scavenge cost found in card definition (CR 702.97a)".into(),
+            ));
+        }
+    };
+
+    // 8. Pay mana cost (CR 602.2b).
+    let mut events = Vec::new();
+    if scavenge_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &scavenge_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &scavenge_cost);
+        events.push(crate::rules::events::GameEvent::ManaCostPaid {
+            player,
+            cost: scavenge_cost.clone(),
+        });
+    }
+
+    // 9. Snapshot power BEFORE exile (Varolz ruling 2013-04-15: "the number of counters
+    //    is based on the card's power as it last existed in the graveyard").
+    //    Use layer-resolved characteristics to capture any in-graveyard modifiers.
+    let power_snapshot: u32 = crate::rules::layers::calculate_characteristics(state, card)
+        .and_then(|c| c.power)
+        .map(|p| p.max(0) as u32)
+        .unwrap_or(0);
+
+    // Capture source_card_id BEFORE exiling (registry key survives zone change, CR 400.7).
+    let source_card_id = state.object(card)?.card_id.clone();
+
+    // 10. Exile the card from graveyard as cost payment (CR 702.97a: "[Cost], Exile this
+    //     card from your graveyard"). The card is exiled immediately at activation time.
+    //     Ruling 2013-04-15: "Once the ability is activated and the cost is paid, it's too
+    //     late to stop the ability by trying to remove the card from the graveyard."
+    let (exile_id, _old) = state.move_object_to_zone(card, ZoneId::Exile)?;
+    events.push(crate::rules::events::GameEvent::ObjectExiled {
+        player,
+        object_id: card,
+        new_exile_id: exile_id,
+    });
+
+    // 11. Push the ScavengeAbility onto the stack with the target creature.
+    let stack_id = state.next_object_id();
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::ScavengeAbility {
+            source_card_id,
+            power_snapshot,
+        },
+        targets: vec![SpellTarget {
+            target: Target::Object(target_creature),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_entwined: false,
+        escalate_modes_paid: 0,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // 12. Reset priority (CR 602.2e): active player gets priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(crate::rules::events::GameEvent::AbilityActivated {
+        player,
+        source_object_id: card,
+        stack_object_id: stack_id,
+    });
+    events.push(crate::rules::events::GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
+/// CR 702.97a: Look up the scavenge cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Scavenge { cost }`, or `None`
+/// if the card has no definition or no scavenge ability defined.
+fn get_scavenge_cost(
+    card_id: &Option<CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| match a {
+                AbilityDefinition::Scavenge { cost } => Some(cost.clone()),
+                _ => None,
+            })
+        })
+    })
+}

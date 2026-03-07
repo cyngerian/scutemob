@@ -539,6 +539,22 @@ pub enum Command {
     /// the ability goes on the stack), not moved to the battlefield.
     EncoreCard { player: PlayerId, card: ObjectId },
 
+    // -- Scavenge (CR 702.97) -----------------------------------------------
+    /// Activate a card's scavenge ability from the graveyard (CR 702.97a).
+    ///
+    /// The card must be in the player's graveyard with `KeywordAbility::Scavenge`.
+    /// The card is exiled as part of the activation cost. The ability is placed
+    /// on the stack targeting `target_creature`. When it resolves, +1/+1 counters
+    /// equal to the card's power (as it last existed in the graveyard) are placed
+    /// on the target creature.
+    ///
+    /// "Activate only as a sorcery" -- main phase, stack empty, active player.
+    ScavengeCard {
+        player: PlayerId,
+        card: ObjectId,
+        target_creature: ObjectId,
+    },
+
     // -- Ninjutsu (CR 702.49) -----------------------------------------------
     /// Activate a card's ninjutsu ability from hand (or command zone for
     /// commander ninjutsu).
