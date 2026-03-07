@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Phasing 702.26 validated; P4 validated 48->49, total validated 140->141; script 155; card: Teferi's Isle)
+> Last audited: 2026-03-06 (Graft 702.58 validated: KW 119, Simic Initiate, script stack/156, 9 tests)
 
 ---
 
@@ -32,9 +32,9 @@
 |----------|-------|-----------|----------|---------|------|-----|
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
-| P3       | 40    | 36        | 0        | 0       | 4    | 0   |
-| P4       | 101   | 49        | 0        | 0       | 40   | 12  |
-| **Total**| **200**| **141**  | **2**    | **0**   | **45**| **12** |
+| P3       | 40    | 37        | 0        | 0       | 3    | 0   |
+| P4       | 105   | 50        | 0        | 0       | 43   | 12  |
+| **Total**| **204**| **143**  | **2**    | **0**   | **47**| **12** |
 
 ---
 
@@ -155,7 +155,7 @@ Keywords that modify how spells are cast, copied, or resolved.
 | Entwine | 702.42 | P4 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `state/hash.rs`, `rules/command.rs`, `state/stack.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Promise of Power | `stack/147` | — | KW disc 110, AbilDef disc 39; entwine_paid on CastSpell, was_entwined on StackObject; ModeSelection added to helpers.rs exports; 6 unit tests in `entwine.rs` |
 | Fuse | 702.102 | P4 | `none` | — | — | — | — | Cast both halves of a split card |
 | Buyback | 702.27 | P3 | `validated` | `state/types.rs:497-503`, `state/stack.rs:118`, `rules/casting.rs:67,597-625,894,1113-1129`, `rules/resolution.rs:489-490` | Searing Touch | `stack/094` | — | KeywordAbility::Buyback enum + AbilityDefinition::Buyback { cost }; cast_with_buyback param on CastSpell command; get_buyback_cost lookup in casting.rs; was_buyback_paid on StackObject; resolution destination check in resolution.rs (CR 702.27a); flashback exile overrides buyback (CR 702.34a); 9 unit tests in `tests/buyback.rs` covering basic payment, cost aggregation, counter interaction, fizzle behavior; game script stack/094 pending_review (assertions pass) |
-| Spree | 702.165 | P4 | `none` | — | — | — | — | Choose modes, pay cost for each |
+| Spree | 702.172 | P4 | `none` | — | — | — | — | Choose modes, pay cost for each |
 | Cleave | 702.148 | P4 | `validated` | `state/types.rs`, `rules/casting.rs`, `rules/resolution.rs`, `effects/mod.rs` | Path of Peril | `stack/145` | — | AltCostKind::Cleave + Condition::WasCleaved; 8 unit tests |
 | Escalate | 702.120 | P4 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `state/hash.rs`, `rules/command.rs`, `state/stack.rs`, `rules/casting.rs`, `rules/resolution.rs`, `testing/replay_harness.rs` | Blessed Alliance | `stack/148` | — | KW disc 111, AbilDef disc 40 (Escalate { cost }); escalate_modes on CastSpell, escalate_modes_paid on StackObject; CR 702.120a additional cost validation; 9 unit tests in `tests/escalate.rs` |
 | Split Second | 702.61 | P2 | `validated` | `state/types.rs:250-255`, `state/hash.rs:347-348`, `rules/casting.rs:66-72,1060-1074`, `rules/abilities.rs:63-70,388-395` | Krosan Grip | `stack/066` | — | KeywordAbility::SplitSecond enum + has_split_second_on_stack helper; CastSpell gate (CR 702.61a), ActivateAbility gate (CR 702.61a), CycleCard gate (CR 702.61a); mana abilities exempt (CR 702.61b); triggered abilities still fire (CR 702.61b); uses calculate_characteristics for layer-aware keyword check; 8 unit tests in `tests/split_second.rs`; game script pending_review |
@@ -201,11 +201,11 @@ Keywords triggered by creatures entering, leaving, or dying.
 | Encore | 702.141 | P4 | `validated` | `state/types.rs:810-818` (KeywordAbility::Encore, discriminant 94), `state/game_object.rs:451-486` (encore_sacrifice_at_end_step, encore_must_attack, encore_activated_by), `state/hash.rs:523-524+692-697+1131-1134+1563-1573+3160-3161`, `state/stack.rs:649-677` (StackObjectKind::EncoreAbility disc 29, EncoreSacrificeTrigger disc 30), `state/stubs.rs:340-354` (is_encore_sacrifice_trigger, encore_activator on PendingTrigger), `state/builder.rs:920-922`, `state/mod.rs:300-305+397-402` (CR 400.7 zone-change reset), `cards/card_definition.rs:297-306` (AbilityDefinition::Encore { cost } disc 27), `rules/command.rs:456-469` (Command::EncoreCard), `rules/engine.rs:379-384` (dispatch to handle_encore_card), `rules/abilities.rs:1448-1628` (handle_encore_card 14-check validation + get_encore_cost; sorcery-speed, graveyard zone, keyword check, split second block, mana cost payment, exile as cost, StackObjectKind::EncoreAbility push), `rules/abilities.rs:3871-3876` (flush: EncoreSacrificeTrigger kind), `rules/resolution.rs:2598-2733` (EncoreAbility resolution: for-each-opponent token creation, haste, encore_sacrifice_at_end_step/encore_must_attack/encore_activated_by tags), `rules/resolution.rs:2799-2808` (EncoreSacrificeTrigger resolution: controller check + sacrifice), `rules/turn_actions.rs:192-259` (end_step_actions: queue EncoreSacrificeTrigger for encore tokens), `testing/replay_harness.rs:588-593` (encore_card action type), `tools/replay-viewer/src/view_model.rs:508-512+745`, `tools/tui/src/play/panels/stack_view.rs:115-120` | Briarblade Adept (`briarblade_adept.rs`) | `tests/encore.rs` (10 tests) | `stack/131` | CR 702.141a fully enforced. Activated ability from graveyard (sorcery speed); exile card as cost (CR 602.2c); EncoreAbility on stack; resolution creates one token copy per living opponent: tokens gain Haste, tagged encore_sacrifice_at_end_step=true + encore_must_attack=Some(opponent_id) + encore_activated_by=Some(activator); end_step_actions queues EncoreSacrificeTrigger (sacrifice only if controller==activator); CR 400.7 zone-change resets; split second blocks; not a cast; eliminated opponents skipped; 10 unit tests cover 4p basic, 2p, haste, exile-as-cost, sacrifice-at-end-step, sorcery-speed (opponent turn, non-empty stack), not-in-graveyard, no-keyword, eliminated-opponent; game script pending_review. Attack trigger on Briarblade Adept omitted (targeted_trigger DSL gap). |
 | Champion | 702.72 | P4 | `none` | — | — | — | — | ETB exile a creature you control; leaves → return it |
 | Devour | 702.82 | P4 | `none` | — | — | — | — | ETB: sacrifice creatures for +1/+1 counters |
-| Tribute | 702.107 | P4 | `none` | — | — | — | — | Opponent chooses: +1/+1 counters or ability triggers |
+| Tribute | 702.104 | P4 | `none` | — | — | — | — | Opponent chooses: +1/+1 counters or ability triggers |
 | Fabricate | 702.123 | P4 | `none` | — | — | — | — | ETB: choose +1/+1 counters or create Servo tokens |
 | Decayed | 702.147 | P4 | `validated` | state/types.rs:616-628, state/game_object.rs:399-408, rules/combat.rs:285-300+396-401, rules/turn_actions.rs:606-632 | Shambling Ghast | decayed.rs (8 tests) | baseline/112 | Can't block; sacrifice at end of combat when it attacks. Flag-on-object pattern (like Myriad); persists even if keyword removed (ruling 2021-09-24). |
 | Training | 702.149 | P4 | `validated` | state/types.rs:693-700 (KeywordAbility::Training, discriminant 82), state/game_object.rs:206-211 (TriggerEvent::SelfAttacksWithGreaterPowerAlly, discriminant 19), state/builder.rs:489-511 (TriggeredAbilityDef auto-generation), state/hash.rs:493-494+1189-1190, rules/abilities.rs:1508-1550 (AttackersDeclared dispatch: layer-aware power comparison, SelfAttacksWithGreaterPowerAlly event) | Gryff Rider | training.rs (7 tests) | combat/120 | CR 702.149a+b fully enforced; triggered ability auto-generated from keyword in builder.rs; AttackersDeclared handler checks strictly-greater power among co-attackers (layer-aware); multiple instances trigger separately (CR 702.149b); 7 unit tests cover basic trigger, attacking alone (negative), equal power (negative), lower power (negative), multiple instances, two training creatures, 4-player multiplayer; game script approved |
-| Backup | 702.160 | P4 | `none` | — | — | — | — | ETB: put +1/+1 counters on target creature, it gains abilities |
+| Backup | 702.165 | P4 | `none` | — | — | — | — | ETB: put +1/+1 counters on target creature, it gains abilities |
 
 ---
 
@@ -216,7 +216,7 @@ Keywords involving counter manipulation and creature growth.
 | Ability | CR | Priority | Status | Engine File(s) | Card Def | Script | Depends On | Notes |
 |---------|----|----------|--------|----------------|----------|--------|------------|-------|
 | Modular | 702.43 | P3 | `validated` | `state/types.rs`, `state/hash.rs`, `state/stack.rs:269`, `state/stubs.rs`, `state/builder.rs:641`, `rules/resolution.rs:309+ModularTrigger`, `rules/abilities.rs` | Arcbound Worker | `stack/092` | — | CR 702.43a fully enforced; ETB counter placement (static) + dies trigger (targeted, dynamic counter count from pre_death_counters); StackObjectKind::ModularTrigger; auto-targets first artifact creature; 9 unit tests in modular.rs; script pending_review |
-| Graft | 702.58 | P4 | `none` | — | — | — | — | ETB with +1/+1 counters; move to entering creatures |
+| Graft | 702.58 | P4 | `validated` | `state/types.rs:1096`, `rules/abilities.rs:2415`, `rules/resolution.rs:640+2234`, `state/stack.rs`, `state/stubs.rs`, `state/hash.rs` | Simic Initiate | `stack/156` | — | CR 702.58a fully enforced; static ETB with N +1/+1 counters + triggered ability (intervening-if: has +1/+1 counter, may move one to entering creature); StackObjectKind::GraftTrigger; PendingTriggerKind::Graft; KeywordAbility::Graft(u32) disc 119; 9 unit tests in graft.rs; script validated |
 | Evolve | 702.100 | P3 | `validated` | `state/types.rs:496`, `state/hash.rs:429`, `state/hash.rs:1244`, `state/stubs.rs:157`, `rules/abilities.rs:900`, `rules/resolution.rs:1015` | Cloudfin Raptor | `stack/093` | — | CR 702.100a fully enforced; intervening-if re-checked at resolution (CR 603.4); ETB creature comparison (P > P and/or T > T); StackObjectKind::EvolveTrigger; uses last-known P/T if entering creature leaves battlefield (ruling 2013-04-15); 10 unit tests in evolve.rs; script pending_review |
 | Scavenge | 702.97 | P4 | `none` | — | — | — | — | Exile from graveyard → put +1/+1 counters on creature |
 | Outlast | 702.107 | P4 | `none` | — | — | — | — | Tap + mana → +1/+1 counter (sorcery speed) |
@@ -269,14 +269,14 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Morph | 702.37 | P3 | `none` | — | — | — | — | Cast face-down as 2/2 for {3}; turn face-up for morph cost. Deferred (corner case audit) |
 | Disguise | 702.162 | P4 | `none` | — | — | — | Morph | Morph variant with ward {2} |
 | Megamorph | 702.37 | P4 | `none` | — | — | — | Morph | Morph that adds +1/+1 counter when turned up |
-| Manifest | 701.34 | P4 | `none` | — | — | — | Morph | Put top card face-down as 2/2; turn up if creature |
-| Cloak | 701.56 | P4 | `none` | — | — | — | Manifest | Manifest variant with ward {2} |
+| Manifest | 701.40 | P4 | `none` | — | — | — | Morph | Put top card face-down as 2/2; turn up if creature |
+| Cloak | 701.58 | P4 | `none` | — | — | — | Manifest | Manifest variant with ward {2} |
 | Mutate | 702.140 | P3 | `none` | — | — | — | — | Merge with creature; deferred (corner case audit) |
 | Changeling | 702.73 | P2 | `validated` | `state/types.rs:286-293` (KeywordAbility::Changeling + ALL_CREATURE_TYPES:296-376), `state/hash.rs:360-361`, `state/continuous_effect.rs:139-145` (AddAllCreatureTypes), `rules/layers.rs:61-76` (inline CDA check + apply arm:326-334), `tools/replay-viewer/src/view_model.rs:602` | Universal Automaton | `layers/072` | — | CR 702.73a CDA: "This object is every creature type." Applied in Layer 4 before non-CDA effects (CR 613.3); functions in all zones (CR 604.3); ALL_CREATURE_TYPES lazy static (~290+ subtypes from CR 205.3m); LayerModification::AddAllCreatureTypes for Maskwood Nexus-style effects; 7 unit tests in `tests/changeling.rs`; game script pending_review |
 | Crew | 702.122 | P2 | `validated` | `state/types.rs:302`, `rules/command.rs:245`, `rules/engine.rs:234`, `rules/abilities.rs:1246`, `testing/replay_harness.rs:408` | Smuggler's Copter | `combat/075` | 15 tests in `crew.rs`; script `pending_review` (multi-turn attack gap, same as 069/070) |
 | Saddle | 702.163 | P4 | `none` | — | — | — | Crew | Crew variant for Mounts |
 | Prototype | 702.160 | P4 | `validated` | `state/types.rs:882` (KeywordAbility::Prototype disc 98), `cards/card_definition.rs:373` (AbilityDefinition::Prototype{cost,power,toughness} disc 31), `rules/command.rs:163` (CastSpell.prototype: bool), `state/game_object.rs:517` (is_prototyped), `state/stack.rs:184` (was_prototyped), `rules/casting.rs:68,972-993` (prototype cost selection + stack char overwrite), `rules/resolution.rs:335-346` (ETB prototype char application), `state/mod.rs:310-316,433-438` (CR 718.4 zone-change revert), `rules/copy.rs:204-205` (CR 718.3c was_prototyped propagation), `rules/commander.rs:210-216` (prototype cost in color identity), `testing/replay_harness.rs:853` (cast_spell_prototype action) | Blitz Automaton | `stack/135` | 10 tests in `tests/prototype.rs` | CR 702.160 + CR 718; NOT an alternative cost (CR 118.9); prototype changes P/T, mana cost, color on stack+battlefield only; reverts to printed chars on zone change (CR 718.4); copies inherit was_prototyped (CR 718.3c); abilities/name/types unchanged (CR 718.5) |
-| Living Metal | — | P4 | `none` | — | — | — | — | Artifact is also a creature on your turn |
+| Living Metal | 702.161 | P4 | `none` | — | — | — | — | Artifact is also a creature on your turn |
 | Totem Armor | 702.89 | P4 | `none` | — | — | — | Enchant | Aura destroyed instead of enchanted permanent |
 | Soulbond | 702.95 | P4 | `none` | — | — | — | — | Pair with another creature for shared abilities |
 | Haunt | 702.55 | P4 | `none` | — | — | — | — | When this dies, exile haunting a creature |
@@ -301,12 +301,12 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Spellbook | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
 | Draft | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
 | Boon | — | P4 | `n/a` | — | — | — | — | Digital-only (Alchemy) |
-| Craft | 702.158 | P4 | `none` | — | — | — | — | Exile from battlefield + exile materials → transform |
-| Connive | 702.153 | P3 | `validated` | effects/mod.rs:L1492; events.rs:L760; game_object.rs:L190; card_definition.rs:L699 | Raffine's Informant | stack/095 | 7 tests in connive.rs | CR 701.50a/e: Draw N, discard N, +1/+1 counter for each nonland discarded |
+| Craft | 702.167 | P4 | `none` | — | — | — | — | Exile from battlefield + exile materials → transform |
+| Connive | 701.50 | P3 | `validated` | effects/mod.rs:L1492; events.rs:L760; game_object.rs:L190; card_definition.rs:L699 | Raffine's Informant | stack/095 | 7 tests in connive.rs | CR 701.50a/e: Draw N, discard N, +1/+1 counter for each nonland discarded |
 | Casualty | 702.153 | P4 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `rules/command.rs`, `state/types.rs`, `state/stack.rs`, `state/hash.rs` | Make Disappear | `stack/141` | — | CR 702.153: Optional additional cost (CR 118.8); sacrifice creature with power >= N; CasualtyTrigger copies spell; KeywordAbility::Casualty(u32) disc 104 + StackObjectKind::CasualtyTrigger disc 34; was_casualty_paid + casualty_sacrifice on CastSpell; power-threshold validation; 9 unit tests in casualty.rs |
 | Alliance | — | P4 | `none` | — | — | — | — | Ability word; trigger when creature ETBs under your control |
 | Ravenous | — | P4 | `none` | — | — | — | — | ETB with X +1/+1 counters; draw if X >= 5 |
-| Squad | 702.159 | P4 | `none` | — | — | — | — | Pay squad cost N times → N token copies on ETB |
+| Squad | 702.157 | P4 | `none` | — | — | — | — | Pay squad cost N times → N token copies on ETB |
 | Enrage | — | P4 | `none` | — | — | — | — | Ability word; trigger when dealt damage |
 | Ascend | 702.131 | P3 | `validated` | `state/types.rs` (KeywordAbility enum), `rules/sba.rs:91-176` (check_ascend SBA function), `rules/resolution.rs:192-207` (instant/sorcery ascend at resolution), `rules/events.rs:762` (GameEvent::CitysBlessingGained), `state/game_object.rs` (has_citys_blessing on PlayerState) | Wayward Swordtooth | `baseline/096` | 7 tests in ascend.rs | CR 702.131a/b/c: Static Ascend when 10+ permanents with keyword source; spell Ascend at resolution; blessing permanent once gained; city's blessing is irremovable designation |
 | Treasure tokens | 111.10a | P2 | `validated` | `state/game_object.rs:42-81` (ManaAbility with sacrifice_self + any_color), `rules/mana.rs:95-149` (sacrifice cost + any-color handling), `cards/card_definition.rs:629-683` (TokenSpec.mana_abilities, treasure_token_spec helper), `effects/mod.rs:1700-1714` (make_token populates mana_abilities), `state/hash.rs:457-462,1816-1830` | Strike It Rich | `stack/073` | — | CR 111.10a fully enforced; colorless Treasure artifact token with "{T}, Sacrifice this token: Add one mana of any color"; mana ability resolves without stack (CR 605.3b); sacrifice as cost (CR 602.2c); token ceases to exist in graveyard (CR 111.7/704.5d); 9 unit tests in `tests/treasure_tokens.rs`; game script pending_review (all assertions pass) |
@@ -319,14 +319,14 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Transform | 701.28 | P3 | `none` | — | — | — | — | Keyword action: flip DFC to other face |
 | Daybound/Nightbound | 702.145 | P4 | `none` | — | — | — | Transform | DFC auto-transform based on day/night cycle |
 | Investigate | 701.16 | P3 | `validated` | `cards/card_definition.rs:325` (Effect::Investigate), `effects/mod.rs:484` (execution), `rules/events.rs:706` (GameEvent::Investigated), `state/game_object.rs:193` (TriggerEvent::ControllerInvestigates), `state/hash.rs` (hash arms), `rules/abilities.rs:1447` (trigger dispatch) | Magnifying Glass, Thraben Inspector | `stack/099` (pending_review) | 6 unit tests in investigate.rs | CR 701.16a: "Investigate" means "Create a Clue token"; Effect::Investigate wraps clue_token_spec(1) x N; TriggerEvent::ControllerInvestigates wired; Thraben Inspector uses Effect::Investigate on ETB |
-| Amass | 701.44 | P4 | `none` | — | — | — | — | Put +1/+1 counters on Army token or create one |
-| Discover | 702.161 | P4 | `none` | — | — | — | Cascade | Cascade variant without the free cast restriction |
-| Forage | 701.55 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
-| Offspring | 702.167 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |
+| Amass | 701.47 | P4 | `none` | — | — | — | — | Put +1/+1 counters on Army token or create one |
+| Discover | 701.57 | P4 | `none` | — | — | — | Cascade | Keyword action variant of Cascade without the free cast restriction |
+| Forage | 701.61 | P4 | `none` | — | — | — | — | Sacrifice a Food or exile 3 cards from graveyard |
+| Offspring | 702.175 | P4 | `none` | — | — | — | — | Pay offspring cost → create 1/1 token copy on ETB |
 | Impending | 702.176 | P4 | `validated` | `cards/card_definition.rs:383` (AbilityDefinition::Impending), `state/types.rs:112,890` (KeywordAbility::Impending, AltCostKind::Impending), `rules/casting.rs:83,876-1073,1190-1193,1767-1768,3171-3203` (alt cost validation, mutual exclusion, cost payment, get_impending_cost/count), `rules/resolution.rs:293,358-373,1226-1272` (ETB time counters, counter-removal trigger resolution), `rules/layers.rs:85-95` (Layer 4 type removal while impending+counters), `rules/turn_actions.rs:302-328` (end-step trigger queuing), `rules/abilities.rs:3679-3686` (trigger dispatch), `state/stack.rs:185,754-771` (was_impended, ImpendingCounterTrigger), `state/hash.rs` (hash arms disc 99/33/32), `rules/copy.rs:208,398` (cascade/copy interaction), `testing/replay_harness.rs:914-927` (cast_spell_impending action) | Overlord of the Hauntwoods | `stack/136` | — | CR 702.176a: 4 sub-abilities (alt cost, ETB time counters, Layer 4 type removal, end-step counter removal); 11 unit tests in `tests/impending.rs`; alt-cost mutual exclusion with all 14 other alt-cost keywords; commander tax interaction tested |
-| Gift | 702.169 | P4 | `none` | — | — | — | — | Choose an opponent to receive a gift |
-| Collect evidence | 701.53 | P4 | `none` | — | — | — | — | Exile cards from graveyard with total MV >= N |
-| Suspect | 701.52 | P4 | `none` | — | — | — | — | Menace + can't block |
+| Gift | 702.174 | P4 | `none` | — | — | — | — | Choose an opponent to receive a gift |
+| Collect evidence | 701.59 | P4 | `none` | — | — | — | — | Exile cards from graveyard with total MV >= N |
+| Suspect | 701.60 | P4 | `none` | — | — | — | — | Menace + can't block |
 | Surveil | 701.25 | P2 | `validated` | `cards/card_definition.rs:293-303` (Effect::Surveil), `rules/events.rs:678-684` (GameEvent::Surveilled), `state/game_object.rs:147-150` (TriggerEvent::ControllerSurveils), `cards/card_definition.rs:577-582` (TriggerCondition::WheneverYouSurveil), `effects/mod.rs:917-953` (execution), `rules/abilities.rs:846-865` (trigger dispatch), `testing/replay_harness.rs:635-651` (enrichment), `state/hash.rs:959,1736,1996,2259` (hash arms) | Consider | `stack/071` | — | CR 701.25a/c/d fully enforced; deterministic fallback (all surveilled cards go to graveyard); surveil 0 suppresses event (CR 701.25c); event fires even with empty/partial library (CR 701.25d); WheneverYouSurveil trigger pipeline complete; 7 unit tests in `tests/surveil.rs`; game script pending_review (all assertions pass) |
 | Adapt (keyword action) | 701.46 | P3 | `validated` | — | — | — | — | See Section 9 (primary row); implementation tracked there |
 | Venture/Dungeon | 309 | P4 | `n/a` | — | — | — | — | Dungeon cards not in Commander precons; very niche |
@@ -475,6 +475,8 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 
 ### P3 Gaps (Commander-relevant, less common)
 
+3 remaining: **Morph** (702.37, deferred), **Mutate** (702.140, deferred), **Transform** (701.28). 37/40 validated.
+
 **Resolved**: Battle Cry (CR 702.91) — validated 2026-02-27 (script combat/076, Signal Pest, 7 unit tests in battle_cry.rs).
 
 **Resolved**: Extort (CR 702.101) — validated 2026-02-27 (script stack/078, Syndic of Tithes, 7 unit tests in extort.rs).
@@ -520,6 +522,8 @@ All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
 **Resolved**: Overload (CR 702.96) — validated 2026-02-28 (script baseline/108, Vandalblast, 11 unit tests in overload.rs).
 
 ### P4 Gaps (niche / historical)
+
+44 remaining (none), 12 n/a (digital-only + Banding + niche). 49/105 validated. Top unresolved by likely demand: Fuse, Bloodthirst, Fabricate, Champion, Devour, Totem Armor; Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
 
 **Resolved**: Shadow (CR 702.28) — validated 2026-02-28 (script combat/106, Dauthi Slayer, 7 unit tests in shadow.rs).
 

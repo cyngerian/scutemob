@@ -176,6 +176,44 @@ pub fn handle_play_land(
         }
     }
 
+    // CR 702.58a: Place N +1/+1 counters on a land with Graft N as it enters.
+    // Llanowar Reborn is the canonical land with Graft. The counters do nothing
+    // on a non-creature land but are important if the land becomes a creature.
+    // The ETB hook must exist at both sites (resolution.rs and lands.rs) per
+    // gotchas-infra.md.
+    // CR 702.58b: Multiple instances each work separately -- sum all N values.
+    {
+        let total_graft: u32 = state
+            .objects
+            .get(&new_land_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .iter()
+                    .filter_map(|kw| {
+                        if let KeywordAbility::Graft(n) = kw {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .sum()
+            })
+            .unwrap_or(0);
+        if total_graft > 0 {
+            if let Some(obj) = state.objects.get_mut(&new_land_id) {
+                let current = obj
+                    .counters
+                    .get(&CounterType::PlusOnePlusOne)
+                    .copied()
+                    .unwrap_or(0);
+                obj.counters = obj
+                    .counters
+                    .update(CounterType::PlusOnePlusOne, current + total_graft);
+            }
+        }
+    }
+
     // CR 702.30a: Mark lands with Echo as pending their echo trigger.
     // "At the beginning of your upkeep, if this permanent came under your
     // control since the beginning of your last upkeep, sacrifice it unless

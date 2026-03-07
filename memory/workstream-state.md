@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 8 complete — Batch 9 next (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass) | available | — | B8 closed 2026-03-06 |
+| W1: Abilities | Batch 9: Counter & Growth (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass) | ACTIVE | 2026-03-06 | B9 in progress — chained agent run |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

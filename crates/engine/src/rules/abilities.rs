@@ -553,6 +553,7 @@ pub fn handle_cycle_card(
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -2052,6 +2053,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2123,6 +2125,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cumulative_upkeep_cost: None,
                                 recover_cost: None,
                                 recover_card: None,
+                                graft_entering_creature: None,
                             });
                         }
                     }
@@ -2183,6 +2186,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -2245,6 +2249,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 cumulative_upkeep_cost: None,
                                 recover_cost: None,
                                 recover_card: None,
+                                graft_entering_creature: None,
                             });
                         }
                     }
@@ -2398,9 +2403,111 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             cumulative_upkeep_cost: None,
                                             recover_cost: None,
                                             recover_card: None,
+                                            graft_entering_creature: None,
                                         });
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // CR 702.58a: Graft -- "Whenever another creature enters, if this
+                // permanent has a +1/+1 counter on it, you may move a +1/+1 counter
+                // from this permanent onto that creature."
+                //
+                // CR 702.58b: Multiple instances each trigger separately.
+                // Differences from Evolve:
+                // - Fires for ANY player's creature entering (not just controller's)
+                // - Has intervening-if: source must have a +1/+1 counter
+                // - "Another creature" -- source entering does NOT trigger itself
+                {
+                    // Only creatures entering trigger Graft (CR 702.58a).
+                    let entering_is_creature =
+                        crate::rules::layers::calculate_characteristics(state, *object_id)
+                            .or_else(|| {
+                                state
+                                    .objects
+                                    .get(object_id)
+                                    .map(|o| o.characteristics.clone())
+                            })
+                            .map(|chars| chars.card_types.contains(&CardType::Creature))
+                            .unwrap_or(false);
+
+                    if entering_is_creature {
+                        // Collect all battlefield permanents with Graft that:
+                        // 1. Are not the entering creature itself ("another creature")
+                        // 2. Have at least one +1/+1 counter (intervening-if check at trigger time, CR 603.4)
+                        let graft_sources: Vec<(ObjectId, PlayerId, usize)> = state
+                            .objects
+                            .iter()
+                            .filter(|(id, obj)| {
+                                obj.zone == ZoneId::Battlefield
+                                    && **id != *object_id
+                                    && obj.is_phased_in()
+                                    && obj
+                                        .counters
+                                        .get(&CounterType::PlusOnePlusOne)
+                                        .copied()
+                                        .unwrap_or(0)
+                                        > 0
+                            })
+                            .filter_map(|(id, obj)| {
+                                let chars =
+                                    crate::rules::layers::calculate_characteristics(state, *id)
+                                        .unwrap_or_else(|| obj.characteristics.clone());
+                                let graft_count = chars
+                                    .keywords
+                                    .iter()
+                                    .filter(|kw| matches!(kw, KeywordAbility::Graft(_)))
+                                    .count();
+                                if graft_count > 0 {
+                                    Some((*id, obj.controller, graft_count))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        for (graft_id, graft_controller, graft_count) in graft_sources {
+                            for _ in 0..graft_count {
+                                triggers.push(PendingTrigger {
+                                    source: graft_id,
+                                    ability_index: 0, // unused for graft triggers
+                                    controller: graft_controller,
+                                    kind: PendingTriggerKind::Graft,
+                                    triggering_event: Some(
+                                        TriggerEvent::AnyPermanentEntersBattlefield,
+                                    ),
+                                    entering_object_id: Some(*object_id),
+                                    targeting_stack_id: None,
+                                    triggering_player: None,
+                                    exalted_attacker_id: None,
+                                    defending_player_id: None,
+                                    madness_exiled_card: None,
+                                    madness_cost: None,
+                                    miracle_revealed_card: None,
+                                    miracle_cost: None,
+                                    modular_counter_count: None,
+                                    evolve_entering_creature: None,
+                                    suspend_card_id: None,
+                                    hideaway_count: None,
+                                    partner_with_name: None,
+                                    ingest_target_player: None,
+                                    flanking_blocker_id: None,
+                                    rampage_n: None,
+                                    provoke_target_creature: None,
+                                    renown_n: None,
+                                    poisonous_n: None,
+                                    poisonous_target_player: None,
+                                    enlist_enlisted_creature: None,
+                                    encore_activator: None,
+                                    echo_cost: None,
+                                    cumulative_upkeep_cost: None,
+                                    recover_cost: None,
+                                    recover_card: None,
+                                    graft_entering_creature: Some(*object_id),
+                                });
                             }
                         }
                     }
@@ -2920,6 +3027,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -3108,6 +3216,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -3182,6 +3291,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: Some(cost),
                             recover_card: Some(recover_id),
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -3242,6 +3352,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -3354,6 +3465,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             cumulative_upkeep_cost: None,
                             recover_cost: None,
                             recover_card: None,
+                            graft_entering_creature: None,
                         });
                     }
                 }
@@ -3458,6 +3570,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         cumulative_upkeep_cost: None,
                                         recover_cost: None,
                                         recover_card: None,
+                                        graft_entering_creature: None,
                                     });
                                 }
                             }
@@ -3542,6 +3655,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         cumulative_upkeep_cost: None,
                                         recover_cost: None,
                                         recover_card: None,
+                                        graft_entering_creature: None,
                                     });
                                 }
                             }
@@ -3627,6 +3741,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         cumulative_upkeep_cost: None,
                                         recover_cost: None,
                                         recover_card: None,
+                                        graft_entering_creature: None,
                                     });
                                 }
                             }
@@ -3747,6 +3862,7 @@ fn collect_triggers_for_event(
                 cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
+                graft_entering_creature: None,
             });
         }
     }
@@ -4233,6 +4349,18 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                         recover_card: trigger.recover_card.unwrap_or(trigger.source),
                         recover_cost: trigger.recover_cost.clone().unwrap_or_default(),
+                    }
+                }
+                PendingTriggerKind::Graft => {
+                    // CR 702.58a: Graft trigger.
+                    // "Whenever another creature enters, if this permanent has a +1/+1
+                    // counter on it, you may move a +1/+1 counter from this permanent
+                    // onto that creature."
+                    StackObjectKind::GraftTrigger {
+                        source_object: trigger.source,
+                        entering_creature: trigger
+                            .graft_entering_creature
+                            .unwrap_or(trigger.source),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

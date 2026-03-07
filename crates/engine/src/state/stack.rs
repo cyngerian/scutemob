@@ -954,4 +954,16 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         embedded_effect: Box<crate::cards::card_definition::Effect>,
     },
+    /// CR 702.58a: Graft triggered ability on the stack.
+    /// "Whenever another creature enters, if this permanent has a +1/+1 counter
+    /// on it, you may move a +1/+1 counter from this permanent onto that creature."
+    ///
+    /// At resolution: re-check intervening-if (source has +1/+1 counter, CR 603.4),
+    /// then move one counter from source to entering creature.
+    ///
+    /// Discriminant 44.
+    GraftTrigger {
+        source_object: ObjectId,
+        entering_creature: ObjectId,
+    },
 }

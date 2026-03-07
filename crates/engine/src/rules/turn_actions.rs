@@ -98,6 +98,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -169,6 +170,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
+                graft_entering_creature: None,
             });
         }
     }
@@ -241,6 +243,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
+                graft_entering_creature: None,
             });
         }
     }
@@ -314,6 +317,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
+                graft_entering_creature: None,
             });
         }
     }
@@ -384,6 +388,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 cumulative_upkeep_cost: Some(cost),
                 recover_cost: None,
                 recover_card: None,
+                graft_entering_creature: None,
             });
         }
     }
@@ -442,6 +447,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -501,6 +507,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -552,6 +559,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -603,6 +611,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -663,6 +672,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             cumulative_upkeep_cost: None,
             recover_cost: None,
             recover_card: None,
+            graft_entering_creature: None,
         });
     }
 
@@ -1093,6 +1103,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         cumulative_upkeep_cost: None,
                         recover_cost: None,
                         recover_card: None,
+                        graft_entering_creature: None,
                     });
                 }
             }

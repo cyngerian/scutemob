@@ -2048,6 +2048,7 @@ fn execute_effect_inner(
                                         cumulative_upkeep_cost: None,
                                         recover_cost: None,
                                         recover_card: None,
+                                        graft_entering_creature: None,
                                     });
                                 }
                             }
@@ -2679,6 +2680,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         cumulative_upkeep_cost: None,
                         recover_cost: None,
                         recover_card: None,
+                        graft_entering_creature: None,
                     });
                 }
             }

@@ -1093,6 +1093,16 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 118.
     Phasing,
+    /// CR 702.58: Graft N -- "This permanent enters with N +1/+1 counters on it"
+    /// and "Whenever another creature enters, if this permanent has a +1/+1
+    /// counter on it, you may move a +1/+1 counter from this permanent onto
+    /// that creature."
+    ///
+    /// Represents both a static ability (ETB counters) and a triggered ability
+    /// (counter transfer). Each instance works separately (CR 702.58b).
+    ///
+    /// Discriminant 119.
+    Graft(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

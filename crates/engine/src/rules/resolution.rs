@@ -637,6 +637,45 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
 
+                // CR 702.58a: Graft N -- "This permanent enters with N +1/+1 counters on it."
+                // CR 702.58b: Multiple instances each work separately; their N values sum.
+                // Count from the card definition (same approach as Modular).
+                {
+                    let graft_total: u32 = card_id
+                        .as_ref()
+                        .and_then(|cid| registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .filter_map(|a| match a {
+                                    crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Graft(n),
+                                    ) => Some(*n),
+                                    _ => None,
+                                })
+                                .sum()
+                        })
+                        .unwrap_or(0);
+
+                    if graft_total > 0 {
+                        if let Some(obj) = state.objects.get_mut(&new_id) {
+                            let current = obj
+                                .counters
+                                .get(&CounterType::PlusOnePlusOne)
+                                .copied()
+                                .unwrap_or(0);
+                            obj.counters = obj
+                                .counters
+                                .update(CounterType::PlusOnePlusOne, current + graft_total);
+                        }
+                        events.push(GameEvent::CounterAdded {
+                            object_id: new_id,
+                            counter: CounterType::PlusOnePlusOne,
+                            count: graft_total,
+                        });
+                    }
+                }
+
                 // CR 702.103b: If the permanent is bestowed, re-apply the type
                 // transformation after move_object_to_zone (which resets to printed types).
                 // The permanent enters as an Aura enchantment with enchant creature,
@@ -1121,6 +1160,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cumulative_upkeep_cost: None,
                                 recover_cost: None,
                                 recover_card: None,
+                                graft_entering_creature: None,
                             });
                     }
                 }
@@ -2191,6 +2231,86 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.58a: Graft trigger resolves -- re-check the intervening-if condition
+        // (CR 603.4) and move one +1/+1 counter from the graft source to the entering
+        // creature if both conditions still hold.
+        StackObjectKind::GraftTrigger {
+            source_object,
+            entering_creature,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Re-check intervening-if at resolution time.
+            // Source must still be on the battlefield AND have at least one +1/+1 counter.
+            let source_has_counter = state
+                .objects
+                .get(&source_object)
+                .map(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj
+                            .counters
+                            .get(&CounterType::PlusOnePlusOne)
+                            .copied()
+                            .unwrap_or(0)
+                            > 0
+                })
+                .unwrap_or(false);
+
+            // The entering creature must still be on the battlefield.
+            let target_on_battlefield = state
+                .objects
+                .get(&entering_creature)
+                .map(|obj| obj.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if source_has_counter && target_on_battlefield {
+                // CR 702.58a: "you may move a +1/+1 counter" -- auto-accept (always move).
+                // Remove one +1/+1 counter from source.
+                if let Some(obj) = state.objects.get_mut(&source_object) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    if current > 1 {
+                        obj.counters = obj
+                            .counters
+                            .update(CounterType::PlusOnePlusOne, current - 1);
+                    } else {
+                        obj.counters = obj.counters.without(&CounterType::PlusOnePlusOne);
+                    }
+                }
+                events.push(GameEvent::CounterRemoved {
+                    object_id: source_object,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                });
+
+                // Add one +1/+1 counter to entering creature.
+                if let Some(obj) = state.objects.get_mut(&entering_creature) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj
+                        .counters
+                        .update(CounterType::PlusOnePlusOne, current + 1);
+                }
+                events.push(GameEvent::CounterAdded {
+                    object_id: entering_creature,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: 1,
+                });
+            }
+            // If either condition fails, the trigger fizzles silently.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 702.116a: Myriad trigger resolves -- create token copies of the source
         // creature for each opponent other than the defending player, each tapped and
         // attacking that opponent.
@@ -2418,6 +2538,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 cumulative_upkeep_cost: None,
                                 recover_cost: None,
                                 recover_card: None,
+                                graft_entering_creature: None,
                             });
                     }
                 }
@@ -4095,7 +4216,8 @@ pub fn counter_stack_object(
         | StackObjectKind::EchoTrigger { .. }
         | StackObjectKind::CumulativeUpkeepTrigger { .. }
         | StackObjectKind::RecoverTrigger { .. }
-        | StackObjectKind::ForecastAbility { .. } => {
+        | StackObjectKind::ForecastAbility { .. }
+        | StackObjectKind::GraftTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
             // activation is already consumed (once-per-turn tracked) and the card

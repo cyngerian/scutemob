@@ -554,6 +554,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::ForecastAbility { source_object, .. } => {
             ("forecast_ability", Some(*source_object))
         }
+        StackObjectKind::GraftTrigger { source_object, .. } => {
+            ("graft_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -817,5 +820,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Recover => "Recover".to_string(),
         KeywordAbility::Forecast => "Forecast".to_string(),
         KeywordAbility::Phasing => "Phasing".to_string(),
+        KeywordAbility::Graft(n) => format!("Graft {n}"),
     }
 }

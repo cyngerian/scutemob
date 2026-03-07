@@ -85,6 +85,11 @@ pub enum PendingTriggerKind {
     /// graveyard from the battlefield. Carries recover_cost and recover_card for
     /// flush_pending_triggers to build the RecoverTrigger stack entry.
     Recover,
+    /// CR 702.58a: Graft trigger -- fired when another creature enters the
+    /// battlefield while this permanent has a +1/+1 counter on it.
+    /// Carries graft_entering_creature for flush_pending_triggers to build the
+    /// GraftTrigger stack entry.
+    Graft,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -286,6 +291,13 @@ pub struct PendingTrigger {
     /// Carries the recover card id from trigger queueing to stack object creation.
     #[serde(default)]
     pub recover_card: Option<ObjectId>,
+    /// CR 702.58a: The ObjectId of the creature that entered the battlefield.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::Graft`. Used at resolution
+    /// time for the intervening-if re-check (CR 603.4): source must still have a
+    /// +1/+1 counter and the entering creature must still be on the battlefield.
+    #[serde(default)]
+    pub graft_entering_creature: Option<ObjectId>,
 }
 
 impl PendingTriggerKind {

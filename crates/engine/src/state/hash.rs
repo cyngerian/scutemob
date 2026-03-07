@@ -602,6 +602,11 @@ impl HashInto for KeywordAbility {
             // Forecast (discriminant 117) -- CR 702.57
             KeywordAbility::Forecast => 117u8.hash_into(hasher),
             KeywordAbility::Phasing => 118u8.hash_into(hasher),
+            // Graft (discriminant 119) -- CR 702.58
+            KeywordAbility::Graft(n) => {
+                119u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1248,6 +1253,8 @@ impl HashInto for PendingTrigger {
         self.poisonous_target_player.hash_into(hasher);
         // CR 702.154a: enlist-specific field
         self.enlist_enlisted_creature.hash_into(hasher);
+        // CR 702.58a: graft-specific field
+        self.graft_entering_creature.hash_into(hasher);
     }
 }
 
@@ -1765,6 +1772,15 @@ impl HashInto for StackObjectKind {
                 43u8.hash_into(hasher);
                 source_object.hash_into(hasher);
                 embedded_effect.hash_into(hasher);
+            }
+            // GraftTrigger (discriminant 44) -- CR 702.58a
+            StackObjectKind::GraftTrigger {
+                source_object,
+                entering_creature,
+            } => {
+                44u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                entering_creature.hash_into(hasher);
             }
         }
     }

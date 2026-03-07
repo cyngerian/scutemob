@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 7 (2026-03-06)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 8 (2026-03-06)
 
 ## Rust / im-rs Gotchas
 
@@ -140,10 +140,17 @@
   This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
-- **Discriminant chain after Batch 7**: KeywordAbility next = 112, StackObjectKind next = 37,
-  AbilityDefinition next = 41. B7 used: KW 107-111 (Gravestorm, Cleave, Splice, Entwine, Escalate),
-  AbilDef 36-40 (same order), SOK 36 (GravestormTrigger). Check card_definition.rs for exact values.
+- **Discriminant chain after Batch 8**: KeywordAbility next = 119, StackObjectKind next = 44,
+  AbilityDefinition next = 47. B8 used: KW 112-118 (Vanishing, Fading, Echo, CumulativeUpkeep,
+  Recover, Forecast, Phasing), AbilDef 41-46 (same order), SOK 37-43 (VanishingCounterTrigger,
+  VanishingSacrificeTrigger, FadingTrigger, EchoTrigger, CumulativeUpkeepTrigger, RecoverTrigger,
+  ForecastAbility). Check card_definition.rs for exact values.
   **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
+- **HAZARD: `ability-impl-planner` generates wrong discriminants.** The planner (Opus) sometimes
+  assigns already-taken KW/AbilDef discriminants (uses the first available value without reading
+  what's actually in use). Always verify the full discriminant chain from the previous batch before
+  passing values to the runner. Pass the correct next values EXPLICITLY in the runner prompt to
+  override whatever the planner wrote. This hazard recurred every batch since B5.
 - **Parameterized keyword N-value extraction must use layer-resolved chars, NOT card registry.**
   Reading `card_registry.get(card_id)` bypasses Humility/Dress Down (ability removal in Layer 6)
   and also misses abilities granted by continuous effects. Always use `chars.keywords.iter()` where
@@ -201,6 +208,9 @@
   **B7 additions**: `cast_spell_replicate` (replicate_count: u32), `cast_spell_cleave`
   (AltCostKind::Cleave), `cast_spell_splice` (splice_card_names: Vec<String>),
   `cast_spell_entwine` (entwine_paid: true), `cast_spell_escalate` (escalate_modes: u32).
+  **B8 additions**: `pay_recover` (card_name present = pay and recover that card from GY,
+  card_name absent = decline and exile; mirrors `choose_dredge` pattern using presence as a flag),
+  `activate_forecast` (card_name = card in hand with Forecast, targets array).
   When the generator reports a harness gap for a new action type, add the arm to
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
 - **`cast_spell` hard-codes `replicate_count: 0`** — scripts for Replicate spells MUST use
@@ -242,6 +252,13 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs:399-408` 
 
 ## Turn Structure Gotchas
 
+- **Phasing simultaneous snapshot (CR 502.1)**: Phasing-in and phasing-out sets MUST be
+  determined from a snapshot of state BEFORE any mutations. Collecting phase-out candidates
+  sequentially after already flipping objects causes newly-phased-in creatures to be
+  immediately re-collected for phase-out. Fix: snapshot both sets (phase-in set = all phased-out
+  permanents, phase-out set = all phased-in permanents with Phasing or indirectly linked),
+  then flip them all. Indirect phasing (CR 702.26h): equipment/auras controlled by the phasing
+  permanent phase out indirectly and should NOT be included in the direct-phase-out set.
 - **`advance_turn()` uses `turn.last_regular_active`, NOT `turn.active_player`.** When manually
   constructing a test state with a non-P1 active player, you must set BOTH `active_player` AND
   `last_regular_active`. If you only set `active_player = P3` but leave `last_regular_active = P1`,

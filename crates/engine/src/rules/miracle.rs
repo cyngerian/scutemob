@@ -138,6 +138,7 @@ pub fn handle_choose_miracle(
         cumulative_upkeep_cost: None,
         recover_cost: None,
         recover_card: None,
+        graft_entering_creature: None,
     });
 
     Ok(vec![])
