@@ -109,6 +109,26 @@ pub fn calculate_characteristics(
             }
         }
 
+        // CR 702.161a: Living Metal -- "During your turn, this permanent is an
+        // artifact creature in addition to its other types."
+        // Applied at Layer 4 (TypeChange) inline, after CDAs, before non-CDA Layer 4
+        // effects. The condition is: (1) object is on the battlefield, AND (2) the
+        // active player is the permanent's controller.
+        // Uses chars.keywords (pre-Layer-6) so the check runs at Layer 4 time before
+        // Humility could strip the keyword in Layer 6. This is intentionally correct:
+        // Layer 4 runs before Layer 6, so Living Metal adds Creature before Humility
+        // removes abilities. Same behavior as Changeling CDA surviving Humility.
+        if layer == EffectLayer::TypeChange && chars.keywords.contains(&KeywordAbility::LivingMetal)
+        {
+            if let Some(obj_ref) = state.objects.get(&object_id) {
+                if obj_ref.zone == ZoneId::Battlefield
+                    && state.turn.active_player == obj_ref.controller
+                {
+                    chars.card_types.insert(CardType::Creature);
+                }
+            }
+        }
+
         // Gather effects for this layer that apply to this object.
         // The filter is evaluated against `chars` as modified by earlier layers —
         // this is correct because type changes from layer 4 affect whether "AllCreatures"

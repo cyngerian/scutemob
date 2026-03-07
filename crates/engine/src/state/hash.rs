@@ -635,6 +635,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Champion => 126u8.hash_into(hasher),
             // UmbraArmor (discriminant 127) -- CR 702.89
             KeywordAbility::UmbraArmor => 127u8.hash_into(hasher),
+            // LivingMetal (discriminant 128) -- CR 702.161
+            KeywordAbility::LivingMetal => 128u8.hash_into(hasher),
         }
     }
 }

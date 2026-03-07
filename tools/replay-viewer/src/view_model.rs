@@ -842,5 +842,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Backup(n) => format!("Backup {n}"),
         KeywordAbility::Champion => "Champion".to_string(),
         KeywordAbility::UmbraArmor => "Umbra Armor".to_string(),
+        KeywordAbility::LivingMetal => "Living Metal".to_string(),
     }
 }

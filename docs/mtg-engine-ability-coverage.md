@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Umbra Armor 702.89 validated: KW 127, UmbraArmorApplied event disc 99, check/apply_umbra_armor in replacement.rs, SBA+DestroyPermanent paths, Hyena Umbra, script stack/165, 11 tests)
+> Last audited: 2026-03-07 (Living Metal 702.161 validated: KW 128, Layer 4 type-change in layers.rs, Steel Guardian, script stack/166, 7 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 59        | 0        | 0       | 34   | 12  |
-| **Total**| **204**| **152**  | **2**    | **0**   | **38**| **12** |
+| P4       | 105   | 60        | 0        | 0       | 33   | 12  |
+| **Total**| **204**| **153**  | **2**    | **0**   | **37**| **12** |
 
 ---
 
@@ -276,7 +276,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Crew | 702.122 | P2 | `validated` | `state/types.rs:302`, `rules/command.rs:245`, `rules/engine.rs:234`, `rules/abilities.rs:1246`, `testing/replay_harness.rs:408` | Smuggler's Copter | `combat/075` | 15 tests in `crew.rs`; script `pending_review` (multi-turn attack gap, same as 069/070) |
 | Saddle | 702.163 | P4 | `none` | — | — | — | Crew | Crew variant for Mounts |
 | Prototype | 702.160 | P4 | `validated` | `state/types.rs:882` (KeywordAbility::Prototype disc 98), `cards/card_definition.rs:373` (AbilityDefinition::Prototype{cost,power,toughness} disc 31), `rules/command.rs:163` (CastSpell.prototype: bool), `state/game_object.rs:517` (is_prototyped), `state/stack.rs:184` (was_prototyped), `rules/casting.rs:68,972-993` (prototype cost selection + stack char overwrite), `rules/resolution.rs:335-346` (ETB prototype char application), `state/mod.rs:310-316,433-438` (CR 718.4 zone-change revert), `rules/copy.rs:204-205` (CR 718.3c was_prototyped propagation), `rules/commander.rs:210-216` (prototype cost in color identity), `testing/replay_harness.rs:853` (cast_spell_prototype action) | Blitz Automaton | `stack/135` | 10 tests in `tests/prototype.rs` | CR 702.160 + CR 718; NOT an alternative cost (CR 118.9); prototype changes P/T, mana cost, color on stack+battlefield only; reverts to printed chars on zone change (CR 718.4); copies inherit was_prototyped (CR 718.3c); abilities/name/types unchanged (CR 718.5) |
-| Living Metal | 702.161 | P4 | `none` | — | — | — | — | Artifact is also a creature on your turn |
+| Living Metal | 702.161 | P4 | `validated` | `state/types.rs`, `rules/layers.rs` | Steel Guardian | `stack/166` | — | KW 128; Layer 4 type-change during controller's turn (CR 702.161a); 7 tests in `living_metal.rs`; all real cards are DFC Transform (blocked subsystem), uses synthetic card |
 | Umbra Armor | 702.89 | P4 | `validated` | `state/types.rs`, `rules/replacement.rs`, `rules/sba.rs`, `effects/mod.rs` | Hyena Umbra | `stack/165` | Enchant | Aura destroyed instead of enchanted permanent; KW 127, disc 99; 11 tests in `umbra_armor.rs` |
 | Soulbond | 702.95 | P4 | `none` | — | — | — | — | Pair with another creature for shared abilities |
 | Haunt | 702.55 | P4 | `none` | — | — | — | — | When this dies, exile haunting a creature |

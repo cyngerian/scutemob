@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_166",
+    "name": "Living Metal — Steel Guardian is a creature during p1's turn and can attack",
+    "description": "Tests the Living Metal keyword ability (CR 702.161a) using Steel Guardian, a synthetic 3/3 Artifact Vehicle with Living Metal. During p1's turn, Living Metal applies at Layer 4 (TypeChange) and adds CardType::Creature to Steel Guardian while p1 is the active player. This is demonstrated behaviorally: p1 declares Steel Guardian as an attacker in the DeclareAttackers step — if the engine accepts the command, Steel Guardian is a creature. p2 has no blockers. Steel Guardian deals 3 combat damage to p2 (40 → 37). Proves that Living Metal grants creature status without the Vehicle being crewed.",
+    "cr_sections_tested": ["702.161a", "604.1", "613.1d", "508.1", "509.1", "510.1", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["living-metal", "vehicle", "artifact-creature", "type-change", "layer-4", "static-ability", "combat", "declare-attackers"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.161a: 'Living Metal — During your turn, this permanent is an artifact creature in addition to its other types.' This is a static ability (CR 604.1) that generates a continuous effect applied at Layer 4 (TypeChange, CR 613.1d). The engine applies it in rules/layers.rs: when layer == EffectLayer::TypeChange AND the object has KeywordAbility::LivingMetal AND obj.zone == ZoneId::Battlefield AND state.turn.active_player == obj.controller, it inserts CardType::Creature into chars.card_types. Steel Guardian (cid: steel-guardian) has CardType::Artifact as its base type, P/T 3/3, and KeywordAbility::LivingMetal per its CardDefinition in crates/engine/src/cards/defs/steel_guardian.rs. The card also has Crew(2) but crewing is not used here — Living Metal provides creature status directly during p1's turn, allowing Steel Guardian to attack without any crew activation. The harness does NOT support a 'permanent.<name>.card_types' assertion path. The check_assertions function in crates/engine/tests/script_replay.rs only handles: players.*.life, players.*.poison_counters, zones.hand.*.count, zones.stack.count, zones.stack (is_empty), zones.graveyard.* (includes/excludes), zones.battlefield.* (includes/excludes), permanent.*.tapped, and permanent.*.counters.*. Unknown paths fall into the '_' arm and silently return None (no mismatch — they pass vacuously without checking). To avoid false assurance from vacuous passes, this script does NOT use card_type assertions. Instead it proves creature status behaviorally: if declare_attackers succeeds with Steel Guardian as the attacker, the engine accepted it as a creature. The 'not a creature during p2's turn' invariant is validated by the unit test test_living_metal_not_creature_during_opponent_turn in crates/engine/tests/living_metal.rs — that test directly calls calculate_characteristics() with active_player set to p2 and asserts CardType::Creature is absent. The initial state uses phase: 'declare_attackers' (p1 turn 4) — starting directly in the DeclareAttackers step avoids having to advance through multiple phases. Turn 4 ensures no summoning sickness (GameStateBuilder sets has_summoning_sickness: false for initial-state permanents). p2 controls no creatures, so Steel Guardian is unblocked and deals 3 combat damage.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 4,
+    "active_player": "p1",
+    "phase": "declare_attackers",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Steel Guardian", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "declare_attackers",
+      "step_note": "p1's turn, DeclareAttackers step. Steel Guardian (Artifact Vehicle with Living Metal) is on p1's battlefield. Living Metal (CR 702.161a) applies at Layer 4: since p1 is the active player and p1 controls Steel Guardian, CardType::Creature is added. p1 declares Steel Guardian as an attacker — the engine's declare_attackers handler requires the permanent to have CardType::Creature, so accepting this command proves Living Metal is working.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Steel Guardian untapped on p1's battlefield. Stack empty. Life totals 40/40.",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Steel Guardian" }]
+            },
+            "permanent.Steel Guardian.tapped": false,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "Steel Guardian was placed directly in the initial state (no summoning sickness at turn 4). Living Metal is a static ability — no activation required; it applies continuously while p1 is the active player."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "declare_attackers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [
+            { "card": "Steel Guardian", "target_player": "p2", "target_planeswalker": null }
+          ],
+          "blockers": [],
+          "cr_ref": "508.1",
+          "note": "CR 508.1: P1 declares Steel Guardian as an attacking creature targeting p2. CR 702.161a: Steel Guardian is an artifact creature during p1's turn due to Living Metal — the engine accepts this only because CardType::Creature was added by the Layer 4 static effect. CR 508.1a: Steel Guardian is untapped and free of summoning sickness (placed in initial state at turn 4; builder sets has_summoning_sickness: false). CR 508.1f: Steel Guardian becomes tapped as a side effect of attacking."
+        },
+        {
+          "type": "assert_state",
+          "description": "After declare_attackers: Steel Guardian is tapped (attacking). Stack empty. The command acceptance is behavioral proof that Living Metal granted creature status during p1's turn.",
+          "assertions": {
+            "permanent.Steel Guardian.tapped": true,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 508.1f: Steel Guardian is tapped as part of attacking. The engine's declare_attackers handler rejects non-creature permanents — acceptance here confirms CardType::Creature was present via Living Metal."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority with empty stack → advance to DeclareBlockers step."
+        }
+      ]
+    },
+    {
+      "step": "declare_blockers",
+      "step_note": "P2 declares no blockers (controls no creatures). Steel Guardian becomes an unblocked attacker.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p2",
+          "action": "declare_blockers",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "attackers": [],
+          "blockers": [],
+          "cr_ref": "509.1",
+          "note": "CR 509.1: P2 declares no blockers (controls no creatures). CR 509.1h: Steel Guardian has no blockers declared → it becomes an unblocked attacker."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority → advance to CombatDamage step."
+        }
+      ]
+    },
+    {
+      "step": "combat_damage",
+      "step_note": "CombatDamage step: Steel Guardian (power 3, unblocked) assigns 3 combat damage to p2 (CR 510.1b). P2 life: 40 → 37. No SBAs from combat.",
+      "actions": [
+        {
+          "type": "sba_check",
+          "actions": [],
+          "note": "CR 704.5a: p2 has 37 life — no player-death SBA. CR 704.5g: Steel Guardian took 0 damage — no lethal-damage SBA. No SBAs apply."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3d: Both players pass priority after CombatDamage. Stack empty → advance to EndOfCombat."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: p2 at 37 life (took 3 combat damage from unblocked Steel Guardian). Steel Guardian still on p1's battlefield (tapped from attacking). Stack empty.",
+          "assertions": {
+            "players.p2.life": 37,
+            "players.p1.life": 40,
+            "permanent.Steel Guardian.tapped": true,
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Steel Guardian" }]
+            },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "CR 510.1b: Unblocked Steel Guardian (power 3) dealt 3 combat damage to p2. P2 life: 40 → 37. Steel Guardian remains on the battlefield tapped. The 'not a creature during p2's turn' invariant is validated by unit tests in crates/engine/tests/living_metal.rs."
+        }
+      ]
+    }
+  ]
+}

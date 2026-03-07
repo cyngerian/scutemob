@@ -1172,6 +1172,17 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 127.
     UmbraArmor,
+
+    /// CR 702.161a: Living metal -- "During your turn, this permanent is an
+    /// artifact creature in addition to its other types."
+    ///
+    /// Static ability on Vehicles. Applied inline in `calculate_characteristics`
+    /// at Layer 4 (TypeChange). Adds the Creature card type when the active
+    /// player is the permanent's controller. No Layer 7b needed -- the Vehicle
+    /// already has printed P/T.
+    ///
+    /// Discriminant 128.
+    LivingMetal,
 }
 
 /// CR 702.72a: The filter for what can be championed.
