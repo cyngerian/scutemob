@@ -1,6 +1,6 @@
 //! Turn-based actions: untap, draw, cleanup, mana pool emptying, combat (CR 500-514).
 
-use crate::cards::card_definition::AbilityDefinition;
+use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use crate::state::combat::CombatState;
 use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
@@ -386,6 +386,95 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 encore_activator: None,
                 echo_cost: None,
                 cumulative_upkeep_cost: Some(cost),
+                recover_cost: None,
+                recover_card: None,
+                graft_entering_creature: None,
+            });
+        }
+    }
+
+    // CR 603.3: Generic CardDef upkeep trigger sweep (MR-B9-01).
+    //
+    // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourUpkeep (for active
+    // player's permanents) or AtBeginningOfEachUpkeep (for all players' permanents) conditions.
+    //
+    // Hardcoded keyword triggers (Suspend, Vanishing, Fading, Echo, CumulativeUpkeep) are
+    // handled by the blocks above; this sweep catches all other CardDef-defined upkeep triggers
+    // (e.g., Dreadhorde Invasion's life-loss + amass, Champion's paired trigger, etc.).
+    //
+    // CR 603.4: Intervening-if conditions (if any) are checked at resolution via the Normal
+    // trigger dispatch path, consistent with all other CardDef trigger handling.
+    let carddef_upkeep_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
+        let registry = &state.card_registry;
+        state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == ZoneId::Battlefield && !obj.status.phased_out)
+            .filter_map(|obj| {
+                let card_id = obj.card_id.as_ref()?;
+                let def = registry.get(card_id.clone())?;
+                let controller = obj.controller;
+                let indices: Vec<usize> = def
+                    .abilities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, abil)| {
+                        let AbilityDefinition::Triggered { trigger_condition, .. } = abil else {
+                            return None;
+                        };
+                        let fires = (matches!(
+                            trigger_condition,
+                            TriggerCondition::AtBeginningOfYourUpkeep
+                        ) && controller == active)
+                            || matches!(
+                                trigger_condition,
+                                TriggerCondition::AtBeginningOfEachUpkeep
+                            );
+                        fires.then_some(idx)
+                    })
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((obj.id, controller, indices))
+                }
+            })
+            .collect()
+    };
+
+    for (obj_id, controller, indices) in carddef_upkeep_triggers {
+        for ability_index in indices {
+            state.pending_triggers.push_back(PendingTrigger {
+                source: obj_id,
+                ability_index,
+                controller,
+                kind: PendingTriggerKind::Normal,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: None,
+                madness_cost: None,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+                echo_cost: None,
+                cumulative_upkeep_cost: None,
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
