@@ -561,6 +561,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             // No source_object -- card was already exiled as cost (CR 702.97a, CR 400.7).
             ("scavenge_ability", None)
         }
+        StackObjectKind::BackupTrigger { source_object, .. } => {
+            ("backup_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -830,5 +833,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Amplify(n) => format!("Amplify {n}"),
         KeywordAbility::Bloodthirst(n) => format!("Bloodthirst {n}"),
         KeywordAbility::Devour(n) => format!("Devour {n}"),
+        KeywordAbility::Backup(n) => format!("Backup {n}"),
     }
 }

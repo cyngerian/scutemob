@@ -139,6 +139,8 @@ pub fn handle_choose_miracle(
         recover_cost: None,
         recover_card: None,
         graft_entering_creature: None,
+        backup_abilities: None,
+        backup_n: None,
     });
 
     Ok(vec![])

@@ -555,6 +555,8 @@ pub fn handle_cycle_card(
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -2062,6 +2064,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2134,6 +2138,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 recover_cost: None,
                                 recover_card: None,
                                 graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
                             });
                         }
                     }
@@ -2195,6 +2201,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -2258,7 +2266,91 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 recover_cost: None,
                                 recover_card: None,
                                 graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
                             });
+                        }
+                    }
+                }
+
+                // CR 702.165a: Backup -- "When this creature enters, put N +1/+1 counters
+                // on target creature. If that's another creature, it also gains the non-backup
+                // abilities of this creature printed below this one until end of turn."
+                //
+                // CR 702.165d: Abilities are determined at trigger time (snapshot when trigger
+                // fires, not at resolution). Stored in backup_abilities on PendingTrigger.
+                // CR 702.165c: Only printed abilities (from card definition), not gained ones.
+                // CR 702.165a: Only abilities printed BELOW the Backup entry in the definition.
+                {
+                    if let Some(obj) = state.objects.get(object_id) {
+                        let controller = obj.controller;
+                        let card_id = obj.card_id.clone();
+                        if let Some(cid) = card_id {
+                            if let Some(def) = state.card_registry.get(cid) {
+                                // Find all Backup(N) instances and their positions.
+                                for (idx, ability) in def.abilities.iter().enumerate() {
+                                    if let crate::cards::card_definition::AbilityDefinition::Keyword(
+                                        KeywordAbility::Backup(n),
+                                    ) = ability
+                                    {
+                                        // CR 702.165d: Snapshot abilities below this Backup entry.
+                                        // CR 702.165a: "non-backup abilities printed below this one"
+                                        // CR 702.165c: Only printed abilities.
+                                        let abilities_below: Vec<KeywordAbility> = def.abilities
+                                            [idx + 1..]
+                                            .iter()
+                                            .filter_map(|a| match a {
+                                                crate::cards::card_definition::AbilityDefinition::Keyword(kw)
+                                                    if !matches!(kw, KeywordAbility::Backup(_)) =>
+                                                {
+                                                    Some(kw.clone())
+                                                }
+                                                _ => None,
+                                            })
+                                            .collect();
+
+                                        triggers.push(PendingTrigger {
+                                            source: *object_id,
+                                            ability_index: idx,
+                                            controller,
+                                            kind: PendingTriggerKind::Backup,
+                                            triggering_event: Some(
+                                                TriggerEvent::SelfEntersBattlefield,
+                                            ),
+                                            entering_object_id: Some(*object_id),
+                                            targeting_stack_id: None,
+                                            triggering_player: None,
+                                            exalted_attacker_id: None,
+                                            defending_player_id: None,
+                                            madness_exiled_card: None,
+                                            madness_cost: None,
+                                            miracle_revealed_card: None,
+                                            miracle_cost: None,
+                                            modular_counter_count: None,
+                                            evolve_entering_creature: None,
+                                            suspend_card_id: None,
+                                            hideaway_count: None,
+                                            partner_with_name: None,
+                                            ingest_target_player: None,
+                                            flanking_blocker_id: None,
+                                            rampage_n: None,
+                                            provoke_target_creature: None,
+                                            renown_n: None,
+                                            poisonous_n: None,
+                                            poisonous_target_player: None,
+                                            enlist_enlisted_creature: None,
+                                            encore_activator: None,
+                                            echo_cost: None,
+                                            cumulative_upkeep_cost: None,
+                                            recover_cost: None,
+                                            recover_card: None,
+                                            graft_entering_creature: None,
+                                            backup_abilities: Some(abilities_below),
+                                            backup_n: Some(*n),
+                                        });
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2412,6 +2504,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             recover_cost: None,
                                             recover_card: None,
                                             graft_entering_creature: None,
+                                            backup_abilities: None,
+                                            backup_n: None,
                                         });
                                     }
                                 }
@@ -2515,6 +2609,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     recover_cost: None,
                                     recover_card: None,
                                     graft_entering_creature: Some(*object_id),
+                                    backup_abilities: None,
+                                    backup_n: None,
                                 });
                             }
                         }
@@ -3036,6 +3132,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -3225,6 +3323,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -3300,6 +3400,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: Some(cost),
                             recover_card: Some(recover_id),
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -3361,6 +3463,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -3484,6 +3588,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             recover_cost: None,
                             recover_card: None,
                             graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
                         });
                     }
                 }
@@ -3589,6 +3695,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         recover_cost: None,
                                         recover_card: None,
                                         graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
                                     });
                                 }
                             }
@@ -3674,6 +3782,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         recover_cost: None,
                                         recover_card: None,
                                         graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
                                     });
                                 }
                             }
@@ -3760,6 +3870,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         recover_cost: None,
                                         recover_card: None,
                                         graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
                                     });
                                 }
                             }
@@ -3881,6 +3993,8 @@ fn collect_triggers_for_event(
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -4380,6 +4494,25 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         entering_creature: trigger
                             .graft_entering_creature
                             .unwrap_or(trigger.source),
+                    }
+                }
+                PendingTriggerKind::Backup => {
+                    // CR 702.165a: Backup ETB trigger.
+                    // Default target = self (gets counters but no abilities per CR 702.165a).
+                    // In real play the controller chooses; deterministic default = source.
+                    let target = trigger.source;
+                    let n = trigger.backup_n.unwrap_or(1);
+                    let abilities = trigger.backup_abilities.clone().unwrap_or_default();
+                    StackObjectKind::BackupTrigger {
+                        source_object: trigger.source,
+                        target_creature: target,
+                        counter_count: n,
+                        // Self-targeting: no abilities granted (CR 702.165a "if that's another creature").
+                        abilities_to_grant: if target == trigger.source {
+                            vec![]
+                        } else {
+                            abilities
+                        },
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

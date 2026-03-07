@@ -99,6 +99,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -171,6 +173,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -244,6 +248,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -318,6 +324,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -389,6 +397,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -481,6 +491,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }
@@ -540,6 +552,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -600,6 +614,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -652,6 +668,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -704,6 +722,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -765,6 +785,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             recover_cost: None,
             recover_card: None,
             graft_entering_creature: None,
+            backup_abilities: None,
+            backup_n: None,
         });
     }
 
@@ -1196,6 +1218,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         recover_cost: None,
                         recover_card: None,
                         graft_entering_creature: None,
+                        backup_abilities: None,
+                        backup_n: None,
                     });
                 }
             }

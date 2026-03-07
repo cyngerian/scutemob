@@ -2173,6 +2173,8 @@ fn execute_effect_inner(
                                         recover_cost: None,
                                         recover_card: None,
                                         graft_entering_creature: None,
+                                        backup_abilities: None,
+                                        backup_n: None,
                                     });
                                 }
                             }
@@ -2806,6 +2808,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         recover_cost: None,
                         recover_card: None,
                         graft_entering_creature: None,
+                        backup_abilities: None,
+                        backup_n: None,
                     });
                 }
             }

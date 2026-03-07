@@ -2668,6 +2668,8 @@ pub fn handle_cast_spell(
                 recover_cost: None,
                 recover_card: None,
                 graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
             });
         }
     }

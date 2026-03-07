@@ -90,6 +90,10 @@ pub enum PendingTriggerKind {
     /// Carries graft_entering_creature for flush_pending_triggers to build the
     /// GraftTrigger stack entry.
     Graft,
+    /// CR 702.165a: Backup trigger -- fired when this creature enters the battlefield.
+    /// Carries backup_abilities (keyword abilities to grant, locked at trigger time per
+    /// CR 702.165d) and backup_n (number of +1/+1 counters to place).
+    Backup,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -298,6 +302,18 @@ pub struct PendingTrigger {
     /// +1/+1 counter and the entering creature must still be on the battlefield.
     #[serde(default)]
     pub graft_entering_creature: Option<ObjectId>,
+    /// CR 702.165d: The keyword abilities to grant to the target creature.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::Backup`. Determined at
+    /// trigger time from the card definition's abilities printed below the Backup
+    /// keyword (CR 702.165a). Non-Backup keywords only (CR 702.165c).
+    #[serde(default)]
+    pub backup_abilities: Option<Vec<super::types::KeywordAbility>>,
+    /// CR 702.165a: The N value from Backup N -- how many +1/+1 counters to place.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::Backup`.
+    #[serde(default)]
+    pub backup_n: Option<u32>,
 }
 
 impl PendingTriggerKind {

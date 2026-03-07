@@ -1503,6 +1503,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 recover_cost: None,
                                 recover_card: None,
                                 graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
                             });
                     }
                 }
@@ -2736,6 +2738,82 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.165a: Backup trigger resolves.
+        // 1. Put N +1/+1 counters on target creature.
+        // 2. If target is another creature (not the source), grant keyword abilities
+        //    until EOT via Layer 6 continuous effect (CR 702.165a, 702.165d).
+        StackObjectKind::BackupTrigger {
+            source_object,
+            target_creature,
+            counter_count,
+            abilities_to_grant,
+        } => {
+            let controller = stack_obj.controller;
+
+            // Fizzle check: target must still be on the battlefield.
+            let target_exists = state
+                .objects
+                .get(&target_creature)
+                .map(|o| o.zone == ZoneId::Battlefield)
+                .unwrap_or(false);
+
+            if !target_exists {
+                // Target is gone; trigger fizzles silently (CR 608.2b).
+                // Emit AbilityResolved to complete resolution without effect.
+                events.push(GameEvent::AbilityResolved {
+                    controller,
+                    stack_object_id: stack_obj.id,
+                });
+            } else {
+                // 1. Place N +1/+1 counters on target.
+                if let Some(obj) = state.objects.get_mut(&target_creature) {
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj
+                        .counters
+                        .update(CounterType::PlusOnePlusOne, current + counter_count);
+                }
+                events.push(GameEvent::CounterAdded {
+                    object_id: target_creature,
+                    counter: CounterType::PlusOnePlusOne,
+                    count: counter_count,
+                });
+
+                // 2. If target is another creature and there are abilities to grant,
+                //    register Layer 6 UntilEndOfTurn continuous effect (CR 702.165a, 702.165d).
+                if target_creature != source_object && !abilities_to_grant.is_empty() {
+                    use crate::state::continuous_effect::{
+                        ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
+                        LayerModification,
+                    };
+                    let kw_set: im::OrdSet<KeywordAbility> =
+                        abilities_to_grant.into_iter().collect();
+                    let ts = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                    let id_inner = state.next_object_id().0;
+                    let eff = ContinuousEffect {
+                        id: EffectId(id_inner),
+                        source: Some(source_object),
+                        layer: EffectLayer::Ability,
+                        modification: LayerModification::AddKeywords(kw_set),
+                        filter: EffectFilter::SingleObject(target_creature),
+                        duration: EffectDuration::UntilEndOfTurn,
+                        is_cda: false,
+                        timestamp: ts,
+                    };
+                    state.continuous_effects.push_back(eff);
+                }
+
+                events.push(GameEvent::AbilityResolved {
+                    controller,
+                    stack_object_id: stack_obj.id,
+                });
+            }
+        }
+
         // CR 702.116a: Myriad trigger resolves -- create token copies of the source
         // creature for each opponent other than the defending player, each tapped and
         // attacking that opponent.
@@ -2965,6 +3043,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 recover_cost: None,
                                 recover_card: None,
                                 graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
                             });
                     }
                 }
@@ -4648,8 +4728,11 @@ pub fn counter_stack_object(
         | StackObjectKind::RecoverTrigger { .. }
         | StackObjectKind::ForecastAbility { .. }
         | StackObjectKind::GraftTrigger { .. }
-        | StackObjectKind::ScavengeAbility { .. } => {
+        | StackObjectKind::ScavengeAbility { .. }
+        | StackObjectKind::BackupTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
+            // are placed and no abilities are granted (CR 702.165a).
             // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
             // already in exile (exiled as cost during activation). No counters are
             // placed on the target, but the source card stays in exile (CR 702.97a).

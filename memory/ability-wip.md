@@ -1,21 +1,21 @@
-# Ability WIP: Devour
+# Ability WIP: Backup
 
-ability: Devour
-cr: 702.82
+ability: Backup
+cr: 702.165
 priority: P4
 started: 2026-03-06
 phase: close
 
 ## Review
-findings: 4 (0 HIGH, 0 MEDIUM, 4 LOW)
-review_file: memory/abilities/ability-review-devour.md
-plan_file: memory/abilities/ability-plan-devour.md
+findings: 3 (1 HIGH, 1 MEDIUM, 1 LOW)
+review_file: memory/abilities/ability-review-backup.md
+plan_file: memory/abilities/ability-plan-backup.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:1134, hash.rs:619, view_model.rs:831
-- [x] 2. Rule enforcement — command.rs:247, casting.rs:77+2740, engine.rs:103, stack.rs:258, game_object.rs:553, resolution.rs:840-990, lands.rs:356, replay_harness.rs:1559
-- [x] 3. Trigger wiring — n/a (Devour is a replacement effect, CR 614.1c)
-- [x] 4. Unit tests — crates/engine/tests/devour.rs (10 tests, all passing)
-- [x] 5. Card definition — crates/engine/src/cards/defs/predator_dragon.rs
-- [x] 6. Game script — test-data/generated-scripts/stack/162_devour_predator_dragon.json
-- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (Devour: validated)
+- [x] 1. Enum variant — types.rs:1143, hash.rs:625-629, stack.rs:991-1013, stubs.rs:93-95,302-309, view_model.rs:561-563,836, stack_view.rs:174-176
+- [x] 2. Rule enforcement — stubs.rs:PendingTriggerKind::Backup+backup_abilities+backup_n fields; hash.rs:BackupTrigger arm
+- [x] 3. Trigger wiring — abilities.rs:check_triggers Backup block; abilities.rs:flush_pending_triggers Backup→BackupTrigger arm; resolution.rs:BackupTrigger resolution+countering arms
+- [x] 4. Unit tests — crates/engine/tests/backup.rs (10 tests, all passing)
+- [x] 5. Card definition — crates/engine/src/cards/defs/backup_agent.rs
+- [x] 6. Game script — test-data/generated-scripts/stack/163_backup_agent_etb_trigger.json (self-target path; another-creature path covered by unit tests)
+- [x] 7. Coverage doc update — docs/mtg-engine-ability-coverage.md (Backup: validated)

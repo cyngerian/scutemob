@@ -1141,6 +1141,15 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 124.
     Devour(u32),
+    /// CR 702.165: Backup N -- "When this creature enters, put N +1/+1 counters
+    /// on target creature. If that's another creature, it also gains the non-backup
+    /// abilities of this creature printed below this one until end of turn."
+    ///
+    /// Triggered ability (CR 702.165a). The N value is the number of +1/+1 counters.
+    /// Multiple instances each trigger separately.
+    ///
+    /// Discriminant 125.
+    Backup(u32),
 }
 
 /// All creature subtypes from CR 205.3m.

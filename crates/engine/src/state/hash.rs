@@ -626,6 +626,11 @@ impl HashInto for KeywordAbility {
                 124u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Backup (discriminant 125) -- CR 702.165
+            KeywordAbility::Backup(n) => {
+                125u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -1278,6 +1283,16 @@ impl HashInto for PendingTrigger {
         self.enlist_enlisted_creature.hash_into(hasher);
         // CR 702.58a: graft-specific field
         self.graft_entering_creature.hash_into(hasher);
+        // CR 702.30a: echo-specific field
+        self.echo_cost.hash_into(hasher);
+        // CR 702.24a: cumulative upkeep-specific field
+        self.cumulative_upkeep_cost.hash_into(hasher);
+        // CR 702.59a: recover-specific fields
+        self.recover_cost.hash_into(hasher);
+        self.recover_card.hash_into(hasher);
+        // CR 702.165a: backup-specific fields
+        self.backup_abilities.hash_into(hasher);
+        self.backup_n.hash_into(hasher);
     }
 }
 
@@ -1813,6 +1828,21 @@ impl HashInto for StackObjectKind {
                 45u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
                 power_snapshot.hash_into(hasher);
+            }
+            // BackupTrigger (discriminant 46) -- CR 702.165a
+            StackObjectKind::BackupTrigger {
+                source_object,
+                target_creature,
+                counter_count,
+                abilities_to_grant,
+            } => {
+                46u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target_creature.hash_into(hasher);
+                counter_count.hash_into(hasher);
+                for kw in abilities_to_grant {
+                    kw.hash_into(hasher);
+                }
             }
         }
     }

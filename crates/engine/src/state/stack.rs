@@ -987,4 +987,23 @@ pub enum StackObjectKind {
         source_card_id: Option<crate::state::player::CardId>,
         power_snapshot: u32,
     },
+    /// CR 702.165a: Backup triggered ability on the stack.
+    ///
+    /// "When this creature enters, put N +1/+1 counters on target creature.
+    /// If that's another creature, it also gains the non-backup abilities of
+    /// this creature printed below this one until end of turn."
+    ///
+    /// At resolution: place N +1/+1 counters on the target creature. If the
+    /// target is a different creature from the source, register a Layer 6
+    /// UntilEndOfTurn continuous effect granting the stored keyword abilities.
+    ///
+    /// Discriminant 46.
+    BackupTrigger {
+        source_object: ObjectId,
+        target_creature: ObjectId,
+        counter_count: u32,
+        /// Keyword abilities to grant (determined at trigger time per CR 702.165d).
+        /// Empty if targeting self (CR 702.165a: "if that's another creature").
+        abilities_to_grant: Vec<crate::state::types::KeywordAbility>,
+    },
 }

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-06 (Devour 702.82 validated: KW 124, resolution.rs ETB replacement, Predator Dragon, script stack/162, 10 tests)
+> Last audited: 2026-03-07 (Backup 702.165 validated: KW 125, BackupTrigger SOK 46, ETB trigger + ability snapshot + resolution, Backup Agent, script stack/163, 11 tests)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 16        | 0        | 0       | 1    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 56        | 0        | 0       | 37   | 12  |
-| **Total**| **204**| **149**  | **2**    | **0**   | **41**| **12** |
+| P4       | 105   | 57        | 0        | 0       | 36   | 12  |
+| **Total**| **204**| **150**  | **2**    | **0**   | **40**| **12** |
 
 ---
 
@@ -205,7 +205,7 @@ Keywords triggered by creatures entering, leaving, or dying.
 | Fabricate | 702.123 | P4 | `none` | — | — | — | — | ETB: choose +1/+1 counters or create Servo tokens |
 | Decayed | 702.147 | P4 | `validated` | state/types.rs:616-628, state/game_object.rs:399-408, rules/combat.rs:285-300+396-401, rules/turn_actions.rs:606-632 | Shambling Ghast | decayed.rs (8 tests) | baseline/112 | Can't block; sacrifice at end of combat when it attacks. Flag-on-object pattern (like Myriad); persists even if keyword removed (ruling 2021-09-24). |
 | Training | 702.149 | P4 | `validated` | state/types.rs:693-700 (KeywordAbility::Training, discriminant 82), state/game_object.rs:206-211 (TriggerEvent::SelfAttacksWithGreaterPowerAlly, discriminant 19), state/builder.rs:489-511 (TriggeredAbilityDef auto-generation), state/hash.rs:493-494+1189-1190, rules/abilities.rs:1508-1550 (AttackersDeclared dispatch: layer-aware power comparison, SelfAttacksWithGreaterPowerAlly event) | Gryff Rider | training.rs (7 tests) | combat/120 | CR 702.149a+b fully enforced; triggered ability auto-generated from keyword in builder.rs; AttackersDeclared handler checks strictly-greater power among co-attackers (layer-aware); multiple instances trigger separately (CR 702.149b); 7 unit tests cover basic trigger, attacking alone (negative), equal power (negative), lower power (negative), multiple instances, two training creatures, 4-player multiplayer; game script approved |
-| Backup | 702.165 | P4 | `none` | — | — | — | — | ETB: put +1/+1 counters on target creature, it gains abilities |
+| Backup | 702.165 | P4 | `validated` | state/types.rs:1144-1152 (KeywordAbility::Backup(u32), discriminant 125), state/stubs.rs:93-96+307-314 (PendingTriggerKind::Backup, backup_abilities, backup_n), state/stack.rs:990-1001 (StackObjectKind::BackupTrigger, discriminant 46), rules/abilities.rs:2276-2320 (ETB trigger detection, ability snapshot CR 702.165d), rules/abilities.rs:4499-4506 (flush arm), rules/resolution.rs:2741-2745 (+counters + Layer 6 ability grant until EOT) | Backup Agent | backup.rs (11 tests) | stack/163 | CR 702.165a ETB trigger, counters + ability grant; 702.165d abilities snapshotted at trigger time; multiple instances work separately |
 
 ---
 

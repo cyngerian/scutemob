@@ -15,6 +15,5 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Keyword(KeywordAbility::Devour(2)),
         ],
-        ..Default::default()
     }
 }

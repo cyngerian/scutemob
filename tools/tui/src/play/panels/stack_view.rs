@@ -171,6 +171,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                     // No source_object -- card was already exiled as cost (CR 702.97a).
                     ("Scavenge: ".to_string(), None)
                 }
+                StackObjectKind::BackupTrigger { source_object, .. } => {
+                    ("Backup: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

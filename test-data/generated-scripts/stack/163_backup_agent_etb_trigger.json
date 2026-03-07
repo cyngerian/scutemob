@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_163",
+    "name": "Backup 1 — Backup Agent ETB trigger places counter (self-target default)",
+    "description": "Tests the Backup 1 ETB trigger on Backup Agent ({2}{W}, 2/3 Human Soldier, Backup 1, Lifelink). Per CR 702.165a, Backup 1 fires an ETB triggered ability: put 1 +1/+1 counter on target creature, and if that creature is another creature, it gains the abilities listed below Backup (Lifelink) until end of turn. The engine deterministically defaults the Backup target to the source itself (Backup Agent). Because the target is self, no ability grant occurs (CR 702.165a 'if that's another creature'). Backup Agent enters and the BackupTrigger resolves, placing 1 +1/+1 counter on Backup Agent itself — it becomes an effective 3/4 Human Soldier. The script verifies: (1) Backup Agent enters the battlefield after casting; (2) BackupTrigger goes on the stack; (3) BackupTrigger resolves placing 1 +1/+1 counter on Backup Agent; (4) final state: Backup Agent on battlefield with 1 +1/+1 counter (3/4 effective). Note: The harness does not yet expose a mechanism to redirect the Backup trigger target to a different creature — see disputes.",
+    "cr_sections_tested": ["702.165a", "601.2", "608.2", "116.3"],
+    "corner_case_ref": null,
+    "tags": ["backup", "etb", "counter", "trigger", "backup-agent", "lifelink"],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Backup Agent card definition (crates/engine/src/cards/defs/backup_agent.rs): mana_cost {2}{W} (generic:2, white:1), 2/3 Human Soldier, abilities: [Keyword(Backup(1)), Keyword(Lifelink)]. CR 702.165a: 'When this creature enters, put N +1/+1 counter(s) on target creature. If that creature is another creature, it gains the following abilities until end of turn.' The engine queues a PendingTriggerKind::Backup when Backup Agent enters (abilities.rs ~line 4499). At trigger queueing time, the engine sets the default target to `trigger.source` (self — Backup Agent). Since self == source, abilities_to_grant is empty (no Lifelink grant). The BackupTrigger stack object is created with target_creature == source_object, counter_count == 1. At resolution (resolution.rs line 2745+): 1 +1/+1 counter is placed on Backup Agent. Effective P/T: base 2/3 + 1 counter = 3/4. Mana for cast: {2}{W} = colorless:2, white:1 in pool. Lifelink on Backup Agent itself (native ability, not granted by Backup trigger) remains at all times — this is intrinsic from the card definition. Llanowar Elves on the battlefield serves as the 'other creature' that could be targeted in a full implementation — included to demonstrate the engine still self-targets. The original scenario requested targeting another creature, but the harness provides no mechanism to override the deterministic self-target default. A dispute is recorded.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "The intended scenario (Backup trigger targeting Llanowar Elves to give it 1 +1/+1 counter and Lifelink until EOT) cannot be scripted because the harness has no action or field to supply a target override for BackupTrigger. The engine deterministically defaults to self-targeting (abilities.rs ~line 4503: `let target = trigger.source`). The script instead tests the self-target path (counter on Backup Agent itself, no ability grant per CR 702.165a). A future harness enhancement could add a backup_target field or a choose_backup_target action to test the other-creature path.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "white": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Backup Agent", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Backup Agent ({2}{W}). It resolves and enters the battlefield. The Backup 1 ETB trigger (CR 702.165a) fires — BackupTrigger goes on the stack with default self-target. Both players pass priority. BackupTrigger resolves: 1 +1/+1 counter placed on Backup Agent itself. Since target == source, no ability grant occurs (CR 702.165a). Backup Agent ends at effective 3/4.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Backup Agent in p1 hand; Llanowar Elves on p1 battlefield; stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.hand.p1": { "includes": [{ "card": "Backup Agent" }] },
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "p1 has {2}{W} in pool ready to cast Backup Agent. Llanowar Elves is on the battlefield as a potential Backup target — but the engine will default to self-target."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Backup Agent",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "white": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Backup Agent ({2}{W}); colorless:2 + white:1 paid from pool. Backup Agent moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After cast: Backup Agent on stack (count 1), p1 hand empty, Llanowar Elves still on battlefield",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "Backup Agent is on the stack awaiting resolution. Llanowar Elves is unaffected."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Backup Agent resolves (CR 608.2)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Backup Agent",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "target": { "type": "permanent", "card": "Backup Agent", "controller": "p1" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Backup Agent (2/3 Human Soldier, Backup 1, Lifelink) enters the battlefield under p1's control. CR 702.165a: The Backup 1 ETB trigger fires — BackupTrigger is placed on the stack with target_creature set to Backup Agent itself (engine deterministic default: self)."
+            }
+          ],
+          "note": "CR 608.2: Backup Agent resolves and enters the battlefield. CR 702.165a: Backup 1 trigger fires — BackupTrigger goes on the stack targeting Backup Agent itself."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Backup Agent resolves: both Backup Agent and Llanowar Elves on battlefield; BackupTrigger on stack",
+          "assertions": {
+            "zones.battlefield.p1.count": 2,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Backup Agent" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.165a: Backup Agent entered — BackupTrigger is on the stack. Backup Agent has no +1/+1 counter yet (trigger has not resolved). Llanowar Elves is unchanged."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — BackupTrigger resolves (CR 608.2, 702.165a)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "BackupTrigger",
+          "resolution": [
+            {
+              "effect": "add_counter",
+              "target": { "type": "permanent", "card": "Backup Agent", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.165a",
+              "note": "CR 702.165a: BackupTrigger resolves. Target is Backup Agent itself (self-target). 1 +1/+1 counter is placed on Backup Agent. Because target == source, no ability grant occurs ('if that creature is another creature' condition is false). Backup Agent's intrinsic Lifelink is not affected."
+            }
+          ],
+          "note": "CR 702.165a: BackupTrigger resolves — 1 +1/+1 counter placed on Backup Agent. Self-target: no Lifelink grant (already has it natively). Effective P/T: base 2/3 + 1 counter = 3/4."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: Backup Agent on p1 battlefield with 1 +1/+1 counter (3/4 effective); Llanowar Elves unchanged; stack empty; life totals unchanged",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0,
+            "zones.battlefield.p1.count": 2,
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Backup Agent" },
+                { "card": "Llanowar Elves" }
+              ]
+            },
+            "permanent.Backup Agent.counters.plus_one_plus_one": 1,
+            "permanent.Llanowar Elves.counters.plus_one_plus_one": 0,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 702.165a: Backup 1 trigger resolved with self-target — 1 +1/+1 counter on Backup Agent (3/4 effective P/T). Llanowar Elves has 0 +1/+1 counters (was not targeted). Stack is empty. Life totals unchanged. Backup Agent retains its intrinsic Lifelink keyword."
+        }
+      ]
+    }
+  ]
+}
