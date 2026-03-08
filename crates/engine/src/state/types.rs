@@ -1340,6 +1340,20 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 142.
     Haunt,
+    /// CR 702.151: Reconfigure [cost] -- two activated abilities.
+    /// "[Cost]: Attach this permanent to another target creature you control.
+    /// Activate only as a sorcery." and "[Cost]: Unattach this permanent.
+    /// Activate only if this permanent is attached to a creature and only
+    /// as a sorcery."
+    ///
+    /// CR 702.151b: While attached, the Equipment stops being a creature
+    /// (and loses creature subtypes).
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The reconfigure cost is stored in `AbilityDefinition::Reconfigure { cost }`.
+    ///
+    /// Discriminant 143.
+    Reconfigure,
 }
 
 /// CR 702.72a: The filter for what can be championed.

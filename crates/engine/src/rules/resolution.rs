@@ -3793,6 +3793,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_saddled: false,
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
+                        // CR 702.151b: tokens are not reconfigured by default.
+                        is_reconfigured: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3983,6 +3985,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 is_saddled: false,
                 encoded_cards: im::Vector::new(),
                 haunting_target: None,
+                // CR 702.151b: tokens are not reconfigured by default.
+                is_reconfigured: false,
             };
 
             // Add the token to the battlefield.
@@ -4731,6 +4735,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
+                    // CR 702.151b: tokens are not reconfigured by default.
+                    is_reconfigured: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5880,6 +5886,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
+                    // CR 702.151b: tokens are not reconfigured by default.
+                    is_reconfigured: false,
                 };
 
                 // Add the token to the battlefield.
@@ -6088,6 +6096,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
                     haunting_target: None,
+                    // CR 702.151b: tokens are not reconfigured by default.
+                    is_reconfigured: false,
                 };
 
                 // Add the token to the battlefield.
@@ -6314,6 +6324,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         is_saddled: false,
                         encoded_cards: im::Vector::new(),
                         haunting_target: None,
+                        // CR 702.151b: tokens are not reconfigured by default.
+                        is_reconfigured: false,
                     };
 
                     // Add the token to the battlefield.

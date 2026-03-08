@@ -2267,6 +2267,45 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 702.151a: AbilityDefinition::Reconfigure expands into TWO activated abilities:
+    // 1. Attach: "[Cost]: Attach this permanent to another target creature you control.
+    //    Activate only as a sorcery." (uses AttachEquipment effect, same as Equip)
+    // 2. Unattach: "[Cost]: Unattach this permanent. Activate only as a sorcery."
+    //    (uses DetachEquipment effect; validated in handle_activate_ability)
+    //
+    // Also adds KeywordAbility::Reconfigure marker for presence-checking.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Reconfigure { cost } = ability {
+            spec = spec.with_keyword(KeywordAbility::Reconfigure);
+
+            // Ability 1: Attach to a target creature you control (sorcery speed).
+            let attach_ab = ActivatedAbility {
+                cost: cost_to_activation_cost(&Cost::Mana(cost.clone())),
+                description: "Reconfigure (CR 702.151a): Attach to target creature you control."
+                    .to_string(),
+                effect: Some(Effect::AttachEquipment {
+                    equipment: CardEffectTarget::Source,
+                    target: CardEffectTarget::DeclaredTarget { index: 0 },
+                }),
+                sorcery_speed: true,
+            };
+            spec = spec.with_activated_ability(attach_ab);
+
+            // Ability 2: Unattach from the equipped creature (sorcery speed).
+            // Activation restriction "only if attached" is enforced in handle_activate_ability.
+            let detach_ab = ActivatedAbility {
+                cost: cost_to_activation_cost(&Cost::Mana(cost.clone())),
+                description: "Reconfigure (CR 702.151a): Unattach from equipped creature."
+                    .to_string(),
+                effect: Some(Effect::DetachEquipment {
+                    equipment: CardEffectTarget::Source,
+                }),
+                sorcery_speed: true,
+            };
+            spec = spec.with_activated_ability(detach_ab);
+        }
+    }
+
     // CR 702.107a: Expand AbilityDefinition::Outlast into an ActivatedAbility.
     // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
     // Activate only as a sorcery."

@@ -122,6 +122,29 @@ pub fn calculate_characteristics(
             }
         }
 
+        // CR 702.151b: Reconfigure -- "While attached, the Equipment stops being a creature
+        // (and loses creature subtypes)."
+        // Applied at Layer 4 (TypeChange) using the is_reconfigured flag -- NOT the keyword.
+        // Ruling 2022-02-18: the "not a creature" effect persists even if the Reconfigure
+        // keyword is removed by Humility/Dress Down while the Equipment is attached.
+        // The flag is cleared only when the Equipment becomes unattached.
+        if layer == EffectLayer::TypeChange {
+            if let Some(obj_ref) = state.objects.get(&object_id) {
+                if obj_ref.zone == ZoneId::Battlefield && obj_ref.is_reconfigured {
+                    chars.card_types.remove(&CardType::Creature);
+                    // CR 702.151b + ruling 2022-02-18: "It also loses any creature subtypes
+                    // it had." Retain non-creature subtypes (Equipment, Fortification, etc.).
+                    // im::OrdSet has no retain; rebuild from filtered iterator.
+                    chars.subtypes = chars
+                        .subtypes
+                        .iter()
+                        .filter(|st| !crate::state::types::ALL_CREATURE_TYPES.contains(*st))
+                        .cloned()
+                        .collect();
+                }
+            }
+        }
+
         // CR 702.161a: Living Metal -- "During your turn, this permanent is an
         // artifact creature in addition to its other types."
         // Applied at Layer 4 (TypeChange) inline, after CDAs, before non-CDA Layer 4

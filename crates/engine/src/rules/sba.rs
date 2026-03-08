@@ -988,12 +988,47 @@ fn check_equipment_sbas(
         .map(|(id, _)| *id)
         .collect();
 
-    for id in illegal_equip {
+    // CR 702.151b + ruling 2022-02-18: If a reconfigured Equipment is still a creature
+    // (e.g., due to March of the Machines animating all artifacts), it immediately becomes
+    // unattached. Add these to the illegal_equip set as well.
+    let reconfigure_creature_ids: Vec<crate::state::ObjectId> = state
+        .objects
+        .iter()
+        .filter(|(id, obj)| {
+            obj.zone == crate::state::zone::ZoneId::Battlefield
+                && obj.is_reconfigured
+                && obj.attached_to.is_some()
+                && !illegal_equip.contains(id)
+        })
+        .filter(|(id, _)| {
+            // Check if the equipment is still a creature despite being reconfigured.
+            // Note: the is_reconfigured flag causes Layer 4 to remove Creature type,
+            // but March of the Machines in Layer 4 could restore it (timestamp ordering).
+            // If creature type is still present after layer resolution, unattach per ruling.
+            if let Some(chars) = chars_map.get(id) {
+                chars
+                    .card_types
+                    .contains(&crate::state::types::CardType::Creature)
+            } else {
+                false
+            }
+        })
+        .map(|(id, _)| *id)
+        .collect();
+
+    let all_illegal: Vec<crate::state::ObjectId> = illegal_equip
+        .into_iter()
+        .chain(reconfigure_creature_ids)
+        .collect();
+
+    for id in all_illegal {
         // Unattach: clear attached_to on equipment and remove from target's attachments.
         let target_id = state.objects.get(&id).and_then(|obj| obj.attached_to);
 
         if let Some(obj) = state.objects.get_mut(&id) {
             obj.attached_to = None;
+            // CR 702.151b: clear reconfigure flag when SBA unattaches the Equipment.
+            obj.is_reconfigured = false;
         }
 
         if let Some(target_id) = target_id {

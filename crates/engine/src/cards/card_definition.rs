@@ -663,6 +663,18 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 57.
     Cipher,
+    /// CR 702.151a: Reconfigure [cost] -- the cost for both attach and unattach abilities.
+    ///
+    /// `enrich_spec_from_def` expands this into TWO `ActivatedAbility` entries:
+    /// 1. Attach: "[Cost]: Attach this permanent to another target creature you control.
+    ///    Activate only as a sorcery."
+    /// 2. Unattach: "[Cost]: Unattach this permanent. Activate only as a sorcery."
+    ///
+    /// Cards should also include `AbilityDefinition::Keyword(KeywordAbility::Reconfigure)`
+    /// for quick presence-checking.
+    ///
+    /// Discriminant 58.
+    Reconfigure { cost: ManaCost },
 }
 
 /// CR 702.174d-i: The specific gift given to the chosen opponent.
@@ -1001,6 +1013,19 @@ pub enum Effect {
         fortification: EffectTarget,
         /// The land to attach to. Should be `EffectTarget::DeclaredTarget { index: 0 }`.
         target: EffectTarget,
+    },
+    /// CR 702.151a: Unattach an Equipment from its currently equipped creature.
+    ///
+    /// Used as the effect of the Reconfigure unattach activated ability. On resolution:
+    /// 1. Verify the equipment is on the battlefield and has `attached_to` set.
+    /// 2. Clear `attached_to` on the equipment.
+    /// 3. Remove equipment from the target's `attachments`.
+    /// 4. Clear `is_reconfigured` flag (CR 702.151b: creature type is restored).
+    ///
+    /// The equipment remains on the battlefield as an unattached permanent.
+    DetachEquipment {
+        /// The equipment to unattach. Should be `EffectTarget::Source`.
+        equipment: EffectTarget,
     },
     /// CR 702.92a: Create a token and immediately attach the source Equipment to it.
     ///

@@ -592,9 +592,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::SaddleAbility { source_object } => {
             ("saddle_ability", Some(*source_object))
         }
-        StackObjectKind::CipherTrigger { source_creature, .. } => {
-            ("cipher_trigger", Some(*source_creature))
-        }
+        StackObjectKind::CipherTrigger {
+            source_creature, ..
+        } => ("cipher_trigger", Some(*source_creature)),
         StackObjectKind::HauntExileTrigger { haunt_card, .. } => {
             ("haunt_exile_trigger", Some(*haunt_card))
         }
@@ -888,5 +888,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Saddle(n) => format!("Saddle {n}"),
         KeywordAbility::Cipher => "Cipher".to_string(),
         KeywordAbility::Haunt => "Haunt".to_string(),
+        KeywordAbility::Reconfigure => "Reconfigure".to_string(),
     }
 }

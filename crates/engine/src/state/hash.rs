@@ -676,6 +676,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Cipher => 141u8.hash_into(hasher),
             // Haunt (discriminant 142) -- CR 702.55
             KeywordAbility::Haunt => 142u8.hash_into(hasher),
+            // Reconfigure (discriminant 143) -- CR 702.151
+            KeywordAbility::Reconfigure => 143u8.hash_into(hasher),
         }
     }
 }
@@ -904,6 +906,8 @@ impl HashInto for GameObject {
         }
         // Haunt (CR 702.55b) — creature this exiled card is haunting
         self.haunting_target.hash_into(hasher);
+        // Reconfigure (CR 702.151b) — whether this Equipment is currently reconfigured
+        self.is_reconfigured.hash_into(hasher);
     }
 }
 
@@ -3774,6 +3778,11 @@ impl HashInto for Effect {
                 45u8.hash_into(hasher);
                 target.hash_into(hasher);
             }
+            // CR 702.151a: DetachEquipment (discriminant 46)
+            Effect::DetachEquipment { equipment } => {
+                46u8.hash_into(hasher);
+                equipment.hash_into(hasher);
+            }
         }
     }
 }
@@ -4152,6 +4161,11 @@ impl HashInto for AbilityDefinition {
             }
             // Cipher (discriminant 57) -- CR 702.99a
             AbilityDefinition::Cipher => 57u8.hash_into(hasher),
+            // Reconfigure (discriminant 58) -- CR 702.151a
+            AbilityDefinition::Reconfigure { cost } => {
+                58u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
         }
     }
 }

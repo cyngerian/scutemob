@@ -2155,6 +2155,23 @@ fn execute_effect_inner(
                         target_id,
                         controller: ctx.controller,
                     });
+
+                    // CR 702.151b: If the Equipment has the Reconfigure keyword (by any means),
+                    // set is_reconfigured = true so it stops being a creature while attached.
+                    // Ruling 2022-02-18: effect persists even if keyword is later removed.
+                    let has_reconfigure =
+                        crate::rules::layers::calculate_characteristics(state, equip_id)
+                            .map(|chars| {
+                                chars.keywords.iter().any(|k| {
+                                    matches!(k, crate::state::types::KeywordAbility::Reconfigure)
+                                })
+                            })
+                            .unwrap_or(false);
+                    if has_reconfigure {
+                        if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                            equip_obj.is_reconfigured = true;
+                        }
+                    }
                 }
             }
         }
@@ -2288,6 +2305,58 @@ fn execute_effect_inner(
                         controller: ctx.controller,
                     });
                 }
+            }
+        }
+        // CR 702.151a: Reconfigure unattach -- "[Cost]: Unattach this permanent."
+        //
+        // On resolution:
+        // 1. Resolve the equipment target (should be EffectTarget::Source).
+        // 2. Check that the equipment is on the battlefield and has attached_to.
+        // 3. Clear attached_to on the equipment.
+        // 4. Remove the equipment from the target's attachments.
+        // 5. Clear is_reconfigured flag (creature type is restored; CR 702.151b).
+        // 6. Emit EquipmentUnattached event.
+        Effect::DetachEquipment { equipment } => {
+            let equip_resolved = resolve_effect_target_list(state, equipment, ctx);
+
+            for equip_res in &equip_resolved {
+                let equip_id = match equip_res {
+                    ResolvedTarget::Object(id) => *id,
+                    _ => continue,
+                };
+
+                // Verify equipment is on the battlefield.
+                let on_battlefield = state
+                    .objects
+                    .get(&equip_id)
+                    .map(|obj| obj.zone == ZoneId::Battlefield)
+                    .unwrap_or(false);
+                if !on_battlefield {
+                    continue;
+                }
+
+                // Get the current attachment target.
+                let target_id_opt = state.objects.get(&equip_id).and_then(|obj| obj.attached_to);
+                let Some(target_id) = target_id_opt else {
+                    // Not attached; do nothing (CR 702.151a: "Activate only if attached").
+                    continue;
+                };
+
+                // Clear attached_to on the equipment.
+                if let Some(equip_obj) = state.objects.get_mut(&equip_id) {
+                    equip_obj.attached_to = None;
+                    // CR 702.151b: Clear the reconfigure flag; creature type is restored.
+                    equip_obj.is_reconfigured = false;
+                }
+
+                // Remove equipment from target's attachments.
+                if let Some(target_obj) = state.objects.get_mut(&target_id) {
+                    target_obj.attachments.retain(|&x| x != equip_id);
+                }
+
+                events.push(GameEvent::EquipmentUnattached {
+                    object_id: equip_id,
+                });
             }
         }
         // CR 701.50a/e: Connive N — the permanent's controller draws N cards,
@@ -2929,6 +2998,8 @@ pub fn make_token(
         encoded_cards: im::Vector::new(),
         // CR 702.55b: Tokens have no haunting relationship.
         haunting_target: None,
+        // CR 702.151b: Tokens are not reconfigured by default.
+        is_reconfigured: false,
     }
 }
 

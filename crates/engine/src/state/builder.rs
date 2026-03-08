@@ -1005,6 +1005,8 @@ impl GameStateBuilder {
                 encoded_cards: im::Vector::new(),
                 // CR 702.55b: test-placed objects have no haunting relationship.
                 haunting_target: None,
+                // CR 702.151b: test-placed objects are not reconfigured.
+                is_reconfigured: false,
             };
 
             state.add_object(object, zone)?;

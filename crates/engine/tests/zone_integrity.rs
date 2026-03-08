@@ -222,6 +222,7 @@ fn test_add_object_to_state() {
         is_saddled: false,
         encoded_cards: im::Vector::new(),
         haunting_target: None,
+        is_reconfigured: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

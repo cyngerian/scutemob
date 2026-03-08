@@ -1,29 +1,22 @@
-# Ability WIP: Haunt
+# Ability WIP: Reconfigure
 
-ability: Haunt
-cr: 702.55
+ability: Reconfigure
+cr: 702.151
 priority: P4
 started: 2026-03-08
 phase: closed
-plan_file: memory/abilities/ability-plan-haunt.md
+plan_file: memory/abilities/ability-plan-reconfigure.md
 
 ## Step Checklist
-- [x] 1. Enum variant — types.rs:1332, hash.rs:677, game_object.rs:681, mod.rs:392/564, view_model.rs:884, stack.rs (HauntExileTrigger disc 57 / HauntedCreatureDiesTrigger disc 58), events.rs (HauntExiled disc 107), stubs.rs (HauntExile/HauntedCreatureDies PendingTriggerKind + haunt fields)
-- [x] 2. Rule enforcement — resolution.rs: HauntExileTrigger resolution (move graveyard→exile, set haunting_target, emit HauntExiled); HauntedCreatureDiesTrigger resolution (look up card def, execute effect); counter-spell catch-all updated
-- [x] 3. Trigger wiring — abilities.rs: CreatureDied handler fires HauntExile trigger (dies w/ Haunt kw) + HauntedCreatureDies trigger (scan exile for haunting_target == pre-death ObjectId); hash.rs: TriggerCondition::HauntedCreatureDies discriminant 23
-- [x] 4. Unit tests — tests/haunt.rs: 8 tests (trigger fires, trigger resolves, exile with haunting_target, full lifecycle, no creatures fizzles, card removed from exile, exiled directly no trigger, multiplayer controller)
-- [x] 5. Card definition (blind_hunter.rs — {2}{W}{B} 2/2 Flying Bat; ETB + HauntedCreatureDies → DrainLife 2)
-- [x] 6. Game script — script_baseline_188 (test-data/generated-scripts/baseline/script_188_haunt.json): full lifecycle verified (ETB inline drain, HauntExileTrigger stack, HauntedCreatureDiesTrigger stack); PASS
+- [x] 1. Enum variant — types.rs:1342 (KW 143), card_definition.rs:666 (AbilDef 58), card_definition.rs:1017 (Effect::DetachEquipment), game_object.rs:698 (is_reconfigured), hash.rs, view_model.rs
+- [x] 2. Rule enforcement — effects/mod.rs:AttachEquipment sets is_reconfigured, DetachEquipment handler, layers.rs Layer4 type removal, sba.rs clears flag on SBA unattach + March-of-Machines check, abilities.rs unattach pre-check, replay_harness.rs enrich_spec_from_def expands Reconfigure into 2 abilities
+- [x] 3. Trigger wiring — N/A (reconfigure is purely activated abilities + static type change)
+- [x] 4. Unit tests — tests/reconfigure.rs: 8 tests (attach removes creature type, unattach restores, sorcery-speed, self-equip, equipped creature leaves, unattach when not attached, opponent's creature, artifact type retained)
+- [x] 5. Card definition (lizard_blades.rs — {1}{R} 1/1 Double Strike + Reconfigure {2}; gives equipped +1/+1 + double strike)
+- [x] 6. Game script — script_baseline_189 (test-data/generated-scripts/baseline/script_189_reconfigure.json); PASS 1/1
 - [x] 7. Coverage doc update
 
 ## Review
-findings: 1 MEDIUM, 2 LOW
-verdict: needs-fix
-review_file: memory/abilities/ability-review-haunt.md
-
-### Fix Required (MEDIUM)
-1. **resolution.rs:4409-4414**: Clear `haunting_target` to `None` on the exiled haunt card after HauntedCreatureDiesTrigger resolves successfully. Without this, the stale haunting_target could cause spurious re-triggers if ObjectIds are ever recycled.
-
-### Optional (LOW, deferred)
-2. Auto-target selection is MVP — document as known simplification.
-3. Test card effect is GainLife(0) — change to GainLife(2) and assert life total in full lifecycle test.
+findings: 3 LOW (no HIGH, no MEDIUM)
+verdict: clean
+review_file: memory/abilities/ability-review-reconfigure.md

@@ -254,6 +254,24 @@ pub fn handle_activate_ability(
         }
     }
 
+    // CR 702.151a: Reconfigure unattach ability -- "Activate only if this permanent is
+    // attached to a creature." Validate BEFORE spending any costs.
+    if matches!(
+        &embedded_effect,
+        Some(crate::cards::card_definition::Effect::DetachEquipment { .. })
+    ) {
+        let is_attached = state
+            .objects
+            .get(&source)
+            .and_then(|obj| obj.attached_to)
+            .is_some();
+        if !is_attached {
+            return Err(GameStateError::InvalidCommand(
+                "reconfigure unattach: permanent must be attached to a creature".into(),
+            ));
+        }
+    }
+
     let mut events = Vec::new();
 
     // Pay tap cost if required (CR 602.2b).

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-08 (Haunt complete: KW 142, SOK 57-58 HauntExileTrigger/HauntedCreatureDiesTrigger, HauntExiled GameEvent 107, haunting_target on GameObject; 8 tests in haunt.rs; card Blind Hunter; script baseline/188 PASS)
+> Last audited: 2026-03-08 (Reconfigure complete: KW 143, AbilDef disc 58, Effect::DetachEquipment, is_reconfigured on GameObject, Layer 4 type removal while attached, SBA unattach clears flag; 8 tests in reconfigure.rs; card Lizard Blades; script baseline/189 PASS)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 79        | 1        | 1       | 12   | 12  |
-| **Total**| **204**| **173**  | **3**    | **1**   | **15**| **12** |
+| P4       | 105   | 80        | 1        | 1       | 11   | 12  |
+| **Total**| **204**| **174**  | **3**    | **1**   | **14**| **12** |
 
 ---
 
@@ -89,7 +89,7 @@ Keywords governing how permanents attach to other permanents.
 | Equip | 702.6 | P1 | `validated` | `state/types.rs:125`, `rules/abilities.rs:118-164`, `effects/mod.rs:1020-1118`, `cards/definitions.rs` | Lightning Greaves, Swiftfoot Boots, Whispersilk Cloak | `layers/012` | — | KeywordAbility::Equip enum; Effect::AttachEquipment with sorcery-speed validation, layer-aware creature type check, activation-time target validation; 14 unit tests in `tests/equip.rs`; game script approved |
 | Enchant | 702.5 | P1 | `validated` | `state/types.rs:119-149`, `state/hash.rs:273-283`, `rules/casting.rs:204-241`, `rules/resolution.rs:181-228`, `rules/sba.rs:576-703`, `rules/abilities.rs:728` | Rancor | `stack/062` | — | EnchantTarget enum (Creature/Permanent/Artifact/Enchantment/Land/Planeswalker/Player/CreatureOrPlaneswalker); cast-time target restriction (CR 702.5a/303.4a); Aura attachment on resolution (CR 303.4b, AuraAttached event); SBA 704.5m type-mismatch + unattached + self-enchantment (CR 303.4d); AuraFellOff trigger wiring for WhenDies; 11 unit tests in `tests/enchant.rs`; game script pending_review (19/19 assertions pass) |
 | Bestow | 702.103 | P3 | `validated` | `state/types.rs:347`, `state/game_object.rs:323-333`, `state/stack.rs:66-75`, `state/mod.rs:281-356`, `state/hash.rs:380-381,532-533,1156-1157,1787-1788,2414-2415`, `cards/card_definition.rs:176-183`, `rules/casting.rs:62,184-223,497-505,728-736`, `rules/command.rs:106-111`, `rules/engine.rs:79,94`, `rules/resolution.rs:49-58,219-229`, `rules/sba.rs:709-745`, `rules/events.rs:266-269`, `rules/copy.rs:179-180`, `testing/replay_harness.rs:290-304` | Boon Satyr | `layers/081` | Enchant | KeywordAbility::Bestow enum; AbilityDefinition::Bestow{cost}; `is_bestowed` on permanents, `was_bestowed` on stack objects; alt cost validation (CR 118.9a: no combine with flashback/evoke); type transformation on cast (becomes Aura + enchant creature); target-illegal fallback to creature (CR 702.103e/608.3b); SBA 702.103f bestowed Aura revert (exception to 704.5m); copy preserves bestow (CR 702.103c); zone-change resets (CR 400.7); `cast_spell_bestow` harness action; 9 unit tests in `tests/bestow.rs`; script `pending_review` |
-| Reconfigure | 702.151 | P4 | `none` | — | — | — | Equip | Artifact creature that can attach/detach |
+| Reconfigure | 702.151 | P4 | `validated` | effects/mod.rs, layers.rs, sba.rs, abilities.rs | Lizard Blades | baseline/189 | is_reconfigured: bool on GameObject; KW 143; AbilDef disc 58; Effect::DetachEquipment; Layer 4 type removal while attached; SBA unattach clears flag; 8 tests (reconfigure.rs) |
 | Fortify | 702.67 | P4 | `validated` | `state/types.rs:L1201`, `state/continuous_effect.rs:L97`, `cards/card_definition.rs:L859`, `effects/mod.rs:L2073`, `rules/abilities.rs:L185`, `rules/layers.rs:L356`, `rules/events.rs:L288` | Darksteel Garrison | `stack/168` | Equip | KeywordAbility::Fortify (disc 130); Effect::AttachFortification; EffectFilter::AttachedLand; GameEvent::FortificationAttached; activation validation (CR 702.67a target land + sorcery speed + CR 301.6 creature check); layer application via AttachedLand filter; 7 unit tests in `tests/fortify.rs`; P4 complete |
 | Living Weapon | 702.92 | P3 | `validated` | `state/types.rs:353-360`, `state/builder.rs:582-616`, `state/hash.rs:384-385`, `cards/card_definition.rs:418-426`, `effects/mod.rs:348-393` | Batterskull | `stack/082` | Equip | KeywordAbility::LivingWeapon enum; ETB trigger wired in builder.rs (SelfEntersBattlefield -> CreateTokenAndAttachSource); atomic token creation + Equipment attachment before SBAs (CR 702.92a); Germ is 0/0 black Phyrexian/Germ creature token; Batterskull card def (definitions.rs:1511); 6 unit tests in `tests/living_weapon.rs` (ETB trigger fires, Germ characteristics, buff survival, zero-toughness SBA, equip-to-other, multiplayer single trigger); script `pending_review` |
 

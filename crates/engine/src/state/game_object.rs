@@ -695,6 +695,20 @@ pub struct GameObject {
     /// the engine scans exile for haunt cards with a matching haunting_target.
     #[serde(default)]
     pub haunting_target: Option<ObjectId>,
+    /// CR 702.151b: If true, this Equipment is attached via reconfigure (or was attached
+    /// by any means to a creature while it has the Reconfigure keyword). While true, the
+    /// permanent is not a creature and loses creature subtypes (ruling 2022-02-18).
+    ///
+    /// This flag persists even if the Reconfigure keyword is subsequently removed
+    /// (e.g., by Humility or Dress Down) -- the "not a creature" effect continues
+    /// until the permanent becomes unattached (CR 702.151b; ruling 2022-02-18:
+    /// "if an Equipment with reconfigure loses its abilities while attached, the
+    /// effect causing it to not be a creature continues to apply").
+    ///
+    /// Set by `Effect::AttachEquipment` when the equipment has Reconfigure.
+    /// Cleared by `Effect::DetachEquipment`, SBA unattach, and zone changes (CR 400.7).
+    #[serde(default)]
+    pub is_reconfigured: bool,
 }
 
 impl GameObject {
