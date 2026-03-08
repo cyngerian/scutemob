@@ -19,7 +19,7 @@ description: |
   </example>
 model: opus
 color: magenta
-tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__mtg-rules__lookup_card", "Write"]
+tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__mtg-rules__lookup_card", "mcp__rust-analyzer__rust_analyzer_hover", "mcp__rust-analyzer__rust_analyzer_references", "mcp__rust-analyzer__rust_analyzer_incoming_calls", "mcp__rust-analyzer__rust_analyzer_outgoing_calls", "mcp__rust-analyzer__rust_analyzer_workspace_symbols", "mcp__rust-analyzer__rust_analyzer_implementations", "mcp__rust-analyzer__rust_analyzer_stop", "Write"]
 ---
 
 # Ability Implementation Planner
@@ -82,6 +82,42 @@ Study the pattern:
 - How enforcement/dispatch works
 - How tests are structured
 
+### 3. Semantic Code Analysis (rust-analyzer)
+
+Use rust-analyzer tools to map the modification surface precisely. This produces better
+plans than grep alone because it finds actual call sites and type relationships.
+
+**Map call sites for similar ability enforcement:**
+```
+rust_analyzer_incoming_calls(file_path, line, character, limit=20)
+```
+→ Find everywhere a similar ability's enforcement function is called. The new ability
+likely needs to hook into the same dispatch points.
+
+**Find all references to a similar ability's enum variant:**
+```
+rust_analyzer_references(file_path, line, character, limit=30)
+```
+→ Every match arm, display impl, and enforcement site that needs a new case.
+
+**Understand what enforcement calls into:**
+```
+rust_analyzer_outgoing_calls(file_path, line, character, limit=20)
+```
+→ Map the downstream functions the enforcement touches (SBAs, layers, events).
+
+**Find related types:**
+```
+rust_analyzer_workspace_symbols(query="<TypeName>", limit=10)
+```
+→ Find structs, enums, and traits related to the ability pattern.
+
+**IMPORTANT**: Call `rust_analyzer_stop` at the end of your planning session to free
+~2.5GB RAM. The first RA call triggers a ~70s indexing warmup.
+
+Include the RA findings in the plan under "Modification Surface" — list every file and
+function that needs changes, with line numbers from RA results.
+
 ### 3. Check Existing Partial Work
 
 If the ability-wip.md shows some steps already done, read those files to understand what
@@ -122,6 +158,17 @@ structure:
     - [x] Step 1: Enum variant — exists at `types.rs:L<N>`
     - [ ] Step 2: Rule enforcement
     - ...
+
+    ## Modification Surface (from rust-analyzer)
+
+    Files and functions that need changes, mapped via incoming_calls/references on
+    similar ability `<SimilarAbility>`:
+
+    | File | Function/Match | Line | What to add |
+    |------|---------------|------|-------------|
+    | `rules/<file>.rs` | `<function>` | L<N> | New enforcement case |
+    | `state/types.rs` | `KeywordAbility` match | L<N> | New variant |
+    | ... | ... | ... | ... |
 
     ## Implementation Steps
 

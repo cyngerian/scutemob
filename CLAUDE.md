@@ -142,6 +142,7 @@ These are non-negotiable. If a change would violate any of these, stop and recon
 - **Rules search**: query by rule number ("613.8") or concept ("dependency continuous effects")
 - **Card lookup**: query by exact card name for oracle text, types, rulings
 - **Rulings search**: query by interaction concept ("copy effect on double-faced card")
+- **rust-analyzer**: semantic code navigation — hover, definition, references, implementations, incoming/outgoing calls, workspace symbols. Call `rust_analyzer_stop` when done to free ~2.5GB RAM. First call triggers ~70s indexing warmup. Results default to 50 max; pass `limit` to override. See `memory/MEMORY.md` "rust-analyzer MCP Server" section for details.
 
 ---
 
@@ -163,19 +164,19 @@ These 3 apply to nearly every session. All other gotchas are in `memory/gotchas-
 
 Eleven project-scoped agents in `.claude/agents/` encode milestone and ability workflows:
 
-| Agent | Model | Trigger | Purpose |
-|-------|-------|---------|---------|
-| `rules-implementation-planner` | Opus | "plan M9 implementation" | Session plan with architecture, CR refs, session breakdown |
-| `session-runner` | Sonnet | "run session 1" / "next session" | Execute one implementation session from the plan |
-| `milestone-reviewer` | Opus | "review milestone M9" | Structured code review with HIGH/MEDIUM/LOW findings; creates fix-session-plan |
-| `fix-session-runner` | Sonnet | "run fix session 3" | Execute 5-8 fixes, run tests, close issues |
-| `card-definition-author` | Sonnet | "add card definition for X" | Translate oracle text to CardDefinition DSL |
-| `cr-coverage-auditor` | Sonnet | "check CR coverage for 614" | Audit test/script coverage for CR sections |
-| `game-script-generator` | Sonnet | "generate script for X interaction" | JSON game scripts for replay harness |
-| `ability-coverage-auditor` | Opus | `/audit-abilities` | Scan engine + card defs + scripts → refresh ability coverage doc |
-| `ability-impl-planner` | Opus | `/implement-ability` (plan phase) | CR research, study similar abilities, write implementation plan |
-| `ability-impl-runner` | Sonnet | `/implement-ability` (implement/fix phase) | Execute steps 1-4 (enum, enforcement, triggers, tests), apply fixes |
-| `ability-impl-reviewer` | Opus | `/implement-ability` (review phase) | Verify implementation against CR, check edge cases, write findings |
+| Agent | Model | RA | Trigger | Purpose |
+|-------|-------|----|---------|---------|
+| `rules-implementation-planner` | Opus | yes | "plan M9 implementation" | Session plan with architecture, CR refs, session breakdown |
+| `session-runner` | Sonnet | — | "run session 1" / "next session" | Execute one implementation session from the plan |
+| `milestone-reviewer` | Opus | yes | "review milestone M9" | Structured code review with HIGH/MEDIUM/LOW findings; creates fix-session-plan |
+| `fix-session-runner` | Sonnet | — | "run fix session 3" | Execute 5-8 fixes, run tests, close issues |
+| `card-definition-author` | Sonnet | — | "add card definition for X" | Translate oracle text to CardDefinition DSL |
+| `cr-coverage-auditor` | Sonnet | — | "check CR coverage for 614" | Audit test/script coverage for CR sections |
+| `game-script-generator` | Sonnet | — | "generate script for X interaction" | JSON game scripts for replay harness |
+| `ability-coverage-auditor` | Opus | — | `/audit-abilities` | Scan engine + card defs + scripts → refresh ability coverage doc |
+| `ability-impl-planner` | Opus | yes | `/implement-ability` (plan phase) | CR research, study similar abilities, write implementation plan |
+| `ability-impl-runner` | Sonnet | — | `/implement-ability` (implement/fix phase) | Execute steps 1-4 (enum, enforcement, triggers, tests), apply fixes |
+| `ability-impl-reviewer` | Opus | yes | `/implement-ability` (review phase) | Verify implementation against CR, check edge cases, write findings |
 
 ---
 

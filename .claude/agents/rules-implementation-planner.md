@@ -19,7 +19,7 @@ description: |
   </example>
 model: opus
 color: magenta
-tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "mcp__mtg-rules__lookup_card", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings"]
+tools: ["Read", "Edit", "Write", "Grep", "Glob", "Bash", "mcp__mtg-rules__lookup_card", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__rust-analyzer__rust_analyzer_hover", "mcp__rust-analyzer__rust_analyzer_references", "mcp__rust-analyzer__rust_analyzer_incoming_calls", "mcp__rust-analyzer__rust_analyzer_outgoing_calls", "mcp__rust-analyzer__rust_analyzer_workspace_symbols", "mcp__rust-analyzer__rust_analyzer_implementations", "mcp__rust-analyzer__rust_analyzer_stop"]
 ---
 
 # Rules Implementation Planner

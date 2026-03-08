@@ -19,7 +19,7 @@ description: |
   </example>
 model: opus
 color: red
-tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "Write"]
+tools: ["Read", "Grep", "Glob", "mcp__mtg-rules__get_rule", "mcp__mtg-rules__search_rules", "mcp__mtg-rules__search_rulings", "mcp__rust-analyzer__rust_analyzer_references", "mcp__rust-analyzer__rust_analyzer_incoming_calls", "mcp__rust-analyzer__rust_analyzer_implementations", "mcp__rust-analyzer__rust_analyzer_stop", "Write"]
 ---
 
 # Ability Implementation Reviewer
@@ -96,6 +96,25 @@ completely (at least the relevant sections, using Read with offset/limit for lar
 - No `.unwrap()` in engine library code?
 - Consistent with `memory/conventions.md`?
 - No over-engineering or speculative additions?
+
+#### 6. Completeness Check (rust-analyzer)
+
+Use rust-analyzer to verify the implementation is fully wired:
+
+**Verify all match arms covered:**
+```
+rust_analyzer_references(file_path=<types.rs>, line=<new variant line>, character=<col>)
+```
+→ Every reference to the new enum variant. Cross-check against the plan's modification
+surface — any site in the plan that doesn't appear here is a missed match arm.
+
+**Verify enforcement is called from dispatch:**
+```
+rust_analyzer_incoming_calls(file_path=<enforcement file>, line=<fn line>, character=<col>)
+```
+→ Confirm the new enforcement function is actually called from the right places.
+
+**IMPORTANT**: Call `rust_analyzer_stop` at the end of your review to free ~2.5GB RAM.
 
 ## Severity Guidelines
 

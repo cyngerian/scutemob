@@ -774,6 +774,7 @@ mtg-engine/
 │   └── test-cards/               (synthetic cards for testing)
 └── tools/
     ├── scryfall-import/          (script to import Scryfall bulk data)
+    ├── rust-analyzer-mcp/        (semantic code navigation MCP server)
     └── replay-viewer/            (tool to visualize game replays)
 ```
 
@@ -788,14 +789,20 @@ The `CLAUDE.md` file is critical for Claude Code development. It should contain:
 - Test expectations (every PR must include tests; every rules implementation cites the CR section it implements)
 - Known gotchas and things to watch for
 
-### 8.3 MCP Server for Development
+### 8.3 MCP Servers for Development
 
-An MCP server providing Claude Code with:
+Two MCP servers provide Claude Code with development tools:
 
+**Rules Server** (`tools/mcp-server/`):
 - **CR search**: Semantic search over the comprehensive rules, returning full rule text with cross-references
 - **Card lookup**: Query the Scryfall SQLite DB for card details, oracle text, and rulings
 - **Rulings search**: Semantic search over all card rulings for a concept or interaction
-- **Engine reference search**: Search Forge/XMage source code for implementations of specific mechanics
+
+**rust-analyzer Server** (`tools/rust-analyzer-mcp/`):
+- **Semantic code navigation**: hover, go-to-definition, find references, find implementations, incoming/outgoing call hierarchy, workspace symbol search
+- Lazy startup (~70s indexing warmup on first call); `rust_analyzer_stop` frees ~2.5GB RAM
+- Result limiting (default 50) prevents context window blowup on high-fanout queries
+- No rebuild needed for engine code changes — only for MCP server code changes
 
 ---
 
