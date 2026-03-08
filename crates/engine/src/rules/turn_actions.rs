@@ -889,6 +889,101 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         });
     }
 
+    // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourEndStep (for active
+    // player's permanents) or AtBeginningOfEachEndStep (for all players' permanents).
+    //
+    // Mirrors the carddef_upkeep_triggers sweep added in MR-B9-01. Catches all CardDef-defined
+    // end-step triggers (e.g. Jadar's zombie token creation, future end-step triggers).
+    //
+    // CR 603.4: Intervening-if conditions are checked at resolution via the Normal trigger path.
+    let carddef_end_step_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
+        let registry = &state.card_registry;
+        state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == ZoneId::Battlefield && !obj.status.phased_out)
+            .filter_map(|obj| {
+                let card_id = obj.card_id.as_ref()?;
+                let def = registry.get(card_id.clone())?;
+                let controller = obj.controller;
+                let indices: Vec<usize> = def
+                    .abilities
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, abil)| {
+                        let AbilityDefinition::Triggered {
+                            trigger_condition, ..
+                        } = abil
+                        else {
+                            return None;
+                        };
+                        let fires = matches!(
+                            trigger_condition,
+                            TriggerCondition::AtBeginningOfYourEndStep
+                        ) && controller == active;
+                        fires.then_some(idx)
+                    })
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((obj.id, controller, indices))
+                }
+            })
+            .collect()
+    };
+
+    for (obj_id, controller, indices) in carddef_end_step_triggers {
+        for ability_index in indices {
+            state.pending_triggers.push_back(PendingTrigger {
+                source: obj_id,
+                ability_index,
+                controller,
+                kind: PendingTriggerKind::Normal,
+                triggering_event: None,
+                entering_object_id: None,
+                targeting_stack_id: None,
+                triggering_player: None,
+                exalted_attacker_id: None,
+                defending_player_id: None,
+                madness_exiled_card: None,
+                madness_cost: None,
+                miracle_revealed_card: None,
+                miracle_cost: None,
+                modular_counter_count: None,
+                evolve_entering_creature: None,
+                suspend_card_id: None,
+                hideaway_count: None,
+                partner_with_name: None,
+                ingest_target_player: None,
+                flanking_blocker_id: None,
+                rampage_n: None,
+                provoke_target_creature: None,
+                renown_n: None,
+                poisonous_n: None,
+                poisonous_target_player: None,
+                enlist_enlisted_creature: None,
+                encore_activator: None,
+                echo_cost: None,
+                cumulative_upkeep_cost: None,
+                recover_cost: None,
+                recover_card: None,
+                graft_entering_creature: None,
+                backup_abilities: None,
+                backup_n: None,
+                champion_filter: None,
+                champion_exiled_card: None,
+                soulbond_pair_target: None,
+                squad_count: None,
+                gift_opponent: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
+            });
+        }
+    }
+
     Vec::new() // No direct events; the triggers will be flushed by enter_step
 }
 

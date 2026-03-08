@@ -1622,6 +1622,28 @@ pub fn army_token_spec(subtype: &str) -> TokenSpec {
     }
 }
 
+/// CR 702.147a: Predefined Zombie Decayed token specification.
+///
+/// Creates a 2/2 black Zombie creature token with Decayed.
+/// Used by Jadar, Wilhelt, Ghoulish Procession, Tainted Adversary, and other
+/// Midnight Hunt / Crimson Vow cards that produce Decayed tokens.
+pub fn zombie_decayed_token_spec(count: u32) -> TokenSpec {
+    TokenSpec {
+        name: "Zombie".to_string(),
+        power: 2,
+        toughness: 2,
+        colors: [Color::Black].into_iter().collect(),
+        card_types: [CardType::Creature].into_iter().collect(),
+        subtypes: [SubType("Zombie".to_string())].into_iter().collect(),
+        keywords: [KeywordAbility::Decayed].into_iter().collect(),
+        count,
+        tapped: false,
+        mana_color: None,
+        mana_abilities: vec![],
+        activated_abilities: vec![],
+    }
+}
+
 // ── Zone Target ───────────────────────────────────────────────────────────────
 
 /// A destination zone for zone-change effects (CR 400).

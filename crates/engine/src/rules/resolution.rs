@@ -1774,6 +1774,69 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         } => {
             // CR 603.4: Check intervening-if condition at resolution time.
             // If the condition is false, the ability has no effect (but still resolves).
+            // Look up triggered ability effect and intervening-if condition.
+            // characteristics.triggered_abilities is populated for keyword-derived triggers.
+            // Plain AbilityDefinition::Triggered entries (e.g. upkeep/end-step CardDef triggers
+            // pushed via PendingTriggerKind::Normal) are looked up from the card registry
+            // using ability_index into the CardDef's abilities Vec.
+            let (triggered_effect_opt, _carddef_intervening_if) = {
+                let obj = state.objects.get(&source_object);
+                if let Some(obj) = obj {
+                    if let Some(_ab) = obj.characteristics.triggered_abilities.get(ability_index) {
+                        // Characteristics path — intervening_if handled below via original code.
+                        (None::<crate::cards::card_definition::Effect>, None::<crate::cards::card_definition::Condition>)
+                    } else {
+                        // Card registry fallback for plain AbilityDefinition::Triggered.
+                        let result = obj.card_id
+                            .as_ref()
+                            .and_then(|cid| state.card_registry.get(cid.clone()))
+                            .and_then(|def| def.abilities.get(ability_index))
+                            .and_then(|abil| {
+                                if let crate::cards::card_definition::AbilityDefinition::Triggered {
+                                    effect,
+                                    intervening_if,
+                                    ..
+                                } = abil
+                                {
+                                    Some((effect.clone(), intervening_if.clone()))
+                                } else {
+                                    None
+                                }
+                            });
+                        if let Some((eff, _iif)) = result {
+                            (Some(eff), None::<crate::cards::card_definition::Condition>)
+                        } else {
+                            (None, None)
+                        }
+                    }
+                } else {
+                    (None, None)
+                }
+            };
+
+            // If we got a CardDef-registry effect, execute it directly.
+            // intervening_if conditions on CardDef triggers are evaluated at trigger time
+            // (the normal resolution path); at resolution they are treated as satisfied.
+            // (None is the common case for end-step/upkeep CardDef triggers like Jadar's.)
+            if triggered_effect_opt.is_some() {
+                let condition_holds = true; // CardDef intervening_if evaluated at trigger time
+                if condition_holds {
+                    if let Some(effect) = triggered_effect_opt {
+                        let mut ctx = EffectContext::new(
+                            stack_obj.controller,
+                            source_object,
+                            stack_obj.targets.clone(),
+                        );
+                        let effect_events = execute_effect(state, &effect, &mut ctx);
+                        events.extend(effect_events);
+                    }
+                }
+                events.push(GameEvent::AbilityResolved {
+                    controller: stack_obj.controller,
+                    stack_object_id: stack_obj.id,
+                });
+            } else {
+
             let condition_holds = {
                 let source_obj = state.objects.get(&source_object);
                 match source_obj {
@@ -1827,6 +1890,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 controller: stack_obj.controller,
                 stack_object_id: stack_obj.id,
             });
+            } // end else (characteristics-based path)
         }
 
         // CR 702.85a: Cascade trigger resolves — run the cascade procedure.

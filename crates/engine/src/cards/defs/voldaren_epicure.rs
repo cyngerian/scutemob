@@ -25,6 +25,5 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
             },
         ],
-        ..Default::default()
     }
 }

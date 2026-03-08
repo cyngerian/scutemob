@@ -13,7 +13,8 @@ pub use crate::state::{
 };
 
 pub use super::card_definition::{
-    blood_token_spec, food_token_spec, treasure_token_spec, AbilityDefinition, CardDefinition, Condition,
+    blood_token_spec, food_token_spec, treasure_token_spec, zombie_decayed_token_spec,
+    AbilityDefinition, CardDefinition, Condition,
     ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, GiftType,
     LibraryPosition, ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter,
     TargetRequirement, TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,

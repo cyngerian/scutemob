@@ -18,6 +18,7 @@ use mtg_engine::{
     process_command, AttackTarget, CardRegistry, Command, GameEvent, GameState, GameStateBuilder,
     KeywordAbility, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
 };
+use mtg_engine::{zombie_decayed_token_spec, Effect};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -543,5 +544,236 @@ fn test_702_147_decayed_no_haste() {
     assert!(
         result.is_err(),
         "Ruling 2021-09-24: Decayed does not grant haste — creature with summoning sickness cannot attack"
+    );
+}
+
+// ── Token-Specific Tests ───────────────────────────────────────────────────────
+//
+// These tests verify that a Decayed token created via Effect::CreateToken (using
+// zombie_decayed_token_spec) or via ObjectSpec::creature().token() receives the
+// Decayed keyword through make_token() and is subject to the same enforcement as
+// a non-token creature with Decayed.
+
+// ── Test 9: Token created with Decayed keyword via make_token ─────────────────
+
+#[test]
+/// CR 702.147a — A 2/2 black Zombie creature token created via Effect::CreateToken
+/// with zombie_decayed_token_spec must carry the Decayed keyword on the resulting
+/// GameObject. This exercises the make_token() path in effects/mod.rs.
+fn test_702_147_decayed_token_created_with_keyword() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let source = ObjectId(0);
+    let spec = zombie_decayed_token_spec(1);
+    let effect = Effect::CreateToken { spec };
+    let mut ctx = EffectContext::new(p1, source, vec![]);
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // The Zombie token should be on the battlefield with the Decayed keyword.
+    let token = state
+        .objects
+        .values()
+        .find(|o| o.characteristics.name == "Zombie" && o.zone == ZoneId::Battlefield)
+        .expect("CR 702.147a: Zombie Decayed token should be on battlefield after Effect::CreateToken");
+
+    assert!(
+        token.is_token,
+        "CR 702.147a: created object must be flagged as a token"
+    );
+    assert!(
+        token
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Decayed),
+        "CR 702.147a: make_token must propagate Decayed keyword from TokenSpec to token characteristics"
+    );
+    assert_eq!(
+        token.characteristics.power,
+        Some(2),
+        "CR 702.147a: Zombie Decayed token must be a 2/2"
+    );
+    assert_eq!(
+        token.characteristics.toughness,
+        Some(2),
+        "CR 702.147a: Zombie Decayed token must be a 2/2"
+    );
+}
+
+// ── Test 10: Decayed token cannot block ───────────────────────────────────────
+
+#[test]
+/// CR 702.147a — A 2/2 black Zombie creature token with Decayed cannot be declared
+/// as a blocker. Verifies that can't-block enforcement applies to tokens, not just
+/// non-token creatures.
+fn test_702_147_decayed_token_cannot_block() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::creature(p1, "Normal Attacker", 2, 2))
+        .object(
+            ObjectSpec::creature(p2, "Zombie Token", 2, 2)
+                .with_keyword(KeywordAbility::Decayed)
+                .token(),
+        )
+        .at_step(Step::DeclareBlockers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Normal Attacker");
+    let blocker_id = find_object(&state, "Zombie Token");
+
+    let mut state = state;
+    state.combat = Some({
+        let mut cs = mtg_engine::CombatState::new(p1);
+        cs.attackers.insert(attacker_id, AttackTarget::Player(p2));
+        cs
+    });
+
+    let result = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![(blocker_id, attacker_id)],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "CR 702.147a: A Zombie Decayed token should not be able to block"
+    );
+}
+
+// ── Test 11: Decayed token sacrificed at end of combat after attacking ─────────
+
+#[test]
+/// CR 702.147a — "When this creature attacks, sacrifice it at end of combat."
+/// A Zombie Decayed token that attacks must be sacrificed at EOC. Tokens are then
+/// cleaned up by the SBA (CR 704.5d) — they cease to exist when leaving the battlefield.
+fn test_702_147_decayed_token_sacrificed_at_eoc() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(
+            ObjectSpec::creature(p1, "Zombie Token", 2, 2)
+                .with_keyword(KeywordAbility::Decayed)
+                .token(),
+        )
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Zombie Token");
+
+    // Declare the Decayed token as attacker.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    )
+    .expect("DeclareAttackers should succeed for Decayed token");
+
+    // Advance to DeclareBlockers step.
+    let (state, _) = pass_until_advance(state, &[p1, p2]);
+
+    // Declare no blockers.
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("DeclareBlockers (empty) should succeed");
+
+    // Advance through CombatDamage step.
+    let (state, _) = pass_until_advance(state, &[p1, p2]);
+
+    // Advance through EndOfCombat step (where sacrifice happens).
+    let (state, events) = pass_until_advance(state, &[p1, p2]);
+
+    // Verify CreatureDied event was emitted.
+    let creature_died = events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CreatureDied { .. }));
+    assert!(
+        creature_died,
+        "CR 702.147a: CreatureDied event should be emitted when Decayed token is sacrificed at EOC"
+    );
+
+    // Verify the token is no longer on the battlefield (tokens cease to exist in non-bf zones).
+    assert!(
+        !is_on_battlefield(&state, "Zombie Token"),
+        "CR 702.147a / CR 704.5d: Decayed token should not be on the battlefield after EOC sacrifice"
+    );
+}
+
+// ── Test 12: Decayed token with summoning sickness cannot attack ───────────────
+
+#[test]
+/// CR 702.147a ruling 2021-09-24 — "Decayed does not grant haste."
+/// A Zombie Decayed token with summoning sickness cannot attack. This validates
+/// that the token variant of the no-haste ruling also holds.
+fn test_702_147_decayed_token_has_summoning_sickness() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .object(
+            ObjectSpec::creature(p1, "Zombie Token", 2, 2)
+                .with_keyword(KeywordAbility::Decayed)
+                .token(),
+        )
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let attacker_id = find_object(&state, "Zombie Token");
+
+    // Manually set summoning sickness (simulates a token that entered this turn).
+    let mut state = state;
+    if let Some(obj) = state.objects.get_mut(&attacker_id) {
+        obj.has_summoning_sickness = true;
+    }
+
+    let result = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "Ruling 2021-09-24: Decayed token with summoning sickness cannot attack — Decayed does not grant haste"
     );
 }
