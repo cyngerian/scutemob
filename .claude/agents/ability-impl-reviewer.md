@@ -89,35 +89,24 @@ completely (at least the relevant sections, using Read with offset/limit for lar
 - Do tests cite CR rules?
 - Are test assertions checking the right things?
 
-#### 5. Code Quality & Completeness
-
+#### 5. Code Quality
 - CR citations in doc comments?
 - Hash coverage for new fields?
+- All match arms covered for new enum variants?
 - No `.unwrap()` in engine library code?
 - Consistent with `memory/conventions.md`?
 - No over-engineering or speculative additions?
 
-**All match arms covered — verify with rust-analyzer (REQUIRED):**
+**Optional — rust-analyzer for completeness verification:**
 
-Do NOT check match arm coverage by eyeball. You MUST use rust-analyzer to verify.
-The first RA call triggers a ~70s indexing warmup — this is expected.
+You have rust-analyzer tools available for verifying match arm coverage and call wiring.
+These are more reliable than grep for catching missed match arms:
 
-1. Find the new enum variant's line in types.rs, then:
-   ```
-   rust_analyzer_references(file_path=<types.rs>, line=<variant line>, character=<col>, limit=30)
-   ```
-   → Every reference to the new variant. Cross-check against the plan's modification
-   surface — any site in the plan that doesn't appear in RA results is a missed match arm.
+- `rust_analyzer_references` on the new enum variant — shows every reference site
+- `rust_analyzer_incoming_calls` on new functions — confirms they're called from dispatch
 
-2. If a new enforcement function was added:
-   ```
-   rust_analyzer_incoming_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
-   ```
-   → Confirm the function is actually called from the right dispatch points.
-
-A missing match arm is a **HIGH** finding. RA catches these reliably; grep does not.
-
-**IMPORTANT**: Call `rust_analyzer_stop` at the end of your review to free ~2.5GB RAM.
+The first RA call triggers a ~70s indexing warmup. Call `rust_analyzer_stop` when done
+to free ~2.5GB RAM.
 
 ## Severity Guidelines
 
