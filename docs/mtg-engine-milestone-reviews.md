@@ -1962,27 +1962,81 @@ inline. 8 LOW findings deferred.
 
 ---
 
+## W1-B13: Batch 13 Review (2026-03-07)
+
+Batch 13 implemented 8 abilities from newer sets: Discover (701.57), Suspect (701.60), Collect Evidence (701.59), Forage (701.61), Squad (702.157), Offspring (702.175), Gift (702.174), Saddle (702.171). CR corrections needed for all 8 (batch plan had wrong CR numbers). No HIGH or MEDIUM findings. 2 noted gaps deferred.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B13-01 | **LOW** | `testing/replay_harness.rs` — cast_spell_gift | Gift script (185) pending_review — harness lacks a `cast_spell_gift` action to wire `gift_opponent` field. Same gap pattern as cipher's encoding choice. Deferred until harness extended. | **OPEN (deferred)** |
+| MR-B13-02 | **LOW** | `effects/mod.rs` — Effect::Forage | Forage activated ability is a DSL gap: `Cost` enum lacks a Forage cost variant. Card definition cannot express the full activated-ability form. Deferred until Cost DSL extended. | **OPEN (deferred)** |
+
+---
+
+## W1-B14: Batch 14 Review (2026-03-08)
+
+Batch 14 implemented 5 abilities + 2 cross-cutting engine fixes: Cipher (702.99), Haunt (702.55), Reconfigure (702.151), Blood Tokens (111.10g), Decayed Tokens (702.147). Treasure Tokens already done (P2). Two engine infrastructure fixes shipped: generic end_step_actions() CardDef sweep + resolution.rs card-registry fallback for PendingTriggerKind::Normal triggers. 2 MEDIUM findings fixed inline. 2 LOW deferred.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B14-01 | **MEDIUM** | `state/types.rs` — PendingTrigger hash | PendingTrigger did not include the trigger kind in its hash, causing hash collisions when multiple triggers of different kinds queued simultaneously. Fixed inline: added kind discriminant to hash. | **CLOSED** |
+| MR-B14-02 | **MEDIUM** | `rules/resolution.rs` — Cipher aftermath override | Cipher's encoded-card cast was incorrectly overriding aftermath cast-from-graveyard restrictions. Fixed inline: added Cipher cast path that bypasses aftermath zone check. | **CLOSED** |
+| MR-B14-03 | **LOW** | `testing/replay_harness.rs` — cast_spell_cipher | Cipher script 187 pending_review — harness lacks a `cast_spell_cipher` action to wire the encoding choice (which creature encodes). Same gap pattern as Gift's gift_opponent. Deferred. | **OPEN (deferred)** |
+| MR-B14-04 | **LOW** | `rules/resolution.rs` — haunting_target cleared | haunting_target on GameObject was not cleared after the HauntedCreatureDiesTrigger resolved, leaving a stale ObjectId. Fixed inline with a post-resolution clear. | **CLOSED** |
+
+---
+
+## W1-B15: Batch 15 Review (2026-03-08)
+
+Batch 15 implemented 3 partner variants (deck validation only): Friends Forever (702.124i), Choose a Background (702.124k), Doctor's Companion (702.124m). All changes in commander.rs (validate_partner_commanders()). KW 144-146; no new AbilDef or SOK discriminants. 16 tests in partner_variants.rs; clean review (2 LOW findings, no HIGH/MEDIUM).
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-B15-01 | **LOW** | `rules/commander.rs` — Background type check | `is_legendary_background()` checks for the Background subtype but not the Legendary supertype. Non-legendary Backgrounds (if they exist) would pass validation incorrectly. Acceptable for current card pool — all printed Backgrounds are Legendary. | **OPEN (deferred)** |
+| MR-B15-02 | **LOW** | `rules/commander.rs` — Doctor type check | `is_time_lord_doctor()` requires both Time Lord and Doctor subtypes; but no test for a creature that has only one of the two. Edge case not covered by current test suite. | **OPEN (deferred)** |
+
+---
+
+## W1-Mutate: Mutate Mini-Milestone Review (2026-03-08)
+
+Mutate (CR 702.140) implemented as a dedicated mini-milestone. Core model: `merged_cards: Vec<MergedComponent>` on `GameObject`; `Command::CastWithMutate`; `StackObjectKind::MutatingCreatureSpell` (SOK 59); `AbilityDefinition::MutateCost` (AbilDef 59); KW 147. Resolution: over/under choice; merged permanent gets top card's characteristics + all abilities from all cards. Zone-change splitting (CR 729.5). Mutate trigger ("whenever this creature mutates"). 9 unit tests; game script 192 (PASS); cards: Gemrazer, Nethroi, Brokkos. LegalActionProvider updated (ActivateBloodrush, SaddleMount, CastWithMutate). Corner case 32 (Mutate Stack Ordering) promoted from DEFERRED to COVERED. No HIGH or MEDIUM findings.
+
+### New Findings
+
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| MR-Mutate-01 | **LOW** | `rules/resolution.rs` — Mutate with copy effects | Mutate interaction with copy effects (CR 729.8) not tested. Copying a mutating creature spell is a deferred complexity item per the batch plan. | **OPEN (deferred)** |
+| MR-Mutate-02 | **LOW** | `rules/resolution.rs` — Mutate onto face-down | Mutate onto a face-down creature (CR 729.6) not tested. Face-down mechanics are not yet implemented (Morph deferred). | **OPEN (deferred)** |
+
+---
+
 ## Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total unique issue IDs | 262 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12) |
+| Total unique issue IDs | 284 (146 M0-M7 + 22 M8 + 23 M9 + 21 M9.4 + 1 Checkpoint + 19 M9.5 + 1 W3 + 1 B9 + 8 B10 + 10 B11 + 10 B12 + 2 B13 + 4 B14 + 2 B15 + 2 Mutate) |
 | CRITICAL | 0 |
 | HIGH (OPEN) | 0 |
 | HIGH (CLOSED) | 36 (1 false positive + 23 closed by fix sessions 1-7 + 1 closed by fix session 9 MR-M0-02 + 3 closed by M8 fix session 1 + 2 closed by M9 fix session 1: MR-M9-01, MR-M9-02 + 3 closed by M9.4 fix session 1: MR-M9.4-01, MR-M9.4-02, MR-M9.4-03 + 1 B10 inline: MR-B10-01 + 2 B11 inline: MR-B11-01, MR-B11-02) |
 | HIGH (DEFERRED) | 1 (MR-M2-05 -> M10+) |
 | MEDIUM (OPEN) | 2 (pre-M8: MR-M7-09, MR-M7-12 — deferred to M10+) |
-| MEDIUM (CLOSED) | 62 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02) |
+| MEDIUM (CLOSED) | 65 (27 closed by fix sessions 1-9 + 3 closed by M8 fix session 1 + 4 closed by M8 fix session 2 + 3 closed by M9 fix session 1: MR-M9-03, MR-M9-05, MR-M9-07 + 3 closed by M9 fix session 2: MR-M9-04, MR-M9-06, MR-M9-08 + 3 closed by M9.4 fix session 2: MR-M9.4-04, MR-M9.4-05, MR-M9.4-08 + 2 closed by M9.4 fix session 3: MR-M9.4-06, MR-M9.4-07 + 4 closed by M9.5 fix session 1: MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04 + 5 B10 inline: MR-B10-02 through MR-B10-06 + 6 B11 inline: MR-B11-03 through MR-B11-07 + 2 B12 inline: MR-B12-01, MR-B12-02 + 2 B14 inline: MR-B14-01, MR-B14-02 + 1 B14 inline: MR-B14-04) |
 | MEDIUM (DEFERRED) | 4 (MR-M4-06 -> M8, MR-M5-04 -> M8+, MR-M7-09 -> M10+, MR-M7-12 -> M10+) |
-| LOW (OPEN) | 49 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10) |
+| LOW (OPEN) | 59 (17 pre-M8 + 5 M8 + 6 M9 + 2 M9.4 + 1 Checkpoint + 7 M9.5 + 1 W3: MR-W3-01 + 2 B11: MR-B11-08, MR-B11-09 + 8 B12: MR-B12-03 through MR-B12-10 + 2 B13: MR-B13-01, MR-B13-02 + 1 B14: MR-B14-03 + 2 B15: MR-B15-01, MR-B15-02 + 2 Mutate: MR-Mutate-01, MR-Mutate-02) |
 | LOW (CLOSED) | 39 (6 pre-W3 + 30 closed by W3 T1+T2 remediation 2026-03-03 + 1 B9 MR-B9-01 closed by B10 + 2 B10 inline: MR-B10-07, MR-B10-08) |
 | LOW (DEFERRED) | 5 |
 | INFO | 67 (43 pre-M8 + 6 M8: MR-M8-17 through MR-M8-22 + 6 M9: MR-M9-18 through MR-M9-23 + 6 M9.4: MR-M9.4-16 through MR-M9.4-21 + 6 M9.5: MR-M9.5-14 through MR-M9.5-19) |
-| Milestones reviewed | 14 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11) |
+| Milestones reviewed | 18 (M0 re-reviewed, M1 re-reviewed, M2 re-reviewed, M3, M4, M5, M6, M7, M8, M9, M9.4, M9.5, W1-B10, W1-B11, W1-B12, W1-B13, W1-B14, W1-B15, W1-Mutate) |
 | Milestones not started | 0 |
-| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete) |
+| Fix phase progress | M0-M7 fix sessions 1-9 complete; M8 fix phase complete (sessions 1-2: 3 HIGH + 7 MEDIUM closed); M9 fix phase complete (session 1: 2 HIGH + 3 MEDIUM closed; session 2: 3 MEDIUM closed: MR-M9-04, MR-M9-06, MR-M9-08); M9.4 fix phase complete (sessions 1-3: 3 HIGH + 5 MEDIUM closed); **M9.5 fix phase complete**: session 1: 4 MEDIUM closed (MR-M9.5-01, MR-M9.5-02, MR-M9.5-03, MR-M9.5-04); **W3 T1+T2 complete (2026-03-03)**: 30 LOW closed (19 T1 + 11 T2) — commit `08c7b32`; 5 real targeting.rs bugs found and fixed; **W1-B10 complete (2026-03-07)**: Devour, Backup, Champion, Umbra Armor, Living Metal, Soulbond, Fortify — 1 HIGH + 5 MEDIUM + 2 LOW found, all fixed inline; 1706 tests; 155 validated; P4 64/88; **W1-B11 complete (2026-03-07)**: Modal Choice, Tribute, Fabricate, Fuse, Spree — 2 HIGH + 6 MEDIUM found, all fixed inline; 2 LOW deferred; 1754 tests; 160 validated; P4 66/88; P2 17/17 (all P2 complete); **W1-B12 complete (2026-03-07)**: Enrage, Alliance, Corrupted, Ravenous, Bloodrush — 2 MEDIUM + 8 LOW found; 2 MEDIUM fixed inline; 8 LOW deferred; 1784 tests; 165 validated; P4 71/88; **W1-B13 complete (2026-03-07)**: Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — 0 HIGH/MEDIUM; 2 LOW deferred; 1792 tests; 171 validated; P4 77/88; **W1-B14 complete (2026-03-08)**: Cipher, Haunt, Reconfigure, Blood Tokens, Decayed Tokens — 2 MEDIUM + 2 LOW found; 3 MEDIUM/LOW fixed inline; 1 LOW deferred; 1829 tests; 175 validated; P4 82/88; **W1-B15 complete (2026-03-08)**: Friends Forever, Choose a Background, Doctor's Companion — 0 HIGH/MEDIUM; 2 LOW deferred; 1889 tests (with Mutate); P4 84/88; **W1-Mutate complete (2026-03-08)**: Mutate mini-milestone — 0 HIGH/MEDIUM; 2 LOW deferred; all 78 implementable abilities done |
 
-**Engine source LOC (M0-M9.4 baseline)**: ~17,800 lines (+2,700 M9.4); W1-B0 through B11 added ~6,500+ lines (71 abilities, new infra fields, effect variants, trigger kinds)
-**Engine test LOC (M1-M9.4 baseline)**: ~25,400 lines (+4,700 M9.4); W1-B0 through B11 added ~8,000+ lines (18 new test files, 276 unit tests + 93 scripts)
+**Engine source LOC (M0-M9.4 baseline)**: ~17,800 lines (+2,700 M9.4); W1-B0 through B15+Mutate added ~9,000+ lines (86 abilities, new infra fields, effect variants, trigger kinds, merged_cards model)
+**Engine test LOC (M1-M9.4 baseline)**: ~25,400 lines (+4,700 M9.4); W1-B0 through B15+Mutate added ~11,000+ lines (22 new test files, 435+ unit tests + 99 scripts)
 **Replay viewer LOC (M9.5)**: ~2,200 Rust + ~2,400 Svelte/JS = ~4,600 lines
-**Total test count**: 1754 (all passing, as of W1-B11 completion 2026-03-07)
+**Total test count**: 1889 (all passing, as of W1-B15+Mutate completion 2026-03-08)

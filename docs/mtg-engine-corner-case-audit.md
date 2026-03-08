@@ -55,7 +55,7 @@
 | 29 | Cascade into a Split Card | 702.84, 708.4 | **COVERED** | `test_cascade_combined_mana_value_skip` in `cascade.rs` — documents split-card MV behavior (CR 708.4); cascade implemented via `copy::resolve_cascade` | M9.4 S9 |
 | 30 | Morph/Manifest Face-Down | 708 | **DEFERRED** | Face-down mechanics not implemented | Deferred |
 | 31 | Aura on Illegal Permanent After Type Change | 704.5m | **COVERED** | `test_cc31_aura_falls_off_after_type_change_ends` in `sba.rs` | M9.4 S4 |
-| 32 | Mutate Stack Ordering | 725 | **DEFERRED** | Mutate not implemented | Deferred |
+| 32 | Mutate Stack Ordering | 725 | **COVERED** | `test_mutate_*` in `mutate.rs` — merged_cards model, over/under choice, zone-change splitting (CR 729.5), mutate trigger; game script 192 | B15+Mutate |
 | 33 | Sylvan Library + Draw Replacement | 614 | **COVERED** | `test_cc33_sylvan_library_draw_tracking` in `replacement_effects.rs` — `cards_drawn_this_turn` tracking verified | M9.4 S4 |
 | 34 | Reveillark + Karmic Guide Loop | 726, 104.4b | **COVERED** | `test_loop_detection_threshold_is_three` in `loop_detection.rs` — detection algorithm in `rules/loop_detection.rs` | M9.4 S10 |
 | 35 | Storm + Copying | 702.40, 707.10 | **COVERED** | `test_storm_creates_copies`, `test_spell_copy_is_not_cast` in `storm_copy.rs` | M9.4 S8 |
@@ -93,7 +93,6 @@ subsystems are built, likely as part of M12+ card pipeline expansion.
 |---|------|----------|-----------|
 | 25 | Phasing + Auras/Equipment | Phasing (CR 702.26) | Rare in Commander; entire subsystem needed |
 | 30 | Morph/Manifest Face-Down | Face-down (CR 708) | Entire subsystem needed |
-| 32 | Mutate Stack Ordering | Mutate (CR 725) | Ikoria-specific; entire subsystem needed |
 
 ---
 

@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 14 complete. Batch 15 next (Commander variants: Friends Forever, Choose a Background, Doctor's Companion). | available | — | KW 143, AbilDef 58, SOK 58 — Batch 15 needs no new discriminants (deck validation only) |
+| W1: Abilities | B15 + Mutate + LegalActionProvider complete. ALL batches done + Mutate mini-milestone. | ACTIVE | 2026-03-08 | KW 147, AbilDef 59, SOK 59 — all implementable abilities complete; only Morph (5) + Transform (4) subsystems remain, deferred |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; treat stale 2026-03-03 claim as available |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -22,31 +22,55 @@
 ## Last Handoff
 
 **Date**: 2026-03-08
-**Workstream**: W1: Abilities — Batch 14
+**Workstream**: W1: Abilities — Batch 15 + Mutate + LegalActionProvider
 
-Batch 14 complete. All 6 abilities implemented (5 full pipeline + 1 already done):
-- Cipher (CR 702.99): encoded_cards Vec<(ObjectId, CardId)> on GameObject; CipherCombatDamage PendingTrigger; CipherTrigger SOK 56; KW 141, AbilDef 57; 7 tests; card: Call of the Nightwing; script 187 (pending_review — harness gap: no cast_spell_cipher action). Two fixes: PendingTrigger hash (HIGH), aftermath override (MEDIUM). Harness fix: enrich_spec_from_def propagates AbilityDefinition::Cipher → KW::Cipher.
-- Haunt (CR 702.55): haunting_target: Option<ObjectId> on GameObject; HauntExileTrigger SOK 57 + HauntedCreatureDiesTrigger SOK 58; HauntExiled event 107; KW 142; 8 tests; card: Blind Hunter; script 188 (PASS). Fix: haunting_target cleared after trigger resolves (MEDIUM).
-- Reconfigure (CR 702.151): is_reconfigured: bool on GameObject; AbilityDefinition::Reconfigure (AbilDef 58); Effect::DetachEquipment; Layer 4 type removal; KW 143; 8 tests (clean review); card: Lizard Blades; script 189 (PASS).
-- Blood Tokens (CR 111.10g): blood_token_spec(); ActivationCost.discard_card: bool; Command::ActivateAbility.discard_card_id; handle_activate_ability discard processing; 14 tests (clean); card: Voldaren Epicure; script 190 (5/5 PASS).
-- Treasure Tokens: already fully validated (P2, script 073) — no work needed.
-- Decayed Tokens (CR 702.147): zombie_decayed_token_spec(); 4 new token tests (12 total); card: Jadar, Ghoulcaller of Nephalia; script 191 (PASS). Two cross-cutting engine fixes: end_step_actions() generic AtBeginningOfYourEndStep CardDef sweep + resolution.rs card registry fallback for TriggeredAbility SOK.
+All W1 implementable work complete. Three deliverables this session:
 
-1829+ tests. 175 validated. P4 82/88. Scripts 187-191. 6 new cards.
+**Batch 15 — Partner Variants (B15)**:
+- Friends Forever (CR 702.124i): deck validation in commander.rs; validate_partner_commanders() extended
+- Choose a Background (CR 702.124k): Background enchantment pairing; is_legendary_background() helper
+- Doctor's Companion (CR 702.124m): Time Lord Doctor pairing; is_time_lord_doctor() helper
+- KW 144-146 (no new AbilDef or SOK discriminants)
+- 16 tests in partner_variants.rs; clean review (2 LOWs only); no game scripts (validation-only)
+- Commit prefix: W1-B15:
 
-**Next**: Claim W1-B15. Check docs/ability-batch-plan.md for Batch 15 (Friends Forever, Choose a Background, Doctor's Companion — deck validation only, no new discriminants). After B15: Mutate mini-milestone. After Mutate: LegalActionProvider update.
+**Mutate Mini-Milestone (CR 702.140)**:
+- merged_cards: Vec<MergedComponent> + MergedComponent struct on GameObject
+- Command::CastWithMutate + StackObjectKind::MutatingCreatureSpell (SOK 59)
+- AbilityDefinition::MutateCost (AbilDef 59); KW 147
+- Resolution merge: caster chooses over/under; top card's characteristics + ALL abilities from all cards
+- Zone-change splitting (CR 729.5): merged permanent leaves, all cards move together; death splits to individual graveyard cards
+- Mutate trigger: "whenever this creature mutates" fires on successful merge
+- 9 unit tests; game script 192 (approved)
+- Card defs: Gemrazer, Nethroi, Brokkos (3 popular Ikoria commanders)
+- Discriminant chain end: KW 147, AbilDef 59, SOK 59
 
-**Discriminant chain end of B14**: KW 143, AbilDef 58, SOK 58. B15 needs no new discriminants.
+**LegalActionProvider update**:
+- ActivateBloodrush, SaddleMount, CastWithMutate added to legal_actions.rs
+- LAP now covers all implemented abilities including B13-B15 + Mutate
 
-**Hazards**:
-- Cipher script 187 pending_review — harness lacks cast_spell_cipher action to wire encoding choice (LOW gap, same pattern as Gift's gift_opponent gap)
-- Blood token helpers.rs export: blood_token_spec added to prelude — future cards can use it directly
-- Two engine infra fixes in this batch (end_step + resolution.rs) benefit all future CardDef triggers via PendingTriggerKind::Normal
-- W3 claim (2026-03-03) was stale — reset to available
+1889 tests. 179 validated. P4 84/88. P3 38/40. Scripts through 192.
 
-**Commit prefix used**: W1-B14:
+**Next for W1**: All implementable batches (0-15) + Mutate mini-milestone complete. Remaining blocked subsystems: Morph tree (5 abilities) + Transform tree (4 abilities) — deferred until dedicated pre-M10 mini-milestones or post-M10. Run `/audit-abilities` to refresh coverage doc, then proceed to W2 (TUI hardening) or W4 (M10 networking).
+
+**Discriminant chain end**: KW 147, AbilDef 59, SOK 59.
+
+**Open gaps**:
+- Cipher script 187 pending_review — harness lacks cast_spell_cipher action (LOW, same pattern as Gift's gift_opponent gap)
+- Morph (5 blocked), Transform (4 blocked) — deferred subsystems
+
+**Commit prefix used**: W1-B15: (B15), W1-Mutate: (Mutate)
 
 ## Handoff History
+
+### 2026-03-08 (session end) — W1: Abilities — Batch 15 + Mutate + LegalActionProvider
+- B15: Friends Forever/ChooseABackground/DoctorsCompanion (CR 702.124i/k/m); KW 144-146; 16 tests; clean review (2 LOW); no scripts (validation-only); commits W1-B15:
+- Mutate mini-milestone (CR 702.140): merged_cards/MergedComponent on GameObject; CastWithMutate + MutatingCreatureSpell (SOK 59); AbilDef::MutateCost (AbilDef 59); KW 147; zone-change splitting (CR 729.5); mutate trigger; 9 tests; script 192; cards: Gemrazer, Nethroi, Brokkos; commits W1-Mutate:
+- LegalActionProvider: ActivateBloodrush + SaddleMount + CastWithMutate added to legal_actions.rs
+- 1889 tests; 179 validated; P4 84/88; P3 38/40; discriminant chain end KW 147/AbilDef 59/SOK 59
+
+### 2026-03-08 (session end) — W1: Abilities — Batch 14
+- Cipher (702.99), Haunt (702.55), Reconfigure (702.151), Blood Tokens (111.10g), Treasure Tokens (already done), Decayed Tokens (702.147); 1829 tests; 175 validated; P4 82/88; scripts 187-191; cards: Call of the Nightwing, Blind Hunter, Lizard Blades, Voldaren Epicure, Jadar Ghoulcaller of Nephalia; commits W1-B14:
 
 ### 2026-03-07 (session end) — W1: Abilities — Batch 13
 - Discover (701.57), Suspect (701.60), Collect Evidence (701.59), Forage (701.61), Squad (702.157), Offspring (702.175), Gift (702.174), Saddle (702.171); 1792 tests; 171 validated; P4 77/88; scripts 179-186; cards: Geological Appraiser, Frantic Scapegoat, Crimestopper Sprite, Camellia the Seedmiser, Ultramarines Honour Guard, Flowerfoot Swordmaster, Nocturnal Hunger, Quilled Charger; commits c279fb4–43d1f28

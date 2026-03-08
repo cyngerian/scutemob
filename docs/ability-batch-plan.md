@@ -517,10 +517,10 @@ Recommended update points:
 | 10: ETB/Dies Patterns | 7 | 2 | **Complete** |
 | 11: Modal Choice + Deps | 5 | 2 | **Complete** |
 | 12: Ability Words | 5 | 1 | **Complete** |
-| 13: Newer Set Mechanics | 8 | 2 | Not started |
-| 14: Niche & Encoding | 6 | 2 | Not started |
-| 15: Commander Variants | 3 | 0.5 | Not started |
-| Mutate Mini-Milestone | 1 | 2-3 | Not started |
+| 13: Newer Set Mechanics | 8 | 2 | **Complete** |
+| 14: Niche & Encoding | 6 | 2 | **Complete** |
+| 15: Commander Variants | 3 | 0.5 | **Complete** |
+| Mutate Mini-Milestone | 1 | 2-3 | **Complete** |
 | **Total** | **~93** | **~23-28** | |
 
 ---

@@ -12,18 +12,18 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: ~1829 tests passing; ~175 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 82/88 P4; Batch 0-14 complete; Batch 15 next; 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: ~1889 tests passing; ~179 validated; 40/42 P1; 17/17 P2 (all done!); 38/40 P3; 84/88 P4; Batch 0-15 complete; Mutate mini-milestone complete; LegalActionProvider updated; 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
 - **Last Updated**: 2026-03-08
 
-### What Exists (M9.5 complete + 82 abilities through Batch 14, includes M0-M9 + Engine Core Complete checkpoint)
-- `cards/`: CardDefinition framework (30+ Effect primitives), 118 hand-authored cards (all definitions correct — no simplifications), CardRegistry
+### What Exists (M9.5 complete + 86 abilities through Batch 15 + Mutate, includes M0-M9 + Engine Core Complete checkpoint)
+- `cards/`: CardDefinition framework (30+ Effect primitives), 121 hand-authored cards (all definitions correct — no simplifications), CardRegistry
 - `effects/`: Full effect execution engine (DealDamage, GainLife, DrawCards, ExileObject, CreateToken, SearchLibrary, ForEach, Conditional, Scry, Surveil, DrainLife, Goad, PlayExiledCard, DetachEquipment, etc.)
-- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution (card registry fallback for CardDef triggers via PendingTriggerKind::Normal — B14 fix), ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste); end_step_actions() generic CardDef sweep (B14 fix)
-- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~98 approved game scripts (187/190/191 pending_review), ~1829 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree` action types; `activate_ability` with `discard_card_name` (Blood tokens, B14)
+- `rules/`: Turn structure, priority, stack, SBAs, layer system (dependency-based), combat (declare/damage), casting (Convoke/Improvise/Delve/Evoke/Kicker alt costs), resolution (card registry fallback for CardDef triggers via PendingTriggerKind::Normal — B14 fix), ETB replacements, prevention effects, global replacement registration, Commander rules (commander.rs: deck validation, command zone casting, commander tax, zone return SBA with player choice, mulligan, companion, Friends Forever/ChooseABackground/DoctorsCompanion partner variants — B15), protection.rs (DEBT), copy.rs (Layer 1 + storm + cascade), loop_detection.rs (mandatory loop = draw CR 104.4b), Enchant enforcement (cast-time + SBA), suspend.rs (upkeep trigger, free cast, haste); end_step_actions() generic CardDef sweep (B14 fix); Mutate (CR 702.140): merged_cards/MergedComponent on GameObject, CastWithMutate command, resolution merge (over/under), zone-change splitting (CR 729.5), mutate trigger
+- `testing/`: Script replay harness (`crates/engine/src/testing/replay_harness.rs` — public, shared with replay viewer), ~99 approved game scripts (187/190/191 pending_review), ~1889 tests; 6-player test suite; 54 property invariant tests; `declare_attackers`/`declare_blockers`/`crew_vehicle`/`improvise`/`suspend_card`/`cast_spell_modal`/`cast_spell_fuse`/`cast_spell_spree`/`cast_with_mutate` action types; `activate_ability` with `discard_card_name` (Blood tokens, B14)
 - `benches/`: criterion benchmarks (engine_perf.rs) — priority_cycle_4p: 23µs, priority_cycle_6p: 37µs, sba_check: 14µs, full_turn_4p: 205µs, full_turn_6p: 303µs
 - `tools/replay-viewer/`: axum HTTP server + Svelte 5 frontend; 5 API endpoints; full StateViewModel serialization; 12 Svelte components (PlayerPanel, ZoneBattlefield, ZoneStack, ZoneHand, ZoneGraveyard, ZoneExile, PhaseIndicator, EventTimeline, ScriptPicker, CombatView, CardDisplay, AssertionBadges); diff highlighting; keyboard nav
-- All 36 corner cases: 29 COVERED, 4 GAP, 3 DEFERRED (phasing, morph, mutate)
+- All 36 corner cases: 29 COVERED, 4 GAP, 2 DEFERRED (phasing, morph) — Mutate promoted from DEFERRED to COVERED (B15+Mutate session)
 
 ### Known Issue Summary (from code reviews)
 - **HIGH open**: 0 — all resolved through M9.4
