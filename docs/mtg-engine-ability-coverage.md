@@ -254,9 +254,9 @@ Keywords specifically relevant to Commander or multiplayer.
 | Partner | 702.124 | P1 | `validated` | `rules/commander.rs` | — | `commander/` scripts | — | Two commanders; deck validation enforced |
 | Companion | 702.139 | P1 | `validated` | `rules/commander.rs`, `rules/engine.rs` | — | `commander/` scripts | — | Start in sideboard; bring to hand for {3} |
 | Partner With | 702.124 | P3 | `validated` | `state/types.rs:213`, `state/stack.rs:394`, `rules/abilities.rs:1001,2104`, `rules/resolution.rs:1572`, `rules/commander.rs:487-540` | Pir, Imaginative Rascal; Toothy, Imaginary Friend | `baseline/107` | Partner | 10 unit tests in `partner_with.rs`; ETB trigger searches library; deck validation cross-checks names (CR 702.124j); prevents mixing with plain Partner (CR 702.124f) |
-| Friends Forever | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant from Stranger Things Secret Lair |
-| Choose a Background | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant for Background enchantments |
-| Doctor's Companion | 702.124 | P4 | `none` | — | — | — | Partner | Partner variant from Doctor Who |
+| Friends Forever | 702.124 | P4 | `validated` | `rules/commander.rs` | — | — | Partner | Partner variant from Stranger Things Secret Lair; deck validation enforced in commander.rs (B15, 2026-03-08) |
+| Choose a Background | 702.124 | P4 | `validated` | `rules/commander.rs` | — | — | Partner | Partner variant for Background enchantments; deck validation enforced in commander.rs (B15, 2026-03-08) |
+| Doctor's Companion | 702.124 | P4 | `validated` | `rules/commander.rs` | — | — | Partner | Partner variant from Doctor Who; deck validation enforced in commander.rs (B15, 2026-03-08) |
 
 ---
 
@@ -271,7 +271,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Megamorph | 702.37 | P4 | `none` | — | — | — | Morph | Morph that adds +1/+1 counter when turned up |
 | Manifest | 701.40 | P4 | `none` | — | — | — | Morph | Put top card face-down as 2/2; turn up if creature |
 | Cloak | 701.58 | P4 | `none` | — | — | — | Manifest | Manifest variant with ward {2} |
-| Mutate | 702.140 | P3 | `none` | — | — | — | — | Merge with creature; deferred (corner case audit) |
+| Mutate | 702.140 | P3 | `validated` | `state/game_object.rs` (merged_cards Vec, top_card()), `rules/command.rs` (CastWithMutate), `rules/casting.rs` (validation), `rules/resolution.rs` (merge resolution, over/under choice), `rules/abilities.rs` (MutateTrigger), `rules/sba.rs`/`rules/events.rs` (zone-change splitting) | Gemrazer; Nethroi; Brokkos | — | — | Merged-permanent model implemented (mini-milestone, 2026-03-08); merged_cards Vec<ObjectId> on GameObject; CastWithMutate command; zone-change splits merged cards; mutate trigger fires on successful merge; 9 unit tests; 3 card defs; 1 game script |
 | Changeling | 702.73 | P2 | `validated` | `state/types.rs:286-293` (KeywordAbility::Changeling + ALL_CREATURE_TYPES:296-376), `state/hash.rs:360-361`, `state/continuous_effect.rs:139-145` (AddAllCreatureTypes), `rules/layers.rs:61-76` (inline CDA check + apply arm:326-334), `tools/replay-viewer/src/view_model.rs:602` | Universal Automaton | `layers/072` | — | CR 702.73a CDA: "This object is every creature type." Applied in Layer 4 before non-CDA effects (CR 613.3); functions in all zones (CR 604.3); ALL_CREATURE_TYPES lazy static (~290+ subtypes from CR 205.3m); LayerModification::AddAllCreatureTypes for Maskwood Nexus-style effects; 7 unit tests in `tests/changeling.rs`; game script pending_review |
 | Crew | 702.122 | P2 | `validated` | `state/types.rs:302`, `rules/command.rs:245`, `rules/engine.rs:234`, `rules/abilities.rs:1246`, `testing/replay_harness.rs:408` | Smuggler's Copter | `combat/075` | 15 tests in `crew.rs`; script `pending_review` (multi-turn attack gap, same as 069/070) |
 | Saddle | 702.171 | P4 | `validated` | `state/types.rs:1316` (KeywordAbility::Saddle(u32) disc 140), `state/game_object.rs:658` (is_saddled), `rules/command.rs:558` (Command::SaddleMount), `rules/engine.rs:381`, `rules/abilities.rs:6314` (handle_saddle_mount), `state/stack.rs:1202` (StackObjectKind::SaddleAbility disc 55), `rules/turn_actions.rs:1295` (cleanup clear), `testing/replay_harness.rs:931` (saddle_mount action) | Quilled Charger | `combat/186` | Crew | 14 tests in `saddle.rs`; sorcery-speed restriction (CR 702.171a); is_saddled designation cleared at cleanup (CR 702.171b); CR was 702.163 in older rules, corrected to 702.171 |
@@ -475,7 +475,9 @@ All P2 gaps resolved. 17/17 validated.
 
 ### P3 Gaps (Commander-relevant, less common)
 
-3 remaining: **Morph** (702.37, deferred), **Mutate** (702.140, deferred), **Transform** (701.28). 37/40 validated.
+2 remaining: **Morph** (702.37, deferred), **Transform** (701.28, deferred). 38/40 validated.
+
+**Resolved**: Mutate (CR 702.140) — validated 2026-03-08 (mini-milestone; merged_cards model, CastWithMutate, zone-change splitting, mutate trigger; 9 unit tests; card defs: Gemrazer, Nethroi, Brokkos; 1 game script).
 
 **Resolved**: Battle Cry (CR 702.91) — validated 2026-02-27 (script combat/076, Signal Pest, 7 unit tests in battle_cry.rs).
 

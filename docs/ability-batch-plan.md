@@ -376,7 +376,7 @@ The most exotic mechanics — some need small new tracking state.
 | 14.5 | Treasure Tokens | — | Low | Predefined token: sacrifice → add one mana (if not already done) |
 | 14.6 | Decayed tokens | — | Low | Token modifier: can't block, sacrifice after attacking |
 
-- [ ] Batch 14 complete
+- [x] Batch 14 complete
 
 ---
 
@@ -392,7 +392,7 @@ These are all Partner variants — structural deck-validation changes in `comman
 
 **Infrastructure reused**: Partner rules in `commander.rs`.
 
-- [ ] Batch 15 complete
+- [x] Batch 15 complete
 
 ---
 
@@ -421,7 +421,7 @@ Covers the 4-5 popular Ikoria commanders that show up in actual Commander games.
 **Deferred complexity**: Mutate with copy effects (CR 729.8), mutate with face-down
 creatures (CR 729.6), mutate token ownership — handle if needed.
 
-- [ ] Mutate mini-milestone complete
+- [x] Mutate mini-milestone complete
 
 ---
 
