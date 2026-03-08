@@ -79,6 +79,8 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             requires_tap: false,
             mana_cost: Some(mana),
             sacrifice_self: false,
+            discard_card: false,
+
             forage: false,
         },
         description: format!("Adapt {adapt_n} (CR 701.46a)"),
@@ -154,6 +156,7 @@ fn test_adapt_basic_adds_counters() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -250,6 +253,7 @@ fn test_adapt_does_nothing_with_existing_counters() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -322,6 +326,7 @@ fn test_adapt_activation_always_legal() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -395,6 +400,7 @@ fn test_adapt_after_losing_counters() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -445,6 +451,7 @@ fn test_adapt_after_losing_counters() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -500,6 +507,7 @@ fn test_adapt_pays_mana_cost() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -559,6 +567,7 @@ fn test_adapt_counter_added_event_emitted() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();

@@ -523,6 +523,8 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             requires_tap: true,
             mana_cost: None,
             sacrifice_self: false,
+            discard_card: false,
+
             forage: false,
         },
         description: "{T}: Destroy target creature".to_string(),
@@ -555,6 +557,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             source: assassin_id,
             ability_index: 0,
             targets: vec![Target::Object(ward_id)],
+            discard_card: None,
         },
     )
     .unwrap();

@@ -86,6 +86,7 @@ fn forager_creature(owner: PlayerId) -> ObjectSpec {
                 ..Default::default()
             }),
             sacrifice_self: false,
+            discard_card: false,
             forage: true,
         },
         description: "{2}, Forage: You gain 2 life.".to_string(),
@@ -105,6 +106,7 @@ fn forage_only_creature(owner: PlayerId) -> ObjectSpec {
                 requires_tap: false,
                 mana_cost: None,
                 sacrifice_self: false,
+                discard_card: false,
                 forage: true,
             },
             description: "Forage: You gain 1 life.".to_string(),
@@ -159,6 +161,7 @@ fn test_forage_sacrifice_food() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .expect("forage activate with Food available should succeed");
@@ -234,6 +237,7 @@ fn test_forage_exile_three_from_graveyard() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .expect("forage activate with 3 graveyard cards should succeed (no Food needed)");
@@ -306,6 +310,7 @@ fn test_forage_insufficient_resources() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -344,6 +349,7 @@ fn test_forage_requires_mana_cost_too() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -389,6 +395,7 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .expect("ruling 2024-11-08: non-token Food artifact should qualify for forage");
@@ -439,6 +446,7 @@ fn test_forage_non_food_artifact_rejected() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -481,6 +489,7 @@ fn test_forage_prefers_food_when_both_available() {
             source: creature_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .expect("forage with both options available should succeed");

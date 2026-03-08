@@ -55,6 +55,7 @@ pub fn handle_activate_ability(
     source: ObjectId,
     ability_index: usize,
     targets: Vec<Target>,
+    discard_card: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 602.2: Activating requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -320,6 +321,36 @@ pub fn handle_activate_ability(
                 cost: mana_cost.clone(),
             });
         }
+    }
+
+    // CR 602.2 / CR 111.10g: Pay discard-a-card cost (e.g., Blood token activation).
+    // The discard is a cost, not an effect — it happens at activation time, before the
+    // ability goes on the stack. The caller must supply discard_card: Some(ObjectId)
+    // if the ability cost requires a discard.
+    if ability_cost.discard_card {
+        let card_to_discard = discard_card.ok_or_else(|| {
+            GameStateError::InvalidCommand(
+                "ability requires discarding a card as cost: discard_card must be Some (CR 602.2)"
+                    .into(),
+            )
+        })?;
+        // Validate the card is in the player's hand.
+        {
+            let card_obj = state.object(card_to_discard)?;
+            if card_obj.zone != ZoneId::Hand(player) {
+                return Err(GameStateError::InvalidCommand(
+                    "discard cost: card must be in your hand (CR 602.2)".into(),
+                ));
+            }
+        }
+        // Move card from hand to graveyard.
+        let (new_grave_id, _) =
+            state.move_object_to_zone(card_to_discard, ZoneId::Graveyard(player))?;
+        events.push(GameEvent::CardDiscarded {
+            player,
+            object_id: card_to_discard,
+            new_id: new_grave_id,
+        });
     }
 
     // Pay sacrifice cost (CR 602.2c). Move source to graveyard before pushing to stack.

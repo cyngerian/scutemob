@@ -1406,6 +1406,7 @@ impl HashInto for ActivationCost {
         self.requires_tap.hash_into(hasher);
         self.mana_cost.hash_into(hasher);
         self.sacrifice_self.hash_into(hasher);
+        self.discard_card.hash_into(hasher);
         self.forage.hash_into(hasher);
     }
 }

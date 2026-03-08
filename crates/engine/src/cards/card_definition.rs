@@ -1501,6 +1501,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                discard_card: false,
                 forage: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
@@ -1539,9 +1540,52 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                discard_card: false,
                 forage: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
+            effect: Some(Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(1),
+            }),
+            sorcery_speed: false,
+        }],
+        count,
+        tapped: false,
+        mana_color: None,
+    }
+}
+
+/// CR 111.10g: Predefined Blood token specification.
+///
+/// A colorless Blood artifact token with "{1}, {T}, Discard a card, Sacrifice this
+/// token: Draw a card." All four costs — mana, tap, discard, sacrifice — are paid
+/// simultaneously at activation time (CR 602.2).
+///
+/// Unlike Food ({2},{T},Sacrifice) and Clue ({2},Sacrifice), Blood requires
+/// BOTH tap AND discard AND sacrifice AND {1} mana.
+pub fn blood_token_spec(count: u32) -> TokenSpec {
+    TokenSpec {
+        name: "Blood".to_string(),
+        power: 0,
+        toughness: 0,
+        colors: OrdSet::new(),
+        card_types: [CardType::Artifact].into_iter().collect(),
+        subtypes: [SubType("Blood".to_string())].into_iter().collect(),
+        keywords: OrdSet::new(),
+        mana_abilities: vec![],
+        activated_abilities: vec![ActivatedAbility {
+            cost: crate::state::game_object::ActivationCost {
+                requires_tap: true,
+                mana_cost: Some(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                }),
+                sacrifice_self: true,
+                discard_card: true,
+                forage: false,
+            },
+            description: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(1),

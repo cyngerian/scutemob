@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-08 (Reconfigure complete: KW 143, AbilDef disc 58, Effect::DetachEquipment, is_reconfigured on GameObject, Layer 4 type removal while attached, SBA unattach clears flag; 8 tests in reconfigure.rs; card Lizard Blades; script baseline/189 PASS)
+> Last audited: 2026-03-08 (Blood Tokens complete: CR 111.10g predefined token; blood_token_spec() in card_definition.rs; ActivationCost.discard_card + Command::ActivateAbility.discard_card_id; 14 tests in blood_tokens.rs; card Voldaren Epicure; script baseline/190 PASS 5/5)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 80        | 1        | 1       | 11   | 12  |
-| **Total**| **204**| **174**  | **3**    | **1**   | **14**| **12** |
+| P4       | 105   | 81        | 1        | 1       | 10   | 12  |
+| **Total**| **204**| **175**  | **3**    | **1**   | **13**| **12** |
 
 ---
 
@@ -312,7 +312,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Treasure tokens | 111.10a | P2 | `validated` | `state/game_object.rs:42-81` (ManaAbility with sacrifice_self + any_color), `rules/mana.rs:95-149` (sacrifice cost + any-color handling), `cards/card_definition.rs:629-683` (TokenSpec.mana_abilities, treasure_token_spec helper), `effects/mod.rs:1700-1714` (make_token populates mana_abilities), `state/hash.rs:457-462,1816-1830` | Strike It Rich | `stack/073` | — | CR 111.10a fully enforced; colorless Treasure artifact token with "{T}, Sacrifice this token: Add one mana of any color"; mana ability resolves without stack (CR 605.3b); sacrifice as cost (CR 602.2c); token ceases to exist in graveyard (CR 111.7/704.5d); 9 unit tests in `tests/treasure_tokens.rs`; game script pending_review (all assertions pass) |
 | Food tokens | CR 111.10b | P3 | `validated` | card_definition.rs:L815–845; effects/mod.rs (make_token propagation) | Bake into a Pie | stack/097 (pending_review) | 11 unit tests in food_tokens.rs | CR 111.10b: colorless Food artifact token with {2}, {T}, Sacrifice → gain 3 life. Validated: food_token_spec() helper, TokenSpec.activated_abilities, make_token() propagates abilities, unit tests cover activation/cost/sacrifice/SBA, game script exercises spell→token→activate→resolve. |
 | Clue tokens | CR 111.10f | P3 | `validated` | `cards/card_definition.rs:847-882` (clue_token_spec), `cards/mod.rs:16`, `lib.rs:9` | Thraben Inspector | `stack/098` (pending_review) | 11 unit tests in clue_tokens.rs | CR 111.10f: colorless Clue artifact token with {2}, Sacrifice → draw a card; no tap cost (unlike Food); clue_token_spec() helper, TokenSpec.activated_abilities, make_token() propagates abilities |
-| Blood tokens | — | P4 | `none` | — | — | — | — | Predefined token: {1}, tap, discard, sacrifice → draw |
+| Blood tokens | CR 111.10g | P4 | `validated` | `cards/card_definition.rs:1557` (blood_token_spec), `state/game_object.rs:106` (ActivationCost.discard_card), `rules/abilities.rs:326` (discard processing), `rules/command.rs:337` (ActivateAbility.discard_card_id) | Voldaren Epicure | `baseline/190` | — | CR 111.10g: colorless Blood artifact token with {1}, {T}, Discard a card, Sacrifice → draw a card; blood_token_spec() helper; ActivationCost.discard_card: bool; Command::ActivateAbility.discard_card_id: Option<ObjectId>; 14 unit tests in blood_tokens.rs; game script PASS (5/5 assertions) |
 | Prowess | 702.108 | P1 | `validated` | `state/types.rs`, `state/hash.rs`, `state/game_object.rs`, `state/builder.rs`, `state/continuous_effect.rs`, `rules/abilities.rs`, `effects/mod.rs` | Monastery Swiftspear | `stack/056` | — | KeywordAbility::Prowess enum + TriggerEvent::ControllerCastsNoncreatureSpell dispatch; EffectFilter::Source in continuous_effect.rs; TriggeredAbilityDef auto-expansion in builder.rs; 8 unit tests in `tests/prowess.rs`; game script 056 (pending_review, all assertions pass) |
 | Regenerate | 701.19 | P3 | `validated` | `cards/card_definition.rs:484` (Effect::Regenerate), `state/replacement_effect.rs` (WouldBeDestroyed, Regenerate mod), `rules/replacement.rs:1609` (check_regeneration_shield, apply_regeneration), `effects/mod.rs:534+1457`, `rules/sba.rs:336`, `rules/events.rs:799` | Drudge Skeletons | `stack/100` | 10 tests in regenerate.rs | CR 701.19a: next time destroyed, remove damage, tap, remove from combat; one-shot replacement shield; zero-toughness (704.5f) bypasses regeneration; indestructible prevents before regeneration check |
 | Proliferate | 701.34 | P3 | `validated` | `effects/mod.rs:1518`, `rules/events.rs:833`, `state/game_object.rs:198`, `rules/abilities.rs:1542` | Inexorable Tide | `stack/101` | 14 tests in `proliferate.rs` | Effect::Proliferate + GameEvent::Proliferated + TriggerEvent::ControllerProliferates; auto-selects all eligible permanents/players (interactive choice deferred M10+); game script `pending_review` |
@@ -604,3 +604,5 @@ All P2 gaps resolved. 17/17 validated.
 **Resolved**: Bloodthirst (CR 702.54) — validated 2026-03-06 (script stack/160, Stormblood Berserker, 8 unit tests in bloodthirst.rs). ETB replacement per CR 702.54a: places N +1/+1 counters if any opponent was dealt damage this turn; multiple instances add independently (CR 702.54c); KeywordAbility::Bloodthirst(u32) disc 123; `damage_dealt_this_turn` on PlayerState; resolution.rs ETB hook; `cast_creature` harness pattern.
 
 **Resolved**: Champion (CR 702.72) — validated 2026-03-07 (script stack/164, Changeling Hero, 9 unit tests in champion.rs). ETB triggered ability per CR 702.72a: exile a creature you control matching the champion filter or sacrifice self; LTB triggered ability per CR 702.72b: return exiled card to battlefield under owner's control; CR 607.2 linked abilities; KeywordAbility::Champion disc 126 + ChampionFilter enum; AbilityDefinition::Champion disc 49; champion_exiled_card on GameObject; PendingTriggerKind::ChampionETB/LTB; StackObjectKind::ChampionETBTrigger disc 47 + ChampionLTBTrigger disc 48; LTB wired to CreatureDied/PermanentDestroyed/ObjectExiled/ObjectReturnedToHand events.
+
+**Resolved**: Blood Tokens (CR 111.10g) — validated 2026-03-08 (script baseline/190, Voldaren Epicure, 14 unit tests in blood_tokens.rs). Predefined token type per CR 111.10g: colorless Blood artifact token with "{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card"; blood_token_spec() helper in card_definition.rs; ActivationCost.discard_card: bool on cost struct; Command::ActivateAbility.discard_card_id: Option<ObjectId>; discard processing in abilities.rs; game script PASS (5/5 assertions).

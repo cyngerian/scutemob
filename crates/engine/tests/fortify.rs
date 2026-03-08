@@ -65,6 +65,8 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
                 None
             },
             sacrifice_self: false,
+            discard_card: false,
+
             forage: false,
         },
         description: format!("Fortify {{{}}}", generic_mana),
@@ -121,6 +123,7 @@ fn test_fortify_basic_attaches_to_land() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(land_id)],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -196,6 +199,7 @@ fn test_fortify_sorcery_speed_only() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(land_id)],
+            discard_card: None,
         },
     );
 
@@ -250,6 +254,7 @@ fn test_fortify_target_must_be_land() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(creature_id)],
+            discard_card: None,
         },
     );
 
@@ -305,6 +310,7 @@ fn test_fortify_requires_controller_ownership() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(land_id)],
+            discard_card: None,
         },
     );
 
@@ -374,6 +380,7 @@ fn test_fortify_moves_between_lands() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(land_b_id)],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -550,6 +557,7 @@ fn test_fortify_static_ability_grants_to_land() {
             source: fort_id,
             ability_index: 0,
             targets: vec![Target::Object(land_id)],
+            discard_card: None,
         },
     )
     .unwrap();

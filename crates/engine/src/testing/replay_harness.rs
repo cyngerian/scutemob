@@ -640,11 +640,16 @@ pub fn translate_player_action(
         "activate_ability" => {
             let source_id = find_on_battlefield(state, player, card_name?)?;
             let target_list = resolve_targets(targets, state, players);
+            // If the action specifies a discard_card_name (for Blood token activation),
+            // resolve it to an ObjectId from the player's hand.
+            let discard_card_id =
+                discard_card_name.and_then(|name| find_in_hand(state, player, name));
             Some(Command::ActivateAbility {
                 player,
                 source: source_id,
                 ability_index,
                 targets: target_list,
+                discard_card: discard_card_id,
             })
         }
 
@@ -2316,6 +2321,7 @@ pub fn enrich_spec_from_def(
                     requires_tap: true,
                     mana_cost: Some(cost.clone()),
                     sacrifice_self: false,
+                    discard_card: false,
                     forage: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
@@ -2811,9 +2817,8 @@ fn try_as_tap_mana_ability(effect: &Effect) -> Option<ManaAbility> {
 
 /// Convert a card-definition [`Cost`] into an [`ActivationCost`] for object characteristics.
 ///
-/// Handles `Tap`, `Mana`, `Sacrifice`, and `Sequence` (recursively). Unrecognised
-/// cost components (`PayLife`, `DiscardCard`) are silently ignored — they have no
-/// representation in `ActivationCost` yet.
+/// Handles `Tap`, `Mana`, `Sacrifice`, `DiscardCard`, and `Sequence` (recursively).
+/// Unrecognised cost components (`PayLife`) are silently ignored.
 fn cost_to_activation_cost(cost: &Cost) -> ActivationCost {
     let mut ac = ActivationCost::default();
     flatten_cost_into(cost, &mut ac);
@@ -2826,7 +2831,8 @@ fn flatten_cost_into(cost: &Cost, ac: &mut ActivationCost) {
         Cost::Mana(m) => ac.mana_cost = Some(m.clone()),
         Cost::Sacrifice(_) => ac.sacrifice_self = true,
         Cost::Sequence(costs) => costs.iter().for_each(|c| flatten_cost_into(c, ac)),
-        Cost::PayLife(_) | Cost::DiscardCard => {} // no ActivationCost representation yet
+        Cost::DiscardCard => ac.discard_card = true,
+        Cost::PayLife(_) => {} // no ActivationCost representation yet
     }
 }
 

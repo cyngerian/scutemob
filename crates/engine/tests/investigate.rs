@@ -476,6 +476,7 @@ fn test_investigate_clue_can_be_activated() {
             source: clue_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();

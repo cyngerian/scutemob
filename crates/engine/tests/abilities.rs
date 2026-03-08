@@ -24,6 +24,8 @@ fn tap_ability(description: &str) -> ActivatedAbility {
             requires_tap: true,
             mana_cost: None,
             sacrifice_self: false,
+            discard_card: false,
+
             forage: false,
         },
         description: description.to_string(),
@@ -39,6 +41,8 @@ fn tap_and_pay_ability(description: &str, mana: ManaCost) -> ActivatedAbility {
             requires_tap: true,
             mana_cost: Some(mana),
             sacrifice_self: false,
+            discard_card: false,
+
             forage: false,
         },
         description: description.to_string(),
@@ -103,6 +107,7 @@ fn test_activate_ability_tap_places_on_stack() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -171,6 +176,7 @@ fn test_activate_ability_tap_cost_taps_source() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -215,6 +221,7 @@ fn test_activate_ability_pays_mana_cost() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -266,6 +273,7 @@ fn test_activate_ability_not_priority_holder_fails() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
     assert!(matches!(
@@ -308,6 +316,7 @@ fn test_activate_ability_wrong_controller_fails() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -343,6 +352,7 @@ fn test_activate_ability_invalid_index_fails() {
             source: source_id,
             ability_index: 5, // Only index 0 exists
             targets: vec![],
+            discard_card: None,
         },
     );
     assert!(matches!(
@@ -382,6 +392,7 @@ fn test_activate_ability_already_tapped_fails() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
     assert!(matches!(
@@ -427,6 +438,7 @@ fn test_activate_ability_insufficient_mana_fails() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InsufficientMana)));
@@ -471,6 +483,7 @@ fn test_activated_ability_resolves_after_all_pass() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -1060,6 +1073,8 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
                 requires_tap: false,
                 mana_cost: None,
                 sacrifice_self: true,
+                discard_card: false,
+
                 forage: false,
             },
             description: "Sacrifice: Draw a card.".into(),
@@ -1096,6 +1111,7 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -1452,6 +1468,8 @@ fn test_dies_trigger_fires_on_sacrifice() {
                 requires_tap: false,
                 mana_cost: None,
                 sacrifice_self: true,
+                discard_card: false,
+
                 forage: false,
             },
             description: "Sacrifice: trigger dies".to_string(),
@@ -1484,6 +1502,7 @@ fn test_dies_trigger_fires_on_sacrifice() {
             source: source_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();

@@ -1,0 +1,252 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_190",
+    "name": "Blood Tokens — Voldaren Epicure ETB creates Blood token, then activate to draw",
+    "description": "Tests Blood token creation and activation using Voldaren Epicure. Step 1: P1 casts Voldaren Epicure ({R}, 1/1 Vampire). When it resolves and enters the battlefield, the ETB trigger fires and resolves inline, creating a Blood token on P1's battlefield (CR 111.10g: predefined Artifact — Blood token with activated ability '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.'). The engine processes the ETB trigger inline during resolution — the Clue and Food token scripts establish this harness behavior. Step 2: P1 activates the Blood token's ability (ability_index 0) paying {1} generic, tapping the token, discarding Lightning Bolt from hand, and sacrificing the token as costs (CR 602.2c: sacrifice-as-cost moves token to graveyard at activation time). The ability goes on the stack and resolves, drawing P1 a card from library. Final state: Voldaren Epicure on battlefield, Blood token gone (sacrificed as SBA CR 704.5d), Lightning Bolt in graveyard (discarded), P1 hand size increased by one from the drawn card.",
+    "cr_sections_tested": [
+      "111.10g",
+      "601.2",
+      "602.2",
+      "602.2c",
+      "603.3",
+      "608.2",
+      "116.3",
+      "701.17a",
+      "704.5d"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "blood-token",
+      "token-creation",
+      "etb-trigger",
+      "activated-ability",
+      "discard",
+      "sacrifice-as-cost",
+      "draw",
+      "voldaren-epicure"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 111.10g: Blood is a predefined artifact token type. Blood tokens have the activated ability '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.' The engine defines this via blood_token_spec() in card_definition.rs (blood_token_spec has requires_tap:true, mana_cost:{generic:1}, sacrifice_self:true, discard_card:true). The token is named 'Blood' (characteristics.name). CR 603.3: Voldaren Epicure's ETB trigger creates the Blood token via Effect::CreateToken. The engine processes ETB triggers inline during spell resolution (established by scripts 098 Thraben Inspector and 073/097 Food/Clue patterns — generation_notes for 098 explicitly state this). Therefore no separate ETB trigger step is needed — after stack_resolve for Voldaren Epicure, both Epicure and Blood token are on the battlefield with stack empty. CR 602.2c: The sacrifice cost in Blood token activation causes the token to leave the battlefield immediately when the ability is activated (before the ability is placed on the stack). The discard_card JSON field is used in player_action for activate_ability to specify which card from hand is discarded as a cost. JSON field name is 'discard_card' (matching script_schema.rs PlayerAction enum variant field). P1 starts with {red:1, colorless:1} in mana pool: red covers Voldaren Epicure cast ({R}), colorless:1 covers Blood token activation ({1}). Library has Harmonize for the draw. ability_index: 0 is the first (and only) non-mana activated ability on the Blood token. First attempt failed: stack.count=1 assertion after ETB was wrong (ETB resolves inline). Fixed: removed separate ETB stack step, bundled into single stack_resolve.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 1, "colorless": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": []
+      },
+      "hand": {
+        "p1": [
+          { "card": "Voldaren Epicure", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Harmonize", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Voldaren Epicure from hand paying {R}. Spell resolves, Epicure enters the battlefield, ETB trigger fires and resolves inline creating a Blood token.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: P1 has Voldaren Epicure and Lightning Bolt in hand; battlefield empty; stack empty; library has Harmonize",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "zones.battlefield.p1": { "is_empty": true },
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "P1 has {R} + {1} colorless in mana pool. Voldaren Epicure costs {R}. Lightning Bolt will be discarded as cost for Blood token activation later. Library has Harmonize for the draw."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Voldaren Epicure",
+          "targets": [],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Voldaren Epicure from hand paying {R}. Spell moves to the stack. P1 retains Lightning Bolt in hand. Colorless:1 remains in mana pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Voldaren Epicure: spell on stack (count=1); Voldaren Epicure no longer in hand; Lightning Bolt still in hand",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 1
+          },
+          "note": "Voldaren Epicure is on the stack. Lightning Bolt remains in P1's hand (count=1)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Voldaren Epicure resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Voldaren Epicure",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "card": "Voldaren Epicure",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Voldaren Epicure resolves and enters the battlefield as a 1/1 Vampire creature under P1's control."
+            },
+            {
+              "effect": "create_token",
+              "token": "Blood",
+              "controller": "p1",
+              "count": 1,
+              "cr_ref": "111.10g",
+              "note": "CR 603.3: ETB trigger fires — 'When Voldaren Epicure enters the battlefield, create a Blood token.' Trigger resolves inline. CR 111.10g: Blood token is a colorless Artifact — Blood with '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.' Token created on P1's battlefield."
+            }
+          ],
+          "note": "CR 608.2: Voldaren Epicure resolves and enters battlefield. CR 603.3: ETB trigger fires and resolves inline, creating one Blood token. The harness processes ETB triggers inline during resolution (consistent with Clue/Food token scripts)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Voldaren Epicure resolves: Epicure and Blood token on P1's battlefield; stack empty; P1 hand has Lightning Bolt only",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Voldaren Epicure" },
+                { "card": "Blood" }
+              ]
+            },
+            "zones.hand.p1.count": 1
+          },
+          "note": "Voldaren Epicure (1/1 Vampire) and Blood token (colorless Artifact — Blood) are both on P1's battlefield. Stack is empty. Lightning Bolt remains in P1's hand."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P1 activates the Blood token's ability. Costs: {1} generic, tap the token, discard Lightning Bolt from hand, sacrifice the token. CR 602.2c: sacrifice is paid as a cost — token leaves battlefield immediately at activation time. The ability resolves and P1 draws a card.",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Blood",
+          "ability_index": 0,
+          "targets": [],
+          "discard_card": "Lightning Bolt",
+          "mana_paid": { "colorless": 1 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: P1 activates the Blood token's activated ability (ability_index 0 — the only non-mana activated ability). Costs paid: {1} generic mana, tap the token, discard Lightning Bolt from hand, sacrifice the token. CR 602.2c: Sacrifice is a cost — the Blood token moves to the graveyard immediately before the ability is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activating Blood token: token sacrificed and gone from battlefield, Lightning Bolt in graveyard (discarded), ability on stack (count=1), P1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": {
+              "includes": [{ "card": "Lightning Bolt" }]
+            },
+            "zones.battlefield.p1": {
+              "excludes": [{ "card": "Blood" }]
+            }
+          },
+          "note": "CR 602.2c: Blood token is gone from battlefield (sacrificed as cost). Lightning Bolt is in graveyard (discarded as cost). Ability is on the stack waiting to resolve. P1's hand is empty."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Blood token ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Blood token ability",
+          "resolution": [
+            {
+              "effect": "draw_cards",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: The Blood token ability resolves. P1 draws one card (Harmonize) from the top of their library into hand."
+            }
+          ],
+          "note": "CR 608.2: Blood token ability resolves — P1 draws a card."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "token_ceases_to_exist",
+              "target": { "card": "Blood", "controller": "p1" },
+              "cr_ref": "704.5d",
+              "note": "CR 704.5d: Tokens in zones other than the battlefield cease to exist as a state-based action. The Blood token in the graveyard (sacrificed as a cost) is removed."
+            }
+          ],
+          "note": "SBAs checked after ability resolves."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: Voldaren Epicure on P1's battlefield; Blood token gone; Lightning Bolt in graveyard; P1 drew one card (hand count=1); both players at 40 life",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Voldaren Epicure" }],
+              "excludes": [{ "card": "Blood" }]
+            },
+            "zones.graveyard.p1": {
+              "includes": [{ "card": "Lightning Bolt" }]
+            },
+            "zones.hand.p1.count": 1,
+            "players.p1.life": 40,
+            "players.p2.life": 40
+          },
+          "note": "CR 111.10g + 701.17a: Blood token was sacrificed as a cost and no longer exists (CR 704.5d removes tokens from non-battlefield zones). Lightning Bolt was discarded as a cost and is in P1's graveyard. P1 drew Harmonize and now holds it in hand (count=1). Voldaren Epicure remains on P1's battlefield as a 1/1 Vampire."
+        }
+      ]
+    }
+  ]
+}

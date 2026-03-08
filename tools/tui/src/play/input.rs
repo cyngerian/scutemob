@@ -200,6 +200,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         source: *obj_id,
                         ability_index: *ability_index,
                         targets: Vec::new(),
+                        discard_card: None,
                     };
                     app.execute_command(cmd)?;
                 } else {

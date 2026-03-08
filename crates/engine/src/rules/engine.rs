@@ -160,6 +160,7 @@ pub fn process_command(
             source,
             ability_index,
             targets,
+            discard_card,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: activating an ability is a meaningful player choice; reset loop detection.
@@ -170,6 +171,7 @@ pub fn process_command(
                 source,
                 ability_index,
                 targets,
+                discard_card,
             )?;
             // CR 603.3: Check for triggered abilities arising from activating this ability
             // (e.g., Ward — "Whenever this permanent becomes the target of an ability an

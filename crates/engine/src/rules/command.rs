@@ -333,6 +333,11 @@ pub enum Command {
         source: ObjectId,
         ability_index: usize,
         targets: Vec<Target>,
+        /// CR 111.10g / CR 602.2: If the ability's cost requires discarding a card,
+        /// this is the ObjectId of the card in the player's hand to discard as cost.
+        /// `None` for abilities that don't require a discard cost.
+        #[serde(default)]
+        discard_card: Option<ObjectId>,
     },
 
     // ── M6: Combat commands ───────────────────────────────────────────────

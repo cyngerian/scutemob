@@ -68,6 +68,7 @@ fn food_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                discard_card: false,
                 forage: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
@@ -213,6 +214,7 @@ fn test_food_activate_gain_3_life() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -280,6 +282,7 @@ fn test_food_uses_stack_not_mana_ability() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -326,6 +329,7 @@ fn test_food_sacrifice_is_cost_not_effect() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -378,6 +382,7 @@ fn test_food_already_tapped_cannot_activate() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -443,6 +448,7 @@ fn test_food_not_affected_by_summoning_sickness() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -488,6 +494,7 @@ fn test_food_token_ceases_to_exist_after_sba() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     )
     .unwrap();
@@ -557,6 +564,7 @@ fn test_food_opponent_cannot_activate() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 
@@ -606,6 +614,7 @@ fn test_food_insufficient_mana_cannot_activate() {
             source: food_id,
             ability_index: 0,
             targets: vec![],
+            discard_card: None,
         },
     );
 

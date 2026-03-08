@@ -101,6 +101,11 @@ pub struct ActivationCost {
     /// CR 602.2: sacrifice is paid at activation time, before the ability is on the stack.
     #[serde(default)]
     pub sacrifice_self: bool,
+    /// CR 602.2 / CR 111.10g: True if activating this ability requires discarding a card as a cost.
+    /// The discard happens at activation time (before the ability goes on the stack).
+    /// Used by Blood tokens: "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
+    #[serde(default)]
+    pub discard_card: bool,
     /// CR 701.61a: True if activating this ability requires performing the forage action.
     /// "Forage" means: exile three cards from your graveyard OR sacrifice a Food artifact.
     #[serde(default)]
