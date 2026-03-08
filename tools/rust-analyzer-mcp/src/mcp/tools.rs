@@ -32,13 +32,15 @@ pub fn get_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "rust_analyzer_references".to_string(),
-            description: "Find all references to a symbol at a specific position".to_string(),
+            description: "Find all references to a symbol at a specific position. Returns enriched results with source line text."
+                .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "file_path": { "type": "string", "description": "Path to the Rust file" },
                     "line": { "type": "number", "description": "Line number (0-based)" },
-                    "character": { "type": "number", "description": "Character position (0-based)" }
+                    "character": { "type": "number", "description": "Character position (0-based)" },
+                    "limit": { "type": "number", "description": "Maximum number of results (default: 50)" }
                 },
                 "required": ["file_path", "line", "character"]
             }),
@@ -116,7 +118,8 @@ pub fn get_tools() -> Vec<ToolDefinition> {
                 "properties": {
                     "file_path": { "type": "string", "description": "Path to the Rust file" },
                     "line": { "type": "number", "description": "Line number (0-based)" },
-                    "character": { "type": "number", "description": "Character position (0-based)" }
+                    "character": { "type": "number", "description": "Character position (0-based)" },
+                    "limit": { "type": "number", "description": "Maximum number of results (default: 50)" }
                 },
                 "required": ["file_path", "line", "character"]
             }),
@@ -130,7 +133,8 @@ pub fn get_tools() -> Vec<ToolDefinition> {
                 "properties": {
                     "file_path": { "type": "string", "description": "Path to the Rust file" },
                     "line": { "type": "number", "description": "Line number (0-based)" },
-                    "character": { "type": "number", "description": "Character position (0-based)" }
+                    "character": { "type": "number", "description": "Character position (0-based)" },
+                    "limit": { "type": "number", "description": "Maximum number of results (default: 50)" }
                 },
                 "required": ["file_path", "line", "character"]
             }),
@@ -141,9 +145,19 @@ pub fn get_tools() -> Vec<ToolDefinition> {
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "query": { "type": "string", "description": "Symbol name or partial match to search for" }
+                    "query": { "type": "string", "description": "Symbol name or partial match to search for" },
+                    "limit": { "type": "number", "description": "Maximum number of results (default: 50)" }
                 },
                 "required": ["query"]
+            }),
+        },
+        ToolDefinition {
+            name: "rust_analyzer_stop".to_string(),
+            description: "Stop the rust-analyzer subprocess to free memory. It will restart on next tool call."
+                .to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {}
             }),
         },
         ToolDefinition {

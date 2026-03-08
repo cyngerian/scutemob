@@ -118,15 +118,12 @@ impl RustAnalyzerClient {
         self.initialize().await?;
         self.initialized = true;
 
-        // Send workspace/didChangeConfiguration to ensure settings are applied.
+        // Send workspace/didChangeConfiguration with minimal settings.
         let config_params = json!({
             "settings": {
                 "rust-analyzer": {
-                    "checkOnSave": {
-                        "enable": true,
-                        "command": "check",
-                        "allTargets": true
-                    }
+                    "checkOnSave": { "enable": false },
+                    "diagnostics": { "enable": false }
                 }
             }
         });
@@ -210,22 +207,17 @@ impl RustAnalyzerClient {
             "initializationOptions": {
                 "cargo": {
                     "buildScripts": {
-                        "enable": true
+                        "enable": false
                     }
                 },
                 "checkOnSave": {
-                    "enable": true,
-                    "command": "check",
-                    "allTargets": true
+                    "enable": false
                 },
                 "diagnostics": {
-                    "enable": true,
-                    "experimental": {
-                        "enable": true
-                    }
+                    "enable": false
                 },
                 "procMacro": {
-                    "enable": true
+                    "enable": false
                 }
             },
             "capabilities": {
@@ -288,11 +280,6 @@ impl RustAnalyzerClient {
         self.send_notification("initialized", Some(json!({})))
             .await?;
 
-        // Request workspace reload to trigger cargo check.
-        self.send_request("rust-analyzer/reloadWorkspace", None)
-            .await
-            .ok();
-
         Ok(())
     }
 
@@ -331,16 +318,7 @@ impl RustAnalyzerClient {
             open_docs.insert(uri.to_string());
         }
 
-        // Send didSave to trigger cargo check.
-        let save_params = json!({
-            "textDocument": {
-                "uri": uri
-            }
-        });
-        self.send_notification("textDocument/didSave", Some(save_params))
-            .await?;
-
-        // Give rust-analyzer time to process the document and run cargo check.
+        // Brief delay for rust-analyzer to process the document.
         tokio::time::sleep(Duration::from_millis(DOCUMENT_OPEN_DELAY_MILLIS)).await;
 
         Ok(())

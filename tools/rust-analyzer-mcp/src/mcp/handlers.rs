@@ -10,6 +10,9 @@ use crate::{
 
 use super::server::RustAnalyzerMCPServer;
 
+/// Default maximum number of results returned by list-based tools.
+const DEFAULT_MAX_RESULTS: usize = 50;
+
 /// Helper struct for extracting common tool parameters.
 struct ToolParams;
 
@@ -29,6 +32,13 @@ impl ToolParams {
             return Err(anyhow!("Missing character"));
         };
         Ok((line as u32, character as u32))
+    }
+
+    fn extract_limit(args: &Value) -> usize {
+        args["limit"]
+            .as_u64()
+            .map(|l| l as usize)
+            .unwrap_or(DEFAULT_MAX_RESULTS)
     }
 
     fn extract_range(args: &Value) -> Result<(u32, u32, u32, u32)> {
@@ -62,6 +72,7 @@ pub async fn handle_tool_call(
         "rust_analyzer_incoming_calls" => handle_incoming_calls(server, args).await,
         "rust_analyzer_outgoing_calls" => handle_outgoing_calls(server, args).await,
         "rust_analyzer_workspace_symbols" => handle_workspace_symbols(server, args).await,
+        "rust_analyzer_stop" => handle_stop(server, args).await,
         "rust_analyzer_set_workspace" => handle_set_workspace(server, args).await,
         "rust_analyzer_diagnostics" => handle_diagnostics(server, args).await,
         "rust_analyzer_workspace_diagnostics" => handle_workspace_diagnostics(server, args).await,
@@ -112,6 +123,7 @@ async fn handle_definition(server: &mut RustAnalyzerMCPServer, args: Value) -> R
 async fn handle_references(server: &mut RustAnalyzerMCPServer, args: Value) -> Result<ToolResult> {
     let file_path = ToolParams::extract_file_path(&args)?;
     let (line, character) = ToolParams::extract_position(&args)?;
+    let limit = ToolParams::extract_limit(&args);
 
     let uri = server.open_document_if_needed(&file_path).await?;
 
@@ -120,29 +132,43 @@ async fn handle_references(server: &mut RustAnalyzerMCPServer, args: Value) -> R
     };
 
     let result = client.references(&uri, line, character).await?;
+    let total = result.as_array().map(|a| a.len()).unwrap_or(0);
 
     // Enrich references with source line text.
-    let enriched = enrich_references_with_source(&server.workspace_root, &result).await;
+    let enriched = enrich_references_with_source(&server.workspace_root, &result, limit).await;
+
+    let mut output = serde_json::to_string_pretty(&enriched)?;
+    if total > limit {
+        output.push_str(&format!(
+            "\n\n(showing {}/{} results — pass \"limit\": {} to see more)",
+            limit, total, total
+        ));
+    }
 
     Ok(ToolResult {
         content: vec![ContentItem {
             content_type: "text".to_string(),
-            text: serde_json::to_string_pretty(&enriched)?,
+            text: output,
         }],
     })
 }
 
 /// Read source lines for each reference location to save follow-up file reads.
-async fn enrich_references_with_source(workspace_root: &Path, references: &Value) -> Value {
+async fn enrich_references_with_source(
+    workspace_root: &Path,
+    references: &Value,
+    limit: usize,
+) -> Value {
     let Some(ref_array) = references.as_array() else {
         return references.clone();
     };
 
     // Cache file contents to avoid re-reading the same file.
-    let mut file_cache: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let mut file_cache: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
     let mut enriched = Vec::new();
 
-    for reference in ref_array {
+    for reference in ref_array.iter().take(limit) {
         let Some(uri) = reference.get("uri").and_then(|u| u.as_str()) else {
             enriched.push(reference.clone());
             continue;
@@ -307,6 +333,7 @@ async fn handle_incoming_calls(
 ) -> Result<ToolResult> {
     let file_path = ToolParams::extract_file_path(&args)?;
     let (line, character) = ToolParams::extract_position(&args)?;
+    let limit = ToolParams::extract_limit(&args);
 
     let uri = server.open_document_if_needed(&file_path).await?;
 
@@ -314,7 +341,6 @@ async fn handle_incoming_calls(
         return Err(anyhow!("Client not initialized"));
     };
 
-    // Step 1: Prepare call hierarchy to get the item at this position.
     let prepare_result = client.prepare_call_hierarchy(&uri, line, character).await?;
 
     let items = prepare_result.as_array().ok_or_else(|| {
@@ -330,7 +356,6 @@ async fn handle_incoming_calls(
         });
     }
 
-    // Step 2: Get incoming calls for each item (usually just one).
     let mut all_calls = Vec::new();
     for item in items {
         let calls = client.incoming_calls(item).await?;
@@ -339,10 +364,20 @@ async fn handle_incoming_calls(
         }
     }
 
+    let total = all_calls.len();
+    all_calls.truncate(limit);
+    let mut output = serde_json::to_string_pretty(&json!(all_calls))?;
+    if total > limit {
+        output.push_str(&format!(
+            "\n\n(showing {}/{} callers — pass \"limit\": {} to see more)",
+            limit, total, total
+        ));
+    }
+
     Ok(ToolResult {
         content: vec![ContentItem {
             content_type: "text".to_string(),
-            text: serde_json::to_string_pretty(&json!(all_calls))?,
+            text: output,
         }],
     })
 }
@@ -353,6 +388,7 @@ async fn handle_outgoing_calls(
 ) -> Result<ToolResult> {
     let file_path = ToolParams::extract_file_path(&args)?;
     let (line, character) = ToolParams::extract_position(&args)?;
+    let limit = ToolParams::extract_limit(&args);
 
     let uri = server.open_document_if_needed(&file_path).await?;
 
@@ -360,7 +396,6 @@ async fn handle_outgoing_calls(
         return Err(anyhow!("Client not initialized"));
     };
 
-    // Step 1: Prepare call hierarchy.
     let prepare_result = client.prepare_call_hierarchy(&uri, line, character).await?;
 
     let items = prepare_result.as_array().ok_or_else(|| {
@@ -376,7 +411,6 @@ async fn handle_outgoing_calls(
         });
     }
 
-    // Step 2: Get outgoing calls for each item.
     let mut all_calls = Vec::new();
     for item in items {
         let calls = client.outgoing_calls(item).await?;
@@ -385,10 +419,20 @@ async fn handle_outgoing_calls(
         }
     }
 
+    let total = all_calls.len();
+    all_calls.truncate(limit);
+    let mut output = serde_json::to_string_pretty(&json!(all_calls))?;
+    if total > limit {
+        output.push_str(&format!(
+            "\n\n(showing {}/{} callees — pass \"limit\": {} to see more)",
+            limit, total, total
+        ));
+    }
+
     Ok(ToolResult {
         content: vec![ContentItem {
             content_type: "text".to_string(),
-            text: serde_json::to_string_pretty(&json!(all_calls))?,
+            text: output,
         }],
     })
 }
@@ -400,8 +444,8 @@ async fn handle_workspace_symbols(
     let Some(query) = args["query"].as_str() else {
         return Err(anyhow!("Missing query"));
     };
+    let limit = ToolParams::extract_limit(&args);
 
-    // Workspace symbols doesn't require opening a document, but the client must be started.
     server.ensure_client_started().await?;
 
     let Some(client) = &mut server.client else {
@@ -410,10 +454,43 @@ async fn handle_workspace_symbols(
 
     let result = client.workspace_symbols(query).await?;
 
+    let output = if let Some(arr) = result.as_array() {
+        let total = arr.len();
+        let truncated: Vec<_> = arr.iter().take(limit).cloned().collect();
+        let mut text = serde_json::to_string_pretty(&json!(truncated))?;
+        if total > limit {
+            text.push_str(&format!(
+                "\n\n(showing {}/{} symbols — pass \"limit\": {} to see more)",
+                limit, total, total
+            ));
+        }
+        text
+    } else {
+        serde_json::to_string_pretty(&result)?
+    };
+
     Ok(ToolResult {
         content: vec![ContentItem {
             content_type: "text".to_string(),
-            text: serde_json::to_string_pretty(&result)?,
+            text: output,
+        }],
+    })
+}
+
+async fn handle_stop(
+    server: &mut RustAnalyzerMCPServer,
+    _args: Value,
+) -> Result<ToolResult> {
+    if let Some(client) = &mut server.client {
+        client.shutdown().await?;
+    }
+    server.client = None;
+    server.indexing_ready = false;
+
+    Ok(ToolResult {
+        content: vec![ContentItem {
+            content_type: "text".to_string(),
+            text: "rust-analyzer stopped. It will restart on next tool call.".to_string(),
         }],
     })
 }

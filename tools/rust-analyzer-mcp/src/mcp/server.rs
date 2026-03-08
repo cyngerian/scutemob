@@ -15,7 +15,7 @@ use crate::{
 pub struct RustAnalyzerMCPServer {
     pub(super) client: Option<RustAnalyzerClient>,
     pub(super) workspace_root: PathBuf,
-    indexing_ready: bool,
+    pub(super) indexing_ready: bool,
 }
 
 impl Default for RustAnalyzerMCPServer {
