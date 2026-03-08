@@ -89,30 +89,33 @@ completely (at least the relevant sections, using Read with offset/limit for lar
 - Do tests cite CR rules?
 - Are test assertions checking the right things?
 
-#### 5. Code Quality
+#### 5. Code Quality & Completeness
+
 - CR citations in doc comments?
 - Hash coverage for new fields?
-- All match arms covered for new enum variants?
 - No `.unwrap()` in engine library code?
 - Consistent with `memory/conventions.md`?
 - No over-engineering or speculative additions?
 
-#### 6. Completeness Check (rust-analyzer)
+**All match arms covered — verify with rust-analyzer (REQUIRED):**
 
-Use rust-analyzer to verify the implementation is fully wired:
+Do NOT check match arm coverage by eyeball. You MUST use rust-analyzer to verify.
+The first RA call triggers a ~70s indexing warmup — this is expected.
 
-**Verify all match arms covered:**
-```
-rust_analyzer_references(file_path=<types.rs>, line=<new variant line>, character=<col>)
-```
-→ Every reference to the new enum variant. Cross-check against the plan's modification
-surface — any site in the plan that doesn't appear here is a missed match arm.
+1. Find the new enum variant's line in types.rs, then:
+   ```
+   rust_analyzer_references(file_path=<types.rs>, line=<variant line>, character=<col>, limit=30)
+   ```
+   → Every reference to the new variant. Cross-check against the plan's modification
+   surface — any site in the plan that doesn't appear in RA results is a missed match arm.
 
-**Verify enforcement is called from dispatch:**
-```
-rust_analyzer_incoming_calls(file_path=<enforcement file>, line=<fn line>, character=<col>)
-```
-→ Confirm the new enforcement function is actually called from the right places.
+2. If a new enforcement function was added:
+   ```
+   rust_analyzer_incoming_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
+   ```
+   → Confirm the function is actually called from the right dispatch points.
+
+A missing match arm is a **HIGH** finding. RA catches these reliably; grep does not.
 
 **IMPORTANT**: Call `rust_analyzer_stop` at the end of your review to free ~2.5GB RAM.
 
