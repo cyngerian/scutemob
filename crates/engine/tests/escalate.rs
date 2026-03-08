@@ -254,6 +254,7 @@ fn test_escalate_single_mode_no_extra_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=0 failed: {:?}", e));
@@ -350,6 +351,7 @@ fn test_escalate_two_modes_one_extra_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=1 failed: {:?}", e));
@@ -445,6 +447,7 @@ fn test_escalate_all_three_modes() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=2 failed: {:?}", e));
@@ -553,6 +556,7 @@ fn test_escalate_insufficient_mana_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -628,6 +632,7 @@ fn test_escalate_no_keyword_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -700,6 +705,7 @@ fn test_escalate_modes_paid_on_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -786,6 +792,7 @@ fn test_escalate_modes_exceed_available_clamped() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with escalate_modes=5 failed: {:?}", e));
@@ -878,6 +885,7 @@ fn test_escalate_modes_execute_in_printed_order() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1012,6 +1020,7 @@ fn test_escalate_rejected_on_non_modal_spell() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 

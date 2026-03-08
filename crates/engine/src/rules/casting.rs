@@ -80,6 +80,7 @@ pub fn handle_cast_spell(
     fuse: bool,
     x_value: u32,
     collect_evidence_cards: Vec<ObjectId>,
+    squad_count: u32,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -1922,6 +1923,45 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.157a / 601.2b / 601.2f-h: Squad -- if the player declared intent to pay the squad
+    // cost N times, validate the spell has KeywordAbility::Squad and add the cost N times.
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let squad_cost_opt: Option<ManaCost> = if squad_count > 0 {
+        // Validate the spell has the Squad keyword.
+        if !chars.keywords.contains(&KeywordAbility::Squad) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have squad (CR 702.157a)".into(),
+            ));
+        }
+        match get_squad_cost(&card_id, &state.card_registry) {
+            Some(cost) => Some(cost),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell has squad keyword but no squad cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        None
+    };
+
+    // CR 601.2f: Add squad cost N times to the total mana cost.
+    let mana_cost = if let Some(squad_cost) = squad_cost_opt {
+        let mut total = mana_cost.unwrap_or_default();
+        for _ in 0..squad_count {
+            total.white += squad_cost.white;
+            total.blue += squad_cost.blue;
+            total.black += squad_cost.black;
+            total.red += squad_cost.red;
+            total.green += squad_cost.green;
+            total.generic += squad_cost.generic;
+            total.colorless += squad_cost.colorless;
+        }
+        Some(total)
+    } else {
+        mana_cost
+    };
+
     // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
     // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2909,6 +2949,7 @@ pub fn handle_cast_spell(
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -3196,6 +3237,9 @@ pub fn handle_cast_spell(
         // CR 701.59c: Record whether this spell was cast with collect evidence cost paid.
         // Used by Condition::EvidenceWasCollected at resolution time (linked ability, CR 607).
         evidence_collected: evidence_was_collected,
+        // CR 702.157a: Number of times the squad cost was paid as an additional cost.
+        // 0 = not paid. N = paid N times -> N token copies created on ETB by SquadTrigger.
+        squad_count,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3347,6 +3391,8 @@ pub fn handle_cast_spell(
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
+            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
+            squad_count: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3416,6 +3462,8 @@ pub fn handle_cast_spell(
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
+            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
+            squad_count: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3486,6 +3534,8 @@ pub fn handle_cast_spell(
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
+            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
+            squad_count: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3550,6 +3600,8 @@ pub fn handle_cast_spell(
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
+            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
+            squad_count: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3616,6 +3668,8 @@ pub fn handle_cast_spell(
             x_value: 0,
             // CR 701.59c: trigger/copy stack objects are never collect evidence casts.
             evidence_collected: false,
+            // CR 702.157a: trigger/copy stack objects have no squad cost payments.
+            squad_count: 0,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -5137,6 +5191,27 @@ fn get_fuse_card_type(
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Fuse { card_type, .. } = a {
                     Some(*card_type)
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.157a: Look up the squad cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Squad { cost }`, or `None`
+/// if the card has no definition or no squad ability defined.
+fn get_squad_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Squad { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }

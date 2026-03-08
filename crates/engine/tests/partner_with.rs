@@ -133,6 +133,7 @@ fn make_partner_with_trigger_stack_obj(
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     }
 }
 

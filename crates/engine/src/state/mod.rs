@@ -377,6 +377,8 @@ impl GameState {
             tribute_was_paid: false,
             // CR 107.3m / CR 400.7: x_value is not preserved across zone changes.
             x_value: 0,
+            // CR 702.157a / CR 400.7: squad_count is not preserved across zone changes.
+            squad_count: 0,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -536,6 +538,8 @@ impl GameState {
             tribute_was_paid: false,
             // CR 107.3m / CR 400.7: x_value is not preserved across zone changes.
             x_value: 0,
+            // CR 702.157a / CR 400.7: squad_count is not preserved across zone changes.
+            squad_count: 0,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

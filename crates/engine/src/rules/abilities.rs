@@ -518,6 +518,7 @@ pub fn handle_activate_ability(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -714,6 +715,7 @@ pub fn handle_cycle_card(
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -774,6 +776,7 @@ pub fn handle_cycle_card(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1028,6 +1031,7 @@ pub fn handle_activate_forecast(
         x_value: 0,
         // CR 701.59c: forecast abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1263,6 +1267,7 @@ pub fn handle_activate_bloodrush(
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
     }
 
@@ -1318,6 +1323,7 @@ pub fn handle_activate_bloodrush(
         x_value: 0,
         // CR 701.59c: activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1507,6 +1513,7 @@ pub fn handle_unearth_card(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1786,6 +1793,7 @@ pub fn handle_ninjutsu(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2002,6 +2010,7 @@ pub fn handle_embalm_card(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2227,6 +2236,7 @@ pub fn handle_eternalize_card(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2451,6 +2461,7 @@ pub fn handle_encore_card(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2576,6 +2587,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2653,6 +2665,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_filter: None,
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
                             });
                         }
                     }
@@ -2719,6 +2732,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -2787,6 +2801,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_filter: None,
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
                             });
                         }
                     }
@@ -2869,6 +2884,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             champion_filter: None,
                                             champion_exiled_card: None,
                                             soulbond_pair_target: None,
+                                            squad_count: None,
                                         });
                                     }
                                 }
@@ -2946,6 +2962,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_filter: Some(filter),
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
                             });
                         }
                     }
@@ -3053,6 +3070,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: Some(partner_id),
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -3142,6 +3160,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: Some(*object_id),
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -3303,6 +3322,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             champion_filter: None,
                                             champion_exiled_card: None,
                                             soulbond_pair_target: None,
+                                            squad_count: None,
                                         });
                                     }
                                 }
@@ -3411,6 +3431,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     champion_filter: None,
                                     champion_exiled_card: None,
                                     soulbond_pair_target: None,
+                                    squad_count: None,
                                 });
                             }
                         }
@@ -3937,6 +3958,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4131,6 +4153,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4211,6 +4234,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4263,6 +4287,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4329,6 +4354,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4457,6 +4483,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4567,6 +4594,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -4657,6 +4685,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -4748,6 +4777,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -4852,6 +4882,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4907,6 +4938,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_card_id),
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -4960,6 +4992,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_filter: None,
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
+                            squad_count: None,
                         });
                     }
                 }
@@ -5112,6 +5145,7 @@ fn collect_triggers_for_event(
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -5343,6 +5377,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         x_value: 0,
                         // CR 701.59c: storm copies are never collect evidence casts.
                         evidence_collected: false,
+                        squad_count: 0,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5680,6 +5715,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         x_value,
                     }
                 }
+                PendingTriggerKind::SquadETB => {
+                    // CR 702.157a: Squad ETB trigger. Read squad_count from the trigger
+                    // (stored at trigger-queue time from the permanent's squad_count field).
+                    // At resolution, creates squad_count token copies of the source creature.
+                    StackObjectKind::SquadTrigger {
+                        source_object: trigger.source,
+                        squad_count: trigger.squad_count.unwrap_or(0),
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -5730,6 +5774,8 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 x_value: 0,
                 // CR 701.59c: myriad attack copies are never collect evidence casts.
                 evidence_collected: false,
+                // CR 702.157a: triggered ability stack objects have no squad cost payments.
+                squad_count: 0,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6117,6 +6163,7 @@ pub fn handle_crew_vehicle(
         x_value: 0,
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -6370,6 +6417,7 @@ pub fn handle_scavenge_card(
         x_value: 0,
         // CR 701.59c: scavenge abilities are never collect evidence casts.
         evidence_collected: false,
+        squad_count: 0,
     };
     state.stack_objects.push_back(stack_obj);
 

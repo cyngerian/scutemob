@@ -165,6 +165,7 @@ fn cast_discover_creature(state: GameState, name: &str) -> (GameState, Vec<GameE
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", name, e))

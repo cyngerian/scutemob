@@ -89,6 +89,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -175,6 +176,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -249,6 +251,7 @@ fn test_608_3a_creature_enters_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -342,6 +345,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -415,6 +419,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -509,6 +514,7 @@ fn test_608_1_lifo_resolves_top_first() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -544,6 +550,7 @@ fn test_608_1_lifo_resolves_top_first() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -668,6 +675,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -764,6 +772,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -849,6 +858,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

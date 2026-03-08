@@ -290,6 +290,10 @@ pub fn translate_player_action(
     // graveyard to exile as the collect evidence additional cost.
     // Empty for all other action types or when the player chooses not to pay.
     collect_evidence_names: &[String],
+    // CR 702.157a: For `cast_spell_squad`, the number of times the squad cost was paid
+    // as an additional cost. 0 = not paid. N = paid N times -> N token copies on ETB.
+    // Ignored for all other action types.
+    squad_count: u32,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -354,6 +358,7 @@ pub fn translate_player_action(
                 // CR 107.3m: Propagate x_value from the script action to CastSpell.
                 x_value,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -392,6 +397,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -427,6 +433,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -462,6 +469,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -498,6 +506,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -534,6 +543,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -575,6 +585,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -947,6 +958,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -995,6 +1007,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1031,6 +1044,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1070,6 +1084,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1109,6 +1124,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1145,6 +1161,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1181,6 +1198,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1216,6 +1234,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1251,6 +1270,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1286,6 +1306,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1325,6 +1346,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1368,6 +1390,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: evidence_ids,
+                squad_count: 0,
             })
         }
 
@@ -1406,6 +1429,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1442,6 +1466,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1475,6 +1500,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1516,6 +1542,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1556,6 +1583,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1594,6 +1622,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1640,6 +1669,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1673,6 +1703,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1709,6 +1740,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1746,6 +1778,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1788,6 +1821,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1826,6 +1860,7 @@ pub fn translate_player_action(
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             })
         }
 
@@ -1863,6 +1898,45 @@ pub fn translate_player_action(
                 fuse: true,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
+            })
+        }
+
+        // CR 702.157a: Cast a creature spell with the squad additional cost paid N times.
+        // `squad_count` is the number of times the squad cost is paid (from the action).
+        // Each payment adds the squad cost (from AbilityDefinition::Squad { cost }) to the
+        // total mana cost. On ETB, a SquadTrigger creates N token copies of the creature.
+        "cast_spell_squad" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
+                x_value: 0,
+                collect_evidence_cards: vec![],
+                squad_count,
             })
         }
 

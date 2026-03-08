@@ -992,6 +992,8 @@ impl GameStateBuilder {
                 tribute_was_paid: false,
                 // CR 107.3m: test-placed objects are not cast spells; x_value is 0.
                 x_value: 0,
+                // CR 702.157a: test-placed objects are not cast spells; squad_count is 0.
+                squad_count: 0,
             };
 
             state.add_object(object, zone)?;

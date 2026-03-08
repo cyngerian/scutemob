@@ -244,6 +244,7 @@ fn test_evoke_basic_cast_with_evoke_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -403,6 +404,7 @@ fn test_evoke_basic_cast_without_evoke() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without evoke failed: {:?}", e));
@@ -516,6 +518,7 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -635,6 +638,7 @@ fn test_evoke_does_not_change_mana_value() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with evoke failed: {:?}", e));
@@ -786,6 +790,7 @@ fn test_evoke_cannot_combine_with_flashback() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -868,6 +873,7 @@ fn test_evoke_non_evoke_spell_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -960,6 +966,7 @@ fn test_evoke_uses_alternative_cost_not_mana_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -1061,6 +1068,7 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

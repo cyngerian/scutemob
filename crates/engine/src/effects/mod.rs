@@ -2411,6 +2411,7 @@ fn execute_effect_inner(
                                         champion_filter: None,
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
+                                        squad_count: None,
                                     });
                                 }
                             }
@@ -2894,6 +2895,8 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         tribute_was_paid: false,
         // CR 107.3m: Tokens are never cast, so x_value is always 0.
         x_value: 0,
+        // CR 702.157a: Tokens are never cast, so squad_count is always 0.
+        squad_count: 0,
     }
 }
 
@@ -3058,6 +3061,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         champion_filter: None,
                         champion_exiled_card: None,
                         soulbond_pair_target: None,
+                        squad_count: None,
                     });
                 }
             }

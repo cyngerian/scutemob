@@ -189,6 +189,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::BloodrushAbility { source_object, .. } => {
                     ("Bloodrush: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::SquadTrigger { source_object, .. } => {
+                    ("Squad trigger: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

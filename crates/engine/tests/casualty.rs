@@ -259,6 +259,7 @@ fn test_casualty_basic_copy() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
@@ -413,6 +414,7 @@ fn test_casualty_power_threshold() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -450,6 +452,7 @@ fn test_casualty_power_threshold() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -496,6 +499,7 @@ fn test_casualty_optional_no_sacrifice() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
@@ -563,6 +567,7 @@ fn test_casualty_not_a_creature() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -614,6 +619,7 @@ fn test_casualty_wrong_controller() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -694,6 +700,7 @@ fn test_casualty_spell_without_keyword() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -744,6 +751,7 @@ fn test_casualty_copy_is_not_cast() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
@@ -813,6 +821,7 @@ fn test_casualty_higher_power_accepted() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -862,6 +871,7 @@ fn test_casualty_creature_not_on_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 

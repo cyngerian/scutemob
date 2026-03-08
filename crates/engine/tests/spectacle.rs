@@ -198,6 +198,7 @@ fn test_spectacle_basic_cast_after_opponent_life_loss() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -273,6 +274,7 @@ fn test_spectacle_rejected_when_no_opponent_lost_life() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -337,6 +339,7 @@ fn test_spectacle_normal_cast_without_spectacle() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -409,6 +412,7 @@ fn test_spectacle_no_keyword_rejects() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -478,6 +482,7 @@ fn test_spectacle_valid_cast_with_preconditions_met() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -626,6 +631,7 @@ fn test_spectacle_life_lost_counter_not_set_for_infect() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -726,6 +732,7 @@ fn test_spectacle_multiplayer_any_opponent_enables() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -790,6 +797,7 @@ fn test_spectacle_own_life_loss_does_not_enable() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -897,6 +905,7 @@ fn test_spectacle_life_lost_counter_tracks_lose_life_effect() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1046,6 +1055,7 @@ fn test_spectacle_commander_tax_applies() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 

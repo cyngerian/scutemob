@@ -99,6 +99,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

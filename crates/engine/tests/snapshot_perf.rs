@@ -153,6 +153,7 @@ fn test_clone_independence_object_modification() {
                 tribute_was_paid: false,
                 x_value: 0,
                 evidence_collected: false,
+                squad_count: 0,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

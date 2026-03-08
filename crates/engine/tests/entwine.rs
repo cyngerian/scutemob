@@ -239,6 +239,7 @@ fn test_entwine_basic_both_modes_execute() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -364,6 +365,7 @@ fn test_entwine_not_paid_only_first_mode() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -473,6 +475,7 @@ fn test_entwine_insufficient_mana_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -548,6 +551,7 @@ fn test_entwine_no_keyword_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -657,6 +661,7 @@ fn test_entwine_modes_in_printed_order() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -754,6 +759,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

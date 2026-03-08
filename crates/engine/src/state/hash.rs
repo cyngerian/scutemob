@@ -661,6 +661,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Ravenous => 135u8.hash_into(hasher),
             // Discover (discriminant 136) -- CR 701.57
             KeywordAbility::Discover => 136u8.hash_into(hasher),
+            // Squad (discriminant 137) -- CR 702.157
+            KeywordAbility::Squad => 137u8.hash_into(hasher),
         }
     }
 }
@@ -873,6 +875,8 @@ impl HashInto for GameObject {
         self.tribute_was_paid.hash_into(hasher);
         // X value (CR 107.3m) — the value of X chosen at cast time for ETB abilities
         self.x_value.hash_into(hasher);
+        // Squad (CR 702.157a) — number of times squad cost was paid at cast time
+        self.squad_count.hash_into(hasher);
     }
 }
 
@@ -1977,6 +1981,15 @@ impl HashInto for StackObjectKind {
                     0u8.hash_into(hasher);
                 }
             }
+            // SquadTrigger (discriminant 52) -- CR 702.157a
+            StackObjectKind::SquadTrigger {
+                source_object,
+                squad_count,
+            } => {
+                52u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                squad_count.hash_into(hasher);
+            }
         }
     }
 }
@@ -2081,6 +2094,8 @@ impl HashInto for StackObject {
         self.x_value.hash_into(hasher);
         // Collect Evidence (CR 701.59c) — additional cost paid; graveyard cards were exiled
         self.evidence_collected.hash_into(hasher);
+        // Squad (CR 702.157a) — number of times squad cost was paid
+        self.squad_count.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -4000,6 +4015,11 @@ impl HashInto for AbilityDefinition {
                 53u8.hash_into(hasher);
                 threshold.hash_into(hasher);
                 mandatory.hash_into(hasher);
+            }
+            // Squad (discriminant 54) -- CR 702.157a
+            AbilityDefinition::Squad { cost } => {
+                54u8.hash_into(hasher);
+                cost.hash_into(hasher);
             }
         }
     }

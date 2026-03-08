@@ -410,6 +410,7 @@ fn test_plot_cannot_cast_same_turn() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -486,6 +487,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -572,6 +574,7 @@ fn test_plot_free_cast_costs_zero() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -700,6 +703,7 @@ fn test_plot_requires_main_phase_empty_stack() {
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     });
 
     let result = process_command(
@@ -782,6 +786,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1040,6 +1045,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1188,6 +1194,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -1292,6 +1299,7 @@ fn test_plot_free_cast_requires_empty_stack() {
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     });
 
     let result = process_command(
@@ -1323,6 +1331,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1396,6 +1405,7 @@ fn test_plot_free_cast_requires_own_turn() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1476,6 +1486,7 @@ fn test_plot_normal_cast_still_works() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1549,6 +1560,7 @@ fn test_plot_cast_postcombat_main_phase() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1678,6 +1690,7 @@ fn test_plot_turn_tracking_boundary() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -1716,6 +1729,7 @@ fn test_plot_turn_tracking_boundary() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(

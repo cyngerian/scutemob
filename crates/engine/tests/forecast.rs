@@ -708,6 +708,7 @@ fn test_forecast_blocked_by_split_second() {
         spliced_card_ids: vec![],
         devour_sacrifices: vec![],
         modes_chosen: vec![],
+        squad_count: 0,
     });
 
     state

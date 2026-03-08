@@ -290,6 +290,7 @@ fn test_play_land_stack_nonempty_fails() {
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     });
 
     let result = mtg_engine::process_command(

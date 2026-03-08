@@ -594,6 +594,18 @@ pub enum AbilityDefinition {
     /// Discriminant 53.
     CollectEvidence { threshold: u32, mandatory: bool },
 
+    /// CR 702.157a: Squad -- the cost data for the squad additional cost.
+    ///
+    /// Pairs with `KeywordAbility::Squad` (presence marker). This variant carries
+    /// the squad cost itself (e.g., `{2}` for "Squad {2}").
+    ///
+    /// At cast time: the player pays `cost` N times as an additional cost (CR 601.2b).
+    /// N is stored in `CastSpell.squad_count` and `StackObject.squad_count`.
+    /// At ETB: a trigger creates N token copies if N > 0 and the permanent still has Squad.
+    ///
+    /// Discriminant 54.
+    Squad { cost: ManaCost },
+
     /// CR 207.2c: Bloodrush — ability word. Activated ability from hand.
     ///
     /// "{cost}, Discard this card: Target attacking creature gets +N/+M

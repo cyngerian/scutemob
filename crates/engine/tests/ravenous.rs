@@ -112,6 +112,7 @@ fn cast_ravenous(
             // CR 107.3m: X value chosen at cast time.
             x_value,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(x_value={}) failed: {:?}", x_value, e))

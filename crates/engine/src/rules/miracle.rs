@@ -144,6 +144,7 @@ pub fn handle_choose_miracle(
         champion_filter: None,
         champion_exiled_card: None,
         soulbond_pair_target: None,
+        squad_count: None,
     });
 
     Ok(vec![])

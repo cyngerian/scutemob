@@ -580,6 +580,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             // source_object is the pre-discard card ID (already in graveyard as cost).
             ("bloodrush_ability", Some(*source_object))
         }
+        StackObjectKind::SquadTrigger { source_object, .. } => {
+            ("squad_trigger", Some(*source_object))
+        }
     }
 }
 
@@ -861,5 +864,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Spree => "Spree".to_string(),
         KeywordAbility::Ravenous => "Ravenous".to_string(),
         KeywordAbility::Discover => "Discover".to_string(),
+        KeywordAbility::Squad => "Squad".to_string(),
     }
 }

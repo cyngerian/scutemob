@@ -194,6 +194,7 @@ fn test_surge_basic_cast_with_surge_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -269,6 +270,7 @@ fn test_surge_rejected_no_prior_spell() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -333,6 +335,7 @@ fn test_surge_optional_normal_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -393,6 +396,7 @@ fn test_surge_after_resolved_spell() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -452,6 +456,7 @@ fn test_surge_after_countered_spell() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -548,6 +553,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             },
         );
         assert!(
@@ -622,6 +628,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -706,6 +713,7 @@ fn test_surge_card_without_keyword_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -782,6 +790,7 @@ fn test_surge_reset_at_turn_start() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -861,6 +870,7 @@ fn test_surge_reset_at_turn_start() {
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             },
         );
         assert!(
@@ -1013,6 +1023,7 @@ fn test_surge_commander_tax_stacks() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1089,6 +1100,7 @@ fn test_surge_cast_alt_cost_tracked() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 

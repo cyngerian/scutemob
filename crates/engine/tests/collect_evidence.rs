@@ -317,6 +317,7 @@ fn test_collect_evidence_basic_exile_from_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_mv3_id, gy_mv4_id],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -389,6 +390,7 @@ fn test_collect_evidence_over_threshold_allowed() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_mv3_id, gy_mv4_id],
+            squad_count: 0,
         },
     );
     assert!(
@@ -437,6 +439,7 @@ fn test_collect_evidence_under_threshold_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_mv2_id, gy_mv3_id],
+            squad_count: 0,
         },
     );
     assert!(
@@ -488,6 +491,7 @@ fn test_collect_evidence_not_collected_optional() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![], // player declines
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -550,6 +554,7 @@ fn test_collect_evidence_insufficient_single_card_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_id], // MV 4 < threshold 6
+            squad_count: 0,
         },
     );
     assert!(
@@ -630,6 +635,7 @@ fn test_collect_evidence_mandatory_without_cards_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![], // mandatory but empty
+            squad_count: 0,
         },
     );
     assert!(
@@ -677,6 +683,7 @@ fn test_collect_evidence_duplicate_card_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_id, gy_id], // duplicate
+            squad_count: 0,
         },
     );
     assert!(
@@ -734,6 +741,7 @@ fn test_collect_evidence_card_not_in_graveyard_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![bf_id], // on battlefield, not graveyard
+            squad_count: 0,
         },
     );
     assert!(
@@ -783,6 +791,7 @@ fn test_collect_evidence_opponents_graveyard_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![opp_gy_id], // in opponent's graveyard
+            squad_count: 0,
         },
     );
     assert!(
@@ -859,6 +868,7 @@ fn test_collect_evidence_spell_without_ability_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_id], // spell has no CollectEvidence
+            squad_count: 0,
         },
     );
     assert!(
@@ -939,6 +949,7 @@ fn test_collect_evidence_mana_not_reduced() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![gy_id], // should NOT reduce cost
+            squad_count: 0,
         },
     );
     assert!(

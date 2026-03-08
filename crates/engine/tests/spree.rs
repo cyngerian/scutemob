@@ -263,6 +263,7 @@ fn test_spree_single_mode_adds_mode_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with mode 0 failed: {:?}", e));
@@ -334,6 +335,7 @@ fn test_spree_two_modes_adds_both_costs() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [0,1] failed: {:?}", e));
@@ -408,6 +410,7 @@ fn test_spree_all_three_modes() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with all 3 modes failed: {:?}", e));
@@ -478,6 +481,7 @@ fn test_spree_zero_modes_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -539,6 +543,7 @@ fn test_spree_insufficient_mana_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -592,6 +597,7 @@ fn test_spree_duplicate_mode_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -649,6 +655,7 @@ fn test_spree_mode_order_ascending() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap_or_else(|e| panic!("cast with modes [2,0] failed: {:?}", e));
@@ -756,6 +763,7 @@ fn test_spree_non_spree_spell_unchanged() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(

@@ -634,6 +634,12 @@ pub struct GameObject {
     /// Reset to 0 on zone changes (CR 400.7). Copied from StackObject.x_value at resolution.
     #[serde(default)]
     pub x_value: u32,
+    /// CR 702.157a: Number of times the squad cost was paid when this permanent was cast.
+    /// Used by the SquadETB trigger to create N token copies at resolution.
+    /// Reset to 0 on zone changes (CR 400.7). Copied from StackObject.squad_count at resolution.
+    /// Tokens created by Squad themselves have squad_count: 0 (not cast).
+    #[serde(default)]
+    pub squad_count: u32,
 }
 
 impl GameObject {

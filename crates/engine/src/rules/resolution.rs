@@ -437,6 +437,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 107.3m: Transfer X value from stack to permanent for ETB replacement
                     // effects and triggers that reference X (e.g., Ravenous CR 702.156a).
                     obj.x_value = stack_obj.x_value;
+                    // CR 702.157a: Transfer squad count from stack to permanent for the
+                    // SquadETB trigger to read at trigger-collection time.
+                    obj.squad_count = stack_obj.squad_count;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -1234,6 +1237,71 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_filter: None,
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
+                            });
+                    }
+
+                    // CR 702.157a: Squad ETB trigger -- "When this creature enters, if its
+                    // squad cost was paid, create a token that's a copy of it for each time
+                    // its squad cost was paid."
+                    //
+                    // CR 603.4: Intervening-if -- only queue if squad_count > 0.
+                    // Ruling 2022-10-07: also require the permanent has Squad in layer-resolved
+                    // characteristics at trigger time (not just at cast time).
+                    let has_squad = {
+                        let chars = crate::rules::layers::calculate_characteristics(state, new_id);
+                        chars
+                            .map(|c| c.keywords.contains(&KeywordAbility::Squad))
+                            .unwrap_or(false)
+                    };
+                    let permanent_squad_count = state
+                        .objects
+                        .get(&new_id)
+                        .map(|o| o.squad_count)
+                        .unwrap_or(0);
+                    if has_squad && permanent_squad_count > 0 {
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                source: new_id,
+                                ability_index: 0,
+                                controller: stack_obj.controller,
+                                kind: crate::state::stubs::PendingTriggerKind::SquadETB,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
+                                soulbond_pair_target: None,
+                                squad_count: Some(permanent_squad_count),
                             });
                     }
                 }
@@ -1728,6 +1796,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_filter: None,
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
                             });
                     }
                 }
@@ -3365,6 +3434,133 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             });
         }
 
+        // CR 702.157a: Squad ETB trigger resolution.
+        //
+        // "Create a token that's a copy of it for each time its squad cost was paid."
+        //
+        // CR 608.2b / CR 400.7: If the source creature has left the battlefield before
+        // this trigger resolves, skip token creation entirely (LKI not yet available).
+        //
+        // CR 707.2: Token copies use copiable values of the source at resolution time.
+        // This is the same pattern as Myriad (tokens copy the original, not the permanent's
+        // current layer-modified state -- copiable values are what matter per CR 707.2).
+        //
+        // Tokens are NOT cast (ruling 2022-10-07) and do NOT have summoning sickness
+        // prevented (they enter normally with summoning sickness, unlike Myriad which
+        // enters tapped and attacking).
+        StackObjectKind::SquadTrigger {
+            source_object,
+            squad_count,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Intervening-if re-check. squad_count is fixed at cast time and
+            // immutable, so this always passes if the trigger fired. Verified for correctness.
+            if squad_count > 0 {
+                for _ in 0..squad_count {
+                    // CR 608.2b / CR 400.7: If source left the battlefield, skip.
+                    if state
+                        .objects
+                        .get(&source_object)
+                        .is_none_or(|o| o.zone != ZoneId::Battlefield)
+                    {
+                        break;
+                    }
+
+                    // Build a blank token that will become a copy of the source.
+                    // CR 111.10: Tokens enter the battlefield as the stated kind of object.
+                    // CR 707.2: Copy uses copiable values of the source creature.
+                    let token_obj = crate::state::game_object::GameObject {
+                        id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                        card_id: None,
+                        characteristics: state
+                            .objects
+                            .get(&source_object)
+                            .map(|o| o.characteristics.clone())
+                            .unwrap_or_default(),
+                        controller,
+                        owner: controller,
+                        zone: ZoneId::Battlefield,
+                        status: crate::state::game_object::ObjectStatus {
+                            // CR 302.6: Tokens have summoning sickness (enter normally).
+                            ..crate::state::game_object::ObjectStatus::default()
+                        },
+                        counters: im::OrdMap::new(),
+                        attachments: im::Vector::new(),
+                        attached_to: None,
+                        damage_marked: 0,
+                        deathtouch_damage: false,
+                        is_token: true,
+                        timestamp: 0, // replaced by add_object
+                        has_summoning_sickness: true,
+                        goaded_by: im::Vector::new(),
+                        kicker_times_paid: 0,
+                        cast_alt_cost: None,
+                        is_bestowed: false,
+                        is_foretold: false,
+                        foretold_turn: 0,
+                        was_unearthed: false,
+                        myriad_exile_at_eoc: false,
+                        decayed_sacrifice_at_eoc: false,
+                        is_suspended: false,
+                        exiled_by_hideaway: None,
+                        is_renowned: false,
+                        is_suspected: false,
+                        encore_sacrifice_at_end_step: false,
+                        encore_must_attack: None,
+                        encore_activated_by: None,
+                        is_plotted: false,
+                        plotted_turn: 0,
+                        is_prototyped: false,
+                        was_bargained: false,
+                        evidence_collected: false,
+                        echo_pending: false,
+                        phased_out_indirectly: false,
+                        phased_out_controller: None,
+                        creatures_devoured: 0,
+                        champion_exiled_card: None,
+                        paired_with: None,
+                        tribute_was_paid: false,
+                        // CR 107.3m: Squad tokens are never cast, so x_value is always 0.
+                        x_value: 0,
+                        // CR 702.157a: Tokens created by Squad have squad_count: 0
+                        // (not cast, so cannot trigger their own squad ETB trigger).
+                        squad_count: 0,
+                    };
+
+                    // Add the token to the battlefield.
+                    let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                        Ok(id) => id,
+                        Err(_) => continue,
+                    };
+
+                    // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
+                    // has the copiable characteristics of the source creature.
+                    let copy_effect = crate::rules::copy::create_copy_effect(
+                        state,
+                        token_id,
+                        source_object,
+                        controller,
+                    );
+                    state.continuous_effects.push_back(copy_effect);
+
+                    events.push(GameEvent::TokenCreated {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: controller,
+                        object_id: token_id,
+                    });
+                }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
         // CR 207.2c: Bloodrush activated ability resolution.
         //
         // At resolution, re-validate the target (CR 608.2b):
@@ -3657,6 +3853,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
                     x_value: 0,
+                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                    squad_count: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -3792,6 +3990,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_filter: None,
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
+                                squad_count: None,
                             });
                     }
                 }
@@ -3902,6 +4101,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             x_value: 0,
                             // CR 701.59c: suspend free-casts are not collect evidence casts.
                             evidence_collected: false,
+                            // CR 702.157a: suspend free-casts have no squad cost payments.
+                            squad_count: 0,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -4783,6 +4984,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
                     x_value: 0,
+                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                    squad_count: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -4980,6 +5183,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     tribute_was_paid: false,
                     // CR 107.3m: Tokens/copies are never cast, so x_value is always 0.
                     x_value: 0,
+                    // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
+                    squad_count: 0,
                 };
 
                 // Add the token to the battlefield.
@@ -5196,6 +5401,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         tribute_was_paid: false,
                         // CR 107.3m: Tokens are never cast, so x_value is always 0.
                         x_value: 0,
+                        // CR 702.157a: Tokens are never cast, so squad_count is always 0.
+                        squad_count: 0,
                     };
 
                     // Add the token to the battlefield.
@@ -5512,7 +5719,8 @@ pub fn counter_stack_object(
         | StackObjectKind::ChampionLTBTrigger { .. }
         | StackObjectKind::SoulbondTrigger { .. }
         | StackObjectKind::RavenousDrawTrigger { .. }
-        | StackObjectKind::BloodrushAbility { .. } => {
+        | StackObjectKind::BloodrushAbility { .. }
+        | StackObjectKind::SquadTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No

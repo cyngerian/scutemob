@@ -136,6 +136,7 @@ fn cast_spell(
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
 }
@@ -565,6 +566,7 @@ fn test_affinity_combined_with_improvise() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect(

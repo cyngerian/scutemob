@@ -115,6 +115,12 @@ pub enum PendingTriggerKind {
     /// (in the RavenousDrawTrigger SOK arm). Since X is immutable after cast, the
     /// re-check always passes if it triggered.
     RavenousDraw,
+    /// CR 702.157a: Squad ETB trigger -- fires when the creature with Squad enters
+    /// the battlefield and its squad cost was paid at least once.
+    /// Intervening-if (CR 603.4): only queued when `squad_count > 0` AND the permanent
+    /// has `KeywordAbility::Squad` in layer-resolved characteristics.
+    /// Resolved to create `squad_count` token copies of the source creature.
+    SquadETB,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -354,6 +360,13 @@ pub struct PendingTrigger {
     /// through to `flush_pending_triggers` to build the `SoulbondTrigger` SOK.
     #[serde(default)]
     pub soulbond_pair_target: Option<ObjectId>,
+    /// CR 702.157a: Number of times the squad cost was paid at cast time.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::SquadETB`.
+    /// Carried from resolution.rs (where it's read from the permanent's squad_count)
+    /// through to `flush_pending_triggers` to build the `SquadTrigger` SOK.
+    #[serde(default)]
+    pub squad_count: Option<u32>,
 }
 
 impl PendingTriggerKind {

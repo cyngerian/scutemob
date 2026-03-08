@@ -221,6 +221,7 @@ impl ReplaySession {
                         target_creature,
                         x_value,
                         collect_evidence_cards,
+                        squad_count,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -254,6 +255,7 @@ impl ReplaySession {
                                 target_creature.as_deref(),
                                 *x_value,
                                 collect_evidence_cards,
+                                *squad_count,
                                 &current_state,
                                 &player_map,
                             );

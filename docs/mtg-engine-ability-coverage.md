@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Forage partial: ActivationCost.forage in game_object.rs + payment logic in abilities.rs, 7 tests in forage.rs, script forage/182, Camellia stub card def; DSL gap — no Cost::Forage variant for card definitions)
+> Last audited: 2026-03-07 (Squad validated: KW 137, AbilDef 54, SOK 52; 6 tests in squad.rs; card Ultramarines Honour Guard; script etb-triggers/183)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 74        | 0        | 1       | 18   | 12  |
-| **Total**| **204**| **168**  | **2**    | **1**   | **21**| **12** |
+| P4       | 105   | 75        | 0        | 1       | 17   | 12  |
+| **Total**| **204**| **169**  | **2**    | **1**   | **20**| **12** |
 
 ---
 
@@ -306,7 +306,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Casualty | 702.153 | P4 | `validated` | `rules/casting.rs`, `rules/resolution.rs`, `rules/command.rs`, `state/types.rs`, `state/stack.rs`, `state/hash.rs` | Make Disappear | `stack/141` | — | CR 702.153: Optional additional cost (CR 118.8); sacrifice creature with power >= N; CasualtyTrigger copies spell; KeywordAbility::Casualty(u32) disc 104 + StackObjectKind::CasualtyTrigger disc 34; was_casualty_paid + casualty_sacrifice on CastSpell; power-threshold validation; 9 unit tests in casualty.rs |
 | Alliance | — | P4 | `validated` | `state/game_object.rs`, `rules/abilities.rs`, `testing/replay_harness.rs` | Prosperous Innkeeper | `etb-triggers/175` | — | Ability word; ETBTriggerFilter struct + etb_filter on TriggeredAbilityDef; WheneverCreatureEntersBattlefield wired in enrich_spec_from_def + collect_triggers_for_event; 5 unit tests in `tests/alliance.rs` |
 | Ravenous | 702.156 | P4 | `validated` | `state/types.rs` (KeywordAbility::Ravenous disc 135), `state/stack.rs` (RavenousDrawTrigger SOK disc 50), `state/stubs.rs` (PendingTriggerKind::RavenousDraw), `state/hash.rs`, `rules/resolution.rs` (ETB counter placement + RavenousDrawTrigger resolution), `rules/abilities.rs` (trigger creation) | Tyrranax Rex | `etb-triggers/177` | 6 tests in ravenous.rs | CR 702.156a: X +1/+1 counters on ETB; draw if X >= 5; x_value field on CastSpell/StackObject/GameObject/EffectContext; EffectAmount::XValue; draw trigger fires even if creature removed before resolution |
-| Squad | 702.157 | P4 | `none` | — | — | — | — | Pay squad cost N times → N token copies on ETB |
+| Squad | 702.157 | P4 | `validated` | `state/types.rs`, `cards/card_definition.rs`, `rules/casting.rs`, `rules/abilities.rs`, `rules/resolution.rs` | Ultramarines Honour Guard | `etb-triggers/183` | KW 137, AbilDef 54, SOK 52; 6 tests in squad.rs; additional cost paid N times, ETB creates N token copies |
 | Enrage | — | P4 | `validated` | `cards/card_definition.rs`, `state/game_object.rs`, `rules/abilities.rs` | Ripjaw Raptor | `combat/174` | — | Ability word; WhenDealtDamage trigger + SelfIsDealtDamage event; 5 tests in enrage.rs |
 | Ascend | 702.131 | P3 | `validated` | `state/types.rs` (KeywordAbility enum), `rules/sba.rs:91-176` (check_ascend SBA function), `rules/resolution.rs:192-207` (instant/sorcery ascend at resolution), `rules/events.rs:762` (GameEvent::CitysBlessingGained), `state/game_object.rs` (has_citys_blessing on PlayerState) | Wayward Swordtooth | `baseline/096` | 7 tests in ascend.rs | CR 702.131a/b/c: Static Ascend when 10+ permanents with keyword source; spell Ascend at resolution; blessing permanent once gained; city's blessing is irremovable designation |
 | Treasure tokens | 111.10a | P2 | `validated` | `state/game_object.rs:42-81` (ManaAbility with sacrifice_self + any_color), `rules/mana.rs:95-149` (sacrifice cost + any-color handling), `cards/card_definition.rs:629-683` (TokenSpec.mana_abilities, treasure_token_spec helper), `effects/mod.rs:1700-1714` (make_token populates mana_abilities), `state/hash.rs:457-462,1816-1830` | Strike It Rich | `stack/073` | — | CR 111.10a fully enforced; colorless Treasure artifact token with "{T}, Sacrifice this token: Add one mana of any color"; mana ability resolves without stack (CR 605.3b); sacrifice as cost (CR 602.2c); token ceases to exist in graveyard (CR 111.7/704.5d); 9 unit tests in `tests/treasure_tokens.rs`; game script pending_review (all assertions pass) |

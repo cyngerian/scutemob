@@ -145,6 +145,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -253,6 +254,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -350,6 +352,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -445,6 +448,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -519,6 +523,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -588,6 +593,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1111,6 +1117,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -1204,6 +1211,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -2046,6 +2054,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     });
 
     assert_eq!(
@@ -2360,6 +2369,7 @@ fn test_full_four_player_commander_game() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

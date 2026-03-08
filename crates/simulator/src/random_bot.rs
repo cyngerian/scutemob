@@ -161,6 +161,7 @@ pub(crate) fn action_to_command(
             fuse: false,
             x_value: 0,
             collect_evidence_cards: Vec::new(),
+            squad_count: 0,
         },
         LegalAction::TapForMana {
             source,

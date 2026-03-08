@@ -213,6 +213,7 @@ fn test_surveil_basic_cards_go_to_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -327,6 +328,7 @@ fn test_surveil_zero_no_event() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -435,6 +437,7 @@ fn test_surveil_empty_library_still_emits_event() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -531,6 +534,7 @@ fn test_surveil_library_fewer_than_n() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -649,6 +653,7 @@ fn test_surveil_then_draw_sequence() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -793,6 +798,7 @@ fn test_whenever_you_surveil_trigger() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -910,6 +916,7 @@ fn test_surveil_zero_does_not_fire_trigger() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

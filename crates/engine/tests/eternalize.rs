@@ -993,6 +993,7 @@ fn test_eternalize_split_second_blocks() {
         was_fused: false,
         x_value: 0,
         evidence_collected: false,
+        squad_count: 0,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

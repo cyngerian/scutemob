@@ -249,6 +249,7 @@ fn test_cascade_exiles_until_hit() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -424,6 +425,7 @@ fn test_cascade_skips_lands() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -601,6 +603,7 @@ fn test_cascade_combined_mana_value_skip() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

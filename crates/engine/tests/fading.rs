@@ -307,6 +307,7 @@ fn test_fading_etb_counters_on_cast() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CastSpell should succeed");

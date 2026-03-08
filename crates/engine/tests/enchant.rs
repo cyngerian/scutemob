@@ -107,6 +107,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -172,6 +173,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -237,6 +239,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -300,6 +303,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CastSpell should succeed");
@@ -490,6 +494,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             },
         );
         assert!(
@@ -546,6 +551,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 fuse: false,
                 x_value: 0,
                 collect_evidence_cards: vec![],
+                squad_count: 0,
             },
         );
         assert!(
@@ -607,6 +613,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -675,6 +682,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
     assert!(
@@ -742,6 +750,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CastSpell should succeed");

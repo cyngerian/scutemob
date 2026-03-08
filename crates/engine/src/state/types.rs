@@ -1261,6 +1261,16 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 136.
     Discover,
+    /// CR 702.157a: Squad -- additional cost paid N times at cast; creates N token copies
+    /// of the creature on ETB. "As an additional cost to cast this spell, you may pay
+    /// [cost] any number of times" and "When this creature enters, if its squad cost was
+    /// paid, create a token that's a copy of it for each time its squad cost was paid."
+    ///
+    /// Unit variant: the actual cost is stored in `AbilityDefinition::Squad { cost }`.
+    /// This variant is used for presence-checking (layer-resolved characteristics).
+    ///
+    /// Discriminant 137.
+    Squad,
 }
 
 /// CR 702.72a: The filter for what can be championed.

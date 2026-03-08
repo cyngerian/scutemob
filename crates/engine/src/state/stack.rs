@@ -290,6 +290,11 @@ pub struct StackObject {
     /// at resolution so ETB replacement effects and triggers can read it.
     #[serde(default)]
     pub x_value: u32,
+    /// CR 702.157a: Number of times the squad cost was paid. 0 = no squad.
+    /// Propagated from CastSpell.squad_count at cast time; read at resolution for
+    /// the ETB trigger that creates N token copies of the creature.
+    #[serde(default)]
+    pub squad_count: u32,
 }
 
 /// The kind of object on the stack.
@@ -1114,5 +1119,22 @@ pub enum StackObjectKind {
         toughness_boost: i32,
         /// Optional keyword to grant until end of turn (Layer 6).
         grants_keyword: Option<KeywordAbility>,
+    },
+    /// CR 702.157a: Squad triggered ability -- fires when the creature with Squad
+    /// enters the battlefield, if its squad cost was paid at least once.
+    /// Resolves to create `squad_count` token copies of the source creature.
+    ///
+    /// Intervening-if (CR 603.4): the trigger only fires if `squad_count > 0` AND the
+    /// permanent has `KeywordAbility::Squad` in layer-resolved characteristics.
+    /// (Ruling 2022-10-07: if Squad is lost before the trigger fires, no tokens.)
+    ///
+    /// Tokens are NOT cast (ruling 2022-10-07) -- no "cast" triggers fire for them.
+    ///
+    /// Discriminant 52.
+    SquadTrigger {
+        /// The ObjectId of the creature that entered the battlefield with Squad.
+        source_object: ObjectId,
+        /// How many times the squad cost was paid at cast time (immutable after cast).
+        squad_count: u32,
     },
 }

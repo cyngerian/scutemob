@@ -262,6 +262,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -374,6 +375,7 @@ fn test_flashback_exile_on_resolution() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -503,6 +505,7 @@ fn test_flashback_exile_on_counter() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -558,6 +561,7 @@ fn test_flashback_exile_on_counter() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -670,6 +674,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -749,6 +754,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -844,6 +850,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -944,6 +951,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -1055,6 +1063,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -1149,6 +1158,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1236,6 +1246,7 @@ fn test_flashback_mana_value_unchanged() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

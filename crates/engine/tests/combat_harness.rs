@@ -179,6 +179,7 @@ fn test_harness_declare_attackers_basic() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     );
@@ -260,6 +261,7 @@ fn test_harness_declare_attackers_empty() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     );
@@ -379,6 +381,7 @@ fn test_harness_declare_blockers_basic() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     );
@@ -467,6 +470,7 @@ fn test_harness_declare_blockers_empty() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     );
@@ -538,6 +542,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     )
@@ -581,6 +586,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     )
@@ -648,6 +654,7 @@ fn test_harness_declare_attackers_default_target() {
         None,   // target_creature_name: not used for combat harness actions
         0,      // x_value: not used for combat harness actions
         &[],    // collect_evidence_names: not used for combat harness actions
+        0,      // squad_count: not used for combat harness actions
         &state,
         &players,
     );

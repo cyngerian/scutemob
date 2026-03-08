@@ -347,6 +347,11 @@ pub enum ScriptAction {
         /// Example: ["Lightning Bolt", "Grizzly Bears"]
         #[serde(default)]
         collect_evidence_cards: Vec<String>,
+        /// CR 702.157a: For `cast_spell_squad`, the number of times the squad additional
+        /// cost was paid. 0 = not paid. N = paid N times -> N token copies created on ETB.
+        /// Ignored for all other action types. `#[serde(default)]` means 0 if absent from JSON.
+        #[serde(default)]
+        squad_count: u32,
         cr_ref: Option<String>,
         note: Option<String>,
     },

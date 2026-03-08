@@ -295,6 +295,13 @@ pub enum Command {
         /// still paid in full. Validated in `handle_cast_spell`.
         #[serde(default)]
         collect_evidence_cards: Vec<ObjectId>,
+        /// CR 702.157a: Number of times the squad cost was paid as an additional cost.
+        /// 0 = not paid (no tokens). N = paid N times -> N token copies created on ETB.
+        /// Each payment adds the squad cost (from `AbilityDefinition::Squad { cost }`)
+        /// to the total mana cost paid for the spell (CR 601.2b, 601.2f-h).
+        /// Validated against the spell having `KeywordAbility::Squad` in casting.rs.
+        #[serde(default)]
+        squad_count: u32,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

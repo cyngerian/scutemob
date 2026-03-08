@@ -163,6 +163,7 @@ fn cast_creature(
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CastSpell failed")
@@ -523,6 +524,7 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .expect("CastSpell (Sol Ring) failed");

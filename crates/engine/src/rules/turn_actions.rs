@@ -104,6 +104,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -181,6 +182,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -259,6 +261,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -338,6 +341,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -414,6 +418,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -511,6 +516,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_filter: None,
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
+                squad_count: None,
             });
         }
     }
@@ -575,6 +581,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -640,6 +647,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -697,6 +705,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -754,6 +763,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -820,6 +830,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_filter: None,
             champion_exiled_card: None,
             soulbond_pair_target: None,
+            squad_count: None,
         });
     }
 
@@ -1256,6 +1267,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         champion_filter: None,
                         champion_exiled_card: None,
                         soulbond_pair_target: None,
+                        squad_count: None,
                     });
                 }
             }

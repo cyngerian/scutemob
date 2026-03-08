@@ -461,6 +461,7 @@ fn test_madness_cast_from_exile() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -570,6 +571,7 @@ fn test_madness_sorcery_ignores_timing() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -713,6 +715,7 @@ fn test_madness_cast_with_madness_flag_set_on_stack() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -800,6 +803,7 @@ fn test_madness_non_madness_exile_cannot_cast() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -966,6 +970,7 @@ fn test_madness_mana_value_unchanged() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();
@@ -1105,6 +1110,7 @@ fn test_madness_effect_discard_goes_to_exile() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     )
     .unwrap();

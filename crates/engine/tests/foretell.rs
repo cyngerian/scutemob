@@ -437,6 +437,7 @@ fn test_foretell_cannot_cast_same_turn() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -551,6 +552,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -932,6 +934,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1043,6 +1046,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1150,6 +1154,7 @@ fn test_foretell_sorcery_timing_restriction() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1257,6 +1262,7 @@ fn test_foretell_instant_timing() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1490,6 +1496,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
@@ -1626,6 +1633,7 @@ fn test_foretell_requires_is_foretold_flag() {
             fuse: false,
             x_value: 0,
             collect_evidence_cards: vec![],
+            squad_count: 0,
         },
     );
 
