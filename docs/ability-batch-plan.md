@@ -346,18 +346,20 @@ Recent set mechanics (2022-2024 releases).
 
 | # | Ability | CR | Effort | Pattern |
 |---|---------|-----|--------|---------|
-| 13.1 | Discover | 702.161 | Low | Cascade variant (cascade infra exists) |
-| 13.2 | Suspect | 701.52 | Low | Menace + can't block (keyword grant) |
-| 13.3 | Collect Evidence | 701.53 | Low | Exile cards from graveyard with total MV >= N |
-| 13.4 | Forage | 701.55 | Low | Sacrifice Food or exile 3 from graveyard |
-| 13.5 | Squad | 702.159 | Medium | Pay N times → N token copies on ETB |
-| 13.6 | Offspring | 702.167 | Medium | Pay offspring cost → 1/1 token copy on ETB |
-| 13.7 | Gift | 702.169 | Medium | Choose opponent to receive a gift (bonus) |
-| 13.8 | Saddle | 702.163 | Low | Crew variant for Mounts |
+| 13.1 | Discover | 701.57 | Low | Cascade variant (cascade infra exists) |
+| 13.2 | Suspect | 701.60 | Low | Menace + can't block (keyword grant) |
+| 13.3 | Collect Evidence | 701.59 | Low | Exile cards from graveyard with total MV >= N |
+| 13.4 | Forage | 701.61 | Low | Sacrifice Food or exile 3 from graveyard |
+| 13.5 | Squad | 702.157 | Medium | Pay N times → N token copies on ETB |
+| 13.6 | Offspring | 702.175 | Medium | Pay offspring cost → 1/1 token copy on ETB |
+| 13.7 | Gift | 702.174 | Medium | Choose opponent to receive a gift (bonus) |
+| 13.8 | Saddle | 702.171 | Low | Crew variant for Mounts |
 
 **Infrastructure reused**: Cascade (`copy.rs`), `CreateToken`, Crew, sacrifice-as-cost.
 
-- [ ] Batch 13 complete
+**Completed 2026-03-07.** CR corrections: all CRs in this table were wrong — verified via MCP. Cards: Geological Appraiser, Frantic Scapegoat, Crimestopper Sprite, Camellia the Seedmiser, Ultramarines Honour Guard, Flowerfoot Swordmaster, Nocturnal Hunger, Quilled Charger. Scripts 179-186. Known gaps: Forage DSL (Cost::Forage missing), Offspring Layer 7b deviation (CR 707.9b), Gift harness (gift_opponent not wired).
+
+- [x] Batch 13 complete
 
 ---
 
