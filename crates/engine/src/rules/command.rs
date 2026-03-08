@@ -309,6 +309,15 @@ pub enum Command {
         /// Validated against the spell having `KeywordAbility::Offspring` in casting.rs.
         #[serde(default)]
         offspring_paid: bool,
+        /// CR 702.174a: The opponent chosen to receive the gift as an additional cost.
+        /// None = gift cost not paid (no gift effect). Some(player) = gift cost paid,
+        /// the chosen opponent will receive the gift defined in `AbilityDefinition::Gift`.
+        /// The chosen player must be an opponent of the caster (not the caster themselves).
+        /// For permanents: triggers a GiftETBTrigger on ETB.
+        /// For instants/sorceries: executes gift effect before main effect (CR 702.174j).
+        /// Validated against the spell having `KeywordAbility::Gift` in casting.rs.
+        #[serde(default)]
+        gift_opponent: Option<crate::state::PlayerId>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

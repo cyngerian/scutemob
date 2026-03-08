@@ -300,6 +300,15 @@ pub struct StackObject {
     /// the ETB trigger that creates 1 token copy (except 1/1) of the creature.
     #[serde(default)]
     pub offspring_paid: bool,
+    /// CR 702.174a: Whether the gift cost was paid (an opponent was chosen).
+    /// Propagated from CastSpell.gift_opponent at cast time; read at resolution for
+    /// the gift effect (instants/sorceries) or GiftETB trigger (permanents).
+    #[serde(default)]
+    pub gift_was_given: bool,
+    /// CR 702.174a: The opponent chosen to receive the gift.
+    /// Set at cast time; used at resolution to determine who receives the gift.
+    #[serde(default)]
+    pub gift_opponent: Option<crate::state::PlayerId>,
 }
 
 /// The kind of object on the stack.
@@ -1163,5 +1172,21 @@ pub enum StackObjectKind {
         /// before the trigger resolves (ruling 2024-07-26).
         #[serde(default)]
         source_card_id: Option<crate::state::CardId>,
+    },
+    /// CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its gift cost
+    /// was paid, [gift effect for the chosen opponent]."
+    ///
+    /// Fired at ETB time when gift_was_given == true AND the permanent has
+    /// KeywordAbility::Gift in layer-resolved characteristics.
+    ///
+    /// Discriminant 54.
+    GiftETBTrigger {
+        /// The ObjectId of the permanent that entered.
+        source_object: ObjectId,
+        /// The card ID for registry lookup (LKI fallback).
+        #[serde(default)]
+        source_card_id: Option<crate::state::CardId>,
+        /// The opponent chosen at cast time to receive the gift.
+        gift_opponent: crate::state::PlayerId,
     },
 }

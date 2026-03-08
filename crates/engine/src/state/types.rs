@@ -1283,6 +1283,25 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 138.
     Offspring,
+    /// CR 702.174: Gift a [something] -- optional additional cost: choose an opponent.
+    ///
+    /// "As an additional cost to cast this spell, you may choose an opponent."
+    /// If the gift cost was paid, the chosen opponent receives a gift (defined by
+    /// the card's AbilityDefinition::Gift variant) and the caster may get an
+    /// enhanced effect.
+    ///
+    /// For permanents: ETB trigger "When this enters, if its gift cost was paid, [effect]."
+    /// For instants/sorceries: inline conditional "If this spell's gift cost was paid, [effect]."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The gift type is stored in `AbilityDefinition::Gift { gift_type }`.
+    /// The chosen opponent is provided via `CastSpell.gift_opponent`.
+    /// Cards check "if gift was given" via `Condition::GiftWasGiven`.
+    ///
+    /// CR 702.174a: Multiple instances are redundant (only one opponent can be chosen).
+    ///
+    /// Discriminant 139.
+    Gift,
 }
 
 /// CR 702.72a: The filter for what can be championed.

@@ -124,6 +124,7 @@ fn cast_creature(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));

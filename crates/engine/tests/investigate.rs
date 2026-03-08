@@ -436,6 +436,7 @@ fn test_investigate_clue_can_be_activated() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

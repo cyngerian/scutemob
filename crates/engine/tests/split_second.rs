@@ -188,6 +188,7 @@ fn test_split_second_blocks_casting_spells() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -236,6 +237,7 @@ fn test_split_second_blocks_casting_spells() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -330,6 +332,7 @@ fn test_split_second_blocks_activated_abilities() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -436,6 +439,7 @@ fn test_split_second_blocks_cycling() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -535,6 +539,7 @@ fn test_split_second_allows_mana_abilities() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -641,6 +646,7 @@ fn test_split_second_allows_pass_priority() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -734,6 +740,7 @@ fn test_split_second_blocks_caster_too() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));
@@ -775,6 +782,7 @@ fn test_split_second_blocks_caster_too() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -868,6 +876,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -923,6 +932,7 @@ fn test_split_second_restriction_ends_after_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1011,6 +1021,7 @@ fn test_split_second_triggered_abilities_still_fire() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell (split second) failed: {:?}", e));

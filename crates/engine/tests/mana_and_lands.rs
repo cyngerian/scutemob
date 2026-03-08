@@ -292,6 +292,8 @@ fn test_play_land_stack_nonempty_fails() {
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     });
 
     let result = mtg_engine::process_command(

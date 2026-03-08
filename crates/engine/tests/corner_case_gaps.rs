@@ -101,6 +101,7 @@ fn test_cc23_flicker_kills_spell_fizzles_no_dies_trigger() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

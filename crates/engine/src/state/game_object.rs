@@ -646,6 +646,15 @@ pub struct GameObject {
     /// Tokens created by Offspring themselves have offspring_paid: false (not cast).
     #[serde(default)]
     pub offspring_paid: bool,
+    /// CR 702.174a: Whether the gift cost was paid when this permanent was cast.
+    /// Used by the GiftETB trigger at resolution. Reset on zone changes (CR 400.7).
+    #[serde(default)]
+    pub gift_was_given: bool,
+    /// CR 702.174a: The opponent chosen to receive the gift when this permanent was cast.
+    /// Used by the GiftETB trigger to determine which player gets the gift.
+    /// Reset to None on zone changes (CR 400.7).
+    #[serde(default)]
+    pub gift_opponent: Option<crate::state::PlayerId>,
 }
 
 impl GameObject {

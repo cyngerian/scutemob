@@ -230,6 +230,7 @@ fn test_fuse_basic_both_halves_execute() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -335,6 +336,7 @@ fn test_fuse_single_half_cast() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("single-half cast failed: {:?}", e));
@@ -442,6 +444,7 @@ fn test_fuse_from_hand_only_rejected_from_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -525,6 +528,7 @@ fn test_fuse_no_keyword_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -623,6 +627,7 @@ fn test_fuse_combined_mana_cost_required() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -721,6 +726,7 @@ fn test_fuse_resolution_order_left_then_right() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("fuse cast failed: {:?}", e));
@@ -843,6 +849,7 @@ fn test_fuse_alt_cost_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 

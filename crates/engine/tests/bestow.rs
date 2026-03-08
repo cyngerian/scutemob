@@ -193,6 +193,7 @@ fn test_bestow_cast_as_aura_basic() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bestow failed: {:?}", e));
@@ -394,6 +395,7 @@ fn test_bestow_cast_normally_as_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -549,6 +551,7 @@ fn test_bestow_target_illegal_at_resolution_becomes_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bestow failed: {:?}", e));
@@ -805,6 +808,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             },
         );
         assert!(
@@ -887,6 +891,7 @@ fn test_bestow_alternative_cost_pays_bestow_cost() {
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             },
         );
         assert!(
@@ -987,6 +992,7 @@ fn test_bestow_cannot_combine_with_flashback() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -1110,6 +1116,7 @@ fn test_bestow_cannot_combine_with_evoke() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     // Evoke alone is valid (card has Evoke keyword); the mutual exclusion of two
@@ -1191,6 +1198,7 @@ fn test_bestow_non_bestow_spell_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(

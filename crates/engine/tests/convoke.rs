@@ -216,6 +216,7 @@ fn test_convoke_basic_tap_creatures_reduce_cost() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with convoke failed: {:?}", e));
@@ -329,6 +330,7 @@ fn test_convoke_colored_mana_match() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with white convoke failed: {:?}", e));
@@ -435,6 +437,7 @@ fn test_convoke_generic_mana_any_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with red creatures for generic failed: {:?}", e));
@@ -526,6 +529,7 @@ fn test_convoke_reject_no_keyword() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -599,6 +603,7 @@ fn test_convoke_reject_tapped_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -671,6 +676,7 @@ fn test_convoke_reject_not_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -744,6 +750,7 @@ fn test_convoke_reject_not_controlled() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -828,6 +835,7 @@ fn test_convoke_reject_too_many_creatures() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -952,6 +960,7 @@ fn test_convoke_with_commander_tax() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("Commander convoke cast failed: {:?}", e));
@@ -1056,6 +1065,7 @@ fn test_convoke_no_summoning_sickness() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1135,6 +1145,7 @@ fn test_convoke_zero_creatures() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of convoke spell failed: {:?}", e));
@@ -1229,6 +1240,7 @@ fn test_convoke_multicolored_creature_pays_colored() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("Multicolored creature convoke failed: {:?}", e));

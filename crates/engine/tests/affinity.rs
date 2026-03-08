@@ -138,6 +138,7 @@ fn cast_spell(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
 }
@@ -569,6 +570,7 @@ fn test_affinity_combined_with_improvise() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect(

@@ -224,6 +224,7 @@ fn test_prowess_basic_noncreature_spell_gives_plus_one() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -353,6 +354,7 @@ fn test_prowess_does_not_trigger_on_creature_spell() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -449,6 +451,7 @@ fn test_prowess_does_not_trigger_on_artifact_creature_spell() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -543,6 +546,7 @@ fn test_prowess_does_not_trigger_on_opponent_spell() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -638,6 +642,7 @@ fn test_prowess_resolves_independently_of_triggering_spell() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -746,6 +751,7 @@ fn test_prowess_until_end_of_turn_expires() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -868,6 +874,7 @@ fn test_prowess_multiple_spells_stack() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -921,6 +928,7 @@ fn test_prowess_multiple_spells_stack() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1032,6 +1040,7 @@ fn test_prowess_multiplayer_only_controllers_creatures_trigger() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

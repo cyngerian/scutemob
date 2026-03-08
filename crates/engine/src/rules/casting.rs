@@ -82,6 +82,7 @@ pub fn handle_cast_spell(
     collect_evidence_cards: Vec<ObjectId>,
     squad_count: u32,
     offspring_paid: bool,
+    gift_opponent: Option<crate::state::PlayerId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -2001,6 +2002,35 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.174a / CR 601.2b: Gift -- validate the chosen opponent.
+    // Gift is an optional additional cost: the player MAY choose an opponent as an additional
+    // cost to cast this spell. Unlike most additional costs, Gift has no mana component --
+    // choosing an opponent IS the cost (CR 702.174a). The gift effect fires at resolution.
+    let gift_chosen_opponent: Option<crate::state::PlayerId> = if let Some(opponent) = gift_opponent
+    {
+        // Validate the spell has Gift keyword.
+        if !chars.keywords.contains(&KeywordAbility::Gift) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have gift (CR 702.174a)".into(),
+            ));
+        }
+        // Validate the chosen player is not the caster (must be an opponent).
+        if opponent == player {
+            return Err(GameStateError::InvalidCommand(
+                "gift: must choose an opponent, not yourself (CR 702.174a)".into(),
+            ));
+        }
+        // Validate the chosen player is in the game (not eliminated).
+        if !state.active_players().contains(&opponent) {
+            return Err(GameStateError::InvalidCommand(
+                "gift: chosen opponent is not in the game (CR 702.174a)".into(),
+            ));
+        }
+        Some(opponent)
+    } else {
+        None
+    };
+
     // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
     // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -2989,6 +3019,7 @@ pub fn handle_cast_spell(
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -3282,6 +3313,9 @@ pub fn handle_cast_spell(
         // CR 702.175a: Whether the offspring cost was paid as an additional cost.
         // false = not paid. true = paid -> 1 token copy (except 1/1) created on ETB by OffspringTrigger.
         offspring_paid,
+        // CR 702.174a: Whether the gift cost was paid (gift_opponent was chosen at cast time).
+        gift_was_given: gift_chosen_opponent.is_some(),
+        gift_opponent: gift_chosen_opponent,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3436,6 +3470,9 @@ pub fn handle_cast_spell(
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
             offspring_paid: false,
+            // CR 702.174a: trigger/copy stack objects are never gift casts.
+            gift_was_given: false,
+            gift_opponent: None,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3508,6 +3545,9 @@ pub fn handle_cast_spell(
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
             offspring_paid: false,
+            // CR 702.174a: trigger/copy stack objects are never gift casts.
+            gift_was_given: false,
+            gift_opponent: None,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3581,6 +3621,9 @@ pub fn handle_cast_spell(
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
             offspring_paid: false,
+            // CR 702.174a: trigger/copy stack objects are never gift casts.
+            gift_was_given: false,
+            gift_opponent: None,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3648,6 +3691,9 @@ pub fn handle_cast_spell(
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
             offspring_paid: false,
+            // CR 702.174a: trigger/copy stack objects are never gift casts.
+            gift_was_given: false,
+            gift_opponent: None,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3717,6 +3763,9 @@ pub fn handle_cast_spell(
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
             offspring_paid: false,
+            // CR 702.174a: trigger/copy stack objects are never gift casts.
+            gift_was_given: false,
+            gift_opponent: None,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {

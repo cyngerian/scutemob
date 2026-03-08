@@ -226,6 +226,7 @@ fn test_panharmonicon_doubles_etb_trigger() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -399,6 +400,7 @@ fn test_two_panharmonicons_triple_triggers() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -554,6 +556,7 @@ fn test_panharmonicon_removal_doesnt_cancel_already_triggered() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -707,6 +710,7 @@ fn test_panharmonicon_registration_via_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -775,6 +779,7 @@ fn test_panharmonicon_registration_via_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

@@ -359,6 +359,7 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

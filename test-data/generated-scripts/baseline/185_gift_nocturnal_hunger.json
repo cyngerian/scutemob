@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_185",
+    "name": "Gift — Nocturnal Hunger destroys creature, grants Food token to chosen opponent",
+    "description": "Tests the Gift mechanic (CR 702.174a-b) using Nocturnal Hunger ({2}{B}, Instant, Gift a Food). P1 casts Nocturnal Hunger targeting P2's Bladetusk Boar, promising the gift to P3. At resolution, per CR 702.174b, the gift resolves first: P3 creates a Food token. Then the main effect executes: Bladetusk Boar is destroyed. Because the gift was promised, the 'if gift wasn't promised, lose 2 life' clause is skipped (CR 702.174j). Final state: P3 has a Food token on their battlefield, Bladetusk Boar is in P2's graveyard, P1's life total is unchanged at 40.",
+    "cr_sections_tested": [
+      "601.2",
+      "608.2",
+      "702.174a",
+      "702.174b",
+      "702.174j",
+      "701.7a",
+      "111.1",
+      "111.5",
+      "116.3"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "gift",
+      "food-token",
+      "destroy",
+      "instant",
+      "nocturnal-hunger",
+      "4-player",
+      "token"
+    ],
+    "confidence": "medium",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.174a: Gift is a keyword ability that lets the caster promise an opponent a benefit. CR 702.174b: If the gift was promised, the chosen opponent receives the specified gift (here, a Food token) before the spell's other effects execute. CR 702.174j: The conditional 'if the gift wasn't promised' clause means P1 does NOT lose 2 life because P1 did promise the gift. In a 4-player game, player names p1/p2/p3/p4 sort alphabetically to PlayerId 1/2/3/4. P3 is index 2 (0-based) for the gift_opponent field. The spell costs {2}{B}: generic=2, black=1. P1 has 2 generic (colorless) + 1 black mana available. P2 controls Bladetusk Boar (3/2 Intimidate) as the destroy target. NOTE: The script_schema.rs PlayerAction struct and replay_harness.rs do not currently have a gift_opponent field or cast_spell_gift action type — gift_opponent is hardcoded to None in all harness CastSpell commands. The gift_opponent field documented here is the intended schema extension. Until the harness is updated, this script will run without the gift being granted (gift_opponent: None), causing the conditional loss-of-life branch to fire instead of being skipped, which would make the final assertion fail. A dispute is recorded below.",
+    "disputes": [
+      {
+        "step_index": null,
+        "action_index": null,
+        "raised_by": "claude-sonnet-4-6",
+        "description": "Engine/schema gap: The script_schema.rs PlayerAction struct has no gift_opponent field, and replay_harness.rs hardcodes gift_opponent: None for all cast_spell actions (including the cast_spell action type used here). There is no cast_spell_gift action type. As a result, the harness cannot convey the player's choice of gift opponent to the engine. When gift_opponent is None, the engine treats the gift as not promised, causing P1 to lose 2 life instead of skipping that branch, and P3 does not receive the Food token. The script documents intended correct behavior per CR 702.174a/b/j. A new 'gift_opponent' field on PlayerAction (Option<u32>, 0-based player index) and propagation through translate_player_action are required before this script can pass harness validation.",
+        "resolution": null,
+        "resolved_by": null,
+        "resolved_date": null
+      }
+    ]
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 3,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "black": 1, "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p3": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p4": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Bladetusk Boar", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Nocturnal Hunger", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Nocturnal Hunger with gift promised to P3, targeting P2's Bladetusk Boar. Spell resolves: P3 gets a Food token, Bladetusk Boar is destroyed, P1 does not lose life.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Nocturnal Hunger in P1 hand, Bladetusk Boar on P2 battlefield, P3 battlefield empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "players.p1.life": 40
+          },
+          "note": "Setup verified. P1 has {B}{2} in pool. P2 controls Bladetusk Boar as the destroy target."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Nocturnal Hunger",
+          "targets": [
+            { "type": "permanent", "card": "Bladetusk Boar", "controller": "p2", "player": null }
+          ],
+          "mana_paid": { "black": 1, "colorless": 2 },
+          "mana_source": [],
+          "gift_opponent": 2,
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Nocturnal Hunger paying {2}{B}. CR 702.174a: P1 promises the gift to P3 (gift_opponent index 2, 0-based). Target is P2's Bladetusk Boar."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Nocturnal Hunger on stack, P1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "CR 601.2: Spell moved from hand to stack, awaiting priority passes."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2", "p3", "p4"],
+          "result": "all_pass",
+          "note": "CR 116.3: All four players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Nocturnal Hunger",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p3" },
+              "token": {
+                "name": "Food",
+                "type": "artifact",
+                "subtype": "Food"
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "702.174b",
+              "note": "CR 702.174b: Gift was promised to P3 — P3 creates a Food token before the spell's other effects. Food token is an artifact with '{2}, {T}, Sacrifice: You gain 3 life.'"
+            },
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Bladetusk Boar", "controller": "p2" },
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Nocturnal Hunger's main effect resolves — Bladetusk Boar is destroyed, moving from battlefield to P2's graveyard."
+            }
+          ],
+          "note": "CR 608.2: Nocturnal Hunger resolves. CR 702.174b: Gift effect executes first (Food to P3), then destroy effect. CR 702.174j: Gift was promised, so the 'lose 2 life' conditional is skipped."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: P3 has a Food token, Bladetusk Boar in P2 graveyard, P1 life unchanged at 40, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p2": { "includes": [{ "card": "Bladetusk Boar" }] },
+            "zones.battlefield.p3.count": 1,
+            "players.p1.life": 40,
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.174b: P3 received the Food token. CR 701.7a: Bladetusk Boar was destroyed. CR 702.174j: P1 did not lose 2 life because the gift was promised. NOTE: Until the harness gift_opponent field is implemented, this assertion may fail — see disputes."
+        }
+      ]
+    }
+  ]
+}

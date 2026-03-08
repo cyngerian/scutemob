@@ -344,6 +344,7 @@ fn test_enrage_noncombat_damage_triggers() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CastSpell (Shock) failed");

@@ -251,6 +251,7 @@ fn test_cascade_exiles_until_hit() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -428,6 +429,7 @@ fn test_cascade_skips_lands() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -607,6 +609,7 @@ fn test_cascade_combined_mana_value_skip() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

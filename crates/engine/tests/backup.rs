@@ -96,6 +96,7 @@ fn cast_and_resolve(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -881,6 +882,8 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         modes_chosen: vec![],
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(backup_trigger);
 

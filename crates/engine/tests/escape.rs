@@ -348,6 +348,7 @@ fn test_escape_basic_cast_from_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -490,6 +491,7 @@ fn test_escape_exile_cost_events() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -597,6 +599,7 @@ fn test_escape_permanent_resolves_to_battlefield() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -712,6 +715,7 @@ fn test_escape_was_escaped_flag_on_permanent() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -822,6 +826,7 @@ fn test_escape_with_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -930,6 +935,7 @@ fn test_escape_with_counter_not_applied_when_not_escaped() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1051,6 +1057,7 @@ fn test_escape_insufficient_exile_cards_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1147,6 +1154,7 @@ fn test_escape_duplicate_exile_ids_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1248,6 +1256,7 @@ fn test_escape_exile_card_not_in_graveyard_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1345,6 +1354,7 @@ fn test_escape_on_dual_keyword_card_succeeds() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1454,6 +1464,7 @@ fn test_escape_requires_card_in_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1553,6 +1564,7 @@ fn test_escape_mana_value_unchanged() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1684,6 +1696,7 @@ fn test_escape_auto_detected_from_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1791,6 +1804,7 @@ fn test_escape_exile_cards_get_new_ids_in_exile() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1912,6 +1926,7 @@ fn test_escape_sorcery_resolves_to_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -2044,6 +2059,7 @@ fn test_escape_exile_from_opponent_graveyard_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 

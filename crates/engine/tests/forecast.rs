@@ -710,6 +710,8 @@ fn test_forecast_blocked_by_split_second() {
         modes_chosen: vec![],
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     });
 
     state

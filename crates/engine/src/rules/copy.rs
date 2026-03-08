@@ -243,6 +243,9 @@ pub fn copy_spell_on_stack(
         evidence_collected: original.evidence_collected,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: copies are never gift casts (CR 707.10).
+        gift_was_given: false,
+        gift_opponent: None,
     };
 
     // Push the copy onto the stack (above the original).
@@ -457,6 +460,9 @@ pub fn resolve_cascade(
                 evidence_collected: false,
                 squad_count: 0,
                 offspring_paid: false,
+                // CR 702.174a: cascade/discover free-casts are never gift casts.
+                gift_was_given: false,
+                gift_opponent: None,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -691,6 +697,9 @@ pub fn resolve_discover(
                 evidence_collected: false,
                 squad_count: 0,
                 offspring_paid: false,
+                // CR 702.174a: cascade/discover free-casts are never gift casts.
+                gift_was_given: false,
+                gift_opponent: None,
             };
             state.stack_objects.push_back(stack_obj);
 

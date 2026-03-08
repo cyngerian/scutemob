@@ -261,6 +261,7 @@ fn test_modal_choose_one_mode_zero() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -344,6 +345,7 @@ fn test_modal_choose_one_mode_one() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -419,6 +421,7 @@ fn test_modal_choose_one_mode_two() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -536,6 +539,7 @@ fn test_modal_choose_two_modes() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -606,6 +610,7 @@ fn test_modal_default_auto_selects_mode_zero() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with empty modes_chosen failed: {:?}", e));
@@ -664,6 +669,7 @@ fn test_modal_invalid_index_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -730,6 +736,7 @@ fn test_modal_duplicate_index_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -811,6 +818,7 @@ fn test_modal_too_few_modes_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -864,6 +872,7 @@ fn test_modal_too_many_modes_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1014,6 +1023,7 @@ fn test_modal_entwine_overrides_modes_chosen() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));
@@ -1133,6 +1143,7 @@ fn test_modal_non_modal_spell_with_modes_chosen_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1187,6 +1198,7 @@ fn test_modal_modes_chosen_stored_on_stack_object() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1254,6 +1266,7 @@ fn test_modal_copy_inherits_modes() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -1442,6 +1455,7 @@ fn test_modal_allow_duplicate_modes() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with duplicate modes failed: {:?}", e));

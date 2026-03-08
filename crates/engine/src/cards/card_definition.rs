@@ -641,6 +641,33 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 55.
     Offspring { cost: ManaCost },
+    /// CR 702.174a: Gift a [something] -- two linked abilities.
+    ///
+    /// First ability: "As an additional cost to cast this spell, you may choose an opponent."
+    /// Second ability (permanent): "When this enters, if its gift cost was paid, [effect]."
+    /// Second ability (instant/sorcery): "If this spell's gift cost was paid, [effect]."
+    ///
+    /// The `gift_type` determines what the chosen opponent receives (CR 702.174d-i).
+    ///
+    /// Discriminant 56.
+    Gift { gift_type: GiftType },
+}
+
+/// CR 702.174d-i: The specific gift given to the chosen opponent.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GiftType {
+    /// CR 702.174d: "The chosen player creates a Food token."
+    Food,
+    /// CR 702.174e: "The chosen player draws a card."
+    Card,
+    /// CR 702.174f: "The chosen player creates a tapped 1/1 blue Fish creature token."
+    TappedFish,
+    /// CR 702.174h: "The chosen player creates a Treasure token."
+    Treasure,
+    /// CR 702.174i: "The chosen player creates an 8/8 blue Octopus creature token."
+    Octopus,
+    /// CR 702.174g: "The chosen player takes an extra turn after this one."
+    ExtraTurn,
 }
 
 /// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).
@@ -1310,6 +1337,10 @@ pub enum Condition {
     /// the collect evidence cost will have `evidence_collected == true`.
     /// Checked at resolution time via `EffectContext.evidence_collected`.
     EvidenceWasCollected,
+    /// CR 702.174b: "if this spell's gift cost was paid" / "if its gift cost was paid"
+    /// True when gift_opponent was chosen at cast time. Checked at resolution time
+    /// for instants/sorceries; at ETB trigger resolution for permanents.
+    GiftWasGiven,
 }
 
 // ── Mode Selection ────────────────────────────────────────────────────────────

@@ -296,6 +296,7 @@ fn test_vanishing_etb_counters_on_cast() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CastSpell should succeed");

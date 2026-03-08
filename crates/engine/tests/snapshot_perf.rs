@@ -155,6 +155,8 @@ fn test_clone_independence_object_modification() {
                 evidence_collected: false,
                 squad_count: 0,
                 offspring_paid: false,
+                gift_was_given: false,
+                gift_opponent: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

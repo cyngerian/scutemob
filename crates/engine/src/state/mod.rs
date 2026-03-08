@@ -381,6 +381,9 @@ impl GameState {
             squad_count: 0,
             // CR 702.175a / CR 400.7: offspring_paid is not preserved across zone changes.
             offspring_paid: false,
+            // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
+            gift_was_given: false,
+            gift_opponent: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -544,6 +547,9 @@ impl GameState {
             squad_count: 0,
             // CR 702.175a / CR 400.7: offspring_paid is not preserved across zone changes.
             offspring_paid: false,
+            // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
+            gift_was_given: false,
+            gift_opponent: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

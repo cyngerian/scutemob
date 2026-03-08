@@ -83,6 +83,13 @@ pub struct EffectContext {
     /// Set from StackObject.x_value at resolution so EffectAmount::XValue resolves correctly.
     /// 0 for non-X spells and for abilities that don't carry an X value.
     pub x_value: u32,
+    /// CR 702.174b: If true, this spell was cast with its gift cost paid.
+    /// Used by `Condition::GiftWasGiven`. Set from `StackObject.gift_was_given`
+    /// at spell resolution.
+    pub gift_was_given: bool,
+    /// CR 702.174a: The opponent chosen to receive the gift.
+    /// Set from `StackObject.gift_opponent` at spell resolution.
+    pub gift_opponent: Option<crate::state::PlayerId>,
 }
 
 impl EffectContext {
@@ -99,6 +106,8 @@ impl EffectContext {
             was_cleaved: false,
             evidence_collected: false,
             x_value: 0,
+            gift_was_given: false,
+            gift_opponent: None,
         }
     }
 
@@ -120,6 +129,8 @@ impl EffectContext {
             was_cleaved: false,
             evidence_collected: false,
             x_value: 0,
+            gift_was_given: false,
+            gift_opponent: None,
         }
     }
 
@@ -1522,6 +1533,8 @@ fn execute_effect_inner(
                             was_cleaved: ctx.was_cleaved,
                             evidence_collected: ctx.evidence_collected,
                             x_value: ctx.x_value,
+                            gift_was_given: ctx.gift_was_given,
+                            gift_opponent: ctx.gift_opponent,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -1544,6 +1557,8 @@ fn execute_effect_inner(
                             was_cleaved: ctx.was_cleaved,
                             evidence_collected: ctx.evidence_collected,
                             x_value: ctx.x_value,
+                            gift_was_given: ctx.gift_was_given,
+                            gift_opponent: ctx.gift_opponent,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -2412,6 +2427,7 @@ fn execute_effect_inner(
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -2797,7 +2813,10 @@ fn dest_tapped(zone: &ZoneTarget) -> Option<bool> {
 
 // ── Token creation ────────────────────────────────────────────────────────────
 
-fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: PlayerId) -> GameObject {
+pub fn make_token(
+    spec: &crate::cards::card_definition::TokenSpec,
+    controller: PlayerId,
+) -> GameObject {
     use crate::state::game_object::Characteristics;
     use im::OrdSet;
 
@@ -2898,6 +2917,9 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         // CR 702.157a: Tokens are never cast, so squad_count is always 0.
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: Tokens are never cast, so gift fields are false/None.
+        gift_was_given: false,
+        gift_opponent: None,
     }
 }
 
@@ -3063,6 +3085,7 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         champion_exiled_card: None,
                         soulbond_pair_target: None,
                         squad_count: None,
+                        gift_opponent: None,
                     });
                 }
             }
@@ -3214,6 +3237,8 @@ fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectContext
         Condition::WasCleaved => ctx.was_cleaved,
         // CR 701.59c: "if evidence was collected" — true when collect evidence cost was paid.
         Condition::EvidenceWasCollected => ctx.evidence_collected,
+        // CR 702.174b: "if this spell's gift cost was paid" — true when gift cost was paid.
+        Condition::GiftWasGiven => ctx.gift_was_given,
         // CR 207.2c (Corrupted ability word): "if an opponent has N or more poison counters."
         // In multiplayer Commander, true if ANY living opponent of the controller has >= N
         // poison counters. Eliminated opponents (has_lost == true) are excluded.

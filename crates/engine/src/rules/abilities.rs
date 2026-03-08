@@ -520,6 +520,9 @@ pub fn handle_activate_ability(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -717,6 +720,7 @@ pub fn handle_cycle_card(
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -779,6 +783,9 @@ pub fn handle_cycle_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1035,6 +1042,9 @@ pub fn handle_activate_forecast(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1271,6 +1281,7 @@ pub fn handle_activate_bloodrush(
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
     }
 
@@ -1328,6 +1339,9 @@ pub fn handle_activate_bloodrush(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1519,6 +1533,9 @@ pub fn handle_unearth_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1800,6 +1817,9 @@ pub fn handle_ninjutsu(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2018,6 +2038,9 @@ pub fn handle_embalm_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2245,6 +2268,9 @@ pub fn handle_eternalize_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2471,6 +2497,9 @@ pub fn handle_encore_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2597,6 +2626,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2675,6 +2705,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                         }
                     }
@@ -2742,6 +2773,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -2811,6 +2843,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                         }
                     }
@@ -2894,6 +2927,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             champion_exiled_card: None,
                                             soulbond_pair_target: None,
                                             squad_count: None,
+                gift_opponent: None,
                                         });
                                     }
                                 }
@@ -2972,6 +3006,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                         }
                     }
@@ -3080,6 +3115,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_exiled_card: None,
                                         soulbond_pair_target: Some(partner_id),
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -3170,6 +3206,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_exiled_card: None,
                                         soulbond_pair_target: Some(*object_id),
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -3332,6 +3369,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             champion_exiled_card: None,
                                             soulbond_pair_target: None,
                                             squad_count: None,
+                                            gift_opponent: None,
                                         });
                                     }
                                 }
@@ -3441,6 +3479,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     champion_exiled_card: None,
                                     soulbond_pair_target: None,
                                     squad_count: None,
+                                    gift_opponent: None,
                                 });
                             }
                         }
@@ -3968,6 +4007,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4163,6 +4203,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4244,6 +4285,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4297,6 +4339,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4364,6 +4407,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4493,6 +4537,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: None,
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4604,6 +4649,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -4695,6 +4741,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -4787,6 +4834,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         champion_exiled_card: None,
                                         soulbond_pair_target: None,
                                         squad_count: None,
+                                        gift_opponent: None,
                                     });
                                 }
                             }
@@ -4892,6 +4940,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -4948,6 +4997,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: Some(exiled_card_id),
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -5002,6 +5052,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             champion_exiled_card: Some(exiled_id),
                             soulbond_pair_target: None,
                             squad_count: None,
+                            gift_opponent: None,
                         });
                     }
                 }
@@ -5155,6 +5206,7 @@ fn collect_triggers_for_event(
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -5388,6 +5440,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         evidence_collected: false,
                         squad_count: 0,
                         offspring_paid: false,
+                        // CR 702.174a: triggered ability stack objects are never gift casts.
+                        gift_was_given: false,
+                        gift_opponent: None,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5749,6 +5804,28 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_card_id,
                     }
                 }
+                PendingTriggerKind::GiftETB => {
+                    // CR 702.174b: Gift ETB trigger. The source_object is the permanent
+                    // that entered with gift cost paid. At resolution, gives the chosen
+                    // opponent a gift defined by AbilityDefinition::Gift { gift_type }.
+                    // Capture source_card_id for LKI fallback.
+                    let source_card_id = state
+                        .objects
+                        .get(&trigger.source)
+                        .and_then(|o| o.card_id.clone());
+                    let gift_opponent = match trigger.gift_opponent {
+                        Some(p) => p,
+                        None => {
+                            // No gift opponent — skip this trigger (should not happen).
+                            continue;
+                        }
+                    };
+                    StackObjectKind::GiftETBTrigger {
+                        source_object: trigger.source,
+                        source_card_id,
+                        gift_opponent,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -5802,6 +5879,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // CR 702.157a: triggered ability stack objects have no squad cost payments.
                 squad_count: 0,
                 offspring_paid: false,
+                // CR 702.174a: triggered ability stack objects are never gift casts.
+                gift_was_given: false,
+                gift_opponent: None,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6191,6 +6271,9 @@ pub fn handle_crew_vehicle(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -6446,6 +6529,9 @@ pub fn handle_scavenge_card(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        // CR 702.174a: triggered ability stack objects are never gift casts.
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 

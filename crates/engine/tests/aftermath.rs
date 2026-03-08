@@ -250,6 +250,7 @@ fn test_aftermath_basic_cast_first_half_from_hand() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CR 709.3: casting first half of aftermath card from hand should succeed");
@@ -370,6 +371,7 @@ fn test_aftermath_cast_second_half_from_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -490,6 +492,7 @@ fn test_aftermath_exile_on_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -621,6 +624,7 @@ fn test_aftermath_exile_on_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -675,6 +679,7 @@ fn test_aftermath_exile_on_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -790,6 +795,7 @@ fn test_aftermath_cannot_cast_second_half_from_hand() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -879,6 +885,7 @@ fn test_aftermath_cannot_cast_second_half_without_flag() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -980,6 +987,7 @@ fn test_aftermath_first_half_goes_to_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1088,6 +1096,7 @@ fn test_aftermath_pays_aftermath_cost() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CR 702.127a: aftermath cast with {{2}}{{B}}{{B}} should succeed");
@@ -1188,6 +1197,7 @@ fn test_aftermath_card_without_aftermath_in_graveyard_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1286,6 +1296,7 @@ fn test_aftermath_uses_aftermath_effect() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1402,6 +1413,7 @@ fn test_aftermath_full_lifecycle() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CR 709.3: first half should cast from hand");
@@ -1485,6 +1497,7 @@ fn test_aftermath_full_lifecycle() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CR 702.127a: aftermath half should be castable from graveyard");
@@ -1598,6 +1611,7 @@ fn test_aftermath_insufficient_mana_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 

@@ -74,6 +74,7 @@ fn test_cast_spell_sorcery_speed_happy_path() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -156,6 +157,7 @@ fn test_cast_spell_sorcery_postcombat_main_ok() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(result.is_ok());
@@ -225,6 +227,7 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -293,6 +296,7 @@ fn test_cast_spell_flash_at_instant_speed() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -364,6 +368,7 @@ fn test_cast_spell_lifo_stack_order() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -408,6 +413,7 @@ fn test_cast_spell_lifo_stack_order() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -478,6 +484,7 @@ fn test_cast_spell_not_priority_holder_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(
@@ -543,6 +550,7 @@ fn test_cast_spell_sorcery_during_opponents_turn_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -602,6 +610,7 @@ fn test_cast_spell_sorcery_in_upkeep_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::NotMainPhase)));
@@ -678,6 +687,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -721,6 +731,7 @@ fn test_cast_spell_sorcery_with_nonempty_stack_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::StackNotEmpty)));
@@ -778,6 +789,7 @@ fn test_cast_spell_land_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -838,6 +850,7 @@ fn test_cast_spell_card_not_in_hand_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(matches!(result, Err(GameStateError::InvalidCommand(_))));
@@ -902,6 +915,7 @@ fn test_cast_spell_priority_resets_to_active_player() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

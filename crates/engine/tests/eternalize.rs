@@ -995,6 +995,8 @@ fn test_eternalize_split_second_blocks() {
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     });
 
     let card_obj_id = find_object(&state, "Proven Combatant");

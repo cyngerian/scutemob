@@ -165,6 +165,7 @@ fn cast_creature(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CastSpell failed")
@@ -527,6 +528,7 @@ fn test_alliance_does_not_fire_on_noncreature_permanent_etb() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CastSpell (Sol Ring) failed");

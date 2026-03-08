@@ -534,6 +534,7 @@ fn test_ascend_instant_sorcery_on_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .expect("CastSpell should succeed");

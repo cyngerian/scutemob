@@ -237,6 +237,7 @@ fn test_emerge_basic_sacrifice_reduces_cost() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (MV 3 creature) failed: {:?}", e));
@@ -336,6 +337,7 @@ fn test_emerge_sacrifice_token_mv_zero() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with emerge (token, MV 0) failed: {:?}", e));
@@ -423,6 +425,7 @@ fn test_emerge_sacrifice_high_mv_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| {
@@ -518,6 +521,7 @@ fn test_emerge_sacrifice_must_be_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -600,6 +604,7 @@ fn test_emerge_sacrifice_must_be_own_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -670,6 +675,7 @@ fn test_emerge_without_sacrifice_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -752,6 +758,7 @@ fn test_emerge_mutual_exclusion_with_flashback() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -852,6 +859,7 @@ fn test_emerge_no_keyword_rejects_emerge() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -918,6 +926,7 @@ fn test_emerge_normal_cast_without_emerge() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal cast of emerge creature failed: {:?}", e));
@@ -998,6 +1007,7 @@ fn test_emerge_sacrifice_without_emerge_altcost_fails() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 

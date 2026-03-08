@@ -843,6 +843,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

@@ -102,6 +102,7 @@ fn cast_spell(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
 }

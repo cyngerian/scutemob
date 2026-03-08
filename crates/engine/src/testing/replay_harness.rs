@@ -360,6 +360,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -400,6 +401,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -437,6 +439,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -474,6 +477,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -512,6 +516,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -550,6 +555,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -593,6 +599,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -967,6 +974,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1017,6 +1025,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1055,6 +1064,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1096,6 +1106,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1137,6 +1148,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1175,6 +1187,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1213,6 +1226,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1250,6 +1264,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1287,6 +1302,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1324,6 +1340,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1365,6 +1382,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1410,6 +1428,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: evidence_ids,
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1450,6 +1469,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1488,6 +1508,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1523,6 +1544,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1566,6 +1588,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1608,6 +1631,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1648,6 +1672,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1696,6 +1721,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1731,6 +1757,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1769,6 +1796,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1808,6 +1836,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1852,6 +1881,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1892,6 +1922,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1931,6 +1962,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -1970,6 +2002,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count,
                 offspring_paid: false,
+                gift_opponent: None,
             })
         }
 
@@ -2008,6 +2041,7 @@ pub fn translate_player_action(
                 collect_evidence_cards: vec![],
                 squad_count: 0,
                 offspring_paid: true,
+                gift_opponent: None,
             })
         }
 

@@ -127,6 +127,12 @@ pub enum PendingTriggerKind {
     /// has `KeywordAbility::Offspring` in layer-resolved characteristics.
     /// Resolved to create 1 token copy (except 1/1) of the source creature.
     OffspringETB,
+    /// CR 702.174b: Gift ETB trigger -- fires when the permanent with Gift enters
+    /// the battlefield and its gift cost was paid.
+    /// Intervening-if (CR 603.4): only queued when `gift_was_given == true` AND the permanent
+    /// has `KeywordAbility::Gift` in layer-resolved characteristics.
+    /// Resolved to give the chosen opponent the gift defined by `AbilityDefinition::Gift`.
+    GiftETB,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -373,6 +379,13 @@ pub struct PendingTrigger {
     /// through to `flush_pending_triggers` to build the `SquadTrigger` SOK.
     #[serde(default)]
     pub squad_count: Option<u32>,
+    /// CR 702.174a: The opponent chosen to receive the gift at cast time.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::GiftETB`.
+    /// Carried from resolution.rs (where it's read from the permanent's gift_opponent)
+    /// through to `flush_pending_triggers` to build the `GiftETBTrigger` SOK.
+    #[serde(default)]
+    pub gift_opponent: Option<crate::state::PlayerId>,
 }
 
 impl PendingTriggerKind {

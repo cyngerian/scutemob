@@ -91,6 +91,7 @@ fn test_608_1_sorcery_resolves_to_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -179,6 +180,7 @@ fn test_608_1_instant_resolves_to_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -255,6 +257,7 @@ fn test_608_3a_creature_enters_battlefield() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -350,6 +353,7 @@ fn test_608_3a_artifact_enters_battlefield() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -425,6 +429,7 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -521,6 +526,7 @@ fn test_608_1_lifo_resolves_top_first() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -558,6 +564,7 @@ fn test_608_1_lifo_resolves_top_first() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -684,6 +691,7 @@ fn test_counter_stack_object_spell_to_graveyard() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -782,6 +790,7 @@ fn test_counter_stack_object_permanent_to_graveyard_not_battlefield() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -869,6 +878,7 @@ fn test_608_flash_creature_resolves_to_battlefield() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

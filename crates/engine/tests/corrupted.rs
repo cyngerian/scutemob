@@ -121,6 +121,7 @@ fn cast_corrupted_creature(state: GameState, player: PlayerId, name: &str) -> Ga
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell ({}) failed: {:?}", name, e))

@@ -241,6 +241,7 @@ fn test_entwine_basic_both_modes_execute() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine_paid failed: {:?}", e));
@@ -368,6 +369,7 @@ fn test_entwine_not_paid_only_first_mode() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast without entwine failed: {:?}", e));
@@ -479,6 +481,7 @@ fn test_entwine_insufficient_mana_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -556,6 +559,7 @@ fn test_entwine_no_keyword_rejected() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -667,6 +671,7 @@ fn test_entwine_modes_in_printed_order() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast failed: {:?}", e));
@@ -766,6 +771,7 @@ fn test_entwine_was_entwined_flag_on_stack() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("cast with entwine failed: {:?}", e));

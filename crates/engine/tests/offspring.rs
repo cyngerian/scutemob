@@ -224,6 +224,7 @@ fn cast_offspring(
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| {
@@ -453,6 +454,7 @@ fn test_offspring_rejected_without_keyword() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: true, // trying to pay offspring cost on non-offspring creature
+            gift_opponent: None,
         },
     );
 
@@ -624,7 +626,11 @@ fn test_offspring_token_pt_is_layer7b_known_deviation() {
         .map(|(id, _)| *id)
         .collect();
 
-    assert_eq!(tokens.len(), 1, "should have exactly 1 Offspring token on battlefield");
+    assert_eq!(
+        tokens.len(),
+        1,
+        "should have exactly 1 Offspring token on battlefield"
+    );
 
     let token_id = tokens[0];
     let chars = calculate_characteristics(&state, token_id)

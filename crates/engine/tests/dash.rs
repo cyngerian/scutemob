@@ -175,6 +175,7 @@ fn test_dash_basic_cast_with_dash_cost() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -294,6 +295,7 @@ fn test_dash_normal_cast_no_return() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("Normal CastSpell failed: {:?}", e));
@@ -398,6 +400,7 @@ fn test_dash_return_to_hand_at_end_step() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -509,6 +512,7 @@ fn test_dash_creature_left_battlefield_before_end_step() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with dash failed: {:?}", e));
@@ -680,6 +684,7 @@ fn test_dash_alternative_cost_exclusivity_with_flashback() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -757,6 +762,7 @@ fn test_dash_cannot_combine_with_evoke() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -888,6 +894,7 @@ fn test_dash_commander_tax_applies() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -934,6 +941,7 @@ fn test_dash_commander_tax_applies() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(

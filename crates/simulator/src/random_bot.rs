@@ -163,6 +163,7 @@ pub(crate) fn action_to_command(
             collect_evidence_cards: Vec::new(),
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
         LegalAction::TapForMana {
             source,

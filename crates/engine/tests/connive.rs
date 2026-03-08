@@ -199,6 +199,7 @@ fn test_connive_basic_nonland_discard_adds_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -341,6 +342,7 @@ fn test_connive_land_discard_no_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -470,6 +472,7 @@ fn test_connive_n_multiple_draws_and_discards() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -591,6 +594,7 @@ fn test_connive_empty_library_still_connives() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -711,6 +715,7 @@ fn test_connive_etb_trigger_on_creature() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -844,6 +849,7 @@ fn test_connive_self_trigger_fires_on_connive() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1015,6 +1021,7 @@ fn test_connive_creature_left_battlefield_no_counter() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();

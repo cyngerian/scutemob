@@ -105,6 +105,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -183,6 +184,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -262,6 +264,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -342,6 +345,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -419,6 +423,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -517,6 +522,7 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 champion_exiled_card: None,
                 soulbond_pair_target: None,
                 squad_count: None,
+                gift_opponent: None,
             });
         }
     }
@@ -582,6 +588,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -648,6 +655,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -706,6 +714,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -764,6 +773,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -831,6 +841,7 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             champion_exiled_card: None,
             soulbond_pair_target: None,
             squad_count: None,
+            gift_opponent: None,
         });
     }
 
@@ -1268,6 +1279,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         champion_exiled_card: None,
                         soulbond_pair_target: None,
                         squad_count: None,
+                        gift_opponent: None,
                     });
                 }
             }

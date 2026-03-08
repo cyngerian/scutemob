@@ -195,6 +195,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::OffspringTrigger { source_object, .. } => {
                     ("Offspring trigger: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::GiftETBTrigger { source_object, .. } => {
+                    ("Gift ETB trigger: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

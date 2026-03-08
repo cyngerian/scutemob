@@ -918,6 +918,8 @@ fn test_ninjutsu_split_second_blocks() {
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     };
     state.stack_objects.push_back(stack_obj);
 

@@ -412,6 +412,7 @@ fn test_plot_cannot_cast_same_turn() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -490,6 +491,7 @@ fn test_plot_cast_from_exile_on_later_turn() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -578,6 +580,7 @@ fn test_plot_free_cast_costs_zero() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -708,6 +711,8 @@ fn test_plot_requires_main_phase_empty_stack() {
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     });
 
     let result = process_command(
@@ -792,6 +797,7 @@ fn test_plot_free_cast_requires_sorcery_timing() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1052,6 +1058,7 @@ fn test_plot_mutual_exclusion_not_plotted_card() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1202,6 +1209,7 @@ fn test_plot_mana_value_unchanged_on_stack() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     )
     .unwrap();
@@ -1308,6 +1316,8 @@ fn test_plot_free_cast_requires_empty_stack() {
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     });
 
     let result = process_command(
@@ -1341,6 +1351,7 @@ fn test_plot_free_cast_requires_empty_stack() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1416,6 +1427,7 @@ fn test_plot_free_cast_requires_own_turn() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1498,6 +1510,7 @@ fn test_plot_normal_cast_still_works() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1573,6 +1586,7 @@ fn test_plot_cast_postcombat_main_phase() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1704,6 +1718,7 @@ fn test_plot_turn_tracking_boundary() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(
@@ -1744,6 +1759,7 @@ fn test_plot_turn_tracking_boundary() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
     assert!(

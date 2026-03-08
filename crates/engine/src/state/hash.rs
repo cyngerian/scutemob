@@ -665,6 +665,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Squad => 137u8.hash_into(hasher),
             // Offspring (discriminant 138) -- CR 702.175a
             KeywordAbility::Offspring => 138u8.hash_into(hasher),
+            // Gift (discriminant 139) -- CR 702.174
+            KeywordAbility::Gift => 139u8.hash_into(hasher),
         }
     }
 }
@@ -881,6 +883,9 @@ impl HashInto for GameObject {
         self.squad_count.hash_into(hasher);
         // Offspring (CR 702.175a) — whether offspring cost was paid at cast time
         self.offspring_paid.hash_into(hasher);
+        // Gift (CR 702.174a) — whether gift cost was paid and who was chosen
+        self.gift_was_given.hash_into(hasher);
+        self.gift_opponent.hash_into(hasher);
     }
 }
 
@@ -1366,6 +1371,8 @@ impl HashInto for PendingTrigger {
         // CR 702.165a: backup-specific fields
         self.backup_abilities.hash_into(hasher);
         self.backup_n.hash_into(hasher);
+        // CR 702.174a: gift-specific field
+        self.gift_opponent.hash_into(hasher);
     }
 }
 
@@ -2003,6 +2010,17 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 source_card_id.hash_into(hasher);
             }
+            // GiftETBTrigger (discriminant 54) -- CR 702.174b
+            StackObjectKind::GiftETBTrigger {
+                source_object,
+                source_card_id,
+                gift_opponent,
+            } => {
+                54u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                gift_opponent.hash_into(hasher);
+            }
         }
     }
 }
@@ -2111,6 +2129,9 @@ impl HashInto for StackObject {
         self.squad_count.hash_into(hasher);
         // Offspring (CR 702.175a) — whether offspring cost was paid
         self.offspring_paid.hash_into(hasher);
+        // Gift (CR 702.174a) — whether gift cost was paid and who was chosen as opponent
+        self.gift_was_given.hash_into(hasher);
+        self.gift_opponent.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3352,6 +3373,8 @@ impl HashInto for Condition {
             }
             // EvidenceWasCollected condition (discriminant 13) — CR 701.59c
             Condition::EvidenceWasCollected => 13u8.hash_into(hasher),
+            // GiftWasGiven condition (discriminant 14) — CR 702.174b
+            Condition::GiftWasGiven => 14u8.hash_into(hasher),
         }
     }
 }
@@ -4041,6 +4064,11 @@ impl HashInto for AbilityDefinition {
                 55u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // Gift (discriminant 56) -- CR 702.174a
+            AbilityDefinition::Gift { gift_type } => {
+                56u8.hash_into(hasher);
+                gift_type.hash_into(hasher);
+            }
         }
     }
 }
@@ -4049,6 +4077,20 @@ impl HashInto for SoulbondGrant {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.layer.hash_into(hasher);
         self.modification.hash_into(hasher);
+    }
+}
+
+impl HashInto for crate::cards::card_definition::GiftType {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::cards::card_definition::GiftType;
+        match self {
+            GiftType::Food => 0u8.hash_into(hasher),
+            GiftType::Card => 1u8.hash_into(hasher),
+            GiftType::TappedFish => 2u8.hash_into(hasher),
+            GiftType::Treasure => 3u8.hash_into(hasher),
+            GiftType::Octopus => 4u8.hash_into(hasher),
+            GiftType::ExtraTurn => 5u8.hash_into(hasher),
+        }
     }
 }
 

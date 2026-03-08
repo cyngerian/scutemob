@@ -121,6 +121,8 @@ fn make_hideaway_trigger_stack_obj(
         evidence_collected: false,
         squad_count: 0,
         offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
     }
 }
 

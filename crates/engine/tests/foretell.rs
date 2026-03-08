@@ -439,6 +439,7 @@ fn test_foretell_cannot_cast_same_turn() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -555,6 +556,7 @@ fn test_foretell_cast_from_exile_on_later_turn() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -938,6 +940,7 @@ fn test_foretell_mutual_exclusion_with_escape() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1051,6 +1054,7 @@ fn test_foretell_mutual_exclusion_with_evoke() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1160,6 +1164,7 @@ fn test_foretell_sorcery_timing_restriction() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1269,6 +1274,7 @@ fn test_foretell_instant_timing() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1504,6 +1510,7 @@ fn test_foretell_card_requires_cast_with_foretell_flag() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 
@@ -1642,6 +1649,7 @@ fn test_foretell_requires_is_foretold_flag() {
             collect_evidence_cards: vec![],
             squad_count: 0,
             offspring_paid: false,
+            gift_opponent: None,
         },
     );
 

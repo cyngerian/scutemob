@@ -327,6 +327,36 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 ctx.evidence_collected = stack_obj.evidence_collected;
                                 // CR 107.3m: Propagate X value to effect context.
                                 ctx.x_value = stack_obj.x_value;
+                                // CR 702.174b: Pass gift status so Condition::GiftWasGiven works.
+                                ctx.gift_was_given = stack_obj.gift_was_given;
+                                ctx.gift_opponent = stack_obj.gift_opponent;
+
+                                // CR 702.174j: For instant/sorcery spells, the gift effect always
+                                // happens BEFORE any other spell abilities of the card.
+                                // Only execute if gift cost was paid AND it's an instant/sorcery.
+                                if stack_obj.gift_was_given && !is_permanent {
+                                    if let Some(opponent) = stack_obj.gift_opponent {
+                                        // Look up the gift type from the card definition.
+                                        // `def` is already in scope from the enclosing
+                                        // `if let Some(def) = registry.get(cid)` block.
+                                        let gift_type_opt = def.abilities.iter().find_map(|a| {
+                                            if let crate::cards::card_definition::AbilityDefinition::Gift {
+                                                gift_type,
+                                            } = a
+                                            {
+                                                Some(gift_type.clone())
+                                            } else {
+                                                None
+                                            }
+                                        });
+                                        if let Some(gift_type) = gift_type_opt {
+                                            let gift_events = execute_gift_effect(
+                                                state, opponent, controller, &gift_type,
+                                            );
+                                            events.extend(gift_events);
+                                        }
+                                    }
+                                }
 
                                 // CR 702.42b: Execute each effect in order. For entwined spells,
                                 // state changes from earlier modes are visible to later modes.
@@ -443,6 +473,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.175a: Transfer offspring_paid from stack to permanent for the
                     // OffspringETB trigger to read at trigger-collection time.
                     obj.offspring_paid = stack_obj.offspring_paid;
+                    // CR 702.174a: Transfer gift status from stack to permanent for the
+                    // GiftETB trigger to read at trigger-collection time.
+                    obj.gift_was_given = stack_obj.gift_was_given;
+                    obj.gift_opponent = stack_obj.gift_opponent;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -1241,6 +1275,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                     }
 
@@ -1305,6 +1340,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: Some(permanent_squad_count),
+                                // CR 702.174a: SquadETB triggers are not gift casts.
+                                gift_opponent: None,
                             });
                     }
 
@@ -1368,7 +1405,75 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
+                    }
+
+                    // CR 702.174b: Gift ETB trigger -- "When this permanent enters, if its
+                    // gift cost was paid, [give the gift to the chosen opponent]."
+                    //
+                    // CR 603.4: Intervening-if -- only queue if gift_was_given == true AND the
+                    // permanent has KeywordAbility::Gift in layer-resolved characteristics.
+                    let has_gift = {
+                        let chars = crate::rules::layers::calculate_characteristics(state, new_id);
+                        chars
+                            .map(|c| c.keywords.contains(&KeywordAbility::Gift))
+                            .unwrap_or(false)
+                    };
+                    let permanent_gift_was_given = state
+                        .objects
+                        .get(&new_id)
+                        .map(|o| o.gift_was_given)
+                        .unwrap_or(false);
+                    let permanent_gift_opponent =
+                        state.objects.get(&new_id).and_then(|o| o.gift_opponent);
+                    if has_gift && permanent_gift_was_given {
+                        if let Some(gift_opp) = permanent_gift_opponent {
+                            state
+                                .pending_triggers
+                                .push_back(crate::state::stubs::PendingTrigger {
+                                    source: new_id,
+                                    ability_index: 0,
+                                    controller: stack_obj.controller,
+                                    kind: crate::state::stubs::PendingTriggerKind::GiftETB,
+                                    triggering_event: None,
+                                    entering_object_id: None,
+                                    targeting_stack_id: None,
+                                    triggering_player: None,
+                                    exalted_attacker_id: None,
+                                    defending_player_id: None,
+                                    madness_exiled_card: None,
+                                    madness_cost: None,
+                                    miracle_revealed_card: None,
+                                    miracle_cost: None,
+                                    modular_counter_count: None,
+                                    evolve_entering_creature: None,
+                                    suspend_card_id: None,
+                                    hideaway_count: None,
+                                    partner_with_name: None,
+                                    ingest_target_player: None,
+                                    flanking_blocker_id: None,
+                                    rampage_n: None,
+                                    provoke_target_creature: None,
+                                    renown_n: None,
+                                    poisonous_n: None,
+                                    poisonous_target_player: None,
+                                    enlist_enlisted_creature: None,
+                                    encore_activator: None,
+                                    echo_cost: None,
+                                    cumulative_upkeep_cost: None,
+                                    recover_cost: None,
+                                    recover_card: None,
+                                    graft_entering_creature: None,
+                                    backup_abilities: None,
+                                    backup_n: None,
+                                    champion_filter: None,
+                                    champion_exiled_card: None,
+                                    soulbond_pair_target: None,
+                                    squad_count: None,
+                                    gift_opponent: Some(gift_opp),
+                                });
+                        }
                     }
                 }
 
@@ -1863,6 +1968,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                     }
                 }
@@ -3593,6 +3699,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // (not cast, so cannot trigger their own squad ETB trigger).
                         squad_count: 0,
                         offspring_paid: false,
+                        // CR 702.174a: tokens/copies are never gift casts.
+                        gift_was_given: false,
+                        gift_opponent: None,
                     };
 
                     // Add the token to the battlefield.
@@ -3776,6 +3885,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 squad_count: 0,
                 // CR 702.175a: Offspring tokens are never cast, so offspring_paid is always false.
                 offspring_paid: false,
+                // CR 702.174a: tokens/copies are never gift casts.
+                gift_was_given: false,
+                gift_opponent: None,
             };
 
             // Add the token to the battlefield.
@@ -3850,6 +3962,86 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 player: controller,
                 object_id: token_id,
             });
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.174b: Gift ETB trigger resolution.
+        //
+        // "When this permanent enters, if its gift cost was paid, [gift effect]."
+        //
+        // CR 603.4: Intervening-if re-check — the permanent must still have
+        // KeywordAbility::Gift in layer-resolved characteristics.
+        //
+        // The gift effect is determined by the `AbilityDefinition::Gift { gift_type }` on the
+        // card definition. The gift_opponent receives the gift (token, draw, or extra turn).
+        //
+        // CR 702.174d-i: Gift types and their effects:
+        //   Food     (702.174d): chosen player creates a Food token
+        //   Card     (702.174e): chosen player draws a card
+        //   Treasure (702.174h): chosen player creates a Treasure token
+        //   TappedFish/Octopus/ExtraTurn: other effects (partially deferred)
+        StackObjectKind::GiftETBTrigger {
+            source_object,
+            source_card_id,
+            gift_opponent,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 603.4: Intervening-if re-check — source must still have Gift keyword.
+            let source_on_battlefield = state
+                .objects
+                .get(&source_object)
+                .is_some_and(|o| o.zone == ZoneId::Battlefield);
+            if source_on_battlefield {
+                let has_gift = {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, source_object);
+                    chars
+                        .map(|c| c.keywords.contains(&KeywordAbility::Gift))
+                        .unwrap_or(false)
+                };
+                if !has_gift {
+                    // CR 603.4: Intervening-if failed; source no longer has Gift.
+                    events.push(GameEvent::AbilityResolved {
+                        controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                    return Ok(events);
+                }
+            }
+
+            // Look up the gift type from the card definition.
+            // Use source_card_id for LKI fallback if source has left the battlefield.
+            let card_id_for_lookup = state
+                .objects
+                .get(&source_object)
+                .filter(|o| o.zone == ZoneId::Battlefield)
+                .and_then(|o| o.card_id.clone())
+                .or_else(|| source_card_id.clone());
+
+            let gift_type = card_id_for_lookup
+                .and_then(|cid| state.card_registry.get(cid))
+                .and_then(|def| {
+                    def.abilities.iter().find_map(|a| {
+                        if let crate::cards::card_definition::AbilityDefinition::Gift {
+                            gift_type,
+                        } = a
+                        {
+                            Some(gift_type.clone())
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+            if let Some(gift_type) = gift_type {
+                let gift_events = execute_gift_effect(state, gift_opponent, controller, &gift_type);
+                events.extend(gift_events);
+            }
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -4153,6 +4345,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     squad_count: 0,
                     // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
                     offspring_paid: false,
+                    // CR 702.174a: tokens/copies are never gift casts.
+                    gift_was_given: false,
+                    gift_opponent: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4289,6 +4484,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: None,
+                                gift_opponent: None,
                             });
                     }
                 }
@@ -4402,6 +4598,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.157a: suspend free-casts have no squad cost payments.
                             squad_count: 0,
                             offspring_paid: false,
+                            // CR 702.174a: tokens/copies are never gift casts.
+                            gift_was_given: false,
+                            gift_opponent: None,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -5287,6 +5486,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     squad_count: 0,
                     // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
                     offspring_paid: false,
+                    // CR 702.174a: tokens/copies are never gift casts.
+                    gift_was_given: false,
+                    gift_opponent: None,
                 };
 
                 // Add the token to the battlefield.
@@ -5488,6 +5690,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     squad_count: 0,
                     // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
                     offspring_paid: false,
+                    // CR 702.174a: tokens/copies are never gift casts.
+                    gift_was_given: false,
+                    gift_opponent: None,
                 };
 
                 // Add the token to the battlefield.
@@ -5707,6 +5912,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.157a: Tokens are never cast, so squad_count is always 0.
                         squad_count: 0,
                         offspring_paid: false,
+                        // CR 702.174a: tokens/copies are never gift casts.
+                        gift_was_given: false,
+                        gift_opponent: None,
                     };
 
                     // Add the token to the battlefield.
@@ -5908,6 +6116,77 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     Ok(events)
 }
 
+/// CR 702.174d-i: Execute the gift effect for a specific opponent.
+///
+/// Called at resolution time for both instant/sorcery spells (before main effect, CR 702.174j)
+/// and for GiftETBTrigger resolution. The `recipient` is the chosen opponent who receives the
+/// gift. The `controller` is the source permanent/spell's controller.
+///
+/// Gift types and effects (CR 702.174d-i):
+///   Food     (702.174d): recipient creates a Food token
+///   Card     (702.174e): recipient draws a card
+///   Treasure (702.174h): recipient creates a Treasure token
+///   TappedFish (702.174f): recipient creates a tapped 1/1 blue Fish creature token (deferred)
+///   Octopus  (702.174i): recipient creates an 8/8 blue Octopus creature token (deferred)
+///   ExtraTurn (702.174g): recipient takes an extra turn (deferred)
+fn execute_gift_effect(
+    state: &mut GameState,
+    recipient: crate::state::PlayerId,
+    _controller: crate::state::PlayerId,
+    gift_type: &crate::cards::card_definition::GiftType,
+) -> Vec<GameEvent> {
+    use crate::cards::card_definition::{food_token_spec, treasure_token_spec, GiftType};
+
+    let mut events = vec![];
+
+    match gift_type {
+        GiftType::Food => {
+            // CR 702.174d: "The chosen player creates a Food token."
+            let spec = food_token_spec(1);
+            let obj = crate::effects::make_token(&spec, recipient);
+            if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                events.push(GameEvent::TokenCreated {
+                    player: recipient,
+                    object_id: id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: recipient,
+                    object_id: id,
+                });
+            }
+        }
+        GiftType::Card => {
+            // CR 702.174e: "The chosen player draws a card."
+            if let Ok(draw_events) = crate::rules::turn_actions::draw_card(state, recipient) {
+                events.extend(draw_events);
+            }
+        }
+        GiftType::Treasure => {
+            // CR 702.174h: "The chosen player creates a Treasure token."
+            let spec = treasure_token_spec(1);
+            let obj = crate::effects::make_token(&spec, recipient);
+            if let Ok(id) = state.add_object(obj, ZoneId::Battlefield) {
+                events.push(GameEvent::TokenCreated {
+                    player: recipient,
+                    object_id: id,
+                });
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: recipient,
+                    object_id: id,
+                });
+            }
+        }
+        GiftType::TappedFish | GiftType::Octopus | GiftType::ExtraTurn => {
+            // CR 702.174f/i/g: TappedFish, Octopus, ExtraTurn gifts -- deferred.
+            // No cards with these gift types are currently in scope.
+            // The ability fires but no effect is applied.
+            let _ = recipient;
+        }
+    }
+
+    events
+}
+
 /// CR 608.2b: Check whether a spell target is still legal at resolution time.
 ///
 /// A target is illegal if:
@@ -6025,7 +6304,8 @@ pub fn counter_stack_object(
         | StackObjectKind::RavenousDrawTrigger { .. }
         | StackObjectKind::BloodrushAbility { .. }
         | StackObjectKind::SquadTrigger { .. }
-        | StackObjectKind::OffspringTrigger { .. } => {
+        | StackObjectKind::OffspringTrigger { .. }
+        | StackObjectKind::GiftETBTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No
