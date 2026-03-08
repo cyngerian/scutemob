@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 13: Newer Set Mechanics (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle) | ACTIVE | 2026-03-07 | Chained run — all 8 abilities, no intervention; KW 136, AbilDef 53, SOK 52 |
+| W1: Abilities | Batch 13 complete. Batch 14 next. | available | — | KW 140, AbilDef 56, SOK 55 — next: KW 141, AbilDef 57, SOK 56 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -18,6 +18,36 @@
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred)
+
+## Last Handoff
+
+**Date**: 2026-03-07
+**Workstream**: W1: Abilities — Batch 13
+
+Batch 13 complete. All 8 abilities implemented, reviewed, card+script+coverage done:
+- Discover (CR 701.57): Effect::Discover fires inline on ETB; MV <= N filter, optional cast or hand; 7 tests; card: Geological Appraiser; script 179. Review: clean.
+- Suspect (CR 701.60): is_suspected: bool on GameObject; grants Menace (layers.rs) + can't-block (combat.rs); 9 tests; card: Frantic Scapegoat; script 180. Review: clean.
+- Collect Evidence (CR 701.59): collect_evidence_cards Vec + evidence_collected bool on CastSpell; GY exile sum >= threshold; Condition::EvidenceWasCollected; 11 tests; card: Crimestopper Sprite; script 181. Review: clean. MEDIUM fix: ctx.evidence_collected missing from main resolution path.
+- Forage (CR 701.61): ActivationCost { forage: true } (food sacrifice OR exile 3 GY cards); 7 tests; card: Camellia the Seedmiser (Menace only — Forage activated is DSL gap: Cost enum lacks Forage variant); script 182. Review: clean.
+- Squad (CR 702.157): squad_count: u32 additional cost; SquadTrigger SOK 52; ETB creates N token copies (Myriad pattern); 6 tests; card: Ultramarines Honour Guard; script 183. Review: clean (2 LOW).
+- Offspring (CR 702.175): offspring_paid: bool; OffspringTrigger SOK 53; creates 1/1 copy (Layer 7b — CR 707.9b deviation TODO'd); LKI via source_card_id if source leaves before trigger resolves; 7 tests; card: Flowerfoot Swordmaster; script 184. Review: 1 MEDIUM fixed (Layer 7b deviation documented).
+- Gift (CR 702.174): GiftType enum; gift_was_given+gift_opponent; GiftETBTrigger SOK 54; Condition::GiftWasGiven; instant effect fires BEFORE main effect; 8 tests; card: Nocturnal Hunger; script 185 (pending_review — harness lacks gift_opponent wiring). Review: 1 HIGH fixed (StackObject hash missing gift fields) + 1 MEDIUM fixed (!is_permanent guard). Coverage: complete (not validated — harness gap).
+- Saddle (CR 702.171): is_saddled: bool; sorcery-speed activation; SaddleAbility SOK 55; clears at cleanup; 14 tests; card: Quilled Charger; script 186. Review: clean (1 LOW).
+
+1792 tests (+29). 171 validated (+6). P4 77/88. Scripts 179-186. 8 new cards.
+
+**Next**: Claim W1-B14. Check docs/ability-batch-plan.md for Batch 14 contents.
+
+**Discriminant chain end of B13**: KW 140, AbilDef 56, SOK 55. Next: KW 141, AbilDef 57, SOK 56.
+
+**Hazards**:
+- All B13 CRs were wrong in the batch plan — planner MCP-verified each and corrected. Trust planner over batch plan.
+- Gift harness gap: cast_spell_gift action doesn't wire gift_opponent → script 185 pending_review. Fix: add Option<u32> gift_opponent to PlayerAction schema in script_schema.rs and propagate through translate_player_action in replay_harness.rs.
+- Forage DSL gap: Cost enum lacks Forage variant — Forage activated abilities can't be expressed in CardDefinition. Workaround: unit tests use ActivationCost { forage: true } directly. Fix: add Cost::Forage.
+- Offspring Layer 7b deviation: 1/1 override not part of copiable values (CR 707.9b). Clone of token gets wrong P/T. TODO documented in resolution.rs.
+
+**Commit**: c279fb4 W1-B13: Saddle (CR 702.171)
+**Commit prefix used**: W1-B13:
 
 ## Last Handoff
 

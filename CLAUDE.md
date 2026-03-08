@@ -12,9 +12,9 @@
 ## Current State
 
 - **Active Milestone**: M9.5 DONE — strategic review complete, pre-M10 work next
-- **Status**: 1785 tests passing; ~168 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 74/88 P4; Batch 0-12 complete; Batch 13 in-progress (Discover, Suspect, Collect Evidence, Forage done); 0 HIGH/MEDIUM; ~40 LOW deferred
+- **Status**: 1792 tests passing; ~171 validated; 40/42 P1; 17/17 P2 (all done!); 37/40 P3; 77/88 P4; Batch 0-13 complete; Batch 14 next; 0 HIGH/MEDIUM; ~40 LOW deferred
 - **Strategic Review**: `docs/mtg-engine-strategic-review.md` — decouple M11 from M10, split M10, downscope M12, prioritize Transform/Morph, web-vs-Tauri decision pending
-- **Last Updated**: 2026-03-07 (B13 in-progress)
+- **Last Updated**: 2026-03-07
 
 ### What Exists (M9.5 complete + 71 abilities through Batch 11, includes M0-M9 + Engine Core Complete checkpoint)
 - `cards/`: CardDefinition framework (30+ Effect primitives), 112 hand-authored cards (all definitions correct — no simplifications), CardRegistry
