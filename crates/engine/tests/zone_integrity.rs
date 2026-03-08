@@ -216,6 +216,7 @@ fn test_add_object_to_state() {
         x_value: 0,
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
 
     let id = state.add_object(obj, ZoneId::Battlefield).unwrap();

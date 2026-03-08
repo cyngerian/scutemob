@@ -120,6 +120,7 @@ fn make_hideaway_trigger_stack_obj(
         x_value: 0,
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     }
 }
 

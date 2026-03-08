@@ -217,6 +217,7 @@ fn test_riot_enters_with_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -337,6 +338,7 @@ fn test_riot_creature_has_correct_stats() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -439,6 +441,7 @@ fn test_riot_keyword_present_on_permanent() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -543,6 +546,7 @@ fn test_riot_multiple_instances_each_add_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e));
@@ -660,6 +664,7 @@ fn test_riot_no_counters_on_non_riot_creature() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

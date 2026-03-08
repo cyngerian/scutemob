@@ -242,6 +242,7 @@ pub fn copy_spell_on_stack(
         // had the collect evidence cost paid (CR 707.2 — copies copy choices made during casting).
         evidence_collected: original.evidence_collected,
         squad_count: 0,
+        offspring_paid: false,
     };
 
     // Push the copy onto the stack (above the original).
@@ -455,6 +456,7 @@ pub fn resolve_cascade(
                 // CR 701.59c: cascade free-cast spells are not collect evidence casts.
                 evidence_collected: false,
                 squad_count: 0,
+                offspring_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -688,6 +690,7 @@ pub fn resolve_discover(
                 // CR 701.59c: discover free-cast spells are not collect evidence casts.
                 evidence_collected: false,
                 squad_count: 0,
+                offspring_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 

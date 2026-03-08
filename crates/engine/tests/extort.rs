@@ -186,6 +186,7 @@ fn test_extort_basic_drain_on_spell_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -317,6 +318,7 @@ fn test_extort_triggers_on_creature_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -412,6 +414,7 @@ fn test_extort_does_not_trigger_for_opponent_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -518,6 +521,7 @@ fn test_extort_multiple_instances_trigger_separately() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -652,6 +656,7 @@ fn test_extort_does_not_target_hits_all_opponents() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -751,6 +756,7 @@ fn test_extort_resolves_before_triggering_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -865,6 +871,7 @@ fn test_extort_multiplayer_4_player_drain() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

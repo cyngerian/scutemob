@@ -281,6 +281,7 @@ fn test_jump_start_basic_cast_from_graveyard() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -416,6 +417,7 @@ fn test_jump_start_exile_on_resolution() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -544,6 +546,7 @@ fn test_jump_start_exile_on_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -597,6 +600,7 @@ fn test_jump_start_exile_on_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -709,6 +713,7 @@ fn test_jump_start_sorcery_timing() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -797,6 +802,7 @@ fn test_jump_start_non_jump_start_card_cannot_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -898,6 +904,7 @@ fn test_jump_start_pays_normal_mana_cost() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -995,6 +1002,7 @@ fn test_jump_start_discard_required() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1090,6 +1098,7 @@ fn test_jump_start_discard_must_be_in_hand() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1191,6 +1200,7 @@ fn test_jump_start_discard_any_card() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1286,6 +1296,7 @@ fn test_jump_start_normal_hand_cast_not_exiled() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1398,6 +1409,7 @@ fn test_jump_start_flag_set_on_stack() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1495,6 +1507,7 @@ fn test_jump_start_insufficient_mana_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 

@@ -442,6 +442,7 @@ fn test_702_18_shroud_prevents_targeting() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -523,6 +524,7 @@ fn test_702_11_hexproof_blocks_opponent_targeting() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1174,6 +1176,7 @@ fn test_cc22_hexproof_does_not_block_global_effects() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("casting Wrath of God failed");

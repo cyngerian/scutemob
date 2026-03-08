@@ -214,6 +214,7 @@ fn test_ward_basic_counter_on_targeting() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -356,6 +357,7 @@ fn test_ward_does_not_trigger_for_controller() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -463,6 +465,7 @@ fn test_ward_does_not_trigger_for_non_targeting_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -668,6 +671,7 @@ fn test_ward_cant_be_countered_spell_resolves_normally() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -849,6 +853,7 @@ fn test_ward_multiple_targets_trigger_separately() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -959,6 +964,7 @@ fn test_ward_multiplayer_opponent_check() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

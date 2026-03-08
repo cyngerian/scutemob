@@ -295,6 +295,11 @@ pub struct StackObject {
     /// the ETB trigger that creates N token copies of the creature.
     #[serde(default)]
     pub squad_count: u32,
+    /// CR 702.175a: Whether the offspring cost was paid. false = not paid (no token).
+    /// Propagated from CastSpell.offspring_paid at cast time; read at resolution for
+    /// the ETB trigger that creates 1 token copy (except 1/1) of the creature.
+    #[serde(default)]
+    pub offspring_paid: bool,
 }
 
 /// The kind of object on the stack.
@@ -1136,5 +1141,27 @@ pub enum StackObjectKind {
         source_object: ObjectId,
         /// How many times the squad cost was paid at cast time (immutable after cast).
         squad_count: u32,
+    },
+    /// CR 702.175a: Offspring triggered ability -- fires when the creature with Offspring
+    /// enters the battlefield, if its offspring cost was paid.
+    /// Resolves to create 1 token that's a copy of the source creature, except it's 1/1.
+    ///
+    /// Intervening-if (CR 603.4): the trigger only fires if `offspring_paid == true` AND the
+    /// permanent has `KeywordAbility::Offspring` in layer-resolved characteristics.
+    /// (Ruling 2024-07-26: if the creature leaves before the trigger resolves, the token
+    /// IS still created using last-known information from the card registry.)
+    ///
+    /// Tokens are NOT cast (ruling 2024-07-26) -- no "cast" triggers fire for them.
+    ///
+    /// Discriminant 53.
+    OffspringTrigger {
+        /// The ObjectId of the creature that entered the battlefield with Offspring.
+        /// May be gone by resolution time (LKI applies).
+        source_object: ObjectId,
+        /// The CardId of the source creature, captured at trigger-queue time for LKI.
+        /// Used to look up the card registry when the source has left the battlefield
+        /// before the trigger resolves (ruling 2024-07-26).
+        #[serde(default)]
+        source_card_id: Option<crate::state::CardId>,
     },
 }

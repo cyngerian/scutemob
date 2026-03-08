@@ -84,6 +84,7 @@ fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState,
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell failed: {:?}", e))

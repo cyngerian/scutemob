@@ -192,6 +192,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::SquadTrigger { source_object, .. } => {
                     ("Squad trigger: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::OffspringTrigger { source_object, .. } => {
+                    ("Offspring trigger: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

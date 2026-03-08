@@ -218,6 +218,7 @@ fn test_replicate_zero_copies() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without replicate should succeed: {:?}", e));
@@ -279,6 +280,7 @@ fn test_replicate_one_copy() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -377,6 +379,7 @@ fn test_replicate_basic_two_copies() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=2 failed: {:?}", e));
@@ -504,6 +507,7 @@ fn test_replicate_no_keyword_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -553,6 +557,7 @@ fn test_replicate_copies_not_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with replicate_count=1 failed: {:?}", e));
@@ -621,6 +626,7 @@ fn test_replicate_mana_cost_added() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 

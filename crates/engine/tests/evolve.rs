@@ -96,6 +96,7 @@ fn cast_and_resolve(
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -850,6 +851,7 @@ fn test_evolve_opponents_creature_does_not_trigger() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("P2 CastSpell should succeed");
@@ -1193,6 +1195,7 @@ fn test_evolve_multiplayer_only_same_controller() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("P2 CastSpell should succeed");

@@ -1271,6 +1271,18 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 137.
     Squad,
+    /// CR 702.175a: Offspring -- two linked abilities. "You may pay an additional [cost]
+    /// as you cast this spell" and "When this permanent enters, if its offspring cost was
+    /// paid, create a token that's a copy of it, except it's 1/1."
+    ///
+    /// Binary: paid once or not at all (unlike Squad which can be paid N times).
+    /// The token is a copy of the entering permanent with base P/T overridden to 1/1 (CR 707.9d).
+    ///
+    /// Unit variant: the actual cost is stored in `AbilityDefinition::Offspring { cost }`.
+    /// This variant is used for presence-checking (layer-resolved characteristics).
+    ///
+    /// Discriminant 138.
+    Offspring,
 }
 
 /// CR 702.72a: The filter for what can be championed.

@@ -81,6 +81,7 @@ pub fn handle_cast_spell(
     x_value: u32,
     collect_evidence_cards: Vec<ObjectId>,
     squad_count: u32,
+    offspring_paid: bool,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
@@ -1962,6 +1963,44 @@ pub fn handle_cast_spell(
         mana_cost
     };
 
+    // CR 702.175a / 601.2b / 601.2f-h: Offspring -- if the player declared intent to pay the
+    // offspring cost, validate the spell has KeywordAbility::Offspring and add the cost once.
+    // Binary: paid once or not at all (unlike Squad which can be paid N times).
+    // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
+    let offspring_cost_opt: Option<ManaCost> = if offspring_paid {
+        // Validate the spell has the Offspring keyword.
+        if !chars.keywords.contains(&KeywordAbility::Offspring) {
+            return Err(GameStateError::InvalidCommand(
+                "spell does not have offspring (CR 702.175a)".into(),
+            ));
+        }
+        match get_offspring_cost(&card_id, &state.card_registry) {
+            Some(cost) => Some(cost),
+            None => {
+                return Err(GameStateError::InvalidCommand(
+                    "spell has offspring keyword but no offspring cost defined".into(),
+                ));
+            }
+        }
+    } else {
+        None
+    };
+
+    // CR 601.2f: Add offspring cost once to the total mana cost.
+    let mana_cost = if let Some(offspring_cost) = offspring_cost_opt {
+        let mut total = mana_cost.unwrap_or_default();
+        total.white += offspring_cost.white;
+        total.blue += offspring_cost.blue;
+        total.black += offspring_cost.black;
+        total.red += offspring_cost.red;
+        total.green += offspring_cost.green;
+        total.generic += offspring_cost.generic;
+        total.colorless += offspring_cost.colorless;
+        Some(total)
+    } else {
+        mana_cost
+    };
+
     // CR 702.42a / 601.2b / 601.2f-h: Entwine -- if the player declared intent to pay the entwine
     // cost, validate the spell has KeywordAbility::Entwine and add the entwine cost to the total.
     // CR 118.8d: Additional costs don't change the spell's mana cost, only what is paid.
@@ -3240,6 +3279,9 @@ pub fn handle_cast_spell(
         // CR 702.157a: Number of times the squad cost was paid as an additional cost.
         // 0 = not paid. N = paid N times -> N token copies created on ETB by SquadTrigger.
         squad_count,
+        // CR 702.175a: Whether the offspring cost was paid as an additional cost.
+        // false = not paid. true = paid -> 1 token copy (except 1/1) created on ETB by OffspringTrigger.
+        offspring_paid,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3393,6 +3435,7 @@ pub fn handle_cast_spell(
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
+            offspring_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3464,6 +3507,7 @@ pub fn handle_cast_spell(
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
+            offspring_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3536,6 +3580,7 @@ pub fn handle_cast_spell(
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
+            offspring_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3602,6 +3647,7 @@ pub fn handle_cast_spell(
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
+            offspring_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3670,6 +3716,7 @@ pub fn handle_cast_spell(
             evidence_collected: false,
             // CR 702.157a: trigger/copy stack objects have no squad cost payments.
             squad_count: 0,
+            offspring_paid: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -5191,6 +5238,27 @@ fn get_fuse_card_type(
             def.abilities.iter().find_map(|a| {
                 if let AbilityDefinition::Fuse { card_type, .. } = a {
                     Some(*card_type)
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.175a: Look up the offspring cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Offspring { cost }`, or `None`
+/// if the card has no definition or no offspring ability defined.
+fn get_offspring_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Offspring { cost } = a {
+                    Some(cost.clone())
                 } else {
                     None
                 }

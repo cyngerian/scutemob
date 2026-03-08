@@ -224,6 +224,7 @@ fn test_prototype_basic_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with prototype failed: {:?}", e));
@@ -352,6 +353,7 @@ fn test_prototype_normal_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell normally failed: {:?}", e));
@@ -473,6 +475,7 @@ fn test_prototype_color_change() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -568,6 +571,7 @@ fn test_prototype_mana_value() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -662,6 +666,7 @@ fn test_prototype_leaves_battlefield_resumes_normal() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -916,6 +921,7 @@ fn test_prototype_retains_keyword_ability() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1010,6 +1016,7 @@ fn test_prototype_negative_not_prototype_keyword() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1147,6 +1154,7 @@ fn test_prototype_stack_characteristics() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

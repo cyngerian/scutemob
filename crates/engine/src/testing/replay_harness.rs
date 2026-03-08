@@ -359,6 +359,7 @@ pub fn translate_player_action(
                 x_value,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -398,6 +399,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -434,6 +436,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -470,6 +473,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -507,6 +511,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -544,6 +549,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -586,6 +592,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -959,6 +966,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1008,6 +1016,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1045,6 +1054,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1085,6 +1095,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1125,6 +1136,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1162,6 +1174,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1199,6 +1212,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1235,6 +1249,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1271,6 +1286,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1307,6 +1323,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1347,6 +1364,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1391,6 +1409,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: evidence_ids,
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1430,6 +1449,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1467,6 +1487,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1501,6 +1522,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1543,6 +1565,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1584,6 +1607,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1623,6 +1647,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1670,6 +1695,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1704,6 +1730,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1741,6 +1768,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1779,6 +1807,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1822,6 +1851,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1861,6 +1891,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1899,6 +1930,7 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             })
         }
 
@@ -1937,6 +1969,45 @@ pub fn translate_player_action(
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count,
+                offspring_paid: false,
+            })
+        }
+
+        // CR 702.175a: Cast a creature spell with the offspring additional cost paid.
+        // Sets `offspring_paid: true` on CastSpell. On ETB, an OffspringTrigger creates
+        // 1 token copy of the creature except it's 1/1.
+        "cast_spell_offspring" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            let target_list = resolve_targets(targets, state, players);
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: target_list,
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: None,
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
+                x_value: 0,
+                collect_evidence_cards: vec![],
+                squad_count: 0,
+                offspring_paid: true,
             })
         }
 

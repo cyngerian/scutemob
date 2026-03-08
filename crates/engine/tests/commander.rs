@@ -146,6 +146,7 @@ fn test_cast_commander_from_command_zone_first_time() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -255,6 +256,7 @@ fn test_cast_commander_from_command_zone_second_time() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -353,6 +355,7 @@ fn test_cast_commander_from_command_zone_third_time() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -449,6 +452,7 @@ fn test_cast_commander_from_command_zone_insufficient_mana() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -524,6 +528,7 @@ fn test_cast_non_commander_from_command_zone_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -594,6 +599,7 @@ fn test_cast_commander_sorcery_speed_enforced() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1118,6 +1124,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1212,6 +1219,7 @@ fn test_partner_commanders_separate_tax_tracking() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -2055,6 +2063,7 @@ fn test_companion_rejected_with_non_empty_stack() {
         x_value: 0,
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     });
 
     assert_eq!(
@@ -2370,6 +2379,7 @@ fn test_full_four_player_commander_game() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

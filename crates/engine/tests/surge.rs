@@ -195,6 +195,7 @@ fn test_surge_basic_cast_with_surge_cost() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -271,6 +272,7 @@ fn test_surge_rejected_no_prior_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -336,6 +338,7 @@ fn test_surge_optional_normal_cost() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -397,6 +400,7 @@ fn test_surge_after_resolved_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -457,6 +461,7 @@ fn test_surge_after_countered_spell() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -554,6 +559,7 @@ fn test_surge_mutual_exclusion_with_flashback() {
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             },
         );
         assert!(
@@ -629,6 +635,7 @@ fn test_surge_mutual_exclusion_with_spectacle() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -714,6 +721,7 @@ fn test_surge_card_without_keyword_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -791,6 +799,7 @@ fn test_surge_reset_at_turn_start() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -871,6 +880,7 @@ fn test_surge_reset_at_turn_start() {
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             },
         );
         assert!(
@@ -1024,6 +1034,7 @@ fn test_surge_commander_tax_stacks() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1101,6 +1112,7 @@ fn test_surge_cast_alt_cost_tracked() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 

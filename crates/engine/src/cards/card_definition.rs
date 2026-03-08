@@ -630,6 +630,17 @@ pub enum AbilityDefinition {
         toughness_boost: i32,
         grants_keyword: Option<KeywordAbility>,
     },
+    /// CR 702.175a: Offspring -- the cost data for the offspring additional cost.
+    ///
+    /// Pairs with `KeywordAbility::Offspring` (presence marker). This variant carries
+    /// the offspring cost itself (e.g., `{2}` for "Offspring {2}").
+    ///
+    /// At cast time: the player optionally pays `cost` once as an additional cost (CR 601.2b).
+    /// Binary: paid or not paid. If paid, `CastSpell.offspring_paid` is true.
+    /// At ETB: a trigger creates 1 token copy (except 1/1) if paid and permanent still has Offspring.
+    ///
+    /// Discriminant 55.
+    Offspring { cost: ManaCost },
 }
 
 /// A continuous effect granted by soulbond to both paired creatures (CR 702.95a).

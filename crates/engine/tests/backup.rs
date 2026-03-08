@@ -95,6 +95,7 @@ fn cast_and_resolve(
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell '{}' failed: {:?}", card_name, e));
@@ -879,6 +880,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
         devour_sacrifices: vec![],
         modes_chosen: vec![],
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(backup_trigger);
 

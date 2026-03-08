@@ -167,6 +167,7 @@ fn test_improvise_basic_tap_artifacts_reduce_generic_cost() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CR 702.126a: should succeed when tapping 3 artifacts for 3 generic pips");
@@ -278,6 +279,7 @@ fn test_improvise_cannot_pay_colored_mana() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -358,6 +360,7 @@ fn test_improvise_reject_no_keyword() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -431,6 +434,7 @@ fn test_improvise_reject_tapped_artifact() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -503,6 +507,7 @@ fn test_improvise_reject_not_artifact() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -575,6 +580,7 @@ fn test_improvise_reject_opponent_artifact() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -656,6 +662,7 @@ fn test_improvise_reject_too_many_artifacts() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -736,6 +743,7 @@ fn test_improvise_zero_artifacts_normal_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CR 702.126a: should succeed with zero artifacts (normal full-mana cast)");
@@ -862,6 +870,7 @@ fn test_improvise_with_commander_tax() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect(
@@ -993,6 +1002,7 @@ fn test_improvise_combined_with_convoke() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("edge case: spell with both convoke and improvise should succeed");
@@ -1081,6 +1091,7 @@ fn test_improvise_artifact_creature_can_be_used() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("ruling: artifact creature should be valid for improvise");
@@ -1163,6 +1174,7 @@ fn test_improvise_summoning_sickness_irrelevant() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("ruling: summoning sickness should NOT prevent improvise");

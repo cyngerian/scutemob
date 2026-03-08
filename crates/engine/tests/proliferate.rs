@@ -842,6 +842,7 @@ fn test_whenever_you_proliferate_trigger_fires() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

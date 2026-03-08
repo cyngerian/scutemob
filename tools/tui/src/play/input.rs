@@ -118,6 +118,7 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         x_value: 0,
                         collect_evidence_cards: Vec::new(),
                         squad_count: 0,
+                        offspring_paid: false,
                     };
                     app.execute_command(cmd)?;
                 } else {

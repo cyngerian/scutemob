@@ -224,6 +224,7 @@ fn cast_squad(
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(squad_count={}) failed: {:?}", squad_count, e))
@@ -460,6 +461,7 @@ fn test_squad_rejected_without_keyword() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 1, // trying to pay squad cost on non-squad creature
+            offspring_paid: false,
         },
     );
 

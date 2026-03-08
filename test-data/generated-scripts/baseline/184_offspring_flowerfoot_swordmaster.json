@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_184",
+    "name": "Offspring — Flowerfoot Swordmaster creates a 1/1 token copy",
+    "description": "Tests the Offspring mechanic (CR 702.175a-b) using Flowerfoot Swordmaster ({W}, Mouse Soldier 1/2, Offspring {2}). P1 casts Flowerfoot Swordmaster paying the base cost {W} plus the offspring additional cost {2}, for a total of {1}{W}. The spell resolves and the creature enters the battlefield. The OffspringTrigger then fires as an ETB triggered ability (CR 702.175b) and is placed on the stack. When the trigger resolves, a 1/1 token copy of Flowerfoot Swordmaster is created on the battlefield. Final state: 2 creatures on p1's battlefield — the original Flowerfoot Swordmaster (1/2) and a 1/1 token copy.",
+    "cr_sections_tested": [
+      "702.175a",
+      "702.175b",
+      "601.2",
+      "603.2",
+      "603.3",
+      "608.2",
+      "111.1",
+      "111.5"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "offspring",
+      "etb-trigger",
+      "token",
+      "additional-cost",
+      "copy",
+      "creature",
+      "flowerfoot-swordmaster"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.175a: Offspring is an additional cost keyword. The cast_spell_offspring action with offspring_paid=true causes p1 to pay {2} as an additional cost on top of the base cost {W}. Total mana paid: {W} + {2} = white=1, colorless=2. CR 702.175b: When the creature enters the battlefield, its ETB trigger (OffspringTrigger) fires, creating one 1/1 token copy of the creature. Per CR 702.175b, the token is a copy of the creature except it has base power 1 and base toughness 1. The trigger is placed on the stack after the creature resolves and enters; both players pass priority, then the trigger resolves creating 1 token. Final battlefield count for p1: 2 (1 original 1/2 Flowerfoot Swordmaster + 1 token 1/1 copy). The Valiant ability on Flowerfoot Swordmaster is not exercised in this script (DSL gap — requires TriggerCondition::WhenBecomesTargetOfYourSpellOrAbility). Mana calculation: white=1 (base {W}), colorless=2 (offspring {2}).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {
+          "white": 1,
+          "colorless": 2
+        },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          {
+            "card": "Flowerfoot Swordmaster",
+            "is_commander": false,
+            "owner": null
+          }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Flowerfoot Swordmaster with offspring_paid=true, paying {1}{W} total. Spell resolves, OffspringTrigger fires. Trigger resolves creating a 1/1 token copy.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Flowerfoot Swordmaster in p1 hand, battlefield empty, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "excludes": [{ "card": "Flowerfoot Swordmaster" }] }
+          },
+          "note": "P1 holds the card and has {1}{W} available: base {W} + offspring additional cost {2}."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_offspring",
+          "card": "Flowerfoot Swordmaster",
+          "targets": [],
+          "mana_paid": {
+            "white": 1,
+            "colorless": 2
+          },
+          "mana_source": [],
+          "offspring_paid": true,
+          "cr_ref": "702.175a",
+          "note": "CR 702.175a: P1 pays the offspring additional cost {2} on top of the base cost {W}. Total paid: {1}{W}. Card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Flowerfoot Swordmaster on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "CR 601.2: Spell on stack awaiting priority passes before resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Flowerfoot Swordmaster",
+          "resolution": [
+            {
+              "effect": "enters_battlefield",
+              "card": "Flowerfoot Swordmaster",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Creature spell resolves; Flowerfoot Swordmaster enters the battlefield under p1's control as a 1/2 Mouse Soldier."
+            }
+          ],
+          "note": "CR 608.2: Flowerfoot Swordmaster resolves and enters the battlefield. The OffspringTrigger (ETB) sees offspring_paid=true and is placed on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After spell resolves: Flowerfoot Swordmaster on battlefield, OffspringTrigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [{ "card": "Flowerfoot Swordmaster" }]
+            },
+            "zones.stack.count": 1
+          },
+          "note": "CR 702.175b: ETB trigger fires and is placed on the stack. CR 603.2: Triggered ability placed on stack after creature entered."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — OffspringTrigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Offspring trigger",
+          "resolution": [
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "token": {
+                "name": "Flowerfoot Swordmaster",
+                "power": 1,
+                "toughness": 1,
+                "colors": ["white"]
+              },
+              "card": null,
+              "owner": null,
+              "cr_ref": "111.1",
+              "note": "CR 111.1, 702.175b: Create a token that is a copy of Flowerfoot Swordmaster except it has base power 1 and base toughness 1. Token enters p1's battlefield."
+            }
+          ],
+          "note": "CR 702.175b: OffspringTrigger resolves. Create one 1/1 token copy of Flowerfoot Swordmaster. The token is not cast — no cast triggers fire."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final: 2 Flowerfoot Swordmaster on p1's battlefield (1 original 1/2 + 1 token 1/1 copy), stack empty",
+          "assertions": {
+            "zones.battlefield.p1.count": 2,
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0
+          },
+          "note": "CR 702.175b: offspring_paid=true caused one 1/1 token copy to be created. P1 controls 2 Mouse Soldiers: the original Flowerfoot Swordmaster (1/2) and its 1/1 token copy."
+        }
+      ]
+    }
+  ]
+}

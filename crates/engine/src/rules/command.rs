@@ -302,6 +302,13 @@ pub enum Command {
         /// Validated against the spell having `KeywordAbility::Squad` in casting.rs.
         #[serde(default)]
         squad_count: u32,
+        /// CR 702.175a: Whether the offspring cost was paid as an additional cost.
+        /// false = not paid (no token). true = paid once -> 1 token copy (except 1/1) on ETB.
+        /// Adds the offspring cost (from `AbilityDefinition::Offspring { cost }`) to the
+        /// total mana cost paid for the spell (CR 601.2b, 601.2f-h).
+        /// Validated against the spell having `KeywordAbility::Offspring` in casting.rs.
+        #[serde(default)]
+        offspring_paid: bool,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///

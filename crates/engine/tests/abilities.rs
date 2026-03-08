@@ -554,6 +554,7 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -642,6 +643,7 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -733,6 +735,7 @@ fn test_triggered_ability_apnap_ordering() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -829,6 +832,7 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -908,6 +912,7 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -988,6 +993,7 @@ fn test_triggered_ability_resolves_after_all_pass() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1912,6 +1918,7 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

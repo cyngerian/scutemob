@@ -113,6 +113,7 @@ fn cast_ravenous(
             x_value,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell(x_value={}) failed: {:?}", x_value, e))

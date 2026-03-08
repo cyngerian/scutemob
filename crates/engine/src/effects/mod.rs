@@ -2897,6 +2897,7 @@ fn make_token(spec: &crate::cards::card_definition::TokenSpec, controller: Playe
         x_value: 0,
         // CR 702.157a: Tokens are never cast, so squad_count is always 0.
         squad_count: 0,
+        offspring_paid: false,
     }
 }
 

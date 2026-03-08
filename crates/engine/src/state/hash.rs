@@ -663,6 +663,8 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Discover => 136u8.hash_into(hasher),
             // Squad (discriminant 137) -- CR 702.157
             KeywordAbility::Squad => 137u8.hash_into(hasher),
+            // Offspring (discriminant 138) -- CR 702.175a
+            KeywordAbility::Offspring => 138u8.hash_into(hasher),
         }
     }
 }
@@ -877,6 +879,8 @@ impl HashInto for GameObject {
         self.x_value.hash_into(hasher);
         // Squad (CR 702.157a) — number of times squad cost was paid at cast time
         self.squad_count.hash_into(hasher);
+        // Offspring (CR 702.175a) — whether offspring cost was paid at cast time
+        self.offspring_paid.hash_into(hasher);
     }
 }
 
@@ -1990,6 +1994,15 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 squad_count.hash_into(hasher);
             }
+            // OffspringTrigger (discriminant 53) -- CR 702.175a
+            StackObjectKind::OffspringTrigger {
+                source_object,
+                source_card_id,
+            } => {
+                53u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -2096,6 +2109,8 @@ impl HashInto for StackObject {
         self.evidence_collected.hash_into(hasher);
         // Squad (CR 702.157a) — number of times squad cost was paid
         self.squad_count.hash_into(hasher);
+        // Offspring (CR 702.175a) — whether offspring cost was paid
+        self.offspring_paid.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -4019,6 +4034,11 @@ impl HashInto for AbilityDefinition {
             // Squad (discriminant 54) -- CR 702.157a
             AbilityDefinition::Squad { cost } => {
                 54u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Offspring (discriminant 55) -- CR 702.175a
+            AbilityDefinition::Offspring { cost } => {
+                55u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
         }

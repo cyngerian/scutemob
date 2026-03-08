@@ -519,6 +519,7 @@ pub fn handle_activate_ability(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -777,6 +778,7 @@ pub fn handle_cycle_card(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1032,6 +1034,7 @@ pub fn handle_activate_forecast(
         // CR 701.59c: forecast abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1324,6 +1327,7 @@ pub fn handle_activate_bloodrush(
         // CR 701.59c: activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1514,6 +1518,7 @@ pub fn handle_unearth_card(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1794,6 +1799,7 @@ pub fn handle_ninjutsu(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2011,6 +2017,7 @@ pub fn handle_embalm_card(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2237,6 +2244,7 @@ pub fn handle_eternalize_card(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2462,6 +2470,7 @@ pub fn handle_encore_card(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5378,6 +5387,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // CR 701.59c: storm copies are never collect evidence casts.
                         evidence_collected: false,
                         squad_count: 0,
+                        offspring_paid: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -5724,6 +5734,21 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         squad_count: trigger.squad_count.unwrap_or(0),
                     }
                 }
+                PendingTriggerKind::OffspringETB => {
+                    // CR 702.175a: Offspring ETB trigger. The source_object is the creature
+                    // that entered with offspring cost paid. At resolution, creates 1 token
+                    // copy except it's 1/1. Uses LKI if source has left the battlefield.
+                    // Capture source_card_id now (while source is on battlefield) for LKI
+                    // fallback at resolution time (ruling 2024-07-26).
+                    let source_card_id = state
+                        .objects
+                        .get(&trigger.source)
+                        .and_then(|o| o.card_id.clone());
+                    StackObjectKind::OffspringTrigger {
+                        source_object: trigger.source,
+                        source_card_id,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -5776,6 +5801,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 evidence_collected: false,
                 // CR 702.157a: triggered ability stack objects have no squad cost payments.
                 squad_count: 0,
+                offspring_paid: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6164,6 +6190,7 @@ pub fn handle_crew_vehicle(
         // CR 701.59c: triggered/activated abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -6418,6 +6445,7 @@ pub fn handle_scavenge_card(
         // CR 701.59c: scavenge abilities are never collect evidence casts.
         evidence_collected: false,
         squad_count: 0,
+        offspring_paid: false,
     };
     state.stack_objects.push_back(stack_obj);
 

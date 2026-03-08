@@ -22,6 +22,5 @@ pub fn card() -> CardDefinition {
             // and CreaturesControlledBy(PlayerId) (incorrect — includes self + needs runtime PlayerId).
             // Implement once EffectFilter::OtherCreaturesControlledBy is added.
         ],
-        ..Default::default()
     }
 }

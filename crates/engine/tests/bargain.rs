@@ -271,6 +271,7 @@ fn test_bargain_basic_instant_with_sacrifice() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with bargain (token) failed: {:?}", e));
@@ -352,6 +353,7 @@ fn test_bargain_basic_instant_without_sacrifice() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));
@@ -440,6 +442,7 @@ fn test_bargain_sacrifice_artifact() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with artifact failed: {:?}", e));
@@ -505,6 +508,7 @@ fn test_bargain_sacrifice_enchantment() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with enchantment failed: {:?}", e));
@@ -572,6 +576,7 @@ fn test_bargain_sacrifice_creature_token() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargaining with creature token failed: {:?}", e));
@@ -632,6 +637,7 @@ fn test_bargain_sacrifice_invalid_creature() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -696,6 +702,7 @@ fn test_bargain_sacrifice_opponent_permanent() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -790,6 +797,7 @@ fn test_bargain_no_keyword_rejects_sacrifice() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -887,6 +895,7 @@ fn test_bargain_permanent_etb_was_bargained() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell bargain artifact failed: {:?}", e));
@@ -993,6 +1002,7 @@ fn test_bargain_permanent_etb_not_bargained() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without bargain failed: {:?}", e));

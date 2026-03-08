@@ -440,6 +440,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.157a: Transfer squad count from stack to permanent for the
                     // SquadETB trigger to read at trigger-collection time.
                     obj.squad_count = stack_obj.squad_count;
+                    // CR 702.175a: Transfer offspring_paid from stack to permanent for the
+                    // OffspringETB trigger to read at trigger-collection time.
+                    obj.offspring_paid = stack_obj.offspring_paid;
                     // CR 702.74a: Transfer evoked status from stack to permanent so the
                     // ETB sacrifice trigger can check cast_alt_cost.
                     // CR 702.138b: Transfer escaped status. A permanent "escaped" if cast
@@ -1302,6 +1305,69 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 champion_exiled_card: None,
                                 soulbond_pair_target: None,
                                 squad_count: Some(permanent_squad_count),
+                            });
+                    }
+
+                    // CR 702.175a: Offspring ETB trigger -- "When this permanent enters, if its
+                    // offspring cost was paid, create a token that's a copy of it, except it's 1/1."
+                    //
+                    // CR 603.4: Intervening-if -- only queue if offspring_paid == true AND
+                    // the permanent has KeywordAbility::Offspring in layer-resolved characteristics.
+                    // Ruling 2024-07-26: if offspring is lost before the trigger fires, no token.
+                    let has_offspring = {
+                        let chars = crate::rules::layers::calculate_characteristics(state, new_id);
+                        chars
+                            .map(|c| c.keywords.contains(&KeywordAbility::Offspring))
+                            .unwrap_or(false)
+                    };
+                    let permanent_offspring_paid = state
+                        .objects
+                        .get(&new_id)
+                        .map(|o| o.offspring_paid)
+                        .unwrap_or(false);
+                    if has_offspring && permanent_offspring_paid {
+                        state
+                            .pending_triggers
+                            .push_back(crate::state::stubs::PendingTrigger {
+                                source: new_id,
+                                ability_index: 0,
+                                controller: stack_obj.controller,
+                                kind: crate::state::stubs::PendingTriggerKind::OffspringETB,
+                                triggering_event: None,
+                                entering_object_id: None,
+                                targeting_stack_id: None,
+                                triggering_player: None,
+                                exalted_attacker_id: None,
+                                defending_player_id: None,
+                                madness_exiled_card: None,
+                                madness_cost: None,
+                                miracle_revealed_card: None,
+                                miracle_cost: None,
+                                modular_counter_count: None,
+                                evolve_entering_creature: None,
+                                suspend_card_id: None,
+                                hideaway_count: None,
+                                partner_with_name: None,
+                                ingest_target_player: None,
+                                flanking_blocker_id: None,
+                                rampage_n: None,
+                                provoke_target_creature: None,
+                                renown_n: None,
+                                poisonous_n: None,
+                                poisonous_target_player: None,
+                                enlist_enlisted_creature: None,
+                                encore_activator: None,
+                                echo_cost: None,
+                                cumulative_upkeep_cost: None,
+                                recover_cost: None,
+                                recover_card: None,
+                                graft_entering_creature: None,
+                                backup_abilities: None,
+                                backup_n: None,
+                                champion_filter: None,
+                                champion_exiled_card: None,
+                                soulbond_pair_target: None,
+                                squad_count: None,
                             });
                     }
                 }
@@ -3526,6 +3592,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.157a: Tokens created by Squad have squad_count: 0
                         // (not cast, so cannot trigger their own squad ETB trigger).
                         squad_count: 0,
+                        offspring_paid: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3554,6 +3621,235 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     });
                 }
             }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.175a: Offspring triggered ability resolution.
+        //
+        // "When this permanent enters, if its offspring cost was paid, create a token
+        // that's a copy of it, except it's 1/1."
+        //
+        // KEY DIFFERENCE FROM SQUAD: Ruling 2024-07-26 states "If the spell resolves but
+        // the creature with offspring leaves the battlefield before the offspring ability
+        // resolves, you'll still create a token copy of it." This means we NEVER skip when
+        // the source is gone -- instead, use last-known information (LKI) from the source
+        // GameObject's characteristics (before zone change) or fall back to the card registry.
+        //
+        // CR 707.9d: "except it's 1/1" -- the copy instruction modifies base P/T to 1/1.
+        // Implemented as: CopyOf effect (Layer 1) + SetPowerToughness {1, 1} (Layer 7b).
+        StackObjectKind::OffspringTrigger {
+            source_object,
+            source_card_id,
+        } => {
+            use crate::state::continuous_effect::{
+                ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer,
+                LayerModification,
+            };
+            let controller = stack_obj.controller;
+
+            // CR 702.175a: Intervening-if re-check.
+            // Offspring is binary (paid or not), so the only re-check needed is whether
+            // the permanent (if still on the battlefield) still has KeywordAbility::Offspring.
+            // Ruling 2024-07-26: if source left the battlefield, skip the intervening-if
+            // re-check for the keyword (we still create the token per the ruling).
+            let source_on_battlefield = state
+                .objects
+                .get(&source_object)
+                .is_some_and(|o| o.zone == ZoneId::Battlefield);
+            if source_on_battlefield {
+                let has_offspring = {
+                    let chars =
+                        crate::rules::layers::calculate_characteristics(state, source_object);
+                    chars
+                        .map(|c| c.keywords.contains(&KeywordAbility::Offspring))
+                        .unwrap_or(false)
+                };
+                if !has_offspring {
+                    // CR 603.4: Intervening-if failed; source no longer has Offspring.
+                    events.push(GameEvent::AbilityResolved {
+                        controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                    return Ok(events);
+                }
+            }
+
+            // CR 707.2 / 707.9d: Build the token using copiable values of the source.
+            // If the source is still on the battlefield, clone its characteristics.
+            // If it left, clone from the card registry (LKI per ruling 2024-07-26).
+            // source_card_id was captured at trigger-queue time for this exact purpose.
+            let source_characteristics = state
+                .objects
+                .get(&source_object)
+                .filter(|o| o.zone == ZoneId::Battlefield)
+                .map(|o| o.characteristics.clone())
+                .or_else(|| {
+                    // LKI fallback: use card registry for base characteristics.
+                    // source_card_id was captured when the trigger was queued (while the
+                    // source was still on the battlefield), so it's available even after
+                    // the source has left (ruling 2024-07-26).
+                    source_card_id
+                        .clone()
+                        .and_then(|cid| state.card_registry.get(cid))
+                        .map(|def| {
+                            // Build minimal characteristics from the card definition.
+                            // Keywords from def.abilities (keyword entries only)
+                            let mut keywords =
+                                im::OrdSet::<crate::state::types::KeywordAbility>::new();
+                            for ability in &def.abilities {
+                                if let crate::cards::card_definition::AbilityDefinition::Keyword(
+                                    kw,
+                                ) = ability
+                                {
+                                    keywords.insert(kw.clone());
+                                }
+                            }
+                            crate::state::game_object::Characteristics {
+                                name: def.name.clone(),
+                                mana_cost: def.mana_cost.clone(),
+                                card_types: def.types.card_types.clone(),
+                                subtypes: def.types.subtypes.clone(),
+                                supertypes: def.types.supertypes.clone(),
+                                power: def.power,
+                                toughness: def.toughness,
+                                keywords,
+                                ..crate::state::game_object::Characteristics::default()
+                            }
+                        })
+                })
+                .unwrap_or_default();
+
+            let token_obj = crate::state::game_object::GameObject {
+                id: crate::state::game_object::ObjectId(0), // replaced by add_object
+                card_id: None,
+                characteristics: source_characteristics,
+                controller,
+                owner: controller,
+                zone: ZoneId::Battlefield,
+                status: crate::state::game_object::ObjectStatus {
+                    // CR 302.6: Tokens have summoning sickness (enter normally).
+                    ..crate::state::game_object::ObjectStatus::default()
+                },
+                counters: im::OrdMap::new(),
+                attachments: im::Vector::new(),
+                attached_to: None,
+                damage_marked: 0,
+                deathtouch_damage: false,
+                is_token: true,
+                timestamp: 0, // replaced by add_object
+                has_summoning_sickness: true,
+                goaded_by: im::Vector::new(),
+                kicker_times_paid: 0,
+                cast_alt_cost: None,
+                is_bestowed: false,
+                is_foretold: false,
+                foretold_turn: 0,
+                was_unearthed: false,
+                myriad_exile_at_eoc: false,
+                decayed_sacrifice_at_eoc: false,
+                is_suspended: false,
+                exiled_by_hideaway: None,
+                is_renowned: false,
+                is_suspected: false,
+                encore_sacrifice_at_end_step: false,
+                encore_must_attack: None,
+                encore_activated_by: None,
+                is_plotted: false,
+                plotted_turn: 0,
+                is_prototyped: false,
+                was_bargained: false,
+                evidence_collected: false,
+                echo_pending: false,
+                phased_out_indirectly: false,
+                phased_out_controller: None,
+                creatures_devoured: 0,
+                champion_exiled_card: None,
+                paired_with: None,
+                tribute_was_paid: false,
+                // CR 107.3m: Offspring tokens are never cast, so x_value is always 0.
+                x_value: 0,
+                // CR 702.157a: Offspring tokens are never cast, so squad_count is always 0.
+                squad_count: 0,
+                // CR 702.175a: Offspring tokens are never cast, so offspring_paid is always false.
+                offspring_paid: false,
+            };
+
+            // Add the token to the battlefield.
+            let token_id = match state.add_object(token_obj, ZoneId::Battlefield) {
+                Ok(id) => id,
+                Err(_) => {
+                    events.push(GameEvent::AbilityResolved {
+                        controller,
+                        stack_object_id: stack_obj.id,
+                    });
+                    return Ok(events);
+                }
+            };
+
+            // CR 707.2: Apply a Layer 1 CopyOf continuous effect so the token
+            // has the copiable characteristics of the source creature.
+            // NOTE: source_object may have left the battlefield; CopyOf still records
+            // the source_id for layer resolution. If source is gone, Layer 1 applies
+            // the last-known characteristics we already copied into token_obj.characteristics.
+            if source_on_battlefield {
+                let copy_effect = crate::rules::copy::create_copy_effect(
+                    state,
+                    token_id,
+                    source_object,
+                    controller,
+                );
+                state.continuous_effects.push_back(copy_effect);
+            }
+
+            // CR 702.175a: "except it's 1/1" -- apply a Layer 7b effect that sets base P/T to 1/1.
+            // This effect is indefinite (not until-end-of-turn) and applies on top of the CopyOf.
+            //
+            // TODO: CR 707.9b deviation -- the "except it's 1/1" clause is a copy-with-exception,
+            // meaning the modified P/T (1/1) should become part of the token's *copiable values*
+            // (Layer 1), not a separate Layer 7b effect. The current Layer 7b approach is incorrect
+            // when another copy effect subsequently targets this token: get_copiable_values() only
+            // resolves Layer 1 (CopyOf) effects, not Layer 7b. So a Clone copying the Offspring
+            // token would inherit the *source creature's* original P/T instead of 1/1.
+            //
+            // CR 707.9d also states CDAs defining the overridden characteristic (P/T) should not
+            // be copied. The Layer 7b approach happens to mask any P/T CDA since 7b overrides 7a,
+            // but the CDA is still present in the token's copiable values -- wrong per 707.9d.
+            //
+            // A proper fix requires a new LayerModification variant (e.g., SetCopiablePT) applied
+            // at Layer 1 with a later timestamp than the CopyOf effect, and modifications to
+            // apply_layer_modification and get_copiable_values in copy.rs. This is a separate
+            // infrastructure task; the behavior is correct in the common case (no subsequent copy).
+            let ts = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            let effect_id_val = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            let pt_override = ContinuousEffect {
+                id: EffectId(effect_id_val),
+                source: Some(token_id),
+                timestamp: ts,
+                layer: EffectLayer::PtSet,
+                duration: EffectDuration::Indefinite,
+                filter: EffectFilter::SingleObject(token_id),
+                modification: LayerModification::SetPowerToughness {
+                    power: 1,
+                    toughness: 1,
+                },
+                is_cda: false,
+            };
+            state.continuous_effects.push_back(pt_override);
+
+            events.push(GameEvent::TokenCreated {
+                player: controller,
+                object_id: token_id,
+            });
+            events.push(GameEvent::PermanentEnteredBattlefield {
+                player: controller,
+                object_id: token_id,
+            });
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -3855,6 +4151,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     x_value: 0,
                     // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
                     squad_count: 0,
+                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                    offspring_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -4103,6 +4401,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             evidence_collected: false,
                             // CR 702.157a: suspend free-casts have no squad cost payments.
                             squad_count: 0,
+                            offspring_paid: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -4986,6 +5285,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     x_value: 0,
                     // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
                     squad_count: 0,
+                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                    offspring_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5185,6 +5486,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     x_value: 0,
                     // CR 702.157a: Tokens/copies are never cast, so squad_count is always 0.
                     squad_count: 0,
+                    // CR 702.175a: Tokens/copies are never cast, so offspring_paid is always false.
+                    offspring_paid: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5403,6 +5706,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         x_value: 0,
                         // CR 702.157a: Tokens are never cast, so squad_count is always 0.
                         squad_count: 0,
+                        offspring_paid: false,
                     };
 
                     // Add the token to the battlefield.
@@ -5720,7 +6024,8 @@ pub fn counter_stack_object(
         | StackObjectKind::SoulbondTrigger { .. }
         | StackObjectKind::RavenousDrawTrigger { .. }
         | StackObjectKind::BloodrushAbility { .. }
-        | StackObjectKind::SquadTrigger { .. } => {
+        | StackObjectKind::SquadTrigger { .. }
+        | StackObjectKind::OffspringTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No

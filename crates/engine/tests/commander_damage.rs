@@ -444,6 +444,7 @@ fn test_commander_damage_survives_zone_change() {
                 x_value: 0,
                 evidence_collected: false,
                 squad_count: 0,
+                offspring_paid: false,
             },
             ZoneId::Battlefield,
         )

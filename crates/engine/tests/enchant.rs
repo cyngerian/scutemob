@@ -108,6 +108,7 @@ fn test_702_5_enchant_creature_targets_creature_valid() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -174,6 +175,7 @@ fn test_702_5_enchant_creature_rejects_land_target() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -240,6 +242,7 @@ fn test_702_5_enchant_land_targets_land_valid() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -304,6 +307,7 @@ fn test_702_5_aura_attaches_to_target_on_resolution() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell should succeed");
@@ -495,6 +499,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             },
         );
         assert!(
@@ -552,6 +557,7 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
                 x_value: 0,
                 collect_evidence_cards: vec![],
                 squad_count: 0,
+                offspring_paid: false,
             },
         );
         assert!(
@@ -614,6 +620,7 @@ fn test_702_5_enchant_casting_rejected_without_target() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -683,6 +690,7 @@ fn test_303_4a_aura_target_must_be_on_battlefield() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -751,6 +759,7 @@ fn test_702_5_aura_fizzles_when_target_killed() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell should succeed");

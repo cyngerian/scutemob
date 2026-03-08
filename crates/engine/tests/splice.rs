@@ -288,6 +288,7 @@ fn test_splice_basic_onto_arcane() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -383,6 +384,7 @@ fn test_splice_cost_added() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -470,6 +472,7 @@ fn test_splice_card_stays_in_hand() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -574,6 +577,7 @@ fn test_splice_wrong_subtype_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -662,6 +666,7 @@ fn test_splice_same_card_twice_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -750,6 +755,7 @@ fn test_splice_not_in_hand_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -853,6 +859,7 @@ fn test_splice_multiple_cards() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell with two splice cards should succeed");
@@ -961,6 +968,7 @@ fn test_splice_main_effect_first() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CastSpell with splice should succeed");
@@ -1092,6 +1100,7 @@ fn test_splice_onto_itself_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 

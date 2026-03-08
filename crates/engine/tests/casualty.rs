@@ -260,6 +260,7 @@ fn test_casualty_basic_copy() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty 1 (1/1 token) failed: {:?}", e));
@@ -415,6 +416,7 @@ fn test_casualty_power_threshold() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -453,6 +455,7 @@ fn test_casualty_power_threshold() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
     assert!(
@@ -500,6 +503,7 @@ fn test_casualty_optional_no_sacrifice() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell without casualty should succeed: {:?}", e));
@@ -568,6 +572,7 @@ fn test_casualty_not_a_creature() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -620,6 +625,7 @@ fn test_casualty_wrong_controller() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -701,6 +707,7 @@ fn test_casualty_spell_without_keyword() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -752,6 +759,7 @@ fn test_casualty_copy_is_not_cast() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap_or_else(|e| panic!("CastSpell with Casualty failed: {:?}", e));
@@ -822,6 +830,7 @@ fn test_casualty_higher_power_accepted() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -872,6 +881,7 @@ fn test_casualty_creature_not_on_battlefield() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 

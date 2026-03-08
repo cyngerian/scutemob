@@ -640,6 +640,12 @@ pub struct GameObject {
     /// Tokens created by Squad themselves have squad_count: 0 (not cast).
     #[serde(default)]
     pub squad_count: u32,
+    /// CR 702.175a: Whether the offspring cost was paid when this permanent was cast.
+    /// Used by the OffspringETB trigger to create 1 token copy (except 1/1) at resolution.
+    /// Reset to false on zone changes (CR 400.7). Copied from StackObject.offspring_paid at resolution.
+    /// Tokens created by Offspring themselves have offspring_paid: false (not cast).
+    #[serde(default)]
+    pub offspring_paid: bool,
 }
 
 impl GameObject {

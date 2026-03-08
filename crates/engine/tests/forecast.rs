@@ -709,6 +709,7 @@ fn test_forecast_blocked_by_split_second() {
         devour_sacrifices: vec![],
         modes_chosen: vec![],
         squad_count: 0,
+        offspring_paid: false,
     });
 
     state

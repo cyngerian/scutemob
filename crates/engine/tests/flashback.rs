@@ -263,6 +263,7 @@ fn test_flashback_basic_cast_from_graveyard() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -376,6 +377,7 @@ fn test_flashback_exile_on_resolution() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -506,6 +508,7 @@ fn test_flashback_exile_on_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -562,6 +565,7 @@ fn test_flashback_exile_on_counter() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -675,6 +679,7 @@ fn test_flashback_sorcery_timing_from_graveyard() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -755,6 +760,7 @@ fn test_flashback_non_flashback_card_cannot_cast_from_graveyard() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -851,6 +857,7 @@ fn test_flashback_pays_flashback_cost_not_mana_cost() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .expect("CR 702.34a: flashback cast with {2}{U} should succeed");
@@ -952,6 +959,7 @@ fn test_flashback_normal_hand_cast_not_exiled() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1064,6 +1072,7 @@ fn test_flashback_cast_with_flashback_flag_set_on_stack() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();
@@ -1159,6 +1168,7 @@ fn test_flashback_insufficient_flashback_mana_rejected() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     );
 
@@ -1247,6 +1257,7 @@ fn test_flashback_mana_value_unchanged() {
             x_value: 0,
             collect_evidence_cards: vec![],
             squad_count: 0,
+            offspring_paid: false,
         },
     )
     .unwrap();

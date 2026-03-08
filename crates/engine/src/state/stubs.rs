@@ -121,6 +121,12 @@ pub enum PendingTriggerKind {
     /// has `KeywordAbility::Squad` in layer-resolved characteristics.
     /// Resolved to create `squad_count` token copies of the source creature.
     SquadETB,
+    /// CR 702.175a: Offspring ETB trigger -- fires when the creature with Offspring enters
+    /// the battlefield and its offspring cost was paid.
+    /// Intervening-if (CR 603.4): only queued when `offspring_paid == true` AND the permanent
+    /// has `KeywordAbility::Offspring` in layer-resolved characteristics.
+    /// Resolved to create 1 token copy (except 1/1) of the source creature.
+    OffspringETB,
     // Add new trigger kinds here as abilities are implemented
 }
 
