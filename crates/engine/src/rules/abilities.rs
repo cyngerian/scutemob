@@ -723,6 +723,8 @@ pub fn handle_cycle_card(
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -1286,6 +1288,8 @@ pub fn handle_activate_bloodrush(
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
     }
 
@@ -2633,6 +2637,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2714,6 +2720,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                         }
                     }
@@ -2784,6 +2792,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -2856,6 +2866,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                         }
                     }
@@ -2942,6 +2954,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
                                         });
                                     }
                                 }
@@ -3023,6 +3037,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                         }
                     }
@@ -3134,6 +3150,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -3227,6 +3245,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -3392,6 +3412,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             gift_opponent: None,
                                             cipher_encoded_card_id: None,
                                             cipher_encoded_object_id: None,
+                                            haunt_source_object_id: None,
+                                            haunt_source_card_id: None,
                                         });
                                     }
                                 }
@@ -3504,6 +3526,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     gift_opponent: None,
                                     cipher_encoded_card_id: None,
                                     cipher_encoded_object_id: None,
+                                    haunt_source_object_id: None,
+                                    haunt_source_card_id: None,
                                 });
                             }
                         }
@@ -4034,6 +4058,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -4135,6 +4161,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
             }
 
             GameEvent::CreatureDied {
+                object_id: pre_death_object_id,
                 new_grave_id,
                 controller: death_controller,
                 pre_death_counters,
@@ -4232,6 +4259,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -4316,6 +4345,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -4372,6 +4403,144 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
+                        });
+                    }
+                }
+
+                // CR 702.55b: When a creature with Haunt dies, exile the dying creature
+                // haunting another target creature.
+                // Look back in time via new_grave_id to check if the dead creature had Haunt.
+                if let Some(dead_obj) = state.objects.get(new_grave_id) {
+                    if dead_obj
+                        .characteristics
+                        .keywords
+                        .iter()
+                        .any(|kw| *kw == KeywordAbility::Haunt)
+                    {
+                        let haunt_controller = *death_controller;
+                        let haunt_card_id = dead_obj.card_id.clone();
+                        triggers.push(PendingTrigger {
+                            source: *new_grave_id,
+                            ability_index: 0,
+                            controller: haunt_controller,
+                            kind: PendingTriggerKind::HauntExile,
+                            triggering_event: Some(TriggerEvent::SelfDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
+                            soulbond_pair_target: None,
+                            squad_count: None,
+                            gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
+                            haunt_source_object_id: Some(*new_grave_id),
+                            haunt_source_card_id: haunt_card_id,
+                        });
+                    }
+                }
+
+                // CR 702.55c: When the creature a haunt card haunts dies, fire the haunted
+                // creature dies trigger for each haunt card in exile that targets this creature.
+                // Scan exile for objects whose haunting_target matches the pre-death battlefield ID.
+                {
+                    let dying_id = *pre_death_object_id;
+                    let haunt_exiled: Vec<(
+                        ObjectId,
+                        Option<crate::state::player::CardId>,
+                        PlayerId,
+                    )> = state
+                        .objects
+                        .iter()
+                        .filter_map(|(&exiled_obj_id, obj)| {
+                            // Must be in the exile zone.
+                            if obj.zone != crate::state::zone::ZoneId::Exile {
+                                return None;
+                            }
+                            // Must haunt the dying creature (pre-death battlefield ObjectId).
+                            if obj.haunting_target != Some(dying_id) {
+                                return None;
+                            }
+                            Some((exiled_obj_id, obj.card_id.clone(), obj.controller))
+                        })
+                        .collect();
+
+                    for (haunt_obj_id, haunt_card_id, haunt_controller) in haunt_exiled {
+                        triggers.push(PendingTrigger {
+                            source: haunt_obj_id,
+                            ability_index: 0,
+                            controller: haunt_controller,
+                            kind: PendingTriggerKind::HauntedCreatureDies,
+                            triggering_event: Some(TriggerEvent::HauntedCreatureDies),
+                            entering_object_id: None,
+                            targeting_stack_id: None,
+                            triggering_player: None,
+                            exalted_attacker_id: None,
+                            defending_player_id: None,
+                            madness_exiled_card: None,
+                            madness_cost: None,
+                            miracle_revealed_card: None,
+                            miracle_cost: None,
+                            modular_counter_count: None,
+                            evolve_entering_creature: None,
+                            suspend_card_id: None,
+                            hideaway_count: None,
+                            partner_with_name: None,
+                            ingest_target_player: None,
+                            flanking_blocker_id: None,
+                            rampage_n: None,
+                            provoke_target_creature: None,
+                            renown_n: None,
+                            poisonous_n: None,
+                            poisonous_target_player: None,
+                            enlist_enlisted_creature: None,
+                            encore_activator: None,
+                            echo_cost: None,
+                            cumulative_upkeep_cost: None,
+                            recover_cost: None,
+                            recover_card: None,
+                            graft_entering_creature: None,
+                            backup_abilities: None,
+                            backup_n: None,
+                            champion_filter: None,
+                            champion_exiled_card: None,
+                            soulbond_pair_target: None,
+                            squad_count: None,
+                            gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
+                            haunt_source_object_id: Some(haunt_obj_id),
+                            haunt_source_card_id: haunt_card_id,
                         });
                     }
                 }
@@ -4442,6 +4611,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -4574,6 +4745,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -4688,6 +4861,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -4782,6 +4957,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -4877,6 +5054,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -4946,6 +5125,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 gift_opponent: None,
                                                 cipher_encoded_card_id: Some(card_id),
                                                 cipher_encoded_object_id: Some(exiled_obj_id),
+                                                haunt_source_object_id: None,
+                                                haunt_source_card_id: None,
                                             });
                                         }
                                     }
@@ -5056,6 +5237,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -5115,6 +5298,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -5172,6 +5357,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             gift_opponent: None,
                             cipher_encoded_card_id: None,
                             cipher_encoded_object_id: None,
+                            haunt_source_object_id: None,
+                            haunt_source_card_id: None,
                         });
                     }
                 }
@@ -5328,6 +5515,8 @@ fn collect_triggers_for_event(
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -5966,6 +6155,24 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_creature: trigger.source,
                         encoded_card_id,
                         encoded_object_id,
+                    }
+                }
+                PendingTriggerKind::HauntExile => {
+                    // CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell
+                    // is put into a graveyard during its resolution, exile it haunting target
+                    // creature." The haunt_source_object_id is the graveyard ObjectId.
+                    StackObjectKind::HauntExileTrigger {
+                        haunt_card: trigger.haunt_source_object_id.unwrap_or(trigger.source),
+                        haunt_card_id: trigger.haunt_source_card_id.clone(),
+                    }
+                }
+                PendingTriggerKind::HauntedCreatureDies => {
+                    // CR 702.55c: Haunted creature dies trigger -- fires the haunt card's
+                    // effect from exile when the creature it haunts dies.
+                    // The haunt_source_object_id is the exiled haunt card's ObjectId.
+                    StackObjectKind::HauntedCreatureDiesTrigger {
+                        haunt_source: trigger.haunt_source_object_id.unwrap_or(trigger.source),
+                        haunt_card_id: trigger.haunt_source_card_id.clone(),
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

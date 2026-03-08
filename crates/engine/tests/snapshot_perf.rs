@@ -159,6 +159,7 @@ fn test_clone_independence_object_modification() {
                 gift_opponent: None,
                 is_saddled: false,
                 encoded_cards: im::Vector::new(),
+                haunting_target: None,
             };
             modified.add_object(new_obj, ZoneId::Battlefield).unwrap();
 

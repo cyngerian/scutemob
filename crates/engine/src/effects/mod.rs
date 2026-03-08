@@ -2430,6 +2430,8 @@ fn execute_effect_inner(
                                         gift_opponent: None,
                                         cipher_encoded_card_id: None,
                                         cipher_encoded_object_id: None,
+                                        haunt_source_object_id: None,
+                                        haunt_source_card_id: None,
                                     });
                                 }
                             }
@@ -2925,6 +2927,8 @@ pub fn make_token(
         // CR 702.171b: Tokens are not saddled by default.
         is_saddled: false,
         encoded_cards: im::Vector::new(),
+        // CR 702.55b: Tokens have no haunting relationship.
+        haunting_target: None,
     }
 }
 
@@ -3093,6 +3097,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         gift_opponent: None,
                         cipher_encoded_card_id: None,
                         cipher_encoded_object_id: None,
+                        haunt_source_object_id: None,
+                        haunt_source_card_id: None,
                     });
                 }
             }

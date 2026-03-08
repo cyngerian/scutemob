@@ -674,6 +674,8 @@ impl HashInto for KeywordAbility {
             }
             // Cipher (discriminant 141) -- CR 702.99
             KeywordAbility::Cipher => 141u8.hash_into(hasher),
+            // Haunt (discriminant 142) -- CR 702.55
+            KeywordAbility::Haunt => 142u8.hash_into(hasher),
         }
     }
 }
@@ -900,6 +902,8 @@ impl HashInto for GameObject {
             obj_id.hash_into(hasher);
             card_id.hash_into(hasher);
         }
+        // Haunt (CR 702.55b) — creature this exiled card is haunting
+        self.haunting_target.hash_into(hasher);
     }
 }
 
@@ -1451,6 +1455,8 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfAttacksWithGreaterPowerAlly => 19u8.hash_into(hasher),
             // CR 207.2c / CR 120.3: Enrage "whenever this creature is dealt damage" — discriminant 20
             TriggerEvent::SelfIsDealtDamage => 20u8.hash_into(hasher),
+            // CR 702.55c: Haunt "when the creature it haunts dies" — discriminant 21
+            TriggerEvent::HauntedCreatureDies => 21u8.hash_into(hasher),
         }
     }
 }
@@ -2053,6 +2059,24 @@ impl HashInto for StackObjectKind {
                 source_creature.hash_into(hasher);
                 encoded_card_id.hash_into(hasher);
                 encoded_object_id.hash_into(hasher);
+            }
+            // HauntExileTrigger (discriminant 57) -- CR 702.55a
+            StackObjectKind::HauntExileTrigger {
+                haunt_card,
+                haunt_card_id,
+            } => {
+                57u8.hash_into(hasher);
+                haunt_card.hash_into(hasher);
+                haunt_card_id.hash_into(hasher);
+            }
+            // HauntedCreatureDiesTrigger (discriminant 58) -- CR 702.55c
+            StackObjectKind::HauntedCreatureDiesTrigger {
+                haunt_source,
+                haunt_card_id,
+            } => {
+                58u8.hash_into(hasher);
+                haunt_source.hash_into(hasher);
+                haunt_card_id.hash_into(hasher);
             }
         }
     }
@@ -3099,6 +3123,17 @@ impl HashInto for GameEvent {
                 exiled_card.hash_into(hasher);
                 creature.hash_into(hasher);
             }
+            // HauntExiled (discriminant 107) -- CR 702.55a
+            GameEvent::HauntExiled {
+                controller,
+                exiled_card,
+                haunted_creature,
+            } => {
+                107u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+                haunted_creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -3367,6 +3402,8 @@ impl HashInto for TriggerCondition {
             TriggerCondition::TributeNotPaid => 21u8.hash_into(hasher),
             // CR 207.2c / CR 120.3: "Whenever this creature is dealt damage" (Enrage) — discriminant 22
             TriggerCondition::WhenDealtDamage => 22u8.hash_into(hasher),
+            // CR 702.55c: "When the creature it haunts dies" — discriminant 23
+            TriggerCondition::HauntedCreatureDies => 23u8.hash_into(hasher),
         }
     }
 }

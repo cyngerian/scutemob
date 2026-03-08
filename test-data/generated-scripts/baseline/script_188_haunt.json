@@ -1,0 +1,368 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_baseline_188",
+    "name": "Haunt — Blind Hunter full lifecycle: ETB drain, exile-haunting, haunted-creature-dies drain (CR 702.55)",
+    "description": "Tests the Haunt mechanic (CR 702.55) using Blind Hunter ({2}{W}{B}, 2/2 Flying Bat). The script exercises the complete two-phase lifecycle: (1) P1 casts Blind Hunter; its ETB triggered ability fires inline and resolves — each opponent (P2) loses 2 life and P1 gains 2 life. (2) P1 destroys Blind Hunter with Lightning Bolt (3 damage, lethal on the 2/2); the Haunt die-trigger fires (CR 702.55a) and resolves — Blind Hunter is moved from the graveyard to exile haunting P2's Llanowar Elves (haunting_target set). (3) P1 destroys Llanowar Elves with a second Lightning Bolt; the HauntedCreatureDiesTrigger fires from exile (CR 702.55c) and resolves — P2 loses 2 more life and P1 gains 2 more life. Final state: P1 at 44 life, P2 at 36 life, Blind Hunter in exile, Llanowar Elves in graveyard.",
+    "cr_sections_tested": [
+      "601.2",
+      "603.2",
+      "603.3",
+      "608.2",
+      "702.55",
+      "702.55a",
+      "702.55b",
+      "702.55c",
+      "120.3",
+      "704.5g",
+      "704.3",
+      "406.2",
+      "701.10a",
+      "118.2"
+    ],
+    "corner_case_ref": null,
+    "tags": [
+      "haunt",
+      "etb-trigger",
+      "graveyard",
+      "exile",
+      "trigger-from-exile",
+      "drain-life",
+      "blind-hunter",
+      "lifecycle"
+    ],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "CR 702.55a: Haunt on a permanent means 'When this permanent is put into a graveyard from the battlefield, exile it haunting target creature.' The HauntExileTrigger fires when Blind Hunter dies (not when exiled directly). CR 702.55c: The second triggered ability fires from exile — 'When the creature it haunts dies, [effect].' The effect is DrainLife{2}: each opponent loses 2, controller gains 2 (matches Blind Hunter ETB). Engine note: Blind Hunter's WhenEntersBattlefield trigger uses fire_when_enters_triggered_effects (replacement.rs), which executes the DrainLife effect INLINE during spell resolution — it does NOT place a separate trigger on the stack. Therefore after the spell resolves, stack is empty and life totals reflect the drain immediately. The HauntExileTrigger (SOK disc 57) and HauntedCreatureDiesTrigger (SOK disc 58) DO go on the stack as proper StackObjectKind variants. Lifecycle tracking: P1 starts at 40, P2 starts at 40. After ETB resolves inline: P2 loses 2 (→38), P1 gains 2 (→42). After HauntedCreatureDiesTrigger resolves: P2 loses 2 more (→36), P1 gains 2 more (→44). Mana: P1 has red:2, colorless:2, white:1, black:1 in pool (pre-loaded). Blind Hunter costs {2}{W}{B} = colorless:2, white:1, black:1. First Lightning Bolt {R} = red:1. Second Lightning Bolt {R} = red:1. HauntExileTrigger resolution: engine auto-selects first legal creature on battlefield (P2's Llanowar Elves) as the haunting target (MVP auto-select, per ability plan). The exiled Blind Hunter's haunting_target ObjectId points to Llanowar Elves on the battlefield. When Llanowar Elves dies (Lightning Bolt 3 damage, 1/1 → lethal SBA 704.5g), the CreatureDied event triggers the scan of exile objects — finding Blind Hunter with haunting_target matching the pre-death ObjectId of Llanowar Elves — and fires HauntedCreatureDiesTrigger. StackResolve actions are informational (harness ignores them; priority_round drives engine). All assertions are verified by the engine. Blind Hunter card definition at crates/engine/src/cards/defs/blind_hunter.rs: Flying + Haunt keywords, ETB DrainLife{2} trigger (fires inline), HauntedCreatureDies DrainLife{2} trigger (fires via stack).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "red": 2, "colorless": 2, "white": 1, "black": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Blind Hunter", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null },
+          { "card": "Lightning Bolt", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Blind Hunter. Spell resolves; ETB DrainLife fires inline (not as a stack item). P1 then destroys Blind Hunter with Lightning Bolt — Haunt die-trigger (HauntExileTrigger) fires and resolves, placing Blind Hunter in exile haunting P2's Llanowar Elves. P1 then destroys Llanowar Elves with second Lightning Bolt — HauntedCreatureDiesTrigger fires from exile and resolves, draining P2 again.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial state: Blind Hunter and 2x Lightning Bolt in P1 hand, Llanowar Elves on P2 battlefield, both players at 40 life, stack empty",
+          "assertions": {
+            "zones.hand.p1.count": 3,
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "players.p1.life": 40,
+            "players.p2.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "P1 has {2}{W}{B} + {R}{R} in pool covering all three spells. P2 controls Llanowar Elves (1/1) which will be the haunt target."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Blind Hunter",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "white": 1, "black": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Blind Hunter paying {2}{W}{B}. No targets. Blind Hunter moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting Blind Hunter: spell on stack (count=1), P1 hand has 2 cards remaining",
+          "assertions": {
+            "zones.hand.p1.count": 2,
+            "zones.stack.count": 1
+          },
+          "note": "Blind Hunter is on the stack. P1 still holds 2 Lightning Bolts."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Blind Hunter resolves. CR 608.2: Creature enters the battlefield. ETB trigger (DrainLife 2) fires inline via fire_when_enters_triggered_effects: P2 loses 2 (40→38), P1 gains 2 (40→42). Stack becomes empty immediately."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Blind Hunter",
+          "resolution": [
+            {
+              "effect": "enter_battlefield",
+              "target": { "type": "player", "player": "p1" },
+              "card": "Blind Hunter",
+              "owner": null,
+              "cr_ref": "608.2",
+              "note": "CR 608.2: Blind Hunter enters the battlefield. ETB DrainLife{2} executes inline."
+            }
+          ],
+          "note": "CR 608.2: Blind Hunter resolves. ETB trigger fires inline (not placed on stack): each opponent (P2) loses 2, controller (P1) gains 2. Stack empty after resolution. Informational only."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Blind Hunter resolves: P2 at 38 life, P1 at 42 life, Blind Hunter on P1 battlefield, stack empty",
+          "assertions": {
+            "players.p2.life": 38,
+            "players.p1.life": 42,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Blind Hunter" }] }
+          },
+          "note": "ETB DrainLife fired inline: P2 lost 2 (40→38), P1 gained 2 (40→42). Stack is empty (no separate stack item for the inline ETB trigger). Remaining mana pool: red:2."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "permanent", "card": "Blind Hunter", "controller": "p1", "player": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Lightning Bolt targeting Blind Hunter (P1's own 2/2). {R} paid from pool. Lightning Bolt moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting first Lightning Bolt: spell on stack (count=1), P1 hand has 1 card",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack.count": 1
+          },
+          "note": "Lightning Bolt is on the stack targeting Blind Hunter."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — Lightning Bolt resolves. CR 120.3: 3 damage marked on Blind Hunter (2/2). SBA check: damage >= toughness (CR 704.5g) → Blind Hunter destroyed, moves to graveyard. CreatureDied event fires → CR 702.55a: Blind Hunter had Haunt keyword → HauntExileTrigger placed on stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "permanent", "card": "Blind Hunter", "controller": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Blind Hunter (2/2). CR 704.5g: lethal damage → dies. CR 702.55a: Haunt die-trigger fires → HauntExileTrigger on stack."
+            }
+          ],
+          "note": "Lightning Bolt resolves; Blind Hunter dies; HauntExileTrigger queued. Informational only."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Blind Hunter", "controller": "p1" },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Blind Hunter has damage >= toughness (3 >= 2). Destroyed, moved to graveyard. CR 702.55a: HauntExileTrigger fired."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked. Blind Hunter dies. HauntExileTrigger placed on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Blind Hunter dies: Blind Hunter in P1 graveyard, HauntExileTrigger on stack (count=1), no longer on battlefield",
+          "assertions": {
+            "zones.graveyard.p1": { "includes": [{ "card": "Blind Hunter" }] },
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": [{ "card": "Blind Hunter" }] }
+          },
+          "note": "Blind Hunter is in graveyard (haunt trigger has not yet resolved). HauntExileTrigger is on the stack. Llanowar Elves is the only available haunt target."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — HauntExileTrigger resolves. CR 702.55a: Blind Hunter moves from graveyard to exile; haunting_target set to P2's Llanowar Elves (auto-selected as only legal creature). HauntExiled event emitted."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "HauntExileTrigger",
+          "resolution": [
+            {
+              "effect": "haunt_exile",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p2" },
+              "card": "Blind Hunter",
+              "owner": "p1",
+              "cr_ref": "702.55a",
+              "note": "CR 702.55a: HauntExileTrigger resolves — Blind Hunter moved from P1 graveyard to exile haunting Llanowar Elves. CR 406.2 / CR 701.10a: card placed in exile zone."
+            }
+          ],
+          "note": "HauntExileTrigger resolves. Blind Hunter moves to exile, haunting_target set to Llanowar Elves' ObjectId. Informational only."
+        },
+        {
+          "type": "assert_state",
+          "description": "After HauntExileTrigger resolves: Blind Hunter in exile (count=1), NOT in graveyard, stack empty, Llanowar Elves still on P2 battlefield",
+          "assertions": {
+            "zones.exile.count": 1,
+            "zones.graveyard.p1": { "excludes": [{ "card": "Blind Hunter" }] },
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "CR 702.55a/702.55b: Blind Hunter is in exile haunting Llanowar Elves. Llanowar Elves is still alive — haunting relationship established."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Lightning Bolt",
+          "targets": [
+            { "type": "permanent", "card": "Llanowar Elves", "controller": "p2", "player": null }
+          ],
+          "mana_paid": { "red": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts second Lightning Bolt targeting P2's Llanowar Elves (1/1). {R} paid from remaining pool. P1 hand is now empty."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting second Lightning Bolt: spell on stack (count=1), P1 hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Second Lightning Bolt targets Llanowar Elves (the haunted creature)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — Lightning Bolt resolves. CR 120.3: 3 damage on Llanowar Elves (1/1). SBA: 3 >= 1 toughness → lethal → Llanowar Elves dies (CR 704.5g). CR 702.55c: Engine scans exile — Blind Hunter has haunting_target matching Llanowar Elves' pre-death ObjectId → HauntedCreatureDiesTrigger placed on stack."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lightning Bolt",
+          "resolution": [
+            {
+              "effect": "deal_damage",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p2" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "120.3",
+              "note": "CR 120.3: Lightning Bolt deals 3 damage to Llanowar Elves (1/1). CR 704.5g: lethal → dies. CR 702.55c: HauntedCreatureDiesTrigger fires from exile."
+            }
+          ],
+          "note": "Lightning Bolt resolves; Llanowar Elves (haunted creature) dies; HauntedCreatureDiesTrigger queued. Informational only."
+        },
+        {
+          "type": "sba_check",
+          "actions": [
+            {
+              "action": "creature_dies",
+              "target": { "card": "Llanowar Elves", "controller": "p2" },
+              "cr_ref": "704.5g",
+              "note": "CR 704.5g: Llanowar Elves has damage >= toughness (3 >= 1). Destroyed, moved to graveyard. CR 702.55c: HauntedCreatureDiesTrigger fires from exile — unusual trigger zone."
+            }
+          ],
+          "note": "CR 704.3: SBAs checked. Llanowar Elves dies. HauntedCreatureDiesTrigger placed on stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Llanowar Elves dies: Llanowar Elves in P2 graveyard, HauntedCreatureDiesTrigger on stack (count=1), Blind Hunter still in exile",
+          "assertions": {
+            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.stack.count": 1,
+            "zones.exile.count": 1
+          },
+          "note": "CR 702.55c: Llanowar Elves (haunted creature) is in P2 graveyard. HauntedCreatureDiesTrigger is on stack. Blind Hunter remains in exile — it does not leave exile when the haunted creature dies."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass — HauntedCreatureDiesTrigger resolves. DrainLife 2 fires: P2 loses 2 more (38→36), P1 gains 2 more (42→44)."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "HauntedCreatureDiesTrigger",
+          "resolution": [
+            {
+              "effect": "drain_life",
+              "target": { "type": "player", "player": "p2" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: P2 loses 2 life. P2: 38 → 36."
+            },
+            {
+              "effect": "gain_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 2,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: P1 gains 2 life. P1: 42 → 44."
+            }
+          ],
+          "note": "CR 702.55c: HauntedCreatureDiesTrigger resolves — fires Blind Hunter's second triggered ability (HauntedCreatureDies DrainLife{2}) from exile. Blind Hunter stays in exile after resolution. Informational only."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: P1 at 44 life, P2 at 36 life, Blind Hunter in exile, Llanowar Elves in P2 graveyard, stack empty",
+          "assertions": {
+            "players.p1.life": 44,
+            "players.p2.life": 36,
+            "zones.stack": { "is_empty": true },
+            "zones.exile.count": 1,
+            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "Full Haunt lifecycle completed. P2 lost 2 from ETB drain (40→38) and 2 from HauntedCreatureDiesTrigger (38→36) = 36 total. P1 gained 2 from ETB drain (40→42) and 2 from HauntedCreatureDiesTrigger (42→44) = 44 total. Blind Hunter remains in exile (CR 702.55c: haunt card stays in exile after haunted creature dies). CR 702.55b: haunting relationship is now stale (ObjectId dangles) but harmless."
+        }
+      ]
+    }
+  ]
+}

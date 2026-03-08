@@ -3022,6 +3022,8 @@ pub fn handle_cast_spell(
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }

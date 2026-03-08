@@ -1284,6 +1284,13 @@ pub enum TriggerCondition {
     /// the trigger does not fire. Per ruling 2018-01-19, if multiple sources deal
     /// damage simultaneously (e.g., combat), triggers only once per damage event.
     WhenDealtDamage,
+    /// CR 702.55c: "When the creature [this card] haunts dies."
+    ///
+    /// Fires from exile when the creature this haunt card is haunting dies.
+    /// The trigger condition is matched at CreatureDied time by scanning exiled objects
+    /// with haunting_target == dying creature's pre-death ObjectId.
+    /// The HauntedCreatureDiesTrigger SOK resolves this effect.
+    HauntedCreatureDies,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────

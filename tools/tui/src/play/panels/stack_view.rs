@@ -204,6 +204,12 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::CipherTrigger { source_creature, .. } => {
                     ("Cipher trigger: ".to_string(), Some(*source_creature))
                 }
+                StackObjectKind::HauntExileTrigger { haunt_card, .. } => {
+                    ("Haunt exile: ".to_string(), Some(*haunt_card))
+                }
+                StackObjectKind::HauntedCreatureDiesTrigger { haunt_source, .. } => {
+                    ("Haunt effect: ".to_string(), Some(*haunt_source))
+                }
             };
 
             let (name, name_color) = source_id

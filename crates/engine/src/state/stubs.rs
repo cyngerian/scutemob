@@ -142,6 +142,19 @@ pub enum PendingTriggerKind {
     /// Carries the encoded card information through to `flush_pending_triggers`
     /// to build the `CipherTrigger` SOK.
     CipherCombatDamage,
+    /// CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell is
+    /// put into a graveyard during its resolution, exile it haunting target creature."
+    ///
+    /// Fired in the CreatureDied handler when the dead creature had KeywordAbility::Haunt.
+    /// Also fired during instant/sorcery resolution for spell Haunt.
+    /// Carries `haunt_source_card_id` for the HauntExileTrigger SOK.
+    HauntExile,
+    /// CR 702.55c: Haunted creature dies trigger -- fires the haunt card's effect
+    /// from exile when the creature it haunts dies.
+    ///
+    /// Fired in the CreatureDied handler when an exiled card has a matching haunting_target.
+    /// Carries `haunt_source_object_id` for the HauntedCreatureDiesTrigger SOK.
+    HauntedCreatureDies,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -407,6 +420,19 @@ pub struct PendingTrigger {
     /// Used at resolution to verify the encoded card still exists in exile (CR 702.99c).
     #[serde(default)]
     pub cipher_encoded_object_id: Option<ObjectId>,
+    /// CR 702.55a/c: The ObjectId of the haunt card (for HauntExile: in graveyard;
+    /// for HauntedCreatureDies: in exile). Used to build the SOK at flush time.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::HauntExile` or
+    /// `kind == PendingTriggerKind::HauntedCreatureDies`.
+    #[serde(default)]
+    pub haunt_source_object_id: Option<ObjectId>,
+    /// CR 702.55a: The CardId of the haunt card (for registry lookup).
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::HauntExile` or
+    /// `kind == PendingTriggerKind::HauntedCreatureDies`.
+    #[serde(default)]
+    pub haunt_source_card_id: Option<crate::state::player::CardId>,
 }
 
 impl PendingTriggerKind {

@@ -449,6 +449,7 @@ fn test_commander_damage_survives_zone_change() {
                 gift_opponent: None,
                 is_saddled: false,
                 encoded_cards: im::Vector::new(),
+                haunting_target: None,
             },
             ZoneId::Battlefield,
         )

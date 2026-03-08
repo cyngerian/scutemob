@@ -1278,6 +1278,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                     }
 
@@ -1346,6 +1348,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                     }
 
@@ -1412,6 +1416,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                     }
 
@@ -1480,6 +1486,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     gift_opponent: Some(gift_opp),
                                     cipher_encoded_card_id: None,
                                     cipher_encoded_object_id: None,
+                                    haunt_source_object_id: None,
+                                    haunt_source_card_id: None,
                                 });
                         }
                     }
@@ -2046,6 +2054,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                     }
                 }
@@ -3782,6 +3792,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.171b: tokens are not saddled by default.
                         is_saddled: false,
                         encoded_cards: im::Vector::new(),
+                        haunting_target: None,
                     };
 
                     // Add the token to the battlefield.
@@ -3971,6 +3982,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 702.171b: tokens are not saddled by default.
                 is_saddled: false,
                 encoded_cards: im::Vector::new(),
+                haunting_target: None,
             };
 
             // Add the token to the battlefield.
@@ -4255,6 +4267,160 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     source_object_id: encoded_object_id,
                 });
             }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.55a: HauntExileTrigger resolution.
+        //
+        // "When this creature dies / this spell is put into a graveyard during its
+        // resolution, exile it haunting target creature."
+        //
+        // At resolution:
+        // 1. Verify the haunt card is still in the graveyard (fizzle if not — e.g., if
+        //    a commander was moved to the command zone, or a token ceased to exist).
+        // 2. Find a legal creature target on the battlefield (MVP: auto-select first).
+        //    If no legal creature exists, fizzle and leave the card in the graveyard.
+        // 3. Move the haunt card from graveyard to exile (new ObjectId, CR 400.7).
+        // 4. Set haunting_target on the new exiled object to the target creature's ObjectId.
+        // 5. Emit HauntExiled event.
+        StackObjectKind::HauntExileTrigger {
+            haunt_card,
+            haunt_card_id: _,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 702.55a: Verify the haunt card is still in the graveyard.
+            let card_in_graveyard = state
+                .objects
+                .get(&haunt_card)
+                .map(|obj| matches!(obj.zone, crate::state::zone::ZoneId::Graveyard(_)))
+                .unwrap_or(false);
+
+            if card_in_graveyard {
+                // Find the first legal creature on the battlefield for MVP auto-targeting.
+                // CR 702.55a: "exile it haunting target creature" — any creature is legal.
+                // Interactive target selection is deferred.
+                let target_creature_id = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                        obj.zone == crate::state::zone::ZoneId::Battlefield
+                            && obj.is_phased_in()
+                            && obj
+                                .characteristics
+                                .card_types
+                                .contains(&crate::state::types::CardType::Creature)
+                    })
+                    .map(|(&id, _)| id)
+                    .next();
+
+                if let Some(target_creature) = target_creature_id {
+                    // Move the haunt card from graveyard to exile.
+                    // CR 400.7: creates a new ObjectId for the exiled card.
+                    let (new_exile_id, _) =
+                        state.move_object_to_zone(haunt_card, crate::state::zone::ZoneId::Exile)?;
+
+                    // CR 702.55b: Set haunting_target on the newly exiled card.
+                    // This links the exiled card to the target creature's current ObjectId.
+                    if let Some(exiled_obj) = state.objects.get_mut(&new_exile_id) {
+                        exiled_obj.haunting_target = Some(target_creature);
+                    }
+
+                    events.push(GameEvent::HauntExiled {
+                        controller,
+                        exiled_card: new_exile_id,
+                        haunted_creature: target_creature,
+                    });
+                }
+                // Else: no legal creature target exists — fizzle (card stays in graveyard).
+            }
+            // Else: haunt card is no longer in graveyard — fizzle.
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.55c: HauntedCreatureDiesTrigger resolution.
+        //
+        // "When the creature [this card] haunts dies, [effect]."
+        //
+        // At resolution:
+        // 1. Verify the haunt card is still in exile with a haunting_target set.
+        //    If not, fizzle (card was removed from exile, or haunting_target is gone).
+        // 2. Look up the card's haunt effect from the card registry.
+        // 3. Execute the effect on behalf of the haunt card's controller.
+        // 4. The haunt card stays in exile (does NOT leave exile or lose haunting status).
+        StackObjectKind::HauntedCreatureDiesTrigger {
+            haunt_source,
+            haunt_card_id,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 702.55c: Verify the haunt card is still in exile with haunting_target set.
+            let still_in_exile = state
+                .objects
+                .get(&haunt_source)
+                .map(|obj| {
+                    matches!(obj.zone, crate::state::zone::ZoneId::Exile)
+                        && obj.haunting_target.is_some()
+                })
+                .unwrap_or(false);
+
+            if still_in_exile {
+                // Look up the card definition to find the haunt effect.
+                // The effect is the "When the creature it haunts dies" triggered ability effect.
+                // We look for AbilityDefinition::Triggered with trigger_condition == HauntedCreatureDies.
+                use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
+                let haunt_effect: Option<crate::cards::card_definition::Effect> = {
+                    let card_id_opt = haunt_card_id.clone().or_else(|| {
+                        state
+                            .objects
+                            .get(&haunt_source)
+                            .and_then(|o| o.card_id.clone())
+                    });
+
+                    card_id_opt.and_then(|cid| {
+                        state.card_registry.get(cid).and_then(|def| {
+                            // Find the triggered ability with HauntedCreatureDies condition.
+                            // If the card has no such ability, there's nothing to execute.
+                            def.abilities.iter().find_map(|ab| {
+                                if let AbilityDefinition::Triggered {
+                                    trigger_condition,
+                                    effect,
+                                    ..
+                                } = ab
+                                {
+                                    if *trigger_condition == TriggerCondition::HauntedCreatureDies {
+                                        return Some(effect.clone());
+                                    }
+                                }
+                                None
+                            })
+                        })
+                    })
+                };
+
+                if let Some(effect) = haunt_effect {
+                    let mut ctx =
+                        crate::effects::EffectContext::new(controller, haunt_source, vec![]);
+                    let effect_events = crate::effects::execute_effect(state, &effect, &mut ctx);
+                    events.extend(effect_events);
+                    // CR 702.55c: Haunt fires exactly once — clear the haunting relationship
+                    // after the trigger resolves so that a recycled ObjectId cannot cause a
+                    // spurious re-trigger against an unrelated creature's death.
+                    if let Some(haunt_obj) = state.objects.get_mut(&haunt_source) {
+                        haunt_obj.haunting_target = None;
+                    }
+                }
+                // Else: no HauntedCreatureDies ability found — fizzle (card has no such trigger).
+            }
+            // Else: haunt card no longer in exile or haunting_target cleared — fizzle.
 
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -4564,6 +4730,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
+                    haunting_target: None,
                 };
 
                 // Add the token to the battlefield.
@@ -4703,6 +4870,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 gift_opponent: None,
                                 cipher_encoded_card_id: None,
                                 cipher_encoded_object_id: None,
+                                haunt_source_object_id: None,
+                                haunt_source_card_id: None,
                             });
                     }
                 }
@@ -5710,6 +5879,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
+                    haunting_target: None,
                 };
 
                 // Add the token to the battlefield.
@@ -5917,6 +6087,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
                     encoded_cards: im::Vector::new(),
+                    haunting_target: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6142,6 +6313,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.171b: tokens are not saddled by default.
                         is_saddled: false,
                         encoded_cards: im::Vector::new(),
+                        haunting_target: None,
                     };
 
                     // Add the token to the battlefield.
@@ -6534,8 +6706,14 @@ pub fn counter_stack_object(
         | StackObjectKind::OffspringTrigger { .. }
         | StackObjectKind::GiftETBTrigger { .. }
         | StackObjectKind::SaddleAbility { .. }
-        | StackObjectKind::CipherTrigger { .. } => {
+        | StackObjectKind::CipherTrigger { .. }
+        | StackObjectKind::HauntExileTrigger { .. }
+        | StackObjectKind::HauntedCreatureDiesTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
+            // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
+            // card stays in the graveyard and no haunting relationship is established.
+            // Note: For HauntedCreatureDiesTrigger, if countered (e.g. by Stifle),
+            // no haunt effect fires, but the haunt card stays in exile (CR 702.55c).
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No
             // pump or keyword is applied, but the card stays in the graveyard.

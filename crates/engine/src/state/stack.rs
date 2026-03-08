@@ -1224,4 +1224,40 @@ pub enum StackObjectKind {
         /// The ObjectId of the exiled card encoding (used to verify it still exists in exile).
         encoded_object_id: ObjectId,
     },
+    /// CR 702.55a: Haunt exile trigger -- "When this creature dies / this spell is
+    /// put into a graveyard during its resolution, exile it haunting target creature."
+    ///
+    /// At resolution: find the haunt card in the graveyard (must still be there),
+    /// auto-select the first legal creature on the battlefield as the target (MVP --
+    /// interactive target selection deferred), move the haunt card from the graveyard
+    /// to exile, set `haunting_target` on the new exiled object, and emit HauntExiled.
+    ///
+    /// If the haunt card is no longer in the graveyard or no legal creature target
+    /// exists, the trigger fizzles.
+    ///
+    /// Discriminant 57.
+    HauntExileTrigger {
+        /// The ObjectId of the haunt card in the graveyard (about to be exiled).
+        haunt_card: ObjectId,
+        /// The CardId of the haunt card (for registry lookup / card name for events).
+        #[serde(default)]
+        haunt_card_id: Option<crate::state::player::CardId>,
+    },
+    /// CR 702.55c: Haunted creature dies trigger -- "When the creature [this card] haunts
+    /// dies, [effect]." Fires from exile when the creature this card is haunting dies.
+    ///
+    /// At resolution: look up the haunt card in exile (verify it still exists with
+    /// a haunting_target), execute the card's haunt effect from the card registry.
+    /// The haunt card stays in exile after resolution (it does NOT leave exile).
+    ///
+    /// If the haunt card is no longer in exile, the trigger fizzles.
+    ///
+    /// Discriminant 58.
+    HauntedCreatureDiesTrigger {
+        /// The ObjectId of the exiled haunt card (the card whose effect fires).
+        haunt_source: ObjectId,
+        /// The CardId of the haunt card (for registry lookup of the haunt effect).
+        #[serde(default)]
+        haunt_card_id: Option<crate::state::player::CardId>,
+    },
 }

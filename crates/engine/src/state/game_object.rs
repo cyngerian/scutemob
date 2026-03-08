@@ -219,6 +219,11 @@ pub enum TriggerEvent {
     /// after prevention). Used by the Enrage ability word. Fires once per
     /// simultaneous damage event, regardless of how many sources dealt damage.
     SelfIsDealtDamage,
+    /// CR 702.55c: Triggers when the creature this exiled haunt card haunts dies.
+    /// Only meaningful for triggered abilities on cards in the exile zone that
+    /// have a haunting relationship (haunting_target is set). Fires from exile
+    /// when the creature with that ObjectId dies.
+    HauntedCreatureDies,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -678,6 +683,18 @@ pub struct GameObject {
     /// time that the card still exists in exile (fizzle if not -- no SBA needed).
     #[serde(default)]
     pub encoded_cards: im::Vector<(ObjectId, crate::state::player::CardId)>,
+    /// CR 702.55b: The ObjectId of the creature this exiled card is haunting.
+    ///
+    /// Set when a HauntExileTrigger resolves: the haunt card is moved from the
+    /// graveyard to exile, and this field is set to the ObjectId of the target
+    /// creature on the battlefield. The creature's battlefield ObjectId is stored
+    /// here for matching when the haunted creature dies.
+    ///
+    /// CR 400.7: Reset to None on zone changes (new object has no haunting relationship).
+    /// CR 702.55c: When the creature with this ObjectId dies (via CreatureDied.object_id),
+    /// the engine scans exile for haunt cards with a matching haunting_target.
+    #[serde(default)]
+    pub haunting_target: Option<ObjectId>,
 }
 
 impl GameObject {

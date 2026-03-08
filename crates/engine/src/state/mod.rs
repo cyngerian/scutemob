@@ -390,6 +390,9 @@ impl GameState {
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
             encoded_cards: im::Vector::new(),
+            // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
+            // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
+            haunting_target: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -562,6 +565,9 @@ impl GameState {
             // The exiled cards remain in exile but are no longer encoded on anything.
             // CR 702.99c: encoding is broken when the creature leaves the battlefield.
             encoded_cards: im::Vector::new(),
+            // CR 702.55b / CR 400.7: haunting relationship is cleared on zone change.
+            // The exiled haunt card's haunting_target is set AFTER zone move, not inherited.
+            haunting_target: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

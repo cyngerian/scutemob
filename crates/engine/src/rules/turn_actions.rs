@@ -108,6 +108,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -189,6 +191,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -271,6 +275,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -354,6 +360,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -434,6 +442,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -535,6 +545,8 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 gift_opponent: None,
                 cipher_encoded_card_id: None,
                 cipher_encoded_object_id: None,
+                haunt_source_object_id: None,
+                haunt_source_card_id: None,
             });
         }
     }
@@ -603,6 +615,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -672,6 +686,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -733,6 +749,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -794,6 +812,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -864,6 +884,8 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             gift_opponent: None,
             cipher_encoded_card_id: None,
             cipher_encoded_object_id: None,
+            haunt_source_object_id: None,
+            haunt_source_card_id: None,
         });
     }
 
@@ -1304,6 +1326,8 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
                         gift_opponent: None,
                         cipher_encoded_card_id: None,
                         cipher_encoded_object_id: None,
+                        haunt_source_object_id: None,
+                        haunt_source_card_id: None,
                     });
                 }
             }

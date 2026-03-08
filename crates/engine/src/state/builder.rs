@@ -1003,6 +1003,8 @@ impl GameStateBuilder {
                 is_saddled: false,
                 // CR 702.99b: test-placed objects have no encoded cipher cards.
                 encoded_cards: im::Vector::new(),
+                // CR 702.55b: test-placed objects have no haunting relationship.
+                haunting_target: None,
             };
 
             state.add_object(object, zone)?;

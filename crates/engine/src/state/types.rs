@@ -1329,6 +1329,17 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 141.
     Cipher,
+    /// CR 702.55a: Haunt -- two linked triggered abilities.
+    ///
+    /// On a creature: "When this creature dies, exile it haunting target creature."
+    /// On a spell: "When this spell is put into a graveyard during its resolution,
+    /// exile it haunting target creature."
+    ///
+    /// The exiled card then has a second trigger: "When the creature it haunts
+    /// dies, [effect]." This trigger fires from exile (CR 702.55c).
+    ///
+    /// Discriminant 142.
+    Haunt,
 }
 
 /// CR 702.72a: The filter for what can be championed.

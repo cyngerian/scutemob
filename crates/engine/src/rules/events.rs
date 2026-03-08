@@ -1099,6 +1099,22 @@ pub enum GameEvent {
         /// The ObjectId of the creature the card is encoded on.
         creature: ObjectId,
     },
+
+    // ── Haunt events (CR 702.55) ──────────────────────────────────────────────
+    /// CR 702.55a: A haunt card was exiled haunting a creature.
+    ///
+    /// Emitted when a HauntExileTrigger resolves: the haunt card moves from the
+    /// graveyard to exile and the haunting relationship is established.
+    ///
+    /// Discriminant 107.
+    HauntExiled {
+        /// The player who controls the haunt card.
+        controller: PlayerId,
+        /// The ObjectId of the exiled haunt card (new ID after zone move, CR 400.7).
+        exiled_card: ObjectId,
+        /// The ObjectId of the creature being haunted (on the battlefield).
+        haunted_creature: ObjectId,
+    },
 }
 
 impl GameEvent {
