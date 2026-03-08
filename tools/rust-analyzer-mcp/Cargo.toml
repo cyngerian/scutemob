@@ -1,0 +1,68 @@
+[workspace]
+members = [".", "test-support"]
+exclude = ["test-project", "test-project-diagnostics"]
+
+[package]
+name = "rust-analyzer-mcp"
+version = "0.2.0"
+edition = "2021"
+description = "MCP server for rust-analyzer integration"
+authors = ["Zeeshan Ali Khan <zeenix@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/zeenix/rust-analyzer-mcp"
+keywords = ["mcp", "rust-analyzer", "language-server", "rust"]
+categories = ["development-tools"]
+
+[[bin]]
+name = "rust-analyzer-mcp"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+env_logger = "0.10"
+log = "0.4"
+futures = "0.3"
+which = "6.0"
+
+[dev-dependencies]
+# Test support library
+test-support = { path = "test-support" }
+
+# Core testing
+tokio-test = "0.4"
+assert_cmd = "2.0"          # For testing CLI behavior
+predicates = "3.0"          # Assertion predicates
+
+# Mocking and test doubles
+mockall = "0.13"            # For creating mocks
+wiremock = "0.6"            # HTTP/WebSocket mocking
+
+# Property-based testing
+proptest = "1.6"            # Property testing
+arbitrary = "1.3"           # Arbitrary trait implementations
+
+# Benchmarking
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+# Test utilities
+tempfile = "3.8"            # Temporary directories for tests
+test-log = "0.2"            # Capture logs in tests
+rstest = "0.23"             # Parameterized tests
+once_cell = "1.20"          # Lazy statics for test optimization
+
+# JSON/Protocol testing
+jsonschema = "0.25"         # JSON schema validation
+serde_test = "1.0"          # Serde testing utilities
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[[bench]]
+name = "concurrent_requests"
+harness = false
+

@@ -1,0 +1,23 @@
+# Rust build artifacts
+**/target/
+
+# Override root .gitignore: Cargo.lock should be committed for binary crates
+!Cargo.lock
+/test-project/target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Debug files
+*.pdb
+
+# Python cache
+__pycache__/
+*.pyc
