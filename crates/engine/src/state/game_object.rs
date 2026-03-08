@@ -101,6 +101,10 @@ pub struct ActivationCost {
     /// CR 602.2: sacrifice is paid at activation time, before the ability is on the stack.
     #[serde(default)]
     pub sacrifice_self: bool,
+    /// CR 701.61a: True if activating this ability requires performing the forage action.
+    /// "Forage" means: exile three cards from your graveyard OR sacrifice a Food artifact.
+    #[serde(default)]
+    pub forage: bool,
 }
 
 /// A non-mana activated ability that uses the stack (CR 602).

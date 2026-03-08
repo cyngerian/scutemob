@@ -1403,6 +1403,7 @@ pub fn food_token_spec(count: u32) -> TokenSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                forage: false,
             },
             description: "{2}, {T}, Sacrifice this token: You gain 3 life.".to_string(),
             effect: Some(Effect::GainLife {
@@ -1440,6 +1441,7 @@ pub fn clue_token_spec(count: u32) -> TokenSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                forage: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

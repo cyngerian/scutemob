@@ -77,6 +77,7 @@ fn outlast_ability(mana: ManaCost) -> ActivatedAbility {
             requires_tap: true,
             mana_cost: Some(mana),
             sacrifice_self: false,
+            forage: false,
         },
         description: "Outlast (CR 702.107a)".to_string(),
         effect: Some(Effect::AddCounter {

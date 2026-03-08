@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_forage_182",
+    "name": "Food token sacrifice to gain 3 life",
+    "description": "Demonstrates the Food token sacrifice mechanic that underlies the Forage keyword action (CR 701.61). P1 casts Bake into a Pie ({2BB}) targeting p2's Llanowar Elves: the creature is destroyed and a Food token is created on p1's battlefield. P1 then activates the Food token's built-in ability ({2}, {T}, Sacrifice: You gain 3 life), paying {2} from the mana pool, tapping and sacrificing the token as cost (CR 602.2c — sacrifice is part of the cost so the Food token leaves the battlefield immediately at activation). The ability resolves and p1 gains 3 life (40 → 43). Note: tokens cease to exist when they leave the battlefield (CR 111.7), so Food does not persist in the graveyard after the SBA check. CR 111.10d defines the Food token; CR 701.61 defines Forage as 'exile three cards from your graveyard OR sacrifice a Food'.",
+    "cr_sections_tested": ["601.2", "602.2", "608.2", "701.61", "111.10d", "111.7", "118.2", "701.7a"],
+    "corner_case_ref": null,
+    "tags": ["food-token", "forage", "sacrifice", "gain-life", "activated-ability", "token"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Food token mechanics: CR 111.10d defines Food as a colorless Artifact token with '{2}, {T}, Sacrifice this token: You gain 3 life.' food_token_spec() in card_definition.rs creates it with activated_abilities[0] having requires_tap:true, mana_cost:{generic:2}, sacrifice_self:true. Since sacrifice is in the cost (CR 602.2c), the Food token leaves the battlefield before the ability goes on the stack. CR 111.7: tokens cease to exist when they move to a zone other than the battlefield — a state-based action removes them from the graveyard shortly after they arrive. Therefore the final assert does NOT check for Food in p1's graveyard; it only verifies Food is absent from the battlefield and p1's life reached 43. Bake into a Pie ({2BB}) is used to create the Food token in-script (no initial-state token placement since Food has no standalone CardDefinition in all_cards() — it only exists as food_token_spec()/TokenSpec). P1 starts with {black:2, colorless:4} in pool: {black:2, colorless:2} pays for Bake, remaining {colorless:2} pays for the Food activation. Llanowar Elves (p2's 1/1) is the destroy target. CR 701.7a: destroy moves permanent to its owner's graveyard. CR 118.2: life total increases by 3. ability_index:0 is correct — Food has no mana abilities, only the one activated ability (index 0 in the non-mana activated abilities list).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "black": 2, "colorless": 4 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p2": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {
+        "p1": [
+          { "card": "Bake into a Pie", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 casts Bake into a Pie targeting p2's Llanowar Elves",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Bake into a Pie in p1 hand, Llanowar Elves on p2 battlefield, no Food token yet",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.battlefield.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "players.p1.life": 40,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Bake into a Pie",
+          "targets": [
+            { "type": "permanent", "player": null, "card": "Llanowar Elves", "controller": "p2" }
+          ],
+          "mana_paid": { "black": 2, "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: P1 casts Bake into a Pie ({2BB}), targeting p2's Llanowar Elves. {2BB} paid from pool."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Bake into a Pie on stack, p1 hand empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.hand.p1.count": 0
+          },
+          "note": "Bake into a Pie is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Bake into a Pie",
+          "resolution": [
+            {
+              "effect": "destroy_permanent",
+              "target": { "type": "permanent", "card": "Llanowar Elves", "controller": "p2" },
+              "amount": null,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.7a",
+              "note": "CR 701.7a: Destroy moves Llanowar Elves from p2's battlefield to p2's graveyard."
+            },
+            {
+              "effect": "create_token",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Food",
+              "owner": "p1",
+              "cr_ref": "111.1",
+              "note": "CR 111.1: A Food token is created on p1's battlefield."
+            }
+          ],
+          "note": "CR 608.2: Bake into a Pie resolves — destroy target creature, then create a Food token for p1."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Bake resolves: Llanowar Elves in p2 graveyard, Food token on p1 battlefield, p1 life still 40",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.graveyard.p2": { "includes": [{ "card": "Llanowar Elves" }] },
+            "zones.battlefield.p2": { "excludes": ["Llanowar Elves"] },
+            "zones.battlefield.p1": { "includes": [{ "card": "Food" }] },
+            "players.p1.life": 40
+          },
+          "note": "Food token is now on p1's battlefield, ready to be activated."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "P1 activates the Food token's ability: {2}, {T}, Sacrifice — gain 3 life",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Food",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": { "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: P1 activates Food token's ability (index 0): pay {2}, tap, sacrifice. Sacrifice is a cost — Food leaves battlefield immediately (CR 602.2c)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Food activation: Food off battlefield (sacrificed as cost), ability on stack",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Food"] }
+          },
+          "note": "CR 602.2c: Sacrifice is paid as part of the activation cost — Food token left the battlefield before the ability was placed on the stack. CR 111.7: token ceases to exist when it leaves the battlefield."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Food ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Food ability",
+          "resolution": [
+            {
+              "effect": "gain_life",
+              "target": { "type": "player", "player": "p1" },
+              "amount": 3,
+              "card": null,
+              "owner": null,
+              "cr_ref": "118.2",
+              "note": "CR 118.2: P1's life total increases by 3 (40 → 43)."
+            }
+          ],
+          "note": "CR 608.2: Food token ability resolves — controller p1 gains 3 life."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: p1 at 43 life, Food token gone (token ceased to exist, CR 111.7), stack empty",
+          "assertions": {
+            "players.p1.life": 43,
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "excludes": ["Food"] }
+          },
+          "note": "P1 gained 3 life from sacrificing the Food token. Token is no longer tracked (CR 111.7). This demonstrates the Food sacrifice mechanic used by the Forage keyword action (CR 701.61)."
+        }
+      ]
+    }
+  ]
+}

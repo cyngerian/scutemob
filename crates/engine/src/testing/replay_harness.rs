@@ -2072,6 +2072,7 @@ pub fn enrich_spec_from_def(
                     requires_tap: true,
                     mana_cost: Some(cost.clone()),
                     sacrifice_self: false,
+                    forage: false,
                 },
                 description: "Outlast (CR 702.107a)".to_string(),
                 effect: Some(Effect::AddCounter {

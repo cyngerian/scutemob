@@ -271,6 +271,7 @@ fn test_split_second_blocks_activated_abilities() {
                 requires_tap: true,
                 mana_cost: None,
                 sacrifice_self: false,
+                forage: false,
             },
             description: "{T}: Does something".to_string(),
             effect: None,

@@ -514,6 +514,7 @@ fn test_ward_triggers_for_activated_ability_targeting() {
             requires_tap: true,
             mana_cost: None,
             sacrifice_self: false,
+            forage: false,
         },
         description: "{T}: Destroy target creature".to_string(),
         effect: Some(Effect::DestroyPermanent {

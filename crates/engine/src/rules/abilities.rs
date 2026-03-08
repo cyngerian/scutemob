@@ -335,6 +335,79 @@ pub fn handle_activate_ability(
         }
     }
 
+    // CR 701.61a: Pay forage cost — "Exile three cards from your graveyard or sacrifice a Food."
+    // Deterministic fallback (M9.5): prefer Food sacrifice when both options are available.
+    if ability_cost.forage {
+        // Collect Food artifacts controlled by this player on the battlefield (phased in).
+        let food_subtype = crate::state::types::SubType("Food".to_string());
+        let mut food_ids: Vec<ObjectId> = state
+            .objects
+            .iter()
+            .filter_map(|(&id, obj)| {
+                if obj.zone == ZoneId::Battlefield && obj.controller == player && obj.is_phased_in()
+                {
+                    // Use layer-resolved characteristics to respect continuous effects.
+                    let chars = crate::rules::layers::calculate_characteristics(state, id)
+                        .unwrap_or_else(|| obj.characteristics.clone());
+                    if chars.subtypes.contains(&food_subtype) {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+        food_ids.sort(); // deterministic: smallest ObjectId first
+
+        // Collect graveyard cards for the exile-3 option.
+        let mut grave_ids: Vec<ObjectId> = state
+            .objects
+            .iter()
+            .filter_map(|(&id, obj)| {
+                if obj.zone == ZoneId::Graveyard(player) {
+                    Some(id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        grave_ids.sort(); // deterministic: smallest ObjectId first
+
+        let has_food = !food_ids.is_empty();
+        let has_three_grave = grave_ids.len() >= 3;
+
+        if !has_food && !has_three_grave {
+            return Err(GameStateError::InvalidCommand(
+                "cannot forage: need a Food you control or 3+ cards in your graveyard (CR 701.61a)"
+                    .into(),
+            ));
+        }
+
+        if has_food {
+            // Sacrifice a Food (deterministic: lowest ObjectId).
+            let food_id = food_ids[0];
+            let owner = state.object(food_id)?.owner;
+            let (new_grave_id, _) = state.move_object_to_zone(food_id, ZoneId::Graveyard(owner))?;
+            events.push(GameEvent::PermanentDestroyed {
+                object_id: food_id,
+                new_grave_id,
+            });
+        } else {
+            // Exile 3 cards from graveyard (deterministic: lowest ObjectId order).
+            let to_exile: Vec<ObjectId> = grave_ids.into_iter().take(3).collect();
+            for id in to_exile {
+                let (new_exile_id, _) = state.move_object_to_zone(id, ZoneId::Exile)?;
+                events.push(GameEvent::ObjectExiled {
+                    player,
+                    object_id: id,
+                    new_exile_id,
+                });
+            }
+        }
+    }
+
     // CR 602.2c: Validate targets for existence, hexproof, shroud, and protection.
     // Fetch source characteristics once for protection-from checks (CR 702.16b).
     let source_chars =

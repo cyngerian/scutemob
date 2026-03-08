@@ -66,6 +66,7 @@ fn equip_ability(generic_mana: u32) -> ActivatedAbility {
                 None
             },
             sacrifice_self: false,
+            forage: false,
         },
         description: format!("Equip {{{}}}", generic_mana),
         effect: Some(Effect::AttachEquipment {

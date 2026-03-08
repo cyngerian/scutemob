@@ -70,6 +70,7 @@ fn clue_spec(owner: PlayerId, name: &str) -> ObjectSpec {
                     ..ManaCost::default()
                 }),
                 sacrifice_self: true,
+                forage: false,
             },
             description: "{2}, Sacrifice this token: Draw a card.".to_string(),
             effect: Some(Effect::DrawCards {

@@ -65,6 +65,7 @@ fn fortify_ability(generic_mana: u32) -> ActivatedAbility {
                 None
             },
             sacrifice_self: false,
+            forage: false,
         },
         description: format!("Fortify {{{}}}", generic_mana),
         effect: Some(Effect::AttachFortification {

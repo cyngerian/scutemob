@@ -79,6 +79,7 @@ fn adapt_ability(adapt_n: u32, mana: ManaCost) -> ActivatedAbility {
             requires_tap: false,
             mana_cost: Some(mana),
             sacrifice_self: false,
+            forage: false,
         },
         description: format!("Adapt {adapt_n} (CR 701.46a)"),
         effect: Some(Effect::Conditional {
