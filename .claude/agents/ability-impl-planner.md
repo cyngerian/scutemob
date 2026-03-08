@@ -61,63 +61,52 @@ Record:
 - Key edge cases from rulings
 - Interactions with other game systems (stack, combat, SBAs, layers, replacement effects)
 
-### 2. Study Similar Abilities & Map Modification Surface
+### 2. Map Modification Surface with rust-analyzer
 
-Find abilities in the engine that are already `validated` or `complete` and use a similar
-pattern. For example:
-- **Static keyword evasion** (Flying, Menace): check `rules/combat.rs`
-- **Static keyword protection** (Hexproof, Shroud, Ward): check `rules/protection.rs`
-- **Triggered keyword** (Lifelink as damage trigger): check trigger dispatch
-- **Replacement keyword** (Trample as damage replacement): check replacement effects
+This step uses rust-analyzer (RA) as the PRIMARY research tool. Do NOT use Grep for
+modification surface mapping — RA finds actual call sites, type relationships, and match
+arms that grep misses. Grep is only for quick initial lookups if you need to find a
+file path or line number to feed into RA.
 
-**Step A — Locate the similar ability with Grep:**
+The first RA call triggers a ~70s indexing warmup — this is expected. Wait for it.
+
+Pick a similar ability that is already `validated` or `complete` in the engine:
+- **Static keyword evasion** (Flying, Menace): `rules/combat.rs`
+- **Static keyword protection** (Hexproof, Shroud, Ward): `rules/protection.rs`
+- **Triggered keyword** (Lifelink as damage trigger): trigger dispatch
+- **Replacement keyword** (Trample as damage replacement): replacement effects
+
+Then make ALL FOUR of these RA calls — do not skip any:
+
+**Call 1 — References to the similar ability's enum variant:**
 ```
-Grep pattern="<similar ability name>" path="crates/engine/src/" output_mode="content" -C=5
+rust_analyzer_references(file_path=<types.rs>, line=<variant line>, character=<col>, limit=30)
 ```
-Identify which files, functions, and enum variants the similar ability uses.
+This reveals every match arm, display impl, and enforcement site. Each reference is a
+site where the new ability also needs a case. Record every file:line from the results.
 
-**Step B — Use rust-analyzer to map the full modification surface:**
+**Call 2 — Incoming calls to the enforcement function:**
+```
+rust_analyzer_incoming_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
+```
+Shows where enforcement is dispatched from. The new ability hooks into these same points.
 
-You MUST use rust-analyzer for this step. Grep finds string matches; RA finds actual
-call sites, type relationships, and match arms that grep misses. The first RA call
-triggers a ~70s indexing warmup — this is expected.
+**Call 3 — Outgoing calls from the enforcement function:**
+```
+rust_analyzer_outgoing_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
+```
+Maps downstream functions (SBAs, layers, events) the enforcement touches.
 
-Once you've found the similar ability's enum variant and enforcement function via grep,
-use RA to trace their full usage:
+**Call 4 — Workspace symbols for related types:**
+```
+rust_analyzer_workspace_symbols(query="<TypeName>", limit=10)
+```
+Finds structs, enums, and traits related to the ability pattern.
 
-1. **Find all references to the similar ability's enum variant** — this reveals every
-   match arm, display impl, and enforcement site that the new ability also needs:
-   ```
-   rust_analyzer_references(file_path=<types.rs>, line=<variant line>, character=<col>, limit=30)
-   ```
+**After all 4 calls**, synthesize the RA results into the "Modification Surface" table
+in your plan output. Every file:line from RA references becomes a row in the table.
 
-2. **Find all callers of the enforcement function** — the new ability likely hooks into
-   the same dispatch points:
-   ```
-   rust_analyzer_incoming_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
-   ```
-
-3. **Understand what enforcement calls into** — map downstream functions (SBAs, layers, events):
-   ```
-   rust_analyzer_outgoing_calls(file_path=<file>, line=<fn line>, character=<col>, limit=20)
-   ```
-
-4. **Find related types** if the ability introduces new data structures:
-   ```
-   rust_analyzer_workspace_symbols(query="<TypeName>", limit=10)
-   ```
-
-Record the RA results — they become the "Modification Surface" table in the plan output.
-
-**Step C — Synthesize findings:**
-- Which files were modified for the similar ability
-- How the enum variant was added
-- How enforcement/dispatch works
-- How tests are structured
-- Every match arm and call site that needs a new case (from RA references)
-
-**IMPORTANT**: Call `rust_analyzer_stop` at the end of your planning session to free
-~2.5GB RAM.
+**At the end of your planning session**, call `rust_analyzer_stop` to free ~2.5GB RAM.
 
 ### 3. Check Existing Partial Work
 
