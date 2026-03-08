@@ -3702,6 +3702,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.174a: tokens/copies are never gift casts.
                         gift_was_given: false,
                         gift_opponent: None,
+                        // CR 702.171b: tokens are not saddled by default.
+                        is_saddled: false,
                     };
 
                     // Add the token to the battlefield.
@@ -3888,6 +3890,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 702.174a: tokens/copies are never gift casts.
                 gift_was_given: false,
                 gift_opponent: None,
+                // CR 702.171b: tokens are not saddled by default.
+                is_saddled: false,
             };
 
             // Add the token to the battlefield.
@@ -4041,6 +4045,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             if let Some(gift_type) = gift_type {
                 let gift_events = execute_gift_effect(state, gift_opponent, controller, &gift_type);
                 events.extend(gift_events);
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.171a: Saddle ability resolution.
+        //
+        // The Mount becomes saddled until end of turn (CR 702.171b). If the Mount
+        // has left the battlefield between activation and resolution, the ability
+        // fizzles-like: no effect (CR 608.2b analog for non-targeted abilities).
+        StackObjectKind::SaddleAbility { source_object } => {
+            let controller = stack_obj.controller;
+
+            // CR 702.171b: "stays saddled until the end of the turn or it leaves
+            // the battlefield." Only set if Mount is still on the battlefield.
+            if let Some(obj) = state.objects.get_mut(&source_object) {
+                if obj.zone == ZoneId::Battlefield {
+                    obj.is_saddled = true;
+                }
             }
 
             events.push(GameEvent::AbilityResolved {
@@ -4348,6 +4374,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
                     gift_opponent: None,
+                    // CR 702.171b: tokens are not saddled by default.
+                    is_saddled: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5489,6 +5517,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
                     gift_opponent: None,
+                    // CR 702.171b: tokens are not saddled by default.
+                    is_saddled: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5693,6 +5723,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // CR 702.174a: tokens/copies are never gift casts.
                     gift_was_given: false,
                     gift_opponent: None,
+                    // CR 702.171b: tokens are not saddled by default.
+                    is_saddled: false,
                 };
 
                 // Add the token to the battlefield.
@@ -5915,6 +5947,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // CR 702.174a: tokens/copies are never gift casts.
                         gift_was_given: false,
                         gift_opponent: None,
+                        // CR 702.171b: tokens are not saddled by default.
+                        is_saddled: false,
                     };
 
                     // Add the token to the battlefield.
@@ -6305,7 +6339,8 @@ pub fn counter_stack_object(
         | StackObjectKind::BloodrushAbility { .. }
         | StackObjectKind::SquadTrigger { .. }
         | StackObjectKind::OffspringTrigger { .. }
-        | StackObjectKind::GiftETBTrigger { .. } => {
+        | StackObjectKind::GiftETBTrigger { .. }
+        | StackObjectKind::SaddleAbility { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No

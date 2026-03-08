@@ -2920,6 +2920,8 @@ pub fn make_token(
         // CR 702.174a: Tokens are never cast, so gift fields are false/None.
         gift_was_given: false,
         gift_opponent: None,
+        // CR 702.171b: Tokens are not saddled by default.
+        is_saddled: false,
     }
 }
 

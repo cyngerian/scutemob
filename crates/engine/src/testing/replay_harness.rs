@@ -928,6 +928,22 @@ pub fn translate_player_action(
             })
         }
 
+        // CR 702.171a: Saddle a Mount by tapping creatures.
+        // `card_name` is the Mount's display name; the saddling creatures are
+        // provided in the `convoke_names` field (reused from Crew pattern).
+        "saddle_mount" => {
+            let mount_id = find_on_battlefield(state, player, card_name?)?;
+            let saddle_ids: Vec<crate::state::game_object::ObjectId> = convoke_names
+                .iter()
+                .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
+                .collect();
+            Some(Command::SaddleMount {
+                player,
+                mount: mount_id,
+                saddle_creatures: saddle_ids,
+            })
+        }
+
         // CR 702.143a / CR 116.2h: Foretell a card from the player's hand.
         // The player pays {2} and exiles the named card face-down. Legal any time
         // the player has priority during their own turn.

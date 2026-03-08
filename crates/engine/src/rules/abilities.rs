@@ -6292,6 +6292,274 @@ pub fn handle_crew_vehicle(
     Ok(events)
 }
 
+/// CR 702.171a: Handle the `SaddleMount` command.
+///
+/// Validates that:
+/// - The player holds priority (CR 602.2).
+/// - No split-second spell is on the stack (CR 702.61a).
+/// - Sorcery-speed restriction (CR 702.171a): active player's turn, main phase, empty stack.
+/// - The Mount is on the battlefield and controlled by the player.
+/// - The Mount has `KeywordAbility::Saddle(n)` in layer-resolved characteristics.
+/// - Each saddling creature is an untapped creature controlled by the player (not the Mount).
+/// - Total power of saddling creatures >= N.
+/// - No duplicate creature IDs.
+///
+/// On success: taps all saddling creatures, pushes `StackObjectKind::SaddleAbility` onto
+/// the stack, and grants priority to the active player.
+///
+/// Key differences from `handle_crew_vehicle`:
+/// - Sorcery-speed only (CR 702.171a): active player, main phase, empty stack.
+/// - No layer-4 type change: Mount is already a creature. Sets `is_saddled` flag instead.
+/// - Ruling 2024-04-12: activating saddle on an already-saddled Mount is legal.
+pub fn handle_saddle_mount(
+    state: &mut GameState,
+    player: PlayerId,
+    mount: ObjectId,
+    saddle_creatures: Vec<ObjectId>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use std::collections::HashSet;
+
+    use crate::rules::layers::calculate_characteristics;
+    use crate::state::types::CardType;
+
+    // CR 602.2: Saddling requires priority.
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
+
+    // CR 702.61a: If a spell with split second is on the stack, no non-mana
+    // abilities can be activated.
+    if crate::rules::casting::has_split_second_on_stack(state) {
+        return Err(GameStateError::InvalidCommand(
+            "a spell with split second is on the stack; saddle ability cannot be activated (CR 702.61a)".into(),
+        ));
+    }
+
+    // CR 702.171a: "Activate only as a sorcery." Enforce sorcery-speed:
+    // - Must be the active player's turn.
+    // - Must be a main phase (PreCombatMain or PostCombatMain).
+    // - Stack must be empty.
+    if state.turn.active_player != player {
+        return Err(GameStateError::InvalidCommand(
+            "saddle ability can only be activated during your own turn (CR 702.171a: 'activate only as a sorcery')".into(),
+        ));
+    }
+    let in_main_phase = matches!(
+        state.turn.step,
+        crate::state::turn::Step::PreCombatMain | crate::state::turn::Step::PostCombatMain
+    );
+    if !in_main_phase {
+        return Err(GameStateError::InvalidCommand(
+            "saddle ability can only be activated during a main phase (CR 702.171a: 'activate only as a sorcery')".into(),
+        ));
+    }
+    if !state.stack_objects.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "saddle ability can only be activated when the stack is empty (CR 702.171a: 'activate only as a sorcery')".into(),
+        ));
+    }
+
+    // Validate the Mount: must be on the battlefield, controlled by the player,
+    // and must have KeywordAbility::Saddle(n). Use calculate_characteristics for
+    // layer correctness (e.g., Humility may have removed the keyword).
+    let saddle_cost_n: u32 = {
+        let obj = state.object(mount)?;
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::ObjectNotOnBattlefield(mount));
+        }
+        if obj.controller != player {
+            return Err(GameStateError::NotController {
+                player,
+                object_id: mount,
+            });
+        }
+        // Use layer-computed characteristics to account for continuous effects.
+        let chars = calculate_characteristics(state, mount)
+            .or_else(|| state.objects.get(&mount).map(|o| o.characteristics.clone()));
+        let saddle_n = chars.as_ref().and_then(|c| {
+            c.keywords.iter().find_map(|kw| {
+                if let KeywordAbility::Saddle(n) = kw {
+                    Some(*n)
+                } else {
+                    None
+                }
+            })
+        });
+        saddle_n.ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "object {:?} does not have the Saddle keyword (CR 702.171a)",
+                mount
+            ))
+        })?
+    };
+
+    // Validate saddle_creatures is non-empty (you must tap at least one creature).
+    if saddle_creatures.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "must provide at least one creature to saddle the mount (CR 702.171a)".into(),
+        ));
+    }
+
+    // CR 702.171a: Validate uniqueness — no duplicates in saddle_creatures.
+    let mut seen: HashSet<ObjectId> = HashSet::new();
+    for &id in &saddle_creatures {
+        if !seen.insert(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "duplicate creature {:?} in saddle_creatures (CR 702.171a)",
+                id
+            )));
+        }
+    }
+
+    // CR 702.171a: Validate each saddling creature — must be an untapped creature
+    // you control on the battlefield, and must not be the mount itself.
+    // Also sum total power for the saddle cost threshold check.
+    // Note: summoning sickness does NOT prevent saddling (same ruling as Crew);
+    // tapping for saddle cost is not a {T} activated ability.
+    let mut total_power: i32 = 0;
+    for &id in &saddle_creatures {
+        // CR 702.171a: "other" — mount cannot saddle itself.
+        if id == mount {
+            return Err(GameStateError::InvalidCommand(
+                "a mount cannot be used to saddle itself (CR 702.171a: 'other untapped creatures')"
+                    .into(),
+            ));
+        }
+
+        let obj = state
+            .objects
+            .get(&id)
+            .ok_or(GameStateError::ObjectNotFound(id))?;
+
+        // Must be on the battlefield.
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::ObjectNotOnBattlefield(id));
+        }
+
+        // Must be controlled by the player.
+        if obj.controller != player {
+            return Err(GameStateError::NotController {
+                player,
+                object_id: id,
+            });
+        }
+
+        // Must be untapped (CR 702.171a: "untapped creatures").
+        if obj.status.tapped {
+            return Err(GameStateError::InvalidCommand(format!(
+                "creature {:?} is already tapped and cannot be used to saddle (CR 702.171a)",
+                id
+            )));
+        }
+
+        // Must be a creature (use layer-computed characteristics).
+        let chars = calculate_characteristics(state, id)
+            .or_else(|| state.objects.get(&id).map(|o| o.characteristics.clone()));
+        let is_creature = chars
+            .as_ref()
+            .map(|c| c.card_types.contains(&CardType::Creature))
+            .unwrap_or(false);
+        if !is_creature {
+            return Err(GameStateError::InvalidCommand(format!(
+                "object {:?} is not a creature and cannot be used to saddle (CR 702.171a)",
+                id
+            )));
+        }
+
+        // Accumulate power for the total power check.
+        let power = chars.and_then(|c| c.power).unwrap_or(0);
+        total_power = total_power.saturating_add(power);
+    }
+
+    // CR 702.171a: Total power of tapped creatures must be >= N.
+    if total_power < saddle_cost_n as i32 {
+        return Err(GameStateError::InvalidCommand(format!(
+            "total power of saddle creatures ({}) is less than Saddle {} cost (CR 702.171a)",
+            total_power, saddle_cost_n
+        )));
+    }
+
+    // Pay the cost: tap all saddling creatures (CR 602.2b analog for saddle cost).
+    let mut events = Vec::new();
+    for &id in &saddle_creatures {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            obj.status.tapped = true;
+        }
+        events.push(GameEvent::PermanentTapped {
+            player,
+            object_id: id,
+        });
+    }
+
+    // Push the saddle ability onto the stack.
+    // When resolved, `SaddleAbility` sets `is_saddled = true` on the Mount (resolution.rs).
+    let stack_id = state.next_object_id();
+
+    let stack_obj = StackObject {
+        id: stack_id,
+        controller: player,
+        kind: StackObjectKind::SaddleAbility {
+            source_object: mount,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_entwined: false,
+        escalate_modes_paid: 0,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        devour_sacrifices: vec![],
+        modes_chosen: vec![],
+        was_fused: false,
+        x_value: 0,
+        evidence_collected: false,
+        squad_count: 0,
+        offspring_paid: false,
+        gift_was_given: false,
+        gift_opponent: None,
+    };
+    state.stack_objects.push_back(stack_obj);
+
+    // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
+    state.turn.players_passed = OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    events.push(GameEvent::AbilityActivated {
+        player,
+        source_object_id: mount,
+        stack_object_id: stack_id,
+    });
+    events.push(GameEvent::PriorityGiven { player: active });
+
+    Ok(events)
+}
+
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
 ///
 /// `pre_death_counters` — counters captured from the creature just before it left

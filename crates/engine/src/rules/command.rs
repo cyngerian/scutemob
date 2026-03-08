@@ -545,6 +545,26 @@ pub enum Command {
         crew_creatures: Vec<ObjectId>,
     },
 
+    // ── Saddle (CR 702.171) ──────────────────────────────────────────────────
+    /// Saddle a Mount by tapping creatures (CR 702.171a).
+    ///
+    /// Tap any number of untapped creatures you control with total power >= N
+    /// to activate the Mount's saddle ability. The ability goes on the stack;
+    /// when it resolves, the Mount becomes saddled until end of turn.
+    /// Activate only as a sorcery (CR 702.171a).
+    ///
+    /// Unlike `CrewVehicle`, the Mount is already a creature (no type change). Instead,
+    /// a boolean designation `is_saddled` is set when the saddle ability resolves.
+    SaddleMount {
+        player: PlayerId,
+        /// The Mount to saddle.
+        mount: ObjectId,
+        /// Creatures to tap as the saddle cost. Must be untapped creatures you control
+        /// with total power >= the Mount's Saddle N value. The Mount itself cannot
+        /// be in this list ("other untapped creatures" per CR 702.171a).
+        saddle_creatures: Vec<ObjectId>,
+    },
+
     // -- Foretell (CR 702.143) -----------------------------------------------
     /// Foretell a card from hand (CR 702.143a / CR 116.2h).
     ///

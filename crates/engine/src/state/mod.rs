@@ -384,6 +384,8 @@ impl GameState {
             // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
             gift_was_given: false,
             gift_opponent: None,
+            // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
+            is_saddled: false,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -550,6 +552,8 @@ impl GameState {
             // CR 702.174a / CR 400.7: gift status is not preserved across zone changes.
             gift_was_given: false,
             gift_opponent: None,
+            // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
+            is_saddled: false,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Gift complete: KW 139, AbilDef 56, SOK 54, Condition 14; 8 tests in gift.rs; card Nocturnal Hunger; script baseline/185 pending_review -- harness gap)
+> Last audited: 2026-03-07 (Saddle complete: KW 140, SOK 55, is_saddled on GameObject, Command::SaddleMount; 14 tests in saddle.rs; card Quilled Charger; script combat/186 approved; CR corrected 702.163 -> 702.171)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 76        | 1        | 1       | 15   | 12  |
-| **Total**| **204**| **170**  | **3**    | **1**   | **18**| **12** |
+| P4       | 105   | 77        | 1        | 1       | 14   | 12  |
+| **Total**| **204**| **171**  | **3**    | **1**   | **17**| **12** |
 
 ---
 
@@ -274,7 +274,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Mutate | 702.140 | P3 | `none` | — | — | — | — | Merge with creature; deferred (corner case audit) |
 | Changeling | 702.73 | P2 | `validated` | `state/types.rs:286-293` (KeywordAbility::Changeling + ALL_CREATURE_TYPES:296-376), `state/hash.rs:360-361`, `state/continuous_effect.rs:139-145` (AddAllCreatureTypes), `rules/layers.rs:61-76` (inline CDA check + apply arm:326-334), `tools/replay-viewer/src/view_model.rs:602` | Universal Automaton | `layers/072` | — | CR 702.73a CDA: "This object is every creature type." Applied in Layer 4 before non-CDA effects (CR 613.3); functions in all zones (CR 604.3); ALL_CREATURE_TYPES lazy static (~290+ subtypes from CR 205.3m); LayerModification::AddAllCreatureTypes for Maskwood Nexus-style effects; 7 unit tests in `tests/changeling.rs`; game script pending_review |
 | Crew | 702.122 | P2 | `validated` | `state/types.rs:302`, `rules/command.rs:245`, `rules/engine.rs:234`, `rules/abilities.rs:1246`, `testing/replay_harness.rs:408` | Smuggler's Copter | `combat/075` | 15 tests in `crew.rs`; script `pending_review` (multi-turn attack gap, same as 069/070) |
-| Saddle | 702.163 | P4 | `none` | — | — | — | Crew | Crew variant for Mounts |
+| Saddle | 702.171 | P4 | `validated` | `state/types.rs:1316` (KeywordAbility::Saddle(u32) disc 140), `state/game_object.rs:658` (is_saddled), `rules/command.rs:558` (Command::SaddleMount), `rules/engine.rs:381`, `rules/abilities.rs:6314` (handle_saddle_mount), `state/stack.rs:1202` (StackObjectKind::SaddleAbility disc 55), `rules/turn_actions.rs:1295` (cleanup clear), `testing/replay_harness.rs:931` (saddle_mount action) | Quilled Charger | `combat/186` | Crew | 14 tests in `saddle.rs`; sorcery-speed restriction (CR 702.171a); is_saddled designation cleared at cleanup (CR 702.171b); CR was 702.163 in older rules, corrected to 702.171 |
 | Prototype | 702.160 | P4 | `validated` | `state/types.rs:882` (KeywordAbility::Prototype disc 98), `cards/card_definition.rs:373` (AbilityDefinition::Prototype{cost,power,toughness} disc 31), `rules/command.rs:163` (CastSpell.prototype: bool), `state/game_object.rs:517` (is_prototyped), `state/stack.rs:184` (was_prototyped), `rules/casting.rs:68,972-993` (prototype cost selection + stack char overwrite), `rules/resolution.rs:335-346` (ETB prototype char application), `state/mod.rs:310-316,433-438` (CR 718.4 zone-change revert), `rules/copy.rs:204-205` (CR 718.3c was_prototyped propagation), `rules/commander.rs:210-216` (prototype cost in color identity), `testing/replay_harness.rs:853` (cast_spell_prototype action) | Blitz Automaton | `stack/135` | 10 tests in `tests/prototype.rs` | CR 702.160 + CR 718; NOT an alternative cost (CR 118.9); prototype changes P/T, mana cost, color on stack+battlefield only; reverts to printed chars on zone change (CR 718.4); copies inherit was_prototyped (CR 718.3c); abilities/name/types unchanged (CR 718.5) |
 | Living Metal | 702.161 | P4 | `validated` | `state/types.rs`, `rules/layers.rs` | Steel Guardian | `stack/166` | — | KW 128; Layer 4 type-change during controller's turn (CR 702.161a); 7 tests in `living_metal.rs`; all real cards are DFC Transform (blocked subsystem), uses synthetic card |
 | Umbra Armor | 702.89 | P4 | `validated` | `state/types.rs`, `rules/replacement.rs`, `rules/sba.rs`, `effects/mod.rs` | Hyena Umbra | `stack/165` | Enchant | Aura destroyed instead of enchanted permanent; KW 127, disc 99; 11 tests in `umbra_armor.rs` |
@@ -523,7 +523,9 @@ All P2 gaps resolved. 17/17 validated.
 
 ### P4 Gaps (niche / historical)
 
-28 remaining (none), 12 n/a (digital-only + Banding + niche). 65/105 validated. Top unresolved by likely demand: Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+27 remaining (none), 12 n/a (digital-only + Banding + niche). 77/105 validated. Top unresolved by likely demand: Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+
+**Resolved**: Saddle (CR 702.171) -- validated 2026-03-07 (script combat/186, Quilled Charger, 14 unit tests in saddle.rs).
 
 **Resolved**: Fabricate (CR 702.123) -- validated 2026-03-07 (script stack/171, Weaponcraft Enthusiast, 9 unit tests in fabricate.rs).
 

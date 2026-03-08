@@ -198,6 +198,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::GiftETBTrigger { source_object, .. } => {
                     ("Gift ETB trigger: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::SaddleAbility { source_object } => {
+                    ("Saddle: ".to_string(), Some(*source_object))
+                }
             };
 
             let (name, name_color) = source_id

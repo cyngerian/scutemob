@@ -667,6 +667,11 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Offspring => 138u8.hash_into(hasher),
             // Gift (discriminant 139) -- CR 702.174
             KeywordAbility::Gift => 139u8.hash_into(hasher),
+            // Saddle (discriminant 140) -- CR 702.171
+            KeywordAbility::Saddle(n) => {
+                140u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -886,6 +891,8 @@ impl HashInto for GameObject {
         // Gift (CR 702.174a) — whether gift cost was paid and who was chosen
         self.gift_was_given.hash_into(hasher);
         self.gift_opponent.hash_into(hasher);
+        // Saddle (CR 702.171b) — saddled designation
+        self.is_saddled.hash_into(hasher);
     }
 }
 
@@ -2020,6 +2027,11 @@ impl HashInto for StackObjectKind {
                 source_object.hash_into(hasher);
                 source_card_id.hash_into(hasher);
                 gift_opponent.hash_into(hasher);
+            }
+            // SaddleAbility (discriminant 55) -- CR 702.171a
+            StackObjectKind::SaddleAbility { source_object } => {
+                55u8.hash_into(hasher);
+                source_object.hash_into(hasher);
             }
         }
     }

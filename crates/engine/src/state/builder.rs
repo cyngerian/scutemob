@@ -999,6 +999,8 @@ impl GameStateBuilder {
                 // CR 702.174a: test-placed objects are not cast spells; gift fields are false/None.
                 gift_was_given: false,
                 gift_opponent: None,
+                // CR 702.171b: test-placed objects start unsaddled.
+                is_saddled: false,
             };
 
             state.add_object(object, zone)?;

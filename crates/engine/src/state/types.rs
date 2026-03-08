@@ -1302,6 +1302,18 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 139.
     Gift,
+    /// CR 702.171: Saddle N -- "Tap any number of other untapped creatures you control
+    /// with total power N or greater: This permanent becomes saddled until end of turn.
+    /// Activate only as a sorcery."
+    ///
+    /// Marker keyword for quick presence-checking. The saddle cost (N) is the
+    /// minimum total power of creatures that must be tapped.
+    /// The actual command is `Command::SaddleMount`, handled in `handle_saddle_mount`.
+    /// Unlike Crew, Saddle has a sorcery-speed restriction (CR 702.171a) and sets
+    /// a boolean designation (`is_saddled`) instead of adding the Creature type.
+    ///
+    /// Discriminant 140.
+    Saddle(u32),
 }
 
 /// CR 702.72a: The filter for what can be championed.

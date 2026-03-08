@@ -1189,4 +1189,18 @@ pub enum StackObjectKind {
         /// The opponent chosen at cast time to receive the gift.
         gift_opponent: crate::state::PlayerId,
     },
+    /// CR 702.171a: Saddle activated ability on the stack.
+    ///
+    /// The saddle cost has already been paid (saddling creatures tapped at activation
+    /// time — CR 602.2b). If this is countered (e.g., by Stifle), the creatures remain
+    /// tapped but the Mount is NOT saddled.
+    ///
+    /// At resolution: set `is_saddled = true` on `source_object` (the Mount), but only
+    /// if the Mount is still on the battlefield (CR 608.2b: fizzle-like behavior if not).
+    ///
+    /// Discriminant 55.
+    SaddleAbility {
+        /// The ObjectId of the Mount being saddled.
+        source_object: ObjectId,
+    },
 }

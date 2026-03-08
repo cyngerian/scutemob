@@ -589,6 +589,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::GiftETBTrigger { source_object, .. } => {
             ("gift_etb_trigger", Some(*source_object))
         }
+        StackObjectKind::SaddleAbility { source_object } => {
+            ("saddle_ability", Some(*source_object))
+        }
     }
 }
 
@@ -873,5 +876,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Squad => "Squad".to_string(),
         KeywordAbility::Offspring => "Offspring".to_string(),
         KeywordAbility::Gift => "Gift".to_string(),
+        KeywordAbility::Saddle(n) => format!("Saddle {n}"),
     }
 }

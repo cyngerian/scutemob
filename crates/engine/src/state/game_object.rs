@@ -655,6 +655,15 @@ pub struct GameObject {
     /// Reset to None on zone changes (CR 400.7).
     #[serde(default)]
     pub gift_opponent: Option<crate::state::PlayerId>,
+    /// CR 702.171b: Saddled designation. Set to true when the Mount's saddle ability
+    /// resolves. "Stays saddled until the end of the turn or it leaves the battlefield."
+    ///
+    /// NOT a copiable value (CR 702.171b) -- copies of saddled Mounts are NOT saddled.
+    /// NOT an ability -- persists even if the permanent loses its Saddle keyword.
+    /// Cleared to false at cleanup (CR 702.171b: "until end of turn") and on zone changes
+    /// (CR 702.171b: "or it leaves the battlefield", enforced via CR 400.7 new-object rule).
+    #[serde(default)]
+    pub is_saddled: bool,
 }
 
 impl GameObject {

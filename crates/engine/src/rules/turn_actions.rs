@@ -1292,6 +1292,24 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     clear_damage(state);
     events.push(GameEvent::DamageCleared);
 
+    // CR 702.171b: Clear saddled designation from all battlefield permanents.
+    // "Stays saddled until the end of the turn." Designation expires at cleanup.
+    {
+        let saddled_ids: Vec<crate::state::ObjectId> = state
+            .objects
+            .iter()
+            .filter(|(_, obj)| {
+                obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_saddled
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        for id in saddled_ids {
+            if let Some(obj) = state.objects.get_mut(&id) {
+                obj.is_saddled = false;
+            }
+        }
+    }
+
     // Remove "until end of turn" continuous effects (CR 514.2).
     super::layers::expire_end_of_turn_effects(state);
 

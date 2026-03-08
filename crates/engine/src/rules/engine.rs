@@ -377,6 +377,27 @@ pub fn process_command(
             all_events.extend(events);
         }
 
+        // ── Saddle (CR 702.171) ──────────────────────────────────────────────
+        Command::SaddleMount {
+            player,
+            mount,
+            saddle_creatures,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: saddling is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                abilities::handle_saddle_mount(&mut state, player, mount, saddle_creatures)?;
+            // CR 603.3: Check for triggered abilities arising from saddling.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
         // ── Foretell (CR 702.143) ─────────────────────────────────────────
         Command::ForetellCard { player, card } => {
             validate_player_active(&state, player)?;
