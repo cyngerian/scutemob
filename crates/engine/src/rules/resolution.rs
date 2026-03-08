@@ -1784,10 +1784,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if let Some(obj) = obj {
                     if let Some(_ab) = obj.characteristics.triggered_abilities.get(ability_index) {
                         // Characteristics path — intervening_if handled below via original code.
-                        (None::<crate::cards::card_definition::Effect>, None::<crate::cards::card_definition::Condition>)
+                        (
+                            None::<crate::cards::card_definition::Effect>,
+                            None::<crate::cards::card_definition::Condition>,
+                        )
                     } else {
                         // Card registry fallback for plain AbilityDefinition::Triggered.
-                        let result = obj.card_id
+                        let result = obj
+                            .card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
                             .and_then(|def| def.abilities.get(ability_index))
@@ -1836,60 +1840,59 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     stack_object_id: stack_obj.id,
                 });
             } else {
-
-            let condition_holds = {
-                let source_obj = state.objects.get(&source_object);
-                match source_obj {
-                    Some(obj) => {
-                        let ability_def =
-                            obj.characteristics.triggered_abilities.get(ability_index);
-                        match ability_def {
-                            Some(def) => def
-                                .intervening_if
-                                .as_ref()
-                                .map(|cond| {
-                                    // CR 603.4: At resolution, pass None for pre_death_counters.
-                                    // For persist/undying, the source is now in the graveyard
-                                    // with no counters; the MoveZone effect will no-op if the
-                                    // source has since left the graveyard.
-                                    abilities::check_intervening_if(
-                                        state,
-                                        cond,
-                                        stack_obj.controller,
-                                        None,
-                                    )
-                                })
-                                .unwrap_or(true),
-                            None => true, // No definition found — resolve without effect
+                let condition_holds = {
+                    let source_obj = state.objects.get(&source_object);
+                    match source_obj {
+                        Some(obj) => {
+                            let ability_def =
+                                obj.characteristics.triggered_abilities.get(ability_index);
+                            match ability_def {
+                                Some(def) => def
+                                    .intervening_if
+                                    .as_ref()
+                                    .map(|cond| {
+                                        // CR 603.4: At resolution, pass None for pre_death_counters.
+                                        // For persist/undying, the source is now in the graveyard
+                                        // with no counters; the MoveZone effect will no-op if the
+                                        // source has since left the graveyard.
+                                        abilities::check_intervening_if(
+                                            state,
+                                            cond,
+                                            stack_obj.controller,
+                                            None,
+                                        )
+                                    })
+                                    .unwrap_or(true),
+                                None => true, // No definition found — resolve without effect
+                            }
                         }
+                        None => true, // Source gone — ability still resolves (no effect)
                     }
-                    None => true, // Source gone — ability still resolves (no effect)
+                };
+
+                // CR 608.3b: Execute effect if condition holds.
+                if condition_holds {
+                    let triggered_effect = state
+                        .objects
+                        .get(&source_object)
+                        .and_then(|obj| obj.characteristics.triggered_abilities.get(ability_index))
+                        .and_then(|ab| ab.effect.clone());
+
+                    if let Some(effect) = triggered_effect {
+                        let mut ctx = EffectContext::new(
+                            stack_obj.controller,
+                            source_object,
+                            stack_obj.targets.clone(),
+                        );
+                        let effect_events = execute_effect(state, &effect, &mut ctx);
+                        events.extend(effect_events);
+                    }
                 }
-            };
 
-            // CR 608.3b: Execute effect if condition holds.
-            if condition_holds {
-                let triggered_effect = state
-                    .objects
-                    .get(&source_object)
-                    .and_then(|obj| obj.characteristics.triggered_abilities.get(ability_index))
-                    .and_then(|ab| ab.effect.clone());
-
-                if let Some(effect) = triggered_effect {
-                    let mut ctx = EffectContext::new(
-                        stack_obj.controller,
-                        source_object,
-                        stack_obj.targets.clone(),
-                    );
-                    let effect_events = execute_effect(state, &effect, &mut ctx);
-                    events.extend(effect_events);
-                }
-            }
-
-            events.push(GameEvent::AbilityResolved {
-                controller: stack_obj.controller,
-                stack_object_id: stack_obj.id,
-            });
+                events.push(GameEvent::AbilityResolved {
+                    controller: stack_obj.controller,
+                    stack_object_id: stack_obj.id,
+                });
             } // end else (characteristics-based path)
         }
 

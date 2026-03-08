@@ -271,6 +271,20 @@ pub enum KeywordAbility {
     /// CR 702.124f: PartnerWith cannot combine with plain Partner or other
     /// partner variants.
     PartnerWith(String),
+    /// CR 702.124i: "Partner--Friends forever" — both commanders must have this
+    /// same ability. Structurally identical to plain Partner but distinct per
+    /// CR 702.124f (different partner abilities cannot be combined).
+    FriendsForever,
+    /// CR 702.124k: "Choose a Background" — this commander pairs with a legendary
+    /// Background enchantment card as the second commander. The Background does NOT
+    /// need this keyword; it qualifies by being a legendary enchantment with the
+    /// Background subtype. The Background enchantment is exempt from the normal
+    /// "must be a legendary creature" commander type requirement.
+    ChooseABackground,
+    /// CR 702.124m: "Doctor's companion" — this commander pairs with a legendary
+    /// Time Lord Doctor creature card that has no other creature types. The Doctor
+    /// does NOT need this keyword; it qualifies by type alone.
+    DoctorsCompanion,
     /// CR 402.2: "You have no maximum hand size."
     ///
     /// Placed on permanents (Thought Vessel, Reliquary Tower). When a permanent

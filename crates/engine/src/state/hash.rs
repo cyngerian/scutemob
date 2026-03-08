@@ -678,6 +678,12 @@ impl HashInto for KeywordAbility {
             KeywordAbility::Haunt => 142u8.hash_into(hasher),
             // Reconfigure (discriminant 143) -- CR 702.151
             KeywordAbility::Reconfigure => 143u8.hash_into(hasher),
+            // FriendsForever (discriminant 144) -- CR 702.124i
+            KeywordAbility::FriendsForever => 144u8.hash_into(hasher),
+            // ChooseABackground (discriminant 145) -- CR 702.124k
+            KeywordAbility::ChooseABackground => 145u8.hash_into(hasher),
+            // DoctorsCompanion (discriminant 146) -- CR 702.124m
+            KeywordAbility::DoctorsCompanion => 146u8.hash_into(hasher),
         }
     }
 }

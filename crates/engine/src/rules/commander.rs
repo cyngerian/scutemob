@@ -100,12 +100,28 @@ pub fn validate_deck(
         });
     }
 
-    // Validate each commander
+    // Validate each commander.
+    // CR 903.3: each commander must be a legendary creature (or special case).
+    // CR 702.124k exception: in a Choose a Background pair, the Background
+    // enchantment commander is a legendary enchantment (not a creature) — it
+    // must NOT be rejected as "not a creature." validate_partner_commanders()
+    // already verified that the pair is valid, so we only need to detect whether
+    // the current commander is the Background half and skip the creature check.
     for cid in commander_card_ids {
         if let Some(def) = registry.get(cid.clone()) {
+            use crate::state::SubType;
             let is_legendary = def.types.supertypes.contains(&SuperType::Legendary);
             let is_creature = def.types.card_types.contains(&CardType::Creature);
-            if !is_legendary || !is_creature {
+            // CR 702.124k: a legendary Background enchantment is a valid commander
+            // when paired with a commander that has "Choose a Background."
+            let is_background_commander = commander_card_ids.len() == 2
+                && is_legendary
+                && def.types.card_types.contains(&CardType::Enchantment)
+                && def
+                    .types
+                    .subtypes
+                    .contains(&SubType("Background".to_string()));
+            if !is_background_commander && (!is_legendary || !is_creature) {
                 violations.push(DeckViolation::InvalidCommander {
                     name: def.name.clone(),
                     reason: if !is_legendary && !is_creature {
@@ -518,6 +534,48 @@ pub fn validate_partner_commanders(
         }
     });
 
+    // Check for "Friends forever" keyword (CR 702.124i).
+    let cmd1_has_friends_forever = cmd1.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::FriendsForever)
+        )
+    });
+    let cmd2_has_friends_forever = cmd2.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::FriendsForever)
+        )
+    });
+
+    // Check for "Choose a Background" keyword (CR 702.124k).
+    let cmd1_has_choose_background = cmd1.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::ChooseABackground)
+        )
+    });
+    let cmd2_has_choose_background = cmd2.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::ChooseABackground)
+        )
+    });
+
+    // Check for "Doctor's companion" keyword (CR 702.124m).
+    let cmd1_has_doctors_companion = cmd1.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::DoctorsCompanion)
+        )
+    });
+    let cmd2_has_doctors_companion = cmd2.abilities.iter().any(|a| {
+        matches!(
+            a,
+            crate::cards::AbilityDefinition::Keyword(KeywordAbility::DoctorsCompanion)
+        )
+    });
+
     // Case 1: Both have plain Partner — valid pair (CR 702.124h).
     if cmd1_has_partner && cmd2_has_partner {
         return Ok(());
@@ -537,7 +595,79 @@ pub fn validate_partner_commanders(
         }
     }
 
-    // Case 3: Mixed Partner + PartnerWith — not allowed (CR 702.124f).
+    // Case 3: Both have Friends Forever — valid pair (CR 702.124i).
+    // "Partner--Friends forever" requires both commanders to have the same ability.
+    if cmd1_has_friends_forever && cmd2_has_friends_forever {
+        return Ok(());
+    }
+
+    // Case 4: Choose a Background pair — one has the keyword, the other is a
+    // legendary Background enchantment (CR 702.124k).
+    if cmd1_has_choose_background || cmd2_has_choose_background {
+        let (chooser, other) = if cmd1_has_choose_background {
+            (cmd1, cmd2)
+        } else {
+            (cmd2, cmd1)
+        };
+        if is_legendary_background(other) {
+            return Ok(());
+        }
+        // The other commander is not a valid Background.
+        if cmd1_has_choose_background && cmd2_has_choose_background {
+            return Err(format!(
+                "both '{}' and '{}' have 'Choose a Background' but neither is a legendary \
+                 Background enchantment (CR 702.124k)",
+                cmd1.name, cmd2.name
+            ));
+        }
+        return Err(format!(
+            "'{}' has 'Choose a Background' but '{}' is not a legendary Background enchantment \
+             (CR 702.124k)",
+            chooser.name, other.name
+        ));
+    }
+
+    // Case 5: Doctor's Companion pair — one has the keyword, the other is a
+    // legendary Time Lord Doctor creature with no other creature types (CR 702.124m).
+    if cmd1_has_doctors_companion || cmd2_has_doctors_companion {
+        let (companion, doctor) = if cmd1_has_doctors_companion {
+            (cmd1, cmd2)
+        } else {
+            (cmd2, cmd1)
+        };
+        if is_time_lord_doctor(doctor) {
+            return Ok(());
+        }
+        return Err(format!(
+            "'{}' has 'Doctor's companion' but '{}' is not a legendary Time Lord Doctor \
+             creature with no other creature types (CR 702.124m)",
+            companion.name, doctor.name
+        ));
+    }
+
+    // Case 6: Mixed variants — check for cross-variant combinations (CR 702.124f).
+    // At this point we know no positive match was found. Check if any partner
+    // variant is present on either side to produce a meaningful error.
+    let cmd1_has_any_partner = cmd1_has_partner
+        || cmd1_partner_with.is_some()
+        || cmd1_has_friends_forever
+        || cmd1_has_choose_background
+        || cmd1_has_doctors_companion;
+    let cmd2_has_any_partner = cmd2_has_partner
+        || cmd2_partner_with.is_some()
+        || cmd2_has_friends_forever
+        || cmd2_has_choose_background
+        || cmd2_has_doctors_companion;
+
+    if cmd1_has_any_partner && cmd2_has_any_partner {
+        return Err(format!(
+            "'{}' and '{}' have incompatible partner abilities that cannot be combined \
+             (CR 702.124f)",
+            cmd1.name, cmd2.name
+        ));
+    }
+
+    // Case 7: Mixed Partner + PartnerWith — not allowed (CR 702.124f).
     if (cmd1_has_partner && cmd2_partner_with.is_some())
         || (cmd2_has_partner && cmd1_partner_with.is_some())
     {
@@ -548,7 +678,7 @@ pub fn validate_partner_commanders(
         ));
     }
 
-    // Case 4: One has PartnerWith but the other has nothing — incomplete pair.
+    // Case 8: One has PartnerWith but the other has nothing — incomplete pair.
     if cmd1_partner_with.is_some() || cmd2_partner_with.is_some() {
         return Err(format!(
             "partner with pairing incomplete: '{}' and '{}' (CR 702.124j)",
@@ -556,7 +686,20 @@ pub fn validate_partner_commanders(
         ));
     }
 
-    // Case 5: Neither has plain Partner and neither has PartnerWith.
+    // Case 9: One has Friends Forever but the other does not.
+    if cmd1_has_friends_forever || cmd2_has_friends_forever {
+        let missing = if cmd1_has_friends_forever {
+            &cmd2.name
+        } else {
+            &cmd1.name
+        };
+        return Err(format!(
+            "'{}' does not have 'Friends forever' (CR 702.124i)",
+            missing
+        ));
+    }
+
+    // Case 10: Neither has any partner ability — not a valid partner pair.
     if !cmd1_has_partner && !cmd2_has_partner {
         return Err(format!(
             "neither '{}' nor '{}' has partner",
@@ -574,6 +717,45 @@ pub fn validate_partner_commanders(
         "'{}' does not have partner (CR 702.124h)",
         cmd2.name
     ))
+}
+
+/// CR 702.124k: Returns true if `def` is a legendary Background enchantment.
+///
+/// The Background enchantment commander qualifies by type, not by keyword.
+/// It must be: Legendary + Enchantment + subtype Background.
+fn is_legendary_background(def: &CardDefinition) -> bool {
+    use crate::state::SubType;
+    def.types.supertypes.contains(&SuperType::Legendary)
+        && def.types.card_types.contains(&CardType::Enchantment)
+        && def
+            .types
+            .subtypes
+            .contains(&SubType("Background".to_string()))
+}
+
+/// CR 702.124m: Returns true if `def` is a legendary Time Lord Doctor creature
+/// with no other creature types.
+///
+/// The Doctor commander qualifies by type, not by keyword. It must be:
+/// Legendary + Creature + subtypes {Time Lord, Doctor} and no other creature subtypes.
+/// For deck construction, printed subtypes are used (not layer-resolved), so Changeling
+/// does not interfere.
+fn is_time_lord_doctor(def: &CardDefinition) -> bool {
+    use crate::state::SubType;
+    let is_legendary = def.types.supertypes.contains(&SuperType::Legendary);
+    let is_creature = def.types.card_types.contains(&CardType::Creature);
+    let has_time_lord = def
+        .types
+        .subtypes
+        .contains(&SubType("Time Lord".to_string()));
+    let has_doctor = def.types.subtypes.contains(&SubType("Doctor".to_string()));
+    // "No other creature types" check: the ONLY subtypes present must be
+    // "Time Lord" and "Doctor". Since all subtypes (creature, enchantment, land,
+    // artifact) share the same SubType set, we check the total subtype count.
+    // Doctor Who Doctor cards are printed with exactly {Time Lord, Doctor} and
+    // no other subtypes.
+    let only_time_lord_and_doctor = def.types.subtypes.len() == 2;
+    is_legendary && is_creature && has_time_lord && has_doctor && only_time_lord_and_doctor
 }
 
 // ── Mulligan (CR 103.5 / CR 103.5c) ───────────────────────────────────────────

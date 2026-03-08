@@ -586,7 +586,9 @@ fn test_702_147_decayed_token_created_with_keyword() {
         .objects
         .values()
         .find(|o| o.characteristics.name == "Zombie" && o.zone == ZoneId::Battlefield)
-        .expect("CR 702.147a: Zombie Decayed token should be on battlefield after Effect::CreateToken");
+        .expect(
+            "CR 702.147a: Zombie Decayed token should be on battlefield after Effect::CreateToken",
+        );
 
     assert!(
         token.is_token,

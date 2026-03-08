@@ -889,5 +889,11 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Cipher => "Cipher".to_string(),
         KeywordAbility::Haunt => "Haunt".to_string(),
         KeywordAbility::Reconfigure => "Reconfigure".to_string(),
+        // CR 702.124i: partner--Friends forever
+        KeywordAbility::FriendsForever => "Friends forever".to_string(),
+        // CR 702.124k: choose a Background
+        KeywordAbility::ChooseABackground => "Choose a Background".to_string(),
+        // CR 702.124m: Doctor's companion
+        KeywordAbility::DoctorsCompanion => "Doctor's companion".to_string(),
     }
 }
