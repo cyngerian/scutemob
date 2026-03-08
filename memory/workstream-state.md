@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | B15 + Mutate + LegalActionProvider complete. ALL batches done + Mutate mini-milestone. | ACTIVE | 2026-03-08 | KW 147, AbilDef 59, SOK 59 — all implementable abilities complete; only Morph (5) + Transform (4) subsystems remain, deferred |
+| W1: Abilities | — | available | — | KW 147, AbilDef 59, SOK 59 — all implementable batches (0-15) + Mutate done; Morph (5) + Transform (4) deferred; next: W2 TUI hardening or W4 M10 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; treat stale 2026-03-03 claim as available |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

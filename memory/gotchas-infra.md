@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 14 (2026-03-08)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 15 + Mutate (2026-03-08)
 
 ## Rust / im-rs Gotchas
 
@@ -331,6 +331,15 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs:399-408` 
 - **`stack_resolve` script actions are informational only** — no command is sent to the engine. State is identical to the preceding priority-pass step. Real engine events for resolution appear in the priority-pass steps, not the stack_resolve step.
 - **`pending_review` game scripts are unvalidated** — auto-generated scripts often misattribute triggers (ETB vs. death vs. activated) and omit interactive commands (e.g. `SearchLibrary` requires an explicit player command the generator doesn't emit). Use the replay viewer to validate before approving.
 - **Svelte 5 keyed `{#each entries as e (e.id)}` crashes silently on duplicate keys.** The entire component's reactivity breaks — buttons stop responding, no error shown. Root cause is always a duplicate `metadata.id` across scripts. The `api.rs` `get_scripts` handler now deduplicates and logs a warning, but fix the source script first.
+
+## Mutate Gotchas (B15 + Mutate session, 2026-03-08)
+
+- **Mutate preserves the target's ObjectId (CR 400.7).** The merging spell is absorbed into the target permanent — do NOT create a new ObjectId. The source spell's card data goes into `merged_components`; the target permanent object is updated in place.
+- **`mutate_on_top` choice is made at cast time** (on `CastSpell`), not at resolution. CR 702.140c says "at resolution", but cast-time annotation is simpler and produces equivalent results for engine replay/determinism. If interactive over/under choice is ever needed, a `ChooseMutatePosition` command would be required.
+- **Zone-change splitting must create NEW ObjectIds** for each component when the merged permanent leaves the battlefield. Each component becomes a fresh object in the destination zone — the merged permanent's ObjectId is not recycled.
+- **`mutate_on_top` required adding `false` to all `CastSpell` construction sites.** When B15/Mutate added this field, ~95 test files needed patching. Use a Python script (or `sed`) to add `, mutate_on_top: false, mutate_target: None` to all `Command::CastSpell {` construction sites.
+- **Partner variant planner discriminant bug**: B15 planner assigned KW 144 to Mutate. Correct value was 147 (after FriendsForever=144, ChooseABackground=145, DoctorsCompanion=146 from B15). Always verify discriminant chain end from the *previous batch's actual code* before implementing — do not trust the session plan's stated values.
+- **Background enchantment commander exemption** is conditional: the "must be legendary creature" check must only be skipped when the other commander has `ChooseABackground`. Unconditional exemption would allow any legendary enchantment as a commander.
 - **`metadata.id` must be unique across all scripts.** Copy-pasted scripts inherit the source's `id` — always update it. Pattern: `script_<subdir>_<NNN>` matching the filename number (e.g., `054_mind_stone...json` → `id: "script_stack_054"`).
 - **Tokio worker thread stack overflow with trigger-heavy scripts**: The default tokio worker
   thread stack is 2 MB. In debug builds, the MTG rules engine's deep call chains during
