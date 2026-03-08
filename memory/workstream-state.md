@@ -10,9 +10,9 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 14: Cipher, Haunt, Reconfigure, Blood/Treasure/Decayed tokens (chained, no-intervention) | ACTIVE | 2026-03-08 | KW next: 141, AbilDef next: 57, SOK next: 56 |
+| W1: Abilities | Batch 14 complete. Batch 15 next (Commander variants: Friends Forever, Choose a Background, Doctor's Companion). | available | — | KW 143, AbilDef 58, SOK 58 — Batch 15 needs no new discriminants (deck validation only) |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
-| W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
+| W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; treat stale 2026-03-03 claim as available |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | available | — | 15 cards total authored; low yield until DSL gaps filled — see handoff |
 
@@ -21,192 +21,38 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-07
-**Workstream**: W1: Abilities — Batch 13
+**Date**: 2026-03-08
+**Workstream**: W1: Abilities — Batch 14
 
-Batch 13 complete. All 8 abilities implemented, reviewed, card+script+coverage done:
-- Discover (CR 701.57): Effect::Discover fires inline on ETB; MV <= N filter, optional cast or hand; 7 tests; card: Geological Appraiser; script 179. Review: clean.
-- Suspect (CR 701.60): is_suspected: bool on GameObject; grants Menace (layers.rs) + can't-block (combat.rs); 9 tests; card: Frantic Scapegoat; script 180. Review: clean.
-- Collect Evidence (CR 701.59): collect_evidence_cards Vec + evidence_collected bool on CastSpell; GY exile sum >= threshold; Condition::EvidenceWasCollected; 11 tests; card: Crimestopper Sprite; script 181. Review: clean. MEDIUM fix: ctx.evidence_collected missing from main resolution path.
-- Forage (CR 701.61): ActivationCost { forage: true } (food sacrifice OR exile 3 GY cards); 7 tests; card: Camellia the Seedmiser (Menace only — Forage activated is DSL gap: Cost enum lacks Forage variant); script 182. Review: clean.
-- Squad (CR 702.157): squad_count: u32 additional cost; SquadTrigger SOK 52; ETB creates N token copies (Myriad pattern); 6 tests; card: Ultramarines Honour Guard; script 183. Review: clean (2 LOW).
-- Offspring (CR 702.175): offspring_paid: bool; OffspringTrigger SOK 53; creates 1/1 copy (Layer 7b — CR 707.9b deviation TODO'd); LKI via source_card_id if source leaves before trigger resolves; 7 tests; card: Flowerfoot Swordmaster; script 184. Review: 1 MEDIUM fixed (Layer 7b deviation documented).
-- Gift (CR 702.174): GiftType enum; gift_was_given+gift_opponent; GiftETBTrigger SOK 54; Condition::GiftWasGiven; instant effect fires BEFORE main effect; 8 tests; card: Nocturnal Hunger; script 185 (pending_review — harness lacks gift_opponent wiring). Review: 1 HIGH fixed (StackObject hash missing gift fields) + 1 MEDIUM fixed (!is_permanent guard). Coverage: complete (not validated — harness gap).
-- Saddle (CR 702.171): is_saddled: bool; sorcery-speed activation; SaddleAbility SOK 55; clears at cleanup; 14 tests; card: Quilled Charger; script 186. Review: clean (1 LOW).
+Batch 14 complete. All 6 abilities implemented (5 full pipeline + 1 already done):
+- Cipher (CR 702.99): encoded_cards Vec<(ObjectId, CardId)> on GameObject; CipherCombatDamage PendingTrigger; CipherTrigger SOK 56; KW 141, AbilDef 57; 7 tests; card: Call of the Nightwing; script 187 (pending_review — harness gap: no cast_spell_cipher action). Two fixes: PendingTrigger hash (HIGH), aftermath override (MEDIUM). Harness fix: enrich_spec_from_def propagates AbilityDefinition::Cipher → KW::Cipher.
+- Haunt (CR 702.55): haunting_target: Option<ObjectId> on GameObject; HauntExileTrigger SOK 57 + HauntedCreatureDiesTrigger SOK 58; HauntExiled event 107; KW 142; 8 tests; card: Blind Hunter; script 188 (PASS). Fix: haunting_target cleared after trigger resolves (MEDIUM).
+- Reconfigure (CR 702.151): is_reconfigured: bool on GameObject; AbilityDefinition::Reconfigure (AbilDef 58); Effect::DetachEquipment; Layer 4 type removal; KW 143; 8 tests (clean review); card: Lizard Blades; script 189 (PASS).
+- Blood Tokens (CR 111.10g): blood_token_spec(); ActivationCost.discard_card: bool; Command::ActivateAbility.discard_card_id; handle_activate_ability discard processing; 14 tests (clean); card: Voldaren Epicure; script 190 (5/5 PASS).
+- Treasure Tokens: already fully validated (P2, script 073) — no work needed.
+- Decayed Tokens (CR 702.147): zombie_decayed_token_spec(); 4 new token tests (12 total); card: Jadar, Ghoulcaller of Nephalia; script 191 (PASS). Two cross-cutting engine fixes: end_step_actions() generic AtBeginningOfYourEndStep CardDef sweep + resolution.rs card registry fallback for TriggeredAbility SOK.
 
-1792 tests (+29). 171 validated (+6). P4 77/88. Scripts 179-186. 8 new cards.
+1829+ tests. 175 validated. P4 82/88. Scripts 187-191. 6 new cards.
 
-**Next**: Claim W1-B14. Check docs/ability-batch-plan.md for Batch 14 contents.
+**Next**: Claim W1-B15. Check docs/ability-batch-plan.md for Batch 15 (Friends Forever, Choose a Background, Doctor's Companion — deck validation only, no new discriminants). After B15: Mutate mini-milestone. After Mutate: LegalActionProvider update.
 
-**Discriminant chain end of B13**: KW 140, AbilDef 56, SOK 55. Next: KW 141, AbilDef 57, SOK 56.
+**Discriminant chain end of B14**: KW 143, AbilDef 58, SOK 58. B15 needs no new discriminants.
 
 **Hazards**:
-- All B13 CRs were wrong in the batch plan — planner MCP-verified each and corrected. Trust planner over batch plan.
-- Gift harness gap: cast_spell_gift action doesn't wire gift_opponent → script 185 pending_review. Fix: add Option<u32> gift_opponent to PlayerAction schema in script_schema.rs and propagate through translate_player_action in replay_harness.rs.
-- Forage DSL gap: Cost enum lacks Forage variant — Forage activated abilities can't be expressed in CardDefinition. Workaround: unit tests use ActivationCost { forage: true } directly. Fix: add Cost::Forage.
-- Offspring Layer 7b deviation: 1/1 override not part of copiable values (CR 707.9b). Clone of token gets wrong P/T. TODO documented in resolution.rs.
+- Cipher script 187 pending_review — harness lacks cast_spell_cipher action to wire encoding choice (LOW gap, same pattern as Gift's gift_opponent gap)
+- Blood token helpers.rs export: blood_token_spec added to prelude — future cards can use it directly
+- Two engine infra fixes in this batch (end_step + resolution.rs) benefit all future CardDef triggers via PendingTriggerKind::Normal
+- W3 claim (2026-03-03) was stale — reset to available
 
-**Commit**: c279fb4 W1-B13: Saddle (CR 702.171)
-**Commit prefix used**: W1-B13:
-
-## Last Handoff
-
-**Date**: 2026-03-07
-**Workstream**: W1: Abilities — Batch 12
-
-Batch 12 complete. All 5 abilities implemented, reviewed, card+script+coverage done:
-- Enrage (ability word): TriggerCondition::WhenDealtDamage + TriggerEvent::SelfIsDealtDamage; fires combat + non-combat damage; deduplicates multiple simultaneous sources (ruling 2018-01-19); 5 tests; card: Ripjaw Raptor; script 174. Review: clean.
-- Alliance (ability word): ETBTriggerFilter struct (creature_only/controller_you/exclude_self) on TriggeredAbilityDef; wires WheneverCreatureEntersBattlefield; also fixes Impact Tremors silent-gap; 5 tests; card: Prosperous Innkeeper; script 175. Review: clean.
-- Corrupted (ability word): Condition::OpponentHasPoisonCounters(u32); any living non-controller opponent with >= N poison; inline check in replacement.rs + check_condition in effects/mod.rs; 6 tests; card: Vivisection Evangelist; script 176. Review: clean.
-- Ravenous (CR 702.156, keyword NOT ability word): KeywordAbility::Ravenous disc 135; ETB replacement (X +1/+1 counters); RavenousDrawTrigger SOK disc 50 fires if X >= 5; 1 MEDIUM fix (draw trigger must NOT fizzle on creature removal, CR 603.4); 6 tests; card: Tyrranax Rex; script 177.
-- Bloodrush (ability word): AbilityDefinition::Bloodrush disc 52; Command::ActivateBloodrush; StackObjectKind::BloodrushAbility disc 51; discard-as-cost from hand; targets attacking creature; PermanentTargeted event for Ward (1 MEDIUM fix); Layer 6+7c UntilEndOfTurn; 8 tests; card: Ghor-Clan Rampager; script 178.
-
-Infrastructure shipped: x_value: u32 on CastSpell/StackObject/GameObject/EffectContext; EffectAmount::XValue now works (was always 0); fixes all X-cost spells including Pull from Tomorrow.
-Side fix: Impact Tremors gap (WheneverCreatureEntersBattlefield was unwired, now fires correctly).
-
-1784 tests (+30). 165 validated (+5). P4 71/88. Scripts 174-178. 5 new cards.
-
-**Next**: Claim W1-B13. Check docs/ability-batch-plan.md for Batch 13 (Discover, Suspect, Collect Evidence, Forage, Squad, Offspring, Gift, Saddle — newer set mechanics, 2022-2024).
-
-**Discriminant chain for B13**: KW last = 135 (Ravenous); AbilDef last = 52 (Bloodrush); SOK last = 51 (BloodrushAbility). Next available: KW 136, AbilDef 53, SOK 52.
-
-**Hazards**:
-- Ravenous found to be CR 702.156 keyword (not ability word) — planner correctly identified it. Verify CR for any B13 ability listed as "ability word" before assuming no KW variant needed.
-- W3 claim (2026-03-03) appears stale — no handoff since then. Check before touching LOW issues.
-
-**Commit**: ba96d67 W1-B12: Batch 12 complete
-**Commit prefix used**: W1-B12:
-
-## Last Handoff
-
-**Date**: 2026-03-07
-**Workstream**: W1: Abilities — Batch 10
-
-Batch 10 complete. All 7 abilities implemented, reviewed, card+script+coverage done:
-- Devour (702.82): ETB sacrifice → +1/+1 counters, creatures_devoured field; KW 124; Predator Dragon; script 162; clean review
-- Backup (702.165): ETB counter on target + grant abilities for turn; BackupTrigger SOK 46; KW 125; Backup Agent; script 163; 1 HIGH fix (PendingTrigger hash missing backup_abilities/backup_n + 4 B8 fields)
-- Champion (702.72): ETB exile own creature or sacrifice self; LTB return via linked ability; ChampionETBTrigger/ChampionLTBTrigger SOK 47-48; ChampionFilter enum; KW 126; AbilDef 49; Changeling Hero; script 164; 1 MEDIUM fix (LTB detection used KW guard instead of champion_exiled_card.is_some() — CR 607.2a)
-- Umbra Armor/Totem Armor (702.89): inline replacement — destroy Aura instead of enchanted permanent; KW 127; Hyena Umbra; script 165; 2 MEDIUM fixes (phased-out filter, non-deterministic selection)
-- Living Metal (702.161): continuous effect Layer 4 adds Creature type on your turn; KW 128; Steel Guardian (synthetic DFC-free card); script 166; clean review
-- Soulbond (702.95): pair creatures, share abilities while paired; paired_with on GameObject; EffectDuration::WhilePaired; SoulbondTrigger SOK 49; AbilDef 50; SoulbondGrant struct; KW 129; Silverblade Paladin; script 167; 1 MEDIUM fix (fizzle check: calculate_characteristics not base types)
-- Fortify (702.67): Fortification activated ability attaches to land; Effect::AttachFortification; EffectFilter::AttachedLand; GameEvent::FortificationAttached; KW 130; Darksteel Garrison; script 168; 1 MEDIUM fix (CR 301.6 creature-Fortification guard) + 2 LOW fixes
-
-Also fixed: MR-B9-01 generic upkeep trigger gap (upkeep_actions() now has CardDef sweep).
-
-1706 tests passing. 155 validated. P4 64/88. Scripts 162-168.
-New infra: KW 124-130; AbilDef 49-50; SOK 46-49; Effect::AttachFortification (disc 42); EffectFilter::AttachedLand (disc 13); GameEvent::FortificationAttached (disc 100); EffectDuration::WhilePaired; creatures_devoured+champion_exiled_card+paired_with on GameObject; ChampionFilter enum; SoulbondGrant struct; cast_spell_devour harness action.
-
-**Next**: Claim W1-B11. Check docs/ability-batch-plan.md for Batch 11 contents (Modal Choice system, Tribute, Fabricate, Fuse, Spree).
-
-**Commit prefix used**: W1-B10:
-
-## Last Handoff
-
-**Date**: 2026-03-06
-**Workstream**: W1: Abilities — Batch 9
-
-Batch 9 complete. All 6 abilities implemented, reviewed, card+script+coverage done:
-- Graft (702.58): ETB counters, enter-trigger counter move, optional intervening-if; GraftTrigger SOK 44; Simic Initiate; script 156; 1 HIGH fix (view_model.rs missing GraftTrigger arm)
-- Scavenge (702.97): graveyard activated ability, power snapshot before exile, sorcery speed; ScavengeAbility SOK 45; Deadbridge Goliath; script 157; clean review
-- Outlast (702.107): tap+mana activated, sorcery speed, AddCounter self; KW 121, AbilDef 48; Ainok Bond-Kin; script 158; clean review. Post-review: view_model.rs missing Outlast display arm (fixed inline)
-- Amplify (702.38): ETB replacement, hand reveal, creature type matching; KW 122; Canopy Crawler; script 159; clean review
-- Bloodthirst (702.54): ETB replacement, damage_received_this_turn tracking on PlayerState; KW 123; Stormblood Berserker; script 160; clean review
-- Amass (701.47): Effect::Amass keyword action, Army token create/find, subtype add; GameEvent::Amassed; Dreadhorde Invasion; script 161; 1 MEDIUM fix (emit Amassed on token failure per CR 701.47b)
-
-1641 tests passing. 148 validated. P4 57/88. Scripts 156-161.
-New infra: GraftTrigger (SOK 44); ScavengeAbility (SOK 45); AbilDef 47 (Scavenge), 48 (Outlast); KW 119-123; damage_received_this_turn on PlayerState; Effect::Amass; GameEvent::Amassed.
-Discriminants used: KW 119-123; AbilDef 47-48; SOK 44-45; Effect disc 41; GameEvent disc 98.
-
-**HAZARD — Generic trigger gap**: `upkeep_actions()` in `turn_actions.rs` only fires hardcoded keyword triggers (Suspend, Vanishing, Fading, Echo, Cumulative Upkeep, Forecast). Cards with `TriggerCondition::AtBeginningOfYourUpkeep` in their CardDefinition (e.g., Dreadhorde Invasion) silently never fire their upkeep triggers. Recommend adding a general CardDef trigger sweep in `upkeep_actions()` before Batch 10 cards are scripted — this will affect Champion, Soulbond, and other ETB/LTB pattern cards if they use generic trigger conditions.
-
-**Next**: Claim W1-B10. Check docs/ability-batch-plan.md for Batch 10 contents (Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify — ETB/dies patterns). Fix generic trigger gap first if it affects B10 scripts.
-
-**Commit prefix used**: W1-B9:
-
-## Last Handoff
-
-**Date**: 2026-03-06
-**Workstream**: W1: Abilities — Batch 8
-
-Batch 8 complete. All 7 abilities implemented, reviewed, card+script+coverage done:
-- Vanishing (702.63): ETB time counters, upkeep removal, sacrifice trigger; Aven Riftwatcher; script 149; MEDIUM fix (find_map→filter_map sum for multi-instance)
-- Fading (702.32): ETB fade counters, single upkeep trigger (remove or sacrifice); Blastoderm; script 150; clean review
-- Echo (702.30): echo_pending flag on GameObject, upkeep trigger, PayEcho command; Avalanche Riders; script 151; clean review. CR corrected: 702.30 not 702.31
-- Cumulative Upkeep (702.24): age counters, escalating cost, PayCumulativeUpkeep; Mystic Remora; script 152; HIGH fix (expect→unwrap_or) + MEDIUM (life_lost_this_turn)
-- Recover (702.59): GY creature-death trigger, PayRecover command, pay_recover harness action; Grim Harvest; script 153; clean review. Also fixed grim_harvest.rs modes: vec![]→None
-- Forecast (702.57): hand activated ability, upkeep-only restriction, forecast_used_this_turn tracking, activate_forecast harness action; Sky Hussar; script 154; clean review
-- Phasing (702.26): simultaneous phase-in/out (snapshot before mutate, CR 502.1), indirect phasing (CR 702.26h), is_phased_in() filters on 30+ battlefield sites; Teferi's Isle; script 155; HIGH+MEDIUM fixes for simultaneous phasing + filter gaps
-
-1592 tests passing. 141 validated. P4 51/88. Scripts 149-155.
-New infra: CounterType::Fade+Age; SOK 37-43 (VanishingCounter, VanishingSacrifice, Fading, Echo, CumulativeUpkeep, Recover, ForecastAbility); echo_pending+phased_out_indirectly+phased_out_controller on GameObject; forecast_used_this_turn on GameState; CumulativeUpkeepCost enum; PermanentsPhasedOut/PermanentsPhasedIn events; pay_recover+activate_forecast harness actions.
-Discriminants used: KW 112-118; AbilDef 41-46.
-
-**HAZARD**: Ability planner sometimes generates wrong KW/AbilDef discriminants (used already-taken values). Always verify the discriminant chain from the previous batch before running the runner. The runner itself was given correct values manually each time.
-
-**Next**: Claim W1-B9. Check docs/ability-batch-plan.md for Batch 9 contents (Graft, Scavenge, Outlast, Amplify, Bloodthirst, Amass — counter/growth mechanics).
-
-**Commit prefix used**: W1-B8:
-
-## Last Handoff
-
-**Date**: 2026-03-06
-**Workstream**: W1: Abilities — Batch 7
-
-Batch 7 complete. All 6 abilities implemented, reviewed, card+script+coverage done:
-- Replicate (702.56): Train of Thought, script 143, cast_spell_replicate harness
-- Gravestorm (702.69): Follow the Bodies, script 144, permanents_put_into_graveyard_this_turn
-- Cleave (702.148): Path of Peril, script 145, WasCleaved condition, cast_spell_cleave harness
-- Splice (702.47): Glacial Ray + Reach Through Mists, script 146, splice_cards on CastSpell
-- Entwine (702.42): Promise of Power, script 147, entwine_paid+was_entwined, ModeSelection→helpers.rs
-- Escalate (702.120): Blessed Alliance, script 148, escalate_modes u32, CR corrected from 702.121
-
-1526 tests passing. 134 validated. P4 44/88. Scripts 143-148.
-New harness actions: cast_spell_replicate, cast_spell_cleave, cast_spell_splice, cast_spell_entwine, cast_spell_escalate.
-Discriminants used: KW 107-111, AbilDef 36-40, SOK 36 (GravestormTrigger).
-
-**Next**: Claim W1-B8. Check docs/ability-batch-plan.md for Batch 8 contents (Vanishing, Fading, Echo, Cumulative Upkeep, Recover, Forecast, Phasing — upkeep/time abilities).
-
-**Commit prefix used**: W1-B7:
-
-## Last Handoff
-
-**Date**: 2026-03-02 (session end)
-**Workstream**: W1: Abilities — Batch 5
-**Task**: Implement Batch 5: Alt-cast hand/exile (Dash, Blitz, Plot, Prototype, Impending)
-**Completed**:
-- W3 structural refactor: CastSpell 13 booleans → `alt_cost: Option<AltCostKind>`, PendingTrigger 21 booleans → `kind: PendingTriggerKind`, GameObject `was_evoked/was_escaped/was_dashed` → `cast_alt_cost: Option<AltCostKind>` — commit 201bc48
-- Dash (CR 702.109): ETB haste, EOT return trigger, 7 tests, Zurgo Bellstriker, script 132 — commit 54f6ea9
-- Blitz (CR 702.152): ETB haste + EOT sacrifice + inline draw-on-death, 9 tests (SBA lethal path), Riveteers Requisitioner, script 133 — commit 4499bda
-- Plot (CR 702.170): new Command::PlotCard special action + free cast (AltCostKind::Plot), 20 tests, Slickshot Show-Off, script 134 — commit 9750a51
-- Prototype (CR 702.160/718): NOT an AltCost — separate `prototype: bool` on CastSpell; zone-change revert (CR 718.4), copy propagation (CR 718.3c); 2 HIGH fixes; 10 tests, Blitz Automaton, script 135 — commit aa46447
-- Impending (CR 702.176): AltCostKind::Impending, Layer 4 type-removal inline, time counter ETB + end-step removal; clean review (4 LOW test gaps); 11 tests, Overlord of the Hauntwoods, script 136 — commit c2d30fd
-- helpers.rs: added ManaColor + ManaAbility to DSL prelude (enables Everywhere token mana_abilities)
-- replay_harness.rs: cast_spell_impending action type + "time" in parse_counter_type
-- 1421 tests passing; 122 validated total; P4 30/88
-**Next**: Claim W1-B6. Check docs/ability-batch-plan.md for Batch 6 contents.
-**Hazards**: Discriminant chain: KeywordAbility 95-99, AbilityDefinition 28-32, StackObjectKind 31-33. StackObject still has per-ability was_X fields (was_dashed, was_blitzed etc.) — not consolidated, deferred. Prototype's `prototype: bool` on CastSpell still causes ~85-file update when new Prototype cards added — could use Default+struct-update eventually.
-**Commit prefix used**: `W1-B5:`, `W3:` (structural refactor)
-
-## Last Handoff
-
-**Date**: 2026-03-05 (session end)
-**Workstream**: W1: Abilities — Batch 6
-**Task**: Implement Batch 6: Cost modification (Bargain, Emerge, Spectacle, Surge, Casualty, Assist)
-**Completed**:
-- Bargain (CR 702.166): optional additional cost, bargain_sacrifice+was_bargained chain; Torch the Tower; script 137 — clean review
-- Emerge (CR 702.119): alt cost, sacrifice creature reduces MV, get_emerge_cost()/reduce_cost_by_mv(); Elder Deep-Fiend; script 138 — clean review
-- Spectacle (CR 702.137): alt cost if opponent lost life; new life_lost_this_turn on PlayerState; Skewer the Critics; script 139 — needs-fix (2 MEDIUM fixed: test name, commander tax test)
-- Surge (CR 702.117): alt cost if you cast another spell this turn; Reckless Bushwhacker; script 140 — clean review; cast_spell_surge harness arm added
-- Casualty (CR 702.153): additional cost, StackObjectKind::CasualtyTrigger+copy; Make Disappear; script 141 — clean review
-- Assist (CR 702.132): another player pays generic; assist_player+assist_amount on CastSpell; Huddle Up; script 142 — clean review
-- Batch 6 checkbox checked in workstream-coordination.md
-- LegalActionProvider doc comment updated (full bot behavior = W2 TUI task)
-- Commit: 322bfae W1-B6: Batch 6 complete
-**Next**: Claim W1-B7. Check docs/ability-batch-plan.md for Batch 7 contents (Replicate, Gravestorm, Overload, Cleave, Splice, Entwine*, Escalate*). Note Entwine+Escalate depend on Modal choice (Batch 11).
-**Discriminant chain**: KeywordAbility 100-105 used; AbilityDefinition disc 33-35 used; StackObjectKind 34 used. Next: KW 106, AbilDef 36, SOK 35.
-**Hazards**: Casualty CR number is 702.153 (not 702.154 — that's Enlist); plan files carry correct 702.153.
+**Commit prefix used**: W1-B14:
 
 ## Handoff History
+
+### 2026-03-07 (session end) — W1: Abilities — Batch 13
+- Discover (701.57), Suspect (701.60), Collect Evidence (701.59), Forage (701.61), Squad (702.157), Offspring (702.175), Gift (702.174), Saddle (702.171); 1792 tests; 171 validated; P4 77/88; scripts 179-186; cards: Geological Appraiser, Frantic Scapegoat, Crimestopper Sprite, Camellia the Seedmiser, Ultramarines Honour Guard, Flowerfoot Swordmaster, Nocturnal Hunger, Quilled Charger; commits c279fb4–43d1f28
+
+### 2026-03-07 (session end) — W1: Abilities — Batch 12
+- Enrage, Alliance, Corrupted, Ravenous (702.156), Bloodrush; 1784 tests; 165 validated; P4 71/88; scripts 174-178; cards: Ripjaw Raptor, Prosperous Innkeeper, Vivisection Evangelist, Tyrranax Rex, Ghor-Clan Rampager; commit ba96d67
 
 ### 2026-03-07 (session end) — W1: Abilities — Batch 11
 - Modal Choice (CR 700.2 P2 gap), Tribute (702.104), Fabricate (702.123), Fuse (702.102), Spree (702.172); 1754 tests; 160 validated; P4 66/88; scripts 169-173; cards: Abzan Charm, Fanatic of Xenagos, Weaponcraft Enthusiast, Wear//Tear, Final Showdown; commit f9df635
@@ -214,17 +60,5 @@ Discriminants used: KW 107-111, AbilDef 36-40, SOK 36 (GravestormTrigger).
 ### 2026-03-07 (session end) — W1: Abilities — Batch 10
 - Devour, Backup, Champion, Totem Armor, Living Metal, Soulbond, Fortify; 1706 tests; 155 validated; P4 64/88; scripts 162-168; cards: Predator Dragon, Backup Agent, Changeling Hero, Hyena Umbra, Steel Guardian, Silverblade Paladin, Darksteel Garrison; commit ae6cde8
 
-### 2026-03-01 (session end) — W1: Abilities — Batch 4
-- Retrace, Jump-Start, Aftermath, Embalm, Eternalize, Encore; 1336 tests; 117 validated; P4 25/88; scripts 126-131; cards: Flame Jab, Radical Idea, Cut//Ribbons, Sacred Cat, Proven Combatant, Briarblade Adept; commits cada8d5–3991065
-
-### 2026-03-01 (session end) — W1: Abilities — Batch 3
-- Melee, Poisonous, Toxic, Enlist, Ninjutsu/CommanderNinjutsu; 1295 tests; P4 19/88; scripts 121-125; cards: Wings of the Guard, Poisonous Viper, Pestilent Syphoner, Coalition Skyknight, Ninja of the Deep Hours; commits 3e695b4–17e19fd
-
-### 2026-03-01 (session end) — W1: Abilities — Batch 2
-- Flanking, Bushido, Rampage, Provoke, Afflict, Renown, Training; 1254 tests; P4 13/88; scripts 114-120; cards: Suq'Ata Lancer, Devoted Retainer, Wolverine Pack, Goblin Grappler, Khenra Eternal, Topan Freeblade, Gryff Rider; commit 92f1265
-
-### 2026-03-01 (session end) — W1: Abilities — Batch 1
-- Horsemanship, Skulk, Devoid, Decayed, Ingest; 1177 tests; P4 6/88; scripts 109-113; cards: Shu Cavalry, Furtive Homunculus, Forerunner of Slaughter, Shambling Ghast, Mist Intruder; commit 9cc5672
-
-### 2026-02-28 (session end) — W1: Abilities — Batch 0
-- Bolster, Adapt, Shadow, Partner With, Overload; 1166 tests; scripts 104-108; P3 36/40, P4 1/88; commit 2729c3d
+### 2026-03-06 (session end) — W1: Abilities — Batch 9
+- Graft (702.58), Scavenge (702.97), Outlast (702.107), Amplify (702.38), Bloodthirst (702.54), Amass (701.47); 1641 tests; 148 validated; P4 57/88; scripts 156-161; cards: Simic Initiate, Deadbridge Goliath, Ainok Bond-Kin, Canopy Crawler, Stormblood Berserker, Dreadhorde Invasion; upkeep_actions() CardDef trigger gap first identified here; fixed in B10

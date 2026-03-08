@@ -1,4 +1,4 @@
-# Infra & Testing Gotchas — Last verified: M9.5 + Batch 10 (2026-03-07)
+# Infra & Testing Gotchas — Last verified: M9.5 + Batch 14 (2026-03-08)
 
 ## Rust / im-rs Gotchas
 
@@ -140,10 +140,7 @@
   This runs ONLY the named script. Do NOT use `cargo test --test script_replay` — that only runs 4 unit tests,
   not the JSON scripts. Do NOT start or build the replay-viewer HTTP server — it causes OOM
   kills (SIGKILL/137) from the Sonnet agent context.
-- **Discriminant chain after Batch 9**: KeywordAbility next = 124, StackObjectKind next = 46,
-  AbilityDefinition next = 49. B9 used: KW 119-123 (Graft, Scavenge, Outlast, Amplify, Bloodthirst;
-  Amass has no KW variant), AbilDef 47-48 (Scavenge, Outlast), SOK 44-45 (GraftTrigger, ScavengeAbility).
-  Effect::Amass disc 41; GameEvent::Amassed disc 98.
+- **Discriminant chain after Batch 14**: KW 143 (Reconfigure), AbilDef 58 (Reconfigure), SOK 58 (HauntedCreatureDiesTrigger). Batch 15 needs no new discriminants (Commander partner abilities are deck-validation only). Full B14 chain: KW 141-143 (Cipher, Haunt, Reconfigure); AbilDef 57-58 (Cipher, Reconfigure); SOK 56-58 (CipherTrigger, HauntExileTrigger, HauntedCreatureDiesTrigger).
   **Escalate CR is 702.120** (not 702.121 = Melee — a common confusion).
 - **`tools/replay-viewer/src/view_model.rs` has TWO exhaustive matches** that need updating for every new ability: (1) `StackObjectKind` match in `stack_kind_info()` — add arm for every new SOK variant; (2) `KeywordAbility` match in the keyword display function — add arm for every new KW variant. The `ability-impl-runner` misses the `KeywordAbility` match ~50% of the time. Always run `cargo build --workspace` (not just `-p mtg-engine`) after implement/fix phases to catch compile errors in the replay-viewer. Confirmed pattern from Outlast (B9).
 - **HAZARD: `ability-impl-planner` generates wrong discriminants.** The planner (Opus) sometimes
@@ -196,6 +193,24 @@
   added to the `super::card_definition` import. The card-definition-author agent may omit this.
   Compile error: `use of undeclared type TimingRestriction`.
 
+## Turn Action / Resolution Engine Gotchas (B14)
+
+- **`end_step_actions()` generic CardDef sweep added in B14** (mirrors MR-B9-01 upkeep sweep).
+  Before B14, `AtBeginningOfYourEndStep` triggers in `CardDefinition` abilities silently never fired — only
+  hardcoded keyword triggers (Vanishing, Fading, Impending) were processed. Fix: added a
+  generic sweep loop at the top of `end_step_actions()` that scans the active player's battlefield
+  permanents for `TriggerCondition::AtBeginningOfYourEndStep` in their CardDef abilities and fires
+  `PendingTriggerKind::Normal` for each match. Any future end-step CardDef trigger (e.g., Upkeep triggers
+  already covered by B9-01) will now fire automatically.
+- **`resolution.rs` card registry fallback for `TriggeredAbility` SOK** (B14 engine fix).
+  The `TriggeredAbility` SOK resolution path reads `characteristics.triggered_abilities[ability_index]`
+  which is only populated for keyword-derived and ETB triggers built by `builder.rs`. Plain
+  `AbilityDefinition::Triggered` entries from CardDefs, pushed via `PendingTriggerKind::Normal`, have
+  no corresponding entry in `characteristics.triggered_abilities`. Fix: when the characteristics lookup
+  returns `None`, fall back to `state.card_registry.get(card_id)?.abilities[ability_index]` and
+  execute the `AbilityDefinition::Triggered { effect, .. }` directly. This makes all CardDef-defined
+  triggers usable via `PendingTriggerKind::Normal`.
+
 ## Script Harness Gotchas
 
 - **New harness action types added for abilities**: `cycle_card` (CycleCard command, finds card
@@ -218,6 +233,7 @@
   `gift_opponent: Option<u32>` — the `PlayerAction` struct in `script_schema.rs` and
   `translate_player_action()` in `replay_harness.rs` need this field before Gift scripts can validate.
   Script 185 is `pending_review` as a result.
+  **B14 additions**: `activate_ability` with `discard_card_name: Option<String>` (Blood Token discard-as-cost). **Cipher gap**: `cast_spell_cipher` action not yet wired — encoding choice (which creature to encode on) is unrepresentable. Script 187 is `pending_review`.
 - **`cast_spell` hard-codes `replicate_count: 0`** — scripts for Replicate spells MUST use
   `cast_spell_replicate`. Similarly, `cast_spell` does not set entwine/escalate/splice fields.
   Always use the ability-specific action type for alt-cost/additional-cost spells.
