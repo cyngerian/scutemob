@@ -74,6 +74,13 @@ impl HeuristicBot {
             LegalAction::LeaveCommanderInZone { .. } => 20,
             LegalAction::PassPriority => 1,
             LegalAction::Concede => 0,
+            // Bloodrush (B12): activated from hand targeting an attacking creature.
+            // Treat like an activated ability — decent priority.
+            LegalAction::ActivateBloodrush { .. } => 40,
+            // Saddle (B13): saddling a Mount is a useful setup action.
+            LegalAction::SaddleMount { .. } => 35,
+            // Mutate: treat like casting a spell — good priority.
+            LegalAction::CastWithMutate { .. } => 50,
         }
     }
 }

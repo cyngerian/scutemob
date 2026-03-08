@@ -6,7 +6,8 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AttackTarget, CardType, GameState, KeywordAbility, ObjectId, PlayerId, Step, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, GameState, KeywordAbility, ObjectId, PlayerId, Step,
+    ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -45,6 +46,30 @@ pub enum LegalAction {
     LeaveCommanderInZone {
         object_id: ObjectId,
     },
+    /// CR 207.2c / CR 602: Bloodrush -- activated ability from hand targeting an attacking
+    /// creature. Discards the card as cost, grants a P/T boost to the target until end of turn.
+    ActivateBloodrush {
+        /// The card with bloodrush in the player's hand.
+        card: ObjectId,
+        /// An attacking creature to target.
+        target: ObjectId,
+    },
+    /// CR 702.171: Saddle a Mount by tapping creatures with total power >= N.
+    /// Sorcery-speed only (active player, main phase, empty stack).
+    SaddleMount {
+        /// The Mount permanent to saddle.
+        mount: ObjectId,
+        /// Creatures to tap as the saddle cost (total power >= N).
+        saddle_creatures: Vec<ObjectId>,
+    },
+    /// CR 702.140: Cast a card with Mutate using its mutate alternative cost,
+    /// merging it with a target non-Human creature the caster owns.
+    CastWithMutate {
+        /// The card with Mutate in the player's hand.
+        card: ObjectId,
+        /// A non-Human creature the caster owns on the battlefield.
+        mutate_target: ObjectId,
+    },
 }
 
 /// Trait for enumerating legal actions from a game state.
@@ -68,6 +93,20 @@ pub trait LegalActionProvider: Send + Sync {
 /// changes needed. Soulbond pairing choice and Champion target choice are auto-selected
 /// by the engine during trigger resolution. Fortify activation is handled by
 /// `LegalAction::ActivateAbility` (already emitted). No bot behavioral changes needed.
+///
+/// **B12–B14 + Mutate update (2026-03-08)**:
+/// - Bloodrush (B12): `LegalAction::ActivateBloodrush` emitted when a hand card has
+///   `AbilityDefinition::Bloodrush` and there is at least one attacking creature.
+/// - Saddle (B13): `LegalAction::SaddleMount` emitted when a Mount is on the battlefield
+///   and the player controls untapped creatures with total power >= the Saddle N value.
+///   Sorcery-speed only. StubProvider picks the first valid greedy set.
+/// - Mutate: `LegalAction::CastWithMutate` emitted when a card in hand has
+///   `KeywordAbility::Mutate` (and `AbilityDefinition::MutateCost`) and the player
+///   owns a non-Human creature on the battlefield. Mutate is an alternative cost —
+///   random_bot casts with `alt_cost: Some(AltCostKind::Mutate)` and `mutate_on_top: true`.
+/// - Enrage/Alliance (B12), Collect Evidence (B13), Blood tokens/Reconfigure (B14):
+///   all passive or handled via existing `ActivateAbility`/`CastSpell` paths — no new
+///   `LegalAction` variants needed.
 pub struct StubProvider;
 
 impl LegalActionProvider for StubProvider {
@@ -281,6 +320,194 @@ impl LegalActionProvider for StubProvider {
                     source: obj.id,
                     ability_index: idx,
                 });
+            }
+        }
+
+        // ── Bloodrush (CR 207.2c / B12) ─────────────────────────────────────────
+        // Bloodrush is an activated ability from hand: discard the card to grant
+        // a P/T boost to an attacking creature. Legal any time the player has
+        // priority and an attacking creature exists (instant speed, no stack restriction).
+        {
+            // Collect attacking creature IDs once.
+            let attacking: Vec<ObjectId> = if let Some(ref combat) = state.combat {
+                combat.attackers.keys().copied().collect()
+            } else {
+                Vec::new()
+            };
+
+            if !attacking.is_empty() {
+                let hand = ZoneId::Hand(player);
+                for obj in state.objects_in_zone(&hand) {
+                    // Check card_id is set and card definition has AbilityDefinition::Bloodrush.
+                    let has_bloodrush = obj
+                        .card_id
+                        .as_ref()
+                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .map(|def| {
+                            def.abilities
+                                .iter()
+                                .any(|a| matches!(a, AbilityDefinition::Bloodrush { .. }))
+                        })
+                        .unwrap_or(false);
+
+                    if !has_bloodrush {
+                        continue;
+                    }
+
+                    // Check mana affordability for the bloodrush cost.
+                    let bloodrush_cost = obj
+                        .card_id
+                        .as_ref()
+                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|def| {
+                            def.abilities.iter().find_map(|a| {
+                                if let AbilityDefinition::Bloodrush { cost, .. } = a {
+                                    Some(cost.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        });
+
+                    if let Some(cost) = bloodrush_cost {
+                        if can_afford(state, player, &cost) {
+                            // Emit one action per attacking creature target.
+                            for &target in &attacking {
+                                actions.push(LegalAction::ActivateBloodrush {
+                                    card: obj.id,
+                                    target,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Saddle (CR 702.171 / B13) ────────────────────────────────────────────
+        // Sorcery-speed (active player, main phase, empty stack). The player taps
+        // untapped creatures they control (excluding the Mount itself) with total
+        // power >= N to saddle the Mount.
+        if is_main_phase && stack_empty && is_active {
+            // Collect untapped creatures the player controls (potential saddle creatures).
+            let untapped_creatures: Vec<(ObjectId, i32)> = state
+                .objects_in_zone(&ZoneId::Battlefield)
+                .into_iter()
+                .filter(|o| {
+                    o.controller == player
+                        && !o.status.tapped
+                        && o.characteristics.card_types.contains(&CardType::Creature)
+                })
+                .map(|o| (o.id, o.characteristics.power.unwrap_or(0)))
+                .collect();
+
+            // Find Mounts with Saddle(N).
+            for obj in state.objects_in_zone(&ZoneId::Battlefield) {
+                if obj.controller != player {
+                    continue;
+                }
+                let saddle_n = obj.characteristics.keywords.iter().find_map(|kw| {
+                    if let KeywordAbility::Saddle(n) = kw {
+                        Some(*n)
+                    } else {
+                        None
+                    }
+                });
+                let saddle_n = match saddle_n {
+                    Some(n) => n,
+                    None => continue,
+                };
+
+                // Greedy selection: pick untapped creatures (excluding the Mount itself)
+                // until we meet or exceed the power threshold.
+                let mut chosen: Vec<ObjectId> = Vec::new();
+                let mut total_power: i32 = 0;
+                for &(cid, power) in &untapped_creatures {
+                    if cid == obj.id {
+                        continue; // Can't use the Mount itself as a saddle creature.
+                    }
+                    chosen.push(cid);
+                    total_power += power;
+                    if total_power >= saddle_n as i32 {
+                        break;
+                    }
+                }
+
+                if total_power >= saddle_n as i32 {
+                    actions.push(LegalAction::SaddleMount {
+                        mount: obj.id,
+                        saddle_creatures: chosen,
+                    });
+                }
+            }
+        }
+
+        // ── Mutate (CR 702.140) ──────────────────────────────────────────────────
+        // Mutate is an alternative cost. Cards with Mutate in hand may be cast merging
+        // with a non-Human creature the caster OWNS on the battlefield (CR 702.140a).
+        // Timing follows normal spell timing (instant if the card is an instant / has flash;
+        // otherwise sorcery-speed). StubProvider conservatively emits at sorcery-speed only
+        // for creature spells (the common case — almost all mutate cards are creatures).
+        if is_main_phase && stack_empty && is_active {
+            // Collect non-Human creatures the player OWNS on the battlefield.
+            let non_human_own: Vec<ObjectId> = state
+                .objects_in_zone(&ZoneId::Battlefield)
+                .into_iter()
+                .filter(|o| {
+                    // Owner check (not controller — CR 702.140a says "you own").
+                    o.owner == player
+                        && o.characteristics.card_types.contains(&CardType::Creature)
+                        && !o
+                            .characteristics
+                            .subtypes
+                            .contains(&mtg_engine::SubType("Human".to_string()))
+                })
+                .map(|o| o.id)
+                .collect();
+
+            if !non_human_own.is_empty() {
+                let hand = ZoneId::Hand(player);
+                for obj in state.objects_in_zone(&hand) {
+                    if !obj
+                        .characteristics
+                        .keywords
+                        .contains(&KeywordAbility::Mutate)
+                    {
+                        continue;
+                    }
+
+                    // Look up the mutate cost from the card registry.
+                    let mutate_cost = obj
+                        .card_id
+                        .as_ref()
+                        .and_then(|cid| state.card_registry.get(cid.clone()))
+                        .and_then(|def| {
+                            def.abilities.iter().find_map(|a| {
+                                if let AbilityDefinition::MutateCost { cost } = a {
+                                    Some(cost.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        });
+
+                    let mutate_cost = match mutate_cost {
+                        Some(c) => c,
+                        None => continue, // No MutateCost defined — skip.
+                    };
+
+                    if !can_afford(state, player, &mutate_cost) {
+                        continue;
+                    }
+
+                    // Emit one action per valid mutate target.
+                    for &target in &non_human_own {
+                        actions.push(LegalAction::CastWithMutate {
+                            card: obj.id,
+                            mutate_target: target,
+                        });
+                    }
+                }
             }
         }
 

@@ -3,7 +3,7 @@
 //! Seeded RNG for reproducibility. Biased toward attacking (80/20)
 //! to ensure games progress toward a conclusion.
 
-use mtg_engine::{AttackTarget, Command, GameState, ObjectId, PlayerId};
+use mtg_engine::{AltCostKind, AttackTarget, Command, GameState, ObjectId, PlayerId};
 use rand::prelude::*;
 
 use crate::bot::Bot;
@@ -164,6 +164,8 @@ pub(crate) fn action_to_command(
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
         },
         LegalAction::TapForMana {
             source,
@@ -243,6 +245,62 @@ pub(crate) fn action_to_command(
         LegalAction::LeaveCommanderInZone { object_id } => Command::LeaveCommanderInZone {
             player,
             object_id: *object_id,
+        },
+        // ── Bloodrush (CR 207.2c / B12) ─────────────────────────────────────────
+        // Activate the bloodrush ability: discard the card, target an attacking creature.
+        LegalAction::ActivateBloodrush { card, target } => Command::ActivateBloodrush {
+            player,
+            card: *card,
+            target: *target,
+        },
+        // ── Saddle (CR 702.171 / B13) ────────────────────────────────────────────
+        // Saddle a Mount by tapping the pre-selected creatures.
+        LegalAction::SaddleMount {
+            mount,
+            saddle_creatures,
+        } => Command::SaddleMount {
+            player,
+            mount: *mount,
+            saddle_creatures: saddle_creatures.clone(),
+        },
+        // ── Mutate (CR 702.140) ──────────────────────────────────────────────────
+        // Cast the card using its mutate alternative cost. Default: place on top (true)
+        // so the mutating spell's characteristics become the merged permanent's.
+        LegalAction::CastWithMutate {
+            card,
+            mutate_target,
+        } => Command::CastSpell {
+            player,
+            card: *card,
+            targets: Vec::new(),
+            convoke_creatures: Vec::new(),
+            improvise_artifacts: Vec::new(),
+            delve_cards: Vec::new(),
+            kicker_times: 0,
+            escape_exile_cards: Vec::new(),
+            retrace_discard_land: None,
+            jump_start_discard: None,
+            alt_cost: Some(AltCostKind::Mutate),
+            prototype: false,
+            bargain_sacrifice: None,
+            emerge_sacrifice: None,
+            casualty_sacrifice: None,
+            assist_player: None,
+            assist_amount: 0,
+            replicate_count: 0,
+            splice_cards: Vec::new(),
+            entwine_paid: false,
+            escalate_modes: 0,
+            devour_sacrifices: Vec::new(),
+            modes_chosen: Vec::new(),
+            fuse: false,
+            x_value: 0,
+            collect_evidence_cards: Vec::new(),
+            squad_count: 0,
+            offspring_paid: false,
+            gift_opponent: None,
+            mutate_target: Some(*mutate_target),
+            mutate_on_top: true,
         },
     }
 }

@@ -29,8 +29,8 @@ pub use continuous_effect::{
 pub use error::GameStateError;
 pub use game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
-    GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent,
-    TriggeredAbilityDef,
+    GameObject, InterveningIf, ManaAbility, ManaCost, MergedComponent, ObjectId, ObjectStatus,
+    TriggerEvent, TriggeredAbilityDef,
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
@@ -42,8 +42,9 @@ pub use stubs::{DelayedTrigger, PendingTrigger, TriggerDoubler, TriggerDoublerFi
 pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
-    AffinityTarget, CardType, ChampionFilter, Color, CounterType, CumulativeUpkeepCost,
-    EnchantTarget, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality, SubType, SuperType,
+    AffinityTarget, AltCostKind, CardType, ChampionFilter, Color, CounterType,
+    CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
+    ProtectionQuality, SubType, SuperType,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -395,6 +396,10 @@ impl GameState {
             haunting_target: None,
             // CR 702.151b / CR 400.7: reconfigure flag is cleared on zone change.
             is_reconfigured: false,
+            // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
+            // When a merged permanent leaves the battlefield, components are split into
+            // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
+            merged_components: im::Vector::new(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -425,6 +430,17 @@ impl GameState {
             }
         }
 
+        // CR 729.3: When a merged permanent leaves the battlefield, the primary new object
+        // takes the characteristics of the topmost component (merged_components[0]).
+        // Without this override, new_object would have the underlying game-object's
+        // characteristics (the target permanent's base), not the topmost component's.
+        if old_object.zone == ZoneId::Battlefield && !old_object.merged_components.is_empty() {
+            let top = &old_object.merged_components[0];
+            new_object.characteristics = top.characteristics.clone();
+            new_object.card_id = top.card_id.clone();
+            new_object.is_token = top.is_token;
+        }
+
         // Add to new zone — MR-M1-02/MR-M1-04: single access, no redundant guard.
         let to_zone = self
             .zones
@@ -434,6 +450,99 @@ impl GameState {
 
         // Insert new object
         self.objects.insert(new_id, new_object);
+
+        // CR 729.3: Merged permanent zone-change splitting.
+        // When a merged permanent leaves the battlefield, each component becomes a separate
+        // object in the destination zone. The topmost component (index 0) is the primary new
+        // object (already created above as `new_id`). Components at indices 1..N get fresh
+        // GameObjects created here.
+        //
+        // CR 729.3a: For graveyard/library, the player may arrange order — we use
+        // component order (topmost to bottommost) as the deterministic default.
+        // CR 400.7: Each component object starts with empty merged_components (it's a new object).
+        // CR 729.2d: Token status is determined per component's `is_token` field.
+        if old_object.zone == ZoneId::Battlefield && old_object.merged_components.len() > 1 {
+            // Components at indices 1..N become additional objects in `to`.
+            let additional_components: Vec<_> = old_object
+                .merged_components
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect();
+            for component in additional_components {
+                // Skip tokens — they cease to exist when they leave the battlefield (CR 111.7).
+                if component.is_token {
+                    continue;
+                }
+                let component_id = self.next_object_id();
+                self.timestamp_counter += 1;
+                let component_obj = GameObject {
+                    id: component_id,
+                    card_id: component.card_id,
+                    characteristics: component.characteristics,
+                    controller: old_object.owner, // Reset controller to owner (CR 400.7)
+                    owner: old_object.owner,
+                    zone: to,
+                    status: crate::state::game_object::ObjectStatus::default(),
+                    counters: OrdMap::new(),
+                    attachments: Vector::new(),
+                    attached_to: None,
+                    damage_marked: 0,
+                    deathtouch_damage: false,
+                    is_token: false, // Non-tokens only (tokens were filtered above)
+                    timestamp: self.timestamp_counter,
+                    has_summoning_sickness: to == ZoneId::Battlefield,
+                    goaded_by: im::Vector::new(),
+                    kicker_times_paid: 0,
+                    cast_alt_cost: None,
+                    is_bestowed: false,
+                    is_foretold: false,
+                    foretold_turn: 0,
+                    was_unearthed: false,
+                    myriad_exile_at_eoc: false,
+                    decayed_sacrifice_at_eoc: false,
+                    is_suspended: false,
+                    exiled_by_hideaway: None,
+                    is_renowned: false,
+                    is_suspected: false,
+                    encore_sacrifice_at_end_step: false,
+                    encore_must_attack: None,
+                    encore_activated_by: None,
+                    is_plotted: false,
+                    plotted_turn: 0,
+                    is_prototyped: false,
+                    was_bargained: false,
+                    evidence_collected: false,
+                    echo_pending: false,
+                    phased_out_indirectly: false,
+                    phased_out_controller: None,
+                    creatures_devoured: 0,
+                    champion_exiled_card: None,
+                    paired_with: None,
+                    tribute_was_paid: false,
+                    x_value: 0,
+                    squad_count: 0,
+                    offspring_paid: false,
+                    gift_was_given: false,
+                    gift_opponent: None,
+                    is_saddled: false,
+                    encoded_cards: im::Vector::new(),
+                    haunting_target: None,
+                    is_reconfigured: false,
+                    // CR 729.3 / CR 400.7: Each split component starts with empty merged_components.
+                    merged_components: im::Vector::new(),
+                };
+                // Add component to destination zone and objects map.
+                if let Some(zone_set) = self.zones.get_mut(&to) {
+                    zone_set.insert(component_id);
+                }
+                self.objects.insert(component_id, component_obj);
+                // CR 702.69a: Track non-topmost components entering graveyard from battlefield.
+                if let ZoneId::Graveyard(_) = to {
+                    self.permanents_put_into_graveyard_this_turn += 1;
+                }
+            }
+        }
 
         // CR 702.69a: Track permanents entering a graveyard from the battlefield.
         // Tokens count (CR 704.5d — they briefly exist in the graveyard before SBA removes them).
@@ -572,6 +681,10 @@ impl GameState {
             haunting_target: None,
             // CR 702.151b / CR 400.7: reconfigure flag is cleared on zone change.
             is_reconfigured: false,
+            // CR 729.2 / CR 400.7: merged_components are cleared on zone change.
+            // When a merged permanent leaves the battlefield, components are split into
+            // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
+            merged_components: im::Vector::new(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
