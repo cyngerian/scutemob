@@ -651,6 +651,18 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 56.
     Gift { gift_type: GiftType },
+    /// CR 702.99a: Cipher -- marks an instant or sorcery as having cipher.
+    ///
+    /// Cipher is two linked abilities: at resolution the controller may exile the
+    /// card encoded on a creature they control; while encoded that creature has
+    /// "Whenever this creature deals combat damage to a player, you may copy the
+    /// encoded card and cast the copy without paying its mana cost."
+    ///
+    /// This variant is a marker -- the actual encoding logic lives in resolution.rs
+    /// and the trigger dispatch lives in abilities.rs.
+    ///
+    /// Discriminant 57.
+    Cipher,
 }
 
 /// CR 702.174d-i: The specific gift given to the chosen opponent.

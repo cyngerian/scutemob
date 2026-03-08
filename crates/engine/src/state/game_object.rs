@@ -664,6 +664,20 @@ pub struct GameObject {
     /// (CR 702.171b: "or it leaves the battlefield", enforced via CR 400.7 new-object rule).
     #[serde(default)]
     pub is_saddled: bool,
+    /// CR 702.99b: Cipher encoded cards.
+    ///
+    /// Each entry is `(exiled_object_id, card_id)` where `exiled_object_id` is the
+    /// ObjectId of the exiled cipher card and `card_id` is its CardId (for creating
+    /// copies). Multiple cipher spells can be encoded on the same creature.
+    ///
+    /// CR 702.99c: Encoding persists even if the creature stops being a creature or
+    /// changes controller, as long as it remains on the battlefield.
+    ///
+    /// CR 400.7: Reset to empty on zone changes (new object has no encoding).
+    /// CR 702.99c: If the encoded card leaves exile, verify at trigger resolution
+    /// time that the card still exists in exile (fizzle if not -- no SBA needed).
+    #[serde(default)]
+    pub encoded_cards: im::Vector<(ObjectId, crate::state::player::CardId)>,
 }
 
 impl GameObject {

@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | Batch 13 complete. Batch 14 next. | available | — | KW 140, AbilDef 56, SOK 55 — next: KW 141, AbilDef 57, SOK 56 |
+| W1: Abilities | Batch 14: Cipher, Haunt, Reconfigure, Blood/Treasure/Decayed tokens (chained, no-intervention) | ACTIVE | 2026-03-08 | KW next: 141, AbilDef next: 57, SOK next: 56 |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | ACTIVE | 2026-03-03 | Phase 0 complete; T2 done; working T2/T3 LOWs |
 | W4: M10 Networking | — | not-started | — | After W1 completes |

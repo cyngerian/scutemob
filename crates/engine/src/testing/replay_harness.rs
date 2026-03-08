@@ -2257,6 +2257,16 @@ pub fn enrich_spec_from_def(
         }
     }
 
+    // CR 702.99a: AbilityDefinition::Cipher adds KeywordAbility::Cipher marker.
+    // The resolution path checks obj.characteristics.keywords.contains(&KeywordAbility::Cipher)
+    // to decide whether to offer cipher encoding. Without this propagation, cards placed
+    // through the harness never trigger cipher encoding and go to the graveyard instead.
+    for ability in &def.abilities {
+        if let AbilityDefinition::Cipher = ability {
+            spec = spec.with_keyword(KeywordAbility::Cipher);
+        }
+    }
+
     // CR 702.107a: Expand AbilityDefinition::Outlast into an ActivatedAbility.
     // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
     // Activate only as a sorcery."

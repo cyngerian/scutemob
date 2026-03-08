@@ -201,6 +201,9 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::SaddleAbility { source_object } => {
                     ("Saddle: ".to_string(), Some(*source_object))
                 }
+                StackObjectKind::CipherTrigger { source_creature, .. } => {
+                    ("Cipher trigger: ".to_string(), Some(*source_creature))
+                }
             };
 
             let (name, name_color) = source_id

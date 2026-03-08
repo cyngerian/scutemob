@@ -1001,6 +1001,8 @@ impl GameStateBuilder {
                 gift_opponent: None,
                 // CR 702.171b: test-placed objects start unsaddled.
                 is_saddled: false,
+                // CR 702.99b: test-placed objects have no encoded cipher cards.
+                encoded_cards: im::Vector::new(),
             };
 
             state.add_object(object, zone)?;

@@ -592,6 +592,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::SaddleAbility { source_object } => {
             ("saddle_ability", Some(*source_object))
         }
+        StackObjectKind::CipherTrigger { source_creature, .. } => {
+            ("cipher_trigger", Some(*source_creature))
+        }
     }
 }
 
@@ -877,5 +880,6 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::Offspring => "Offspring".to_string(),
         KeywordAbility::Gift => "Gift".to_string(),
         KeywordAbility::Saddle(n) => format!("Saddle {n}"),
+        KeywordAbility::Cipher => "Cipher".to_string(),
     }
 }

@@ -1276,6 +1276,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                     }
 
@@ -1342,6 +1344,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 squad_count: Some(permanent_squad_count),
                                 // CR 702.174a: SquadETB triggers are not gift casts.
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                     }
 
@@ -1406,6 +1410,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                     }
 
@@ -1472,6 +1478,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     soulbond_pair_target: None,
                                     squad_count: None,
                                     gift_opponent: Some(gift_opp),
+                                    cipher_encoded_card_id: None,
+                                    cipher_encoded_object_id: None,
                                 });
                         }
                     }
@@ -1614,15 +1622,82 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // Jump-start overrides buyback: "exile this card instead of putting it
                 // anywhere else any time it would leave the stack" (CR 702.133a).
                 // CR 702.27a: If buyback was paid (and not flashbacked or jump-started), return to hand.
-                let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start
+                //
+                // CR 702.99a: Cipher -- "If this spell is represented by a card, you may
+                // exile this card encoded on a creature you control."
+                // Cipher is checked BEFORE flashback/jump-start (those override cipher):
+                // per CR 702.34a / 702.133a "exile instead of putting anywhere else".
+                // The controller may choose to encode only if:
+                //   1. The spell is NOT a copy (cipher: "represented by a card")
+                //   2. The spell was NOT cast with flashback or jump-start (those override)
+                //   3. The controller has at least one creature on the battlefield
+                // MVP: auto-encode on the first available creature (deterministic).
+                let has_cipher = !stack_obj.is_copy
+                    && !stack_obj.cast_with_flashback
+                    && !stack_obj.cast_with_jump_start
+                    && !stack_obj.cast_with_aftermath
+                    && {
+                        // Check cipher in the card's characteristics or registry.
+                        // Use raw characteristics (cipher is a printed keyword).
+                        state
+                            .objects
+                            .get(&source_object)
+                            .map(|obj| {
+                                obj.characteristics
+                                    .keywords
+                                    .contains(&KeywordAbility::Cipher)
+                            })
+                            .unwrap_or(false)
+                    };
+
+                // Find the first creature controlled by this player (for MVP auto-encode).
+                let cipher_creature = if has_cipher {
+                    state
+                        .objects
+                        .values()
+                        .find(|obj| {
+                            obj.zone == ZoneId::Battlefield
+                                && obj.is_phased_in()
+                                && obj.controller == controller
+                                && obj.characteristics.card_types.contains(&CardType::Creature)
+                        })
+                        .map(|obj| obj.id)
+                } else {
+                    None
+                };
+
+                let destination = if stack_obj.cast_with_flashback
+                    || stack_obj.cast_with_jump_start
+                    || (has_cipher && cipher_creature.is_some())
                 {
-                    ZoneId::Exile // CR 702.34a / CR 702.133a — overrides all other destinations
+                    // CR 702.34a / CR 702.133a: flashback/jump-start exile on resolution.
+                    // CR 702.99a: cipher exile on resolution (card encoded on a creature).
+                    ZoneId::Exile
                 } else if stack_obj.was_buyback_paid {
                     ZoneId::Hand(owner) // CR 702.27a
                 } else {
                     ZoneId::Graveyard(owner)
                 };
                 let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
+
+                // CR 702.99a: If cipher resolved and we have a target creature, encode.
+                // The card is now in exile (new_id). Set encoded_cards on the creature.
+                // Ruling 2013-04-15: encoding happens after the spell's effects resolve.
+                if let Some(creature_id) = cipher_creature {
+                    if let Some(card_id_val) = &card_id {
+                        // Add the encoded card to the creature's encoded_cards list.
+                        if let Some(creature_obj) = state.objects.get_mut(&creature_id) {
+                            creature_obj
+                                .encoded_cards
+                                .push_back((new_id, card_id_val.clone()));
+                        }
+                        events.push(GameEvent::CipherEncoded {
+                            player: controller,
+                            exiled_card: new_id,
+                            creature: creature_id,
+                        });
+                    }
+                }
 
                 events.push(GameEvent::SpellResolved {
                     player: controller,
@@ -1969,6 +2044,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                     }
                 }
@@ -3704,6 +3781,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
                         is_saddled: false,
+                        encoded_cards: im::Vector::new(),
                     };
 
                     // Add the token to the battlefield.
@@ -3892,6 +3970,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 gift_opponent: None,
                 // CR 702.171b: tokens are not saddled by default.
                 is_saddled: false,
+                encoded_cards: im::Vector::new(),
             };
 
             // Add the token to the battlefield.
@@ -4067,6 +4146,114 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 if obj.zone == ZoneId::Battlefield {
                     obj.is_saddled = true;
                 }
+            }
+
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+
+        // CR 702.99a: Cipher trigger resolution.
+        //
+        // "Whenever [encoded creature] deals combat damage to a player, you may copy
+        // the encoded card and you may cast the copy without paying its mana cost."
+        //
+        // Ruling 2013-04-15: The copy is cast (so "whenever you cast" triggers fire).
+        // Ruling 2013-04-15: Cast during trigger resolution ignoring timing restrictions.
+        //
+        // MVP: Auto-cast the copy (deterministic). Interactive choice deferred.
+        StackObjectKind::CipherTrigger {
+            source_creature: _,
+            encoded_card_id: _,
+            encoded_object_id,
+        } => {
+            let controller = stack_obj.controller;
+
+            // CR 702.99c: Verify the encoded card still exists in exile.
+            // If not, the trigger fizzles (no copy created).
+            let still_in_exile = state
+                .objects
+                .get(&encoded_object_id)
+                .map(|obj| matches!(obj.zone, ZoneId::Exile))
+                .unwrap_or(false);
+
+            if still_in_exile {
+                // Create a copy of the spell from the encoded card definition.
+                // The copy is placed on the stack as a new StackObject.
+                // Ruling 2013-04-15: Copies created by cipher ARE cast (unlike Storm copies).
+                // The copy is_copy: true so no physical card moves when it resolves --
+                // the original stays encoded in exile.
+                //
+                // MVP: Cast the copy without selecting targets (no target selection
+                // for targeted copies -- deferred). Non-targeted cipher spells work correctly.
+                let copy_stack_id = state.next_object_id();
+                let copy_stack_obj = crate::state::stack::StackObject {
+                    id: copy_stack_id,
+                    controller,
+                    kind: StackObjectKind::Spell {
+                        source_object: encoded_object_id,
+                    },
+                    targets: vec![],
+                    cant_be_countered: false,
+                    // is_copy: true -- the encoded card stays in exile; this copy has no
+                    // physical card to move when it resolves (CR 702.99a / ruling 2013-04-15).
+                    is_copy: true,
+                    cast_with_flashback: false,
+                    kicker_times_paid: 0,
+                    was_evoked: false,
+                    was_bestowed: false,
+                    cast_with_madness: false,
+                    cast_with_miracle: false,
+                    was_escaped: false,
+                    cast_with_foretell: false,
+                    was_buyback_paid: false,
+                    was_suspended: false,
+                    was_overloaded: false,
+                    cast_with_jump_start: false,
+                    cast_with_aftermath: false,
+                    was_dashed: false,
+                    was_blitzed: false,
+                    was_plotted: false,
+                    was_prototyped: false,
+                    was_impended: false,
+                    was_bargained: false,
+                    evidence_collected: false,
+                    was_surged: false,
+                    was_casualty_paid: false,
+                    was_cleaved: false,
+                    was_entwined: false,
+                    escalate_modes_paid: 0,
+                    spliced_effects: vec![],
+                    spliced_card_ids: vec![],
+                    devour_sacrifices: vec![],
+                    modes_chosen: vec![],
+                    was_fused: false,
+                    x_value: 0,
+                    squad_count: 0,
+                    offspring_paid: false,
+                    gift_was_given: false,
+                    gift_opponent: None,
+                };
+
+                state.stack_objects.push_back(copy_stack_obj);
+
+                // Ruling 2013-04-15: cipher casts trigger "whenever you cast" abilities.
+                // Increment spells_cast_this_turn for the controller.
+                if let Some(ps) = state.players.get_mut(&controller) {
+                    ps.spells_cast_this_turn = ps.spells_cast_this_turn.saturating_add(1);
+                }
+
+                // CR 116.3b: Casting a spell resets priority (all players must pass again).
+                state.turn.players_passed = im::OrdSet::new();
+                let active = state.turn.active_player;
+                state.turn.priority_holder = Some(active);
+
+                events.push(GameEvent::SpellCast {
+                    player: controller,
+                    stack_object_id: copy_stack_id,
+                    source_object_id: encoded_object_id,
+                });
             }
 
             events.push(GameEvent::AbilityResolved {
@@ -4376,6 +4563,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
+                    encoded_cards: im::Vector::new(),
                 };
 
                 // Add the token to the battlefield.
@@ -4513,6 +4701,8 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                     }
                 }
@@ -5519,6 +5709,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
+                    encoded_cards: im::Vector::new(),
                 };
 
                 // Add the token to the battlefield.
@@ -5725,6 +5916,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     gift_opponent: None,
                     // CR 702.171b: tokens are not saddled by default.
                     is_saddled: false,
+                    encoded_cards: im::Vector::new(),
                 };
 
                 // Add the token to the battlefield.
@@ -5949,6 +6141,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         gift_opponent: None,
                         // CR 702.171b: tokens are not saddled by default.
                         is_saddled: false,
+                        encoded_cards: im::Vector::new(),
                     };
 
                     // Add the token to the battlefield.
@@ -6340,7 +6533,8 @@ pub fn counter_stack_object(
         | StackObjectKind::SquadTrigger { .. }
         | StackObjectKind::OffspringTrigger { .. }
         | StackObjectKind::GiftETBTrigger { .. }
-        | StackObjectKind::SaddleAbility { .. } => {
+        | StackObjectKind::SaddleAbility { .. }
+        | StackObjectKind::CipherTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
             // card is already in the graveyard (discarded as cost — CR 602.2b). No

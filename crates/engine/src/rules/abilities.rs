@@ -721,6 +721,8 @@ pub fn handle_cycle_card(
             soulbond_pair_target: None,
             squad_count: None,
             gift_opponent: None,
+            cipher_encoded_card_id: None,
+            cipher_encoded_object_id: None,
         });
     }
 
@@ -1282,6 +1284,8 @@ pub fn handle_activate_bloodrush(
                 soulbond_pair_target: None,
                 squad_count: None,
                 gift_opponent: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
             });
     }
 
@@ -2627,6 +2631,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         };
                         triggers.push(evoke_trigger);
                     }
@@ -2706,6 +2712,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                         }
                     }
@@ -2774,6 +2782,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -2844,6 +2854,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                         }
                     }
@@ -2928,6 +2940,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             soulbond_pair_target: None,
                                             squad_count: None,
                 gift_opponent: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
                                         });
                                     }
                                 }
@@ -3007,6 +3021,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 soulbond_pair_target: None,
                                 squad_count: None,
                                 gift_opponent: None,
+                                cipher_encoded_card_id: None,
+                                cipher_encoded_object_id: None,
                             });
                         }
                     }
@@ -3116,6 +3132,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         soulbond_pair_target: Some(partner_id),
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
                                 }
                             }
@@ -3207,6 +3225,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         soulbond_pair_target: Some(*object_id),
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
                                 }
                             }
@@ -3370,6 +3390,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                             soulbond_pair_target: None,
                                             squad_count: None,
                                             gift_opponent: None,
+                                            cipher_encoded_card_id: None,
+                                            cipher_encoded_object_id: None,
                                         });
                                     }
                                 }
@@ -3480,6 +3502,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     soulbond_pair_target: None,
                                     squad_count: None,
                                     gift_opponent: None,
+                                    cipher_encoded_card_id: None,
+                                    cipher_encoded_object_id: None,
                                 });
                             }
                         }
@@ -4008,6 +4032,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4204,6 +4230,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4286,6 +4314,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4340,6 +4370,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4408,6 +4440,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4538,6 +4572,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4650,6 +4686,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         soulbond_pair_target: None,
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
                                 }
                             }
@@ -4742,6 +4780,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         soulbond_pair_target: None,
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
                                 }
                             }
@@ -4835,7 +4875,80 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         soulbond_pair_target: None,
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
+                                }
+                            }
+                        }
+
+                        // CR 702.99b: Cipher -- "Whenever this creature deals combat damage to a
+                        // player, you may copy the encoded card and cast the copy without paying
+                        // its mana cost."  One trigger per encoded card per damaged player.
+                        // CR 702.99c: If the encoded card left exile, the trigger still goes on
+                        // the stack but does nothing at resolution (checked in resolution.rs).
+                        if assignment.amount > 0 {
+                            if let Some(obj) = state.objects.get(&assignment.source) {
+                                if obj.zone == ZoneId::Battlefield && obj.is_phased_in() {
+                                    let CombatDamageTarget::Player(_damaged_player) =
+                                        &assignment.target
+                                    else {
+                                        // already guarded by outer matches! check
+                                        continue;
+                                    };
+                                    if !obj.encoded_cards.is_empty() {
+                                        let controller = obj.controller;
+                                        let source_id = obj.id;
+                                        let encoded = obj.encoded_cards.clone();
+                                        for (exiled_obj_id, card_id) in encoded {
+                                            triggers.push(PendingTrigger {
+                                                source: source_id,
+                                                ability_index: 0,
+                                                controller,
+                                                kind: PendingTriggerKind::CipherCombatDamage,
+                                                triggering_event: Some(
+                                                    TriggerEvent::SelfDealsCombatDamageToPlayer,
+                                                ),
+                                                entering_object_id: None,
+                                                targeting_stack_id: None,
+                                                triggering_player: None,
+                                                exalted_attacker_id: None,
+                                                defending_player_id: None,
+                                                madness_exiled_card: None,
+                                                madness_cost: None,
+                                                miracle_revealed_card: None,
+                                                miracle_cost: None,
+                                                modular_counter_count: None,
+                                                evolve_entering_creature: None,
+                                                suspend_card_id: None,
+                                                hideaway_count: None,
+                                                partner_with_name: None,
+                                                ingest_target_player: None,
+                                                flanking_blocker_id: None,
+                                                rampage_n: None,
+                                                provoke_target_creature: None,
+                                                renown_n: None,
+                                                poisonous_n: None,
+                                                poisonous_target_player: None,
+                                                enlist_enlisted_creature: None,
+                                                encore_activator: None,
+                                                echo_cost: None,
+                                                cumulative_upkeep_cost: None,
+                                                recover_cost: None,
+                                                recover_card: None,
+                                                graft_entering_creature: None,
+                                                backup_abilities: None,
+                                                backup_n: None,
+                                                champion_filter: None,
+                                                champion_exiled_card: None,
+                                                soulbond_pair_target: None,
+                                                squad_count: None,
+                                                gift_opponent: None,
+                                                cipher_encoded_card_id: Some(card_id),
+                                                cipher_encoded_object_id: Some(exiled_obj_id),
+                                            });
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -4941,6 +5054,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -4998,6 +5113,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -5053,6 +5170,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             soulbond_pair_target: None,
                             squad_count: None,
                             gift_opponent: None,
+                            cipher_encoded_card_id: None,
+                            cipher_encoded_object_id: None,
                         });
                     }
                 }
@@ -5207,6 +5326,8 @@ fn collect_triggers_for_event(
                 soulbond_pair_target: None,
                 squad_count: None,
                 gift_opponent: None,
+                cipher_encoded_card_id: None,
+                cipher_encoded_object_id: None,
             });
         }
     }
@@ -5824,6 +5945,27 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                         source_card_id,
                         gift_opponent,
+                    }
+                }
+                PendingTriggerKind::CipherCombatDamage => {
+                    // CR 702.99a: Cipher combat damage trigger -- "Whenever [encoded creature]
+                    // deals combat damage to a player, you may copy the encoded card and you
+                    // may cast the copy without paying its mana cost."
+                    //
+                    // The trigger carries the encoded card info (captured at trigger time).
+                    // At resolution, verify the encoded card still exists in exile (CR 702.99c).
+                    let encoded_card_id = match trigger.cipher_encoded_card_id.clone() {
+                        Some(id) => id,
+                        None => continue, // Missing card id — skip (should not happen).
+                    };
+                    let encoded_object_id = match trigger.cipher_encoded_object_id {
+                        Some(id) => id,
+                        None => continue, // Missing object id — skip (should not happen).
+                    };
+                    StackObjectKind::CipherTrigger {
+                        source_creature: trigger.source,
+                        encoded_card_id,
+                        encoded_object_id,
                     }
                 }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {

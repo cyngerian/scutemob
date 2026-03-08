@@ -1314,6 +1314,21 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 140.
     Saddle(u32),
+    /// CR 702.99a: Cipher -- two linked abilities.
+    ///
+    /// First ability (spell ability): "If this spell is represented by a card,
+    /// you may exile this card encoded on a creature you control."
+    ///
+    /// Second ability (static, while in exile): "For as long as this card is
+    /// encoded on that creature, that creature has 'Whenever this creature deals
+    /// combat damage to a player, you may copy the encoded card and you may cast
+    /// the copy without paying its mana cost.'"
+    ///
+    /// Encoding happens at resolution. The card goes directly from the stack to
+    /// exile. It never enters the graveyard. (ruling 2013-04-15)
+    ///
+    /// Discriminant 141.
+    Cipher,
 }
 
 /// CR 702.72a: The filter for what can be championed.

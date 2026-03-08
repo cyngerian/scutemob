@@ -133,6 +133,15 @@ pub enum PendingTriggerKind {
     /// has `KeywordAbility::Gift` in layer-resolved characteristics.
     /// Resolved to give the chosen opponent the gift defined by `AbilityDefinition::Gift`.
     GiftETB,
+    /// CR 702.99a: Cipher combat damage trigger -- "Whenever [encoded creature] deals
+    /// combat damage to a player, you may copy the encoded card and you may cast the
+    /// copy without paying its mana cost."
+    ///
+    /// Fired in the CombatDamageDealt handler for each creature with non-empty
+    /// `encoded_cards` that dealt > 0 combat damage to a player.
+    /// Carries the encoded card information through to `flush_pending_triggers`
+    /// to build the `CipherTrigger` SOK.
+    CipherCombatDamage,
     // Add new trigger kinds here as abilities are implemented
 }
 
@@ -386,6 +395,18 @@ pub struct PendingTrigger {
     /// through to `flush_pending_triggers` to build the `GiftETBTrigger` SOK.
     #[serde(default)]
     pub gift_opponent: Option<crate::state::PlayerId>,
+    /// CR 702.99a: The CardId of the encoded cipher card.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::CipherCombatDamage`.
+    /// Carried through to `flush_pending_triggers` to build the `CipherTrigger` SOK.
+    #[serde(default)]
+    pub cipher_encoded_card_id: Option<crate::state::player::CardId>,
+    /// CR 702.99a: The ObjectId of the exiled cipher card.
+    ///
+    /// Only meaningful when `kind == PendingTriggerKind::CipherCombatDamage`.
+    /// Used at resolution to verify the encoded card still exists in exile (CR 702.99c).
+    #[serde(default)]
+    pub cipher_encoded_object_id: Option<ObjectId>,
 }
 
 impl PendingTriggerKind {

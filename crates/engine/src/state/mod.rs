@@ -386,6 +386,10 @@ impl GameState {
             gift_opponent: None,
             // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
             is_saddled: false,
+            // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
+            // The exiled cards remain in exile but are no longer encoded on anything.
+            // CR 702.99c: encoding is broken when the creature leaves the battlefield.
+            encoded_cards: im::Vector::new(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -554,6 +558,10 @@ impl GameState {
             gift_opponent: None,
             // CR 702.171b / CR 400.7: saddled designation is cleared on zone change.
             is_saddled: false,
+            // CR 702.99b / CR 400.7: encoded cipher cards are cleared on zone change.
+            // The exiled cards remain in exile but are no longer encoded on anything.
+            // CR 702.99c: encoding is broken when the creature leaves the battlefield.
+            encoded_cards: im::Vector::new(),
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

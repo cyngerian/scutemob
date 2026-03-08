@@ -2428,6 +2428,8 @@ fn execute_effect_inner(
                                         soulbond_pair_target: None,
                                         squad_count: None,
                                         gift_opponent: None,
+                                        cipher_encoded_card_id: None,
+                                        cipher_encoded_object_id: None,
                                     });
                                 }
                             }
@@ -2922,6 +2924,7 @@ pub fn make_token(
         gift_opponent: None,
         // CR 702.171b: Tokens are not saddled by default.
         is_saddled: false,
+        encoded_cards: im::Vector::new(),
     }
 }
 
@@ -3088,6 +3091,8 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
                         soulbond_pair_target: None,
                         squad_count: None,
                         gift_opponent: None,
+                        cipher_encoded_card_id: None,
+                        cipher_encoded_object_id: None,
                     });
                 }
             }

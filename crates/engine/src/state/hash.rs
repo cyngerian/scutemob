@@ -672,6 +672,8 @@ impl HashInto for KeywordAbility {
                 140u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // Cipher (discriminant 141) -- CR 702.99
+            KeywordAbility::Cipher => 141u8.hash_into(hasher),
         }
     }
 }
@@ -893,6 +895,11 @@ impl HashInto for GameObject {
         self.gift_opponent.hash_into(hasher);
         // Saddle (CR 702.171b) — saddled designation
         self.is_saddled.hash_into(hasher);
+        // Cipher (CR 702.99b) — exiled cipher cards encoded on this permanent
+        for (obj_id, card_id) in self.encoded_cards.iter() {
+            obj_id.hash_into(hasher);
+            card_id.hash_into(hasher);
+        }
     }
 }
 
@@ -1380,6 +1387,9 @@ impl HashInto for PendingTrigger {
         self.backup_n.hash_into(hasher);
         // CR 702.174a: gift-specific field
         self.gift_opponent.hash_into(hasher);
+        // CR 702.99a: cipher-specific fields
+        self.cipher_encoded_card_id.hash_into(hasher);
+        self.cipher_encoded_object_id.hash_into(hasher);
     }
 }
 
@@ -2032,6 +2042,17 @@ impl HashInto for StackObjectKind {
             StackObjectKind::SaddleAbility { source_object } => {
                 55u8.hash_into(hasher);
                 source_object.hash_into(hasher);
+            }
+            // CipherTrigger (discriminant 56) -- CR 702.99a
+            StackObjectKind::CipherTrigger {
+                source_creature,
+                encoded_card_id,
+                encoded_object_id,
+            } => {
+                56u8.hash_into(hasher);
+                source_creature.hash_into(hasher);
+                encoded_card_id.hash_into(hasher);
+                encoded_object_id.hash_into(hasher);
             }
         }
     }
@@ -3067,6 +3088,17 @@ impl HashInto for GameEvent {
                 object_id.hash_into(hasher);
                 controller.hash_into(hasher);
             }
+            // Cipher (discriminant 106) -- CR 702.99a
+            GameEvent::CipherEncoded {
+                player,
+                exiled_card,
+                creature,
+            } => {
+                106u8.hash_into(hasher);
+                player.hash_into(hasher);
+                exiled_card.hash_into(hasher);
+                creature.hash_into(hasher);
+            }
         }
     }
 }
@@ -4081,6 +4113,8 @@ impl HashInto for AbilityDefinition {
                 56u8.hash_into(hasher);
                 gift_type.hash_into(hasher);
             }
+            // Cipher (discriminant 57) -- CR 702.99a
+            AbilityDefinition::Cipher => 57u8.hash_into(hasher),
         }
     }
 }

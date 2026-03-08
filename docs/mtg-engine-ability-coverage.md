@@ -1,7 +1,7 @@
 # MTG Engine — Ability Coverage Audit
 
 > Living document. Refresh with `/audit-abilities`.
-> Last audited: 2026-03-07 (Saddle complete: KW 140, SOK 55, is_saddled on GameObject, Command::SaddleMount; 14 tests in saddle.rs; card Quilled Charger; script combat/186 approved; CR corrected 702.163 -> 702.171)
+> Last audited: 2026-03-08 (Cipher complete: KW 141, AbilDef 57, SOK 56, encoded_cards Vec on GameObject, CipherCombatDamage PendingTriggerKind; 7 tests in cipher.rs; card Call of the Nightwing; script baseline/187 pending_review — harness gap: no cast_spell_cipher action type)
 
 ---
 
@@ -33,8 +33,8 @@
 | P1       | 42    | 40        | 2        | 0       | 0    | 0   |
 | P2       | 17    | 17        | 0        | 0       | 0    | 0   |
 | P3       | 40    | 37        | 0        | 0       | 3    | 0   |
-| P4       | 105   | 77        | 1        | 1       | 14   | 12  |
-| **Total**| **204**| **171**  | **3**    | **1**   | **17**| **12** |
+| P4       | 105   | 78        | 1        | 1       | 13   | 12  |
+| **Total**| **204**| **172**  | **3**    | **1**   | **16**| **12** |
 
 ---
 
@@ -281,7 +281,7 @@ Keywords from specific sets, used on few cards. Implement when a card definition
 | Soulbond | 702.95 | P4 | `validated` | `state/types.rs`, `state/game_object.rs`, `rules/resolution.rs`, `rules/sba.rs`, `rules/layers.rs`, `rules/abilities.rs`, `cards/card_definition.rs` | Silverblade Paladin | `stack/167` | — | KW Soulbond; `paired_with` on GameObject; SoulbondSelfETB+SoulbondOtherETB triggers; SoulbondTrigger SOK 49; SoulbondGrant+EffectDuration::WhilePaired in layers; fizzle check via calculate_characteristics; 10 tests in `soulbond.rs` |
 | Haunt | 702.55 | P4 | `none` | — | — | — | — | When this dies, exile haunting a creature |
 | Extort | 702.101 | P3 | `validated` | `state/types.rs:324`, `state/game_object.rs:174`, `cards/card_definition.rs:224`, `effects/mod.rs:261`, `rules/abilities.rs:640`, `state/builder.rs:561`, `state/hash.rs:376`, `tools/replay-viewer/src/view_model.rs:610` | Syndic of Tithes | `stack/078` | — | CR 702.101a+b: triggered ability on spell cast, may pay {W/B}, drain 1 from each opponent; multiple instances trigger separately; 7 unit tests in `tests/extort.rs` |
-| Cipher | 702.99 | P4 | `none` | — | — | — | — | Encode spell on creature; cast copy on combat damage |
+| Cipher | 702.99 | P4 | `validated` | `state/types.rs` (KW disc 141), `cards/card_definition.rs` (AbilDef disc 57), `state/stack.rs` (CipherTrigger SOK disc 56), `state/game_object.rs` (encoded_cards Vec), `rules/resolution.rs:1631-1693` (cipher encoding at resolution), `rules/resolution.rs:4157` (CipherTrigger resolution), `rules/abilities.rs:4885-4945` (CombatDamageDealt dispatch), `rules/abilities.rs:5959-5972` (CipherCombatDamage PendingTriggerKind) | Call of the Nightwing | `baseline/187` | — | CR 702.99a+b: encode instant/sorcery on creature at resolution; on combat damage to player, cast free copy; encoded_cards Vec on GameObject; CipherCombatDamage PendingTriggerKind; 7 unit tests in `tests/cipher.rs`; script pending_review (harness gap: no cast_spell_cipher action type) |
 | Bloodthirst | 702.54 | P4 | `validated` | `state/types.rs:1127`, `rules/resolution.rs:779`, `state/player.rs:137`, `effects/mod.rs`, `state/hash.rs` | Stormblood Berserker | `stack/160` | — | CR 702.54a+c: ETB replacement places N +1/+1 counters if opponent was dealt damage this turn; multiple instances add independently; KeywordAbility::Bloodthirst(u32) disc 123; `damage_dealt_this_turn` on PlayerState; 8 unit tests in `tests/bloodthirst.rs` |
 | Bloodrush | — | P4 | `validated` | `cards/card_definition.rs` (AbilDef disc 52), `state/stack.rs` (SOK disc 51), `rules/command.rs` (ActivateBloodrush), `rules/abilities.rs` (handle_activate_bloodrush), `rules/resolution.rs` (BloodrushAbility arm) | Ghor-Clan Rampager | `combat/178` | — | Ability word; discard from hand to pump attacking creature; Layer 6+7c continuous effects UntilEndOfTurn; PermanentTargeted for Ward; fizzle check on resolution; 8 tests in `tests/bloodrush.rs` |
 | Devoid | 702.114 | P4 | `validated` | state/types.rs:609-615, state/hash.rs:463-464, rules/layers.rs:74-83 | Forerunner of Slaughter | baseline/111 | CR 702.114a fully enforced; CDA in Layer 5 (ColorChange) clears colors; functions in all zones (CR 604.3); 8 unit tests in devoid.rs; script approved | Colorless regardless of mana cost |
@@ -523,7 +523,9 @@ All P2 gaps resolved. 17/17 validated.
 
 ### P4 Gaps (niche / historical)
 
-27 remaining (none), 12 n/a (digital-only + Banding + niche). 77/105 validated. Top unresolved by likely demand: Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+26 remaining (none), 12 n/a (digital-only + Banding + niche). 78/105 validated. Top unresolved by likely demand: Morph-blocked: Disguise, Megamorph, Manifest, Cloak; Transform-blocked: Daybound/Nightbound, Disturb, Craft.
+
+**Resolved**: Cipher (CR 702.99) -- validated 2026-03-08 (script baseline/187, Call of the Nightwing, 7 unit tests in cipher.rs; pending_review due to harness gap).
 
 **Resolved**: Saddle (CR 702.171) -- validated 2026-03-07 (script combat/186, Quilled Charger, 14 unit tests in saddle.rs).
 

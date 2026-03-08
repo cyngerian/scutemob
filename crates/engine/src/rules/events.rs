@@ -1082,6 +1082,23 @@ pub enum GameEvent {
         /// ObjectIds of permanents that phased in.
         objects: Vec<ObjectId>,
     },
+
+    // ── Cipher events (CR 702.99) ─────────────────────────────────────────────
+    /// CR 702.99a: A cipher card was exiled and encoded on a creature.
+    ///
+    /// Emitted when a cipher instant/sorcery resolves and its controller
+    /// chooses to encode the card on a creature they control. The card moves
+    /// directly from the stack to exile (never entering the graveyard).
+    ///
+    /// Ruling 2013-04-15: encoding happens after the spell's effects resolve.
+    CipherEncoded {
+        /// The player who controls the cipher spell.
+        player: PlayerId,
+        /// The ObjectId of the exiled cipher card (new ID after zone move, CR 400.7).
+        exiled_card: ObjectId,
+        /// The ObjectId of the creature the card is encoded on.
+        creature: ObjectId,
+    },
 }
 
 impl GameEvent {

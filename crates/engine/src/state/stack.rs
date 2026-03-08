@@ -1203,4 +1203,25 @@ pub enum StackObjectKind {
         /// The ObjectId of the Mount being saddled.
         source_object: ObjectId,
     },
+    /// CR 702.99a: CipherTrigger -- "Whenever [encoded creature] deals combat damage
+    /// to a player, you may copy the encoded card and you may cast the copy without
+    /// paying its mana cost."
+    ///
+    /// The trigger is controlled by the current controller of the creature (ruling
+    /// 2013-04-15: if another player gains control of the creature, THAT player
+    /// controls the trigger). The copy is cast (so "whenever you cast" triggers fire).
+    ///
+    /// At resolution: verify the encoded card still exists in exile (CR 702.99c —
+    /// if not, the trigger fizzles). Create a copy of the spell and auto-cast it
+    /// for free (MVP -- interactive choice deferred).
+    ///
+    /// Discriminant 56.
+    CipherTrigger {
+        /// The ObjectId of the creature that dealt combat damage (the encoded creature).
+        source_creature: ObjectId,
+        /// The CardId of the card definition to copy (the cipher spell's card id).
+        encoded_card_id: crate::state::player::CardId,
+        /// The ObjectId of the exiled card encoding (used to verify it still exists in exile).
+        encoded_object_id: ObjectId,
+    },
 }

@@ -146,6 +146,8 @@ pub fn handle_choose_miracle(
         soulbond_pair_target: None,
         squad_count: None,
         gift_opponent: None,
+        cipher_encoded_card_id: None,
+        cipher_encoded_object_id: None,
     });
 
     Ok(vec![])
