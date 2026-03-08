@@ -213,6 +213,11 @@
   `activate_forecast` (card_name = card in hand with Forecast, targets array).
   When the generator reports a harness gap for a new action type, add the arm to
   `translate_player_action()` in `crates/engine/src/testing/replay_harness.rs` and revalidate.
+  **B13 additions**: `cast_spell_squad` (squad_count: u32), `cast_spell_offspring` (offspring_paid: bool),
+  `saddle_mount` (mount_id + saddling_creature_ids). **Gift gap**: `cast_spell` does not wire
+  `gift_opponent: Option<u32>` — the `PlayerAction` struct in `script_schema.rs` and
+  `translate_player_action()` in `replay_harness.rs` need this field before Gift scripts can validate.
+  Script 185 is `pending_review` as a result.
 - **`cast_spell` hard-codes `replicate_count: 0`** — scripts for Replicate spells MUST use
   `cast_spell_replicate`. Similarly, `cast_spell` does not set entwine/escalate/splice fields.
   Always use the ability-specific action type for alt-cost/additional-cost spells.
