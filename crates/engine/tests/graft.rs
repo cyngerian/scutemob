@@ -346,7 +346,10 @@ fn test_graft_trigger_moves_counter() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Graft(_),
+                ..
+            }
         ),
         "CR 702.58a: stack entry should be GraftTrigger"
     );
@@ -481,10 +484,13 @@ fn test_graft_trigger_does_not_fire_for_self() {
 
     // No GraftTrigger should be on the stack. (Only ETB counters were placed; no trigger.)
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. })),
+        !state.stack_objects.iter().any(|so| matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Graft(_),
+                ..
+            }
+        )),
         "CR 702.58a: Graft should NOT trigger from its own ETB ('another creature')"
     );
 
@@ -566,7 +572,10 @@ fn test_graft_trigger_fires_for_opponents_creatures() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Graft(_),
+                ..
+            }
         ),
         "CR 702.58a: stack entry should be GraftTrigger"
     );
@@ -725,7 +734,15 @@ fn test_graft_multiple_instances() {
     let graft_triggers = state
         .stack_objects
         .iter()
-        .filter(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Graft(_), .. }))
+        .filter(|so| {
+            matches!(
+                so.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Graft(_),
+                    ..
+                }
+            )
+        })
         .count();
     assert_eq!(
         graft_triggers, 2,

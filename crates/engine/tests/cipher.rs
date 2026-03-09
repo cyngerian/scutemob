@@ -361,7 +361,13 @@ fn test_cipher_combat_damage_triggers_copy() {
     // Verify it's a CipherTrigger.
     let trigger = state.stack_objects.back().expect("trigger expected");
     assert!(
-        matches!(trigger.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Cipher, .. }),
+        matches!(
+            trigger.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Cipher,
+                ..
+            }
+        ),
         "CR 702.99a: the trigger on the stack should be a CipherTrigger; got {:?}",
         trigger.kind
     );
@@ -994,7 +1000,13 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
     // Both stack objects should be CipherTriggers.
     for obj in state.stack_objects.iter() {
         assert!(
-            matches!(obj.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Cipher, .. }),
+            matches!(
+                obj.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Cipher,
+                    ..
+                }
+            ),
             "both stack objects should be CipherTriggers"
         );
     }

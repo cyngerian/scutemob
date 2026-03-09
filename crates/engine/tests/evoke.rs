@@ -278,7 +278,10 @@ fn test_evoke_basic_cast_with_evoke_cost() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evoke, .. }
+            mtg_engine::StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evoke,
+                ..
+            }
         ),
         "CR 702.74a: stack entry should be EvokeSacrificeTrigger"
     );
@@ -497,7 +500,10 @@ fn test_evoke_sacrifice_trigger_goes_through_stack() {
     let has_evoke_trigger = state.stack_objects.iter().any(|so| {
         matches!(
             so.kind,
-            mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evoke, .. }
+            mtg_engine::StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evoke,
+                ..
+            }
         )
     });
     assert!(
@@ -970,7 +976,10 @@ fn test_evoke_sacrifice_trigger_fizzles_if_source_left_battlefield() {
     assert!(
         state.stack_objects.iter().any(|so| matches!(
             so.kind,
-            mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evoke, .. }
+            mtg_engine::StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evoke,
+                ..
+            }
         )),
         "CR 702.74a: EvokeSacrificeTrigger should be on the stack"
     );

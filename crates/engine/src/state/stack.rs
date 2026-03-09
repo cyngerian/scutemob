@@ -70,11 +70,17 @@ pub enum TriggerData {
     /// Hideaway N: look at top N cards, exile one face down.
     ETBHideaway { count: u32 },
     /// PartnerWith: search library for partner card.
-    ETBPartnerWith { partner_name: String, target_player: PlayerId },
+    ETBPartnerWith {
+        partner_name: String,
+        target_player: PlayerId,
+    },
 
     // --- Group 3: Spell-copy triggers ---
     /// Storm/Replicate/Gravestorm: create N copies of original spell.
-    SpellCopy { original_stack_id: ObjectId, copy_count: u32 },
+    SpellCopy {
+        original_stack_id: ObjectId,
+        copy_count: u32,
+    },
     /// Cascade: exile cards until finding one with lower mana value.
     CascadeExile { spell_mana_value: u32 },
     /// Casualty: create one copy of the original spell.
@@ -90,13 +96,22 @@ pub enum TriggerData {
     /// Modular: move N +1/+1 counters to target artifact creature.
     DeathModular { counter_count: u32 },
     /// Haunt exile: move haunt card from graveyard to exile targeting a creature.
-    DeathHauntExile { haunt_card: ObjectId, haunt_card_id: Option<CardId> },
+    DeathHauntExile {
+        haunt_card: ObjectId,
+        haunt_card_id: Option<CardId>,
+    },
     /// Haunted creature dies: fire haunt effect from exile.
-    DeathHauntedCreatureDies { haunt_source: ObjectId, haunt_card_id: Option<CardId> },
+    DeathHauntedCreatureDies {
+        haunt_source: ObjectId,
+        haunt_card_id: Option<CardId>,
+    },
     /// Champion LTB: return exiled card to battlefield.
     LTBChampion { exiled_card: ObjectId },
     /// Recover: pay cost or exile card.
-    DeathRecover { recover_card: ObjectId, recover_cost: ManaCost },
+    DeathRecover {
+        recover_card: ObjectId,
+        recover_cost: ManaCost,
+    },
 
     // --- Group 6: Remaining triggers ---
     /// Cipher: copy encoded spell on combat damage.

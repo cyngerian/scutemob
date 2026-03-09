@@ -198,7 +198,9 @@ fn loot_def() -> CardDefinition {
         oracle_text: "Draw a card. Flashback {2}{R}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flashback),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Flashback,
+                details: None,
                 cost: ManaCost {
                     generic: 2,
                     red: 1,

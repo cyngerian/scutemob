@@ -92,7 +92,9 @@ fn sacred_cat_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Lifelink),
             AbilityDefinition::Keyword(KeywordAbility::Embalm),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Embalm,
+                details: None,
                 cost: ManaCost {
                     white: 1,
                     ..Default::default()

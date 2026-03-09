@@ -98,7 +98,9 @@ fn encore_test_card() -> CardDefinition {
         oracle_text: "Encore {2}{B}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Encore),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Encore,
+                details: None,
                 cost: ManaCost {
                     black: 1,
                     generic: 2,

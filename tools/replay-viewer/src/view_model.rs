@@ -425,9 +425,9 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::TriggeredAbility { source_object, .. } => {
             ("triggered_ability", Some(*source_object))
         }
-                // CascadeTrigger: migrated to KeywordTrigger
-                // StormTrigger: migrated to KeywordTrigger
-                // EvokeSacrificeTrigger: migrated to KeywordTrigger
+        // CascadeTrigger: migrated to KeywordTrigger
+        // StormTrigger: migrated to KeywordTrigger
+        // EvokeSacrificeTrigger: migrated to KeywordTrigger
         StackObjectKind::MadnessTrigger { source_object, .. } => {
             ("madness_trigger", Some(*source_object))
         }
@@ -437,20 +437,20 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::UnearthAbility { source_object } => {
             ("unearth_ability", Some(*source_object))
         }
-                // UnearthTrigger: migrated to KeywordTrigger
-                // ExploitTrigger: migrated to KeywordTrigger
-                // ModularTrigger: migrated to KeywordTrigger
-                // EvolveTrigger: migrated to KeywordTrigger
-                // MyriadTrigger: migrated to KeywordTrigger
+        // UnearthTrigger: migrated to KeywordTrigger
+        // ExploitTrigger: migrated to KeywordTrigger
+        // ModularTrigger: migrated to KeywordTrigger
+        // EvolveTrigger: migrated to KeywordTrigger
+        // MyriadTrigger: migrated to KeywordTrigger
         StackObjectKind::SuspendCounterTrigger { source_object, .. } => {
             ("suspend_counter_trigger", Some(*source_object))
         }
         StackObjectKind::SuspendCastTrigger { source_object, .. } => {
             ("suspend_cast_trigger", Some(*source_object))
         }
-                // HideawayTrigger: migrated to KeywordTrigger
-                // PartnerWithTrigger: migrated to KeywordTrigger
-                // IngestTrigger: migrated to KeywordTrigger
+        // HideawayTrigger: migrated to KeywordTrigger
+        // PartnerWithTrigger: migrated to KeywordTrigger
+        // IngestTrigger: migrated to KeywordTrigger
         // FlankingTrigger, RampageTrigger, ProvokeTrigger, RenownTrigger,
         // MeleeTrigger, PoisonousTrigger, EnlistTrigger: migrated to KeywordTrigger
         StackObjectKind::NinjutsuAbility { source_object, .. } => {
@@ -468,44 +468,44 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
             // No source_object -- card was already exiled as cost (CR 702.141a, CR 400.7).
             ("encore_ability", None)
         }
-                // EncoreSacrificeTrigger: migrated to KeywordTrigger
-                // DashReturnTrigger: migrated to KeywordTrigger
-                // BlitzSacrificeTrigger: migrated to KeywordTrigger
+        // EncoreSacrificeTrigger: migrated to KeywordTrigger
+        // DashReturnTrigger: migrated to KeywordTrigger
+        // BlitzSacrificeTrigger: migrated to KeywordTrigger
         // ImpendingCounterTrigger: migrated to KeywordTrigger
-                // CasualtyTrigger: migrated to KeywordTrigger
-                // ReplicateTrigger: migrated to KeywordTrigger
-                // GravestormTrigger: migrated to KeywordTrigger
+        // CasualtyTrigger: migrated to KeywordTrigger
+        // ReplicateTrigger: migrated to KeywordTrigger
+        // GravestormTrigger: migrated to KeywordTrigger
         // VanishingCounterTrigger and VanishingSacrificeTrigger: migrated to KeywordTrigger
         // FadingTrigger: migrated to KeywordTrigger
         // EchoTrigger: migrated to KeywordTrigger
         // CumulativeUpkeepTrigger: migrated to KeywordTrigger
-                // RecoverTrigger: migrated to KeywordTrigger
+        // RecoverTrigger: migrated to KeywordTrigger
         StackObjectKind::ForecastAbility { source_object, .. } => {
             ("forecast_ability", Some(*source_object))
         }
-                // GraftTrigger: migrated to KeywordTrigger
+        // GraftTrigger: migrated to KeywordTrigger
         StackObjectKind::ScavengeAbility { .. } => {
             // No source_object -- card was already exiled as cost (CR 702.97a, CR 400.7).
             ("scavenge_ability", None)
         }
-                // BackupTrigger: migrated to KeywordTrigger
-                // ChampionETBTrigger: migrated to KeywordTrigger
-                // ChampionLTBTrigger: migrated to KeywordTrigger
-                // SoulbondTrigger: migrated to KeywordTrigger
-                // RavenousDrawTrigger: migrated to KeywordTrigger
+        // BackupTrigger: migrated to KeywordTrigger
+        // ChampionETBTrigger: migrated to KeywordTrigger
+        // ChampionLTBTrigger: migrated to KeywordTrigger
+        // SoulbondTrigger: migrated to KeywordTrigger
+        // RavenousDrawTrigger: migrated to KeywordTrigger
         StackObjectKind::BloodrushAbility { source_object, .. } => {
             // source_object is the pre-discard card ID (already in graveyard as cost).
             ("bloodrush_ability", Some(*source_object))
         }
-                // SquadTrigger: migrated to KeywordTrigger
-                // OffspringTrigger: migrated to KeywordTrigger
-                // GiftETBTrigger: migrated to KeywordTrigger
+        // SquadTrigger: migrated to KeywordTrigger
+        // OffspringTrigger: migrated to KeywordTrigger
+        // GiftETBTrigger: migrated to KeywordTrigger
         StackObjectKind::SaddleAbility { source_object } => {
             ("saddle_ability", Some(*source_object))
         }
-                // CipherTrigger: migrated to KeywordTrigger
-                // HauntExileTrigger: migrated to KeywordTrigger
-                // HauntedCreatureDiesTrigger: migrated to KeywordTrigger
+        // CipherTrigger: migrated to KeywordTrigger
+        // HauntExileTrigger: migrated to KeywordTrigger
+        // HauntedCreatureDiesTrigger: migrated to KeywordTrigger
         StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
             ("mutating_creature_spell", Some(*source_object))
         }

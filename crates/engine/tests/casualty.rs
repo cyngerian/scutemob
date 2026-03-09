@@ -279,7 +279,13 @@ fn test_casualty_basic_copy() {
         .back()
         .expect("stack must have at least 1 object");
     assert!(
-        matches!(top.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Casualty(_), .. }),
+        matches!(
+            top.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Casualty(_),
+                ..
+            }
+        ),
         "CR 702.153a: CasualtyTrigger should be on top of stack after paying casualty cost"
     );
 

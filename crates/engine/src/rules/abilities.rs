@@ -24,12 +24,12 @@ use crate::cards::card_definition::AbilityDefinition;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent};
 use crate::state::player::{CardId, PlayerId};
-use crate::state::types::AltCostKind;
 use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::{
     PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
 };
 use crate::state::targeting::{SpellTarget, Target};
+use crate::state::types::AltCostKind;
 use crate::state::types::{CardType, ChampionFilter, CounterType, KeywordAbility};
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
@@ -1591,7 +1591,12 @@ fn get_unearth_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Unearth, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Unearth,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -2084,7 +2089,12 @@ fn get_embalm_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Embalm, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Embalm,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -2308,7 +2318,12 @@ fn get_eternalize_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Eternalize,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -2531,7 +2546,12 @@ fn get_encore_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Encore, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Encore,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -5934,9 +5954,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Hideaway(hide_count),
-                        data: TriggerData::ETBHideaway {
-                            count: hide_count,
-                        },
+                        data: TriggerData::ETBHideaway { count: hide_count },
                     }
                 }
                 PendingTriggerKind::PartnerWith => {
@@ -5946,7 +5964,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     // Target player: deterministic fallback = the trigger controller (owner).
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
-                        keyword: KeywordAbility::PartnerWith(trigger.partner_with_name.clone().unwrap_or_default()),
+                        keyword: KeywordAbility::PartnerWith(
+                            trigger.partner_with_name.clone().unwrap_or_default(),
+                        ),
                         data: TriggerData::ETBPartnerWith {
                             partner_name: trigger.partner_with_name.clone().unwrap_or_default(),
                             target_player: trigger.controller,
@@ -5962,19 +5982,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Ingest,
                         data: TriggerData::IngestExile {
-                            target_player: trigger.ingest_target_player.unwrap_or(trigger.controller),
+                            target_player: trigger
+                                .ingest_target_player
+                                .unwrap_or(trigger.controller),
                         },
                     }
                 }
-                PendingTriggerKind::Flanking => {
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Flanking,
-                        data: TriggerData::CombatFlanking {
-                            blocker: trigger.flanking_blocker_id.unwrap_or(trigger.source),
-                        },
-                    }
-                }
+                PendingTriggerKind::Flanking => StackObjectKind::KeywordTrigger {
+                    source_object: trigger.source,
+                    keyword: KeywordAbility::Flanking,
+                    data: TriggerData::CombatFlanking {
+                        blocker: trigger.flanking_blocker_id.unwrap_or(trigger.source),
+                    },
+                },
                 PendingTriggerKind::Rampage => {
                     let n = trigger.rampage_n.unwrap_or(1);
                     StackObjectKind::KeywordTrigger {
@@ -6002,13 +6022,11 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         data: TriggerData::RenownDamage { n },
                     }
                 }
-                PendingTriggerKind::Melee => {
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Melee,
-                        data: TriggerData::Simple,
-                    }
-                }
+                PendingTriggerKind::Melee => StackObjectKind::KeywordTrigger {
+                    source_object: trigger.source,
+                    keyword: KeywordAbility::Melee,
+                    data: TriggerData::Simple,
+                },
                 PendingTriggerKind::Poisonous => {
                     let n = trigger.poisonous_n.unwrap_or(1);
                     StackObjectKind::KeywordTrigger {
@@ -6022,17 +6040,13 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         },
                     }
                 }
-                PendingTriggerKind::Enlist => {
-                    StackObjectKind::KeywordTrigger {
-                        source_object: trigger.source,
-                        keyword: KeywordAbility::Enlist,
-                        data: TriggerData::CombatEnlist {
-                            enlisted: trigger
-                                .enlist_enlisted_creature
-                                .unwrap_or(trigger.source),
-                        },
-                    }
-                }
+                PendingTriggerKind::Enlist => StackObjectKind::KeywordTrigger {
+                    source_object: trigger.source,
+                    keyword: KeywordAbility::Enlist,
+                    data: TriggerData::CombatEnlist {
+                        enlisted: trigger.enlist_enlisted_creature.unwrap_or(trigger.source),
+                    },
+                },
                 PendingTriggerKind::EncoreSacrifice => {
                     // CR 702.141a: Encore delayed sacrifice trigger -- "Sacrifice them
                     // at the beginning of the next end step."
@@ -6195,9 +6209,7 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     StackObjectKind::KeywordTrigger {
                         source_object: trigger.source,
                         keyword: KeywordAbility::Offspring,
-                        data: TriggerData::ETBOffspring {
-                            source_card_id,
-                        },
+                        data: TriggerData::ETBOffspring { source_card_id },
                     }
                 }
                 PendingTriggerKind::GiftETB => {

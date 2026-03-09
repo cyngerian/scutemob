@@ -86,7 +86,9 @@ fn plot_sorcery_def() -> CardDefinition {
         },
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Plot),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Plot, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Plot,
+                details: None,
                 cost: ManaCost {
                     generic: 1,
                     red: 1,
@@ -115,7 +117,9 @@ fn plot_instant_def() -> CardDefinition {
         },
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Plot),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Plot, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Plot,
+                details: None,
                 cost: ManaCost {
                     generic: 1,
                     blue: 1,
@@ -146,7 +150,9 @@ fn plot_creature_def() -> CardDefinition {
         toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Plot),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Plot, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Plot,
+                details: None,
                 cost: ManaCost {
                     generic: 1,
                     red: 1,

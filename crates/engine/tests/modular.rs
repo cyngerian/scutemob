@@ -377,7 +377,10 @@ fn test_modular_dies_transfers_counters() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), .. }
+            mtg_engine::StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Modular(_),
+                ..
+            }
         ),
         "stack object should be a ModularTrigger"
     );
@@ -861,7 +864,10 @@ fn test_modular_multiple_instances_death_triggers() {
         assert!(
             matches!(
                 stack_obj.kind,
-                mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), .. }
+                mtg_engine::StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Modular(_),
+                    ..
+                }
             ),
             "CR 702.43b: stack object {} should be a ModularTrigger",
             i
@@ -871,7 +877,12 @@ fn test_modular_multiple_instances_death_triggers() {
     // Each trigger should carry counter_count = 3 (full pre-death counter count, not
     // the individual N value of 1 or 2).
     for (i, stack_obj) in state.stack_objects.iter().enumerate() {
-        if let mtg_engine::StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Modular(_), data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count }, .. } = &stack_obj.kind {
+        if let mtg_engine::StackObjectKind::KeywordTrigger {
+            keyword: KeywordAbility::Modular(_),
+            data: mtg_engine::state::stack::TriggerData::DeathModular { counter_count },
+            ..
+        } = &stack_obj.kind
+        {
             assert_eq!(
                 *counter_count, 3,
                 "CR 702.43b: ModularTrigger {} should carry counter_count=3 (all pre-death \

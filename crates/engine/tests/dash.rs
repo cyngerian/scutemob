@@ -84,7 +84,9 @@ fn goblin_raider_def() -> CardDefinition {
         oracle_text: "Dash {R}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Dash),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Dash,
+                details: None,
                 cost: ManaCost {
                     red: 1,
                     ..Default::default()
@@ -702,7 +704,9 @@ fn test_dash_commander_tax_applies() {
         oracle_text: "Dash {R}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Dash),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Dash,
+                details: None,
                 cost: ManaCost {
                     red: 1,
                     ..Default::default()

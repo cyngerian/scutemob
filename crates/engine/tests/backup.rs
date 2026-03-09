@@ -255,7 +255,10 @@ fn test_backup_etb_generates_trigger() {
     assert!(
         matches!(
             state.stack_objects.back().map(|s| &s.kind),
-            Some(StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. })
+            Some(StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Backup(_),
+                ..
+            })
         ),
         "CR 702.165a: Stack object should be BackupTrigger kind"
     );
@@ -429,7 +432,15 @@ fn test_backup_multiple_instances_trigger_separately() {
     let backup_triggers: Vec<_> = state
         .stack_objects
         .iter()
-        .filter(|s| matches!(&s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. }))
+        .filter(|s| {
+            matches!(
+                &s.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Backup(_),
+                    ..
+                }
+            )
+        })
         .collect();
     assert_eq!(
         backup_triggers.len(),
@@ -685,7 +696,15 @@ fn test_backup_trigger_stack_object_structure() {
     let trigger = state
         .stack_objects
         .iter()
-        .find(|s| matches!(&s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Backup(_), .. }))
+        .find(|s| {
+            matches!(
+                &s.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Backup(_),
+                    ..
+                }
+            )
+        })
         .expect("BackupTrigger should be on stack");
 
     let valkyrie_id = find_object_in_zone(&state, "Backup Valkyrie", ZoneId::Battlefield)
@@ -694,11 +713,12 @@ fn test_backup_trigger_stack_object_structure() {
     if let StackObjectKind::KeywordTrigger {
         source_object,
         keyword: KeywordAbility::Backup(_),
-        data: mtg_engine::state::stack::TriggerData::ETBBackup {
-            target,
-            count,
-            abilities,
-        },
+        data:
+            mtg_engine::state::stack::TriggerData::ETBBackup {
+                target,
+                count,
+                abilities,
+            },
     } = &trigger.kind
     {
         // Source is the Backup Valkyrie.

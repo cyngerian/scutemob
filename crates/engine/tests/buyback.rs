@@ -186,7 +186,9 @@ fn flashback_buyback_def() -> CardDefinition {
                 .to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flashback),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Flashback,
+                details: None,
                 cost: ManaCost {
                     generic: 2,
                     red: 1,

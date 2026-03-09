@@ -376,10 +376,15 @@ fn test_partner_with_etb_trigger_fires() {
     state.turn.priority_holder = Some(p1);
 
     // The trigger should be on the stack.
-    let has_trigger = state
-        .stack_objects
-        .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::PartnerWith(_), .. }));
+    let has_trigger = state.stack_objects.iter().any(|so| {
+        matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::PartnerWith(_),
+                ..
+            }
+        )
+    });
     assert!(
         has_trigger,
         "CR 702.124j: PartnerWithTrigger should be on the stack"
@@ -669,10 +674,15 @@ fn test_partner_with_negative_no_keyword() {
         .unwrap();
 
     // No PartnerWithTrigger should be pending or on the stack.
-    let has_trigger = state
-        .stack_objects
-        .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::PartnerWith(_), .. }));
+    let has_trigger = state.stack_objects.iter().any(|so| {
+        matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::PartnerWith(_),
+                ..
+            }
+        )
+    });
     assert!(
         !has_trigger,
         "CR 702.124j: no PartnerWithTrigger for creature without PartnerWith keyword"

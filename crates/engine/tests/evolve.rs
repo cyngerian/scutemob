@@ -358,7 +358,10 @@ fn test_evolve_basic_greater_power() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
         ),
         "CR 702.100a: stack entry should be EvolveTrigger"
     );
@@ -456,7 +459,10 @@ fn test_evolve_basic_greater_toughness() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
         ),
         "CR 702.100a: stack entry should be EvolveTrigger"
     );
@@ -615,10 +621,15 @@ fn test_evolve_no_trigger_equal_stats() {
     );
 
     // No evolve trigger should be on the stack.
-    let evolve_on_stack = state
-        .stack_objects
-        .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
+    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+        matches!(
+            s.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
+        )
+    });
     assert!(
         !evolve_on_stack,
         "CR 702.100a: evolve does NOT trigger when entering P/T is equal to evolve P/T"
@@ -683,10 +694,15 @@ fn test_evolve_no_trigger_smaller_creature() {
         "Tiny Saproling should be on battlefield"
     );
 
-    let evolve_on_stack = state
-        .stack_objects
-        .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
+    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+        matches!(
+            s.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
+        )
+    });
     assert!(
         !evolve_on_stack,
         "CR 702.100a: evolve does NOT trigger when entering creature is smaller"
@@ -748,10 +764,15 @@ fn test_evolve_noncreature_does_not_trigger() {
     );
 
     // No evolve trigger should be on the stack.
-    let evolve_on_stack = state
-        .stack_objects
-        .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
+    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+        matches!(
+            s.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
+        )
+    });
     assert!(
         !evolve_on_stack,
         "CR 702.100c: noncreature permanent entering does NOT trigger evolve"
@@ -836,10 +857,15 @@ fn test_evolve_opponents_creature_does_not_trigger() {
     );
 
     // No evolve trigger on P1's evolve creature (different controller).
-    let evolve_on_stack = state
-        .stack_objects
-        .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
+    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+        matches!(
+            s.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
+        )
+    });
     assert!(
         !evolve_on_stack,
         "CR 702.100a: P2's creature entering does NOT trigger P1's evolve"
@@ -903,7 +929,15 @@ fn test_evolve_multiple_instances() {
     let evolve_count = state
         .stack_objects
         .iter()
-        .filter(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }))
+        .filter(|s| {
+            matches!(
+                s.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: KeywordAbility::Evolve,
+                    ..
+                }
+            )
+        })
         .count();
     assert_eq!(
         evolve_count, 2,
@@ -1015,7 +1049,10 @@ fn test_evolve_intervening_if_fails_at_resolution() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
         ),
         "CR 603.4: stack entry should be EvolveTrigger"
     );
@@ -1165,10 +1202,15 @@ fn test_evolve_multiplayer_only_same_controller() {
     );
 
     // No evolve trigger on P1's evolve creature (P2's creature, not P1's).
-    let evolve_on_stack = state
-        .stack_objects
-        .iter()
-        .any(|s| matches!(s.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Evolve, .. }));
+    let evolve_on_stack = state.stack_objects.iter().any(|s| {
+        matches!(
+            s.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Evolve,
+                ..
+            }
+        )
+    });
     assert!(
         !evolve_on_stack,
         "CR 702.100a: P2's 3/3 entering does NOT trigger P1's evolve (different controller)"

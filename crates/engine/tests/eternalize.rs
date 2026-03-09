@@ -94,7 +94,9 @@ fn proven_combatant_def() -> CardDefinition {
         oracle_text: "Eternalize {4}{U}{U}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Eternalize),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Eternalize,
+                details: None,
                 cost: ManaCost {
                     generic: 4,
                     blue: 2,
@@ -129,7 +131,9 @@ fn haste_warrior_def() -> CardDefinition {
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             AbilityDefinition::Keyword(KeywordAbility::Eternalize),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Eternalize, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Eternalize,
+                details: None,
                 cost: ManaCost {
                     generic: 4,
                     red: 2,

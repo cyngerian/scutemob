@@ -2065,7 +2065,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Storm,
-            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: storm_count },
+            data:
+                crate::state::stack::TriggerData::SpellCopy {
+                    original_stack_id,
+                    copy_count: storm_count,
+                },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2133,7 +2137,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Replicate,
-            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: replicate_count },
+            data:
+                crate::state::stack::TriggerData::SpellCopy {
+                    original_stack_id,
+                    copy_count: replicate_count,
+                },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2163,7 +2171,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Gravestorm,
-            data: crate::state::stack::TriggerData::SpellCopy { original_stack_id, copy_count: gravestorm_count },
+            data:
+                crate::state::stack::TriggerData::SpellCopy {
+                    original_stack_id,
+                    copy_count: gravestorm_count,
+                },
         } => {
             let controller = stack_obj.controller;
             let copy_events = crate::rules::copy::create_storm_copies(
@@ -2675,7 +2687,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Recover,
-            data: crate::state::stack::TriggerData::DeathRecover { recover_card, recover_cost },
+            data:
+                crate::state::stack::TriggerData::DeathRecover {
+                    recover_card,
+                    recover_cost,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -3247,13 +3263,19 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         timestamp: ts,
                         layer: crate::state::continuous_effect::EffectLayer::PtModify,
                         duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(blocker),
-                        modification: crate::state::continuous_effect::LayerModification::ModifyBoth(-1),
+                        filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                            blocker,
+                        ),
+                        modification:
+                            crate::state::continuous_effect::LayerModification::ModifyBoth(-1),
                         is_cda: false,
                     },
                 );
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.23a: Rampage N -- +N/+N for each blocker beyond the first.
@@ -3286,22 +3308,34 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             source: None,
                             timestamp: ts,
                             layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
-                            modification: crate::state::continuous_effect::LayerModification::ModifyBoth(bonus),
+                            duration:
+                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                                source_object,
+                            ),
+                            modification:
+                                crate::state::continuous_effect::LayerModification::ModifyBoth(
+                                    bonus,
+                                ),
                             is_cda: false,
                         },
                     );
                 }
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.39a: Provoke -- untap provoked creature, add forced-block requirement.
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Provoke,
-            data: crate::state::stack::TriggerData::CombatProvoke { target: provoked_creature },
+            data:
+                crate::state::stack::TriggerData::CombatProvoke {
+                    target: provoked_creature,
+                },
         } => {
             let controller = stack_obj.controller;
             let target_valid = state
@@ -3323,10 +3357,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     }
                 }
                 if let Some(combat) = state.combat.as_mut() {
-                    combat.forced_blocks.insert(provoked_creature, source_object);
+                    combat
+                        .forced_blocks
+                        .insert(provoked_creature, source_object);
                 }
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.112a: Renown N -- place N +1/+1 counters and set renowned.
@@ -3346,12 +3385,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .unwrap_or(false);
             if should_resolve {
                 if let Some(obj) = state.objects.get_mut(&source_object) {
-                    let current = obj.counters.get(&CounterType::PlusOnePlusOne).copied().unwrap_or(0);
-                    obj.counters = obj.counters.update(CounterType::PlusOnePlusOne, current + renown_n);
+                    let current = obj
+                        .counters
+                        .get(&CounterType::PlusOnePlusOne)
+                        .copied()
+                        .unwrap_or(0);
+                    obj.counters = obj
+                        .counters
+                        .update(CounterType::PlusOnePlusOne, current + renown_n);
                     obj.designations.insert(Designations::RENOWNED);
                 }
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.121a: Melee -- +count/+count for each opponent attacked.
@@ -3395,22 +3443,35 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             source: None,
                             timestamp: ts,
                             layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
-                            modification: crate::state::continuous_effect::LayerModification::ModifyBoth(bonus),
+                            duration:
+                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                                source_object,
+                            ),
+                            modification:
+                                crate::state::continuous_effect::LayerModification::ModifyBoth(
+                                    bonus,
+                                ),
                             is_cda: false,
                         },
                     );
                 }
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.70a: Poisonous N -- give target player N poison counters.
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Poisonous(_),
-            data: crate::state::stack::TriggerData::CombatPoisonous { target_player, n: poisonous_n },
+            data:
+                crate::state::stack::TriggerData::CombatPoisonous {
+                    target_player,
+                    n: poisonous_n,
+                },
         } => {
             let controller = stack_obj.controller;
             if let Some(player) = state.players.get_mut(&target_player) {
@@ -3421,7 +3482,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 amount: poisonous_n,
                 source: source_object,
             });
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.154a: Enlist -- source gets +X/+0 where X is enlisted creature's power.
@@ -3451,15 +3515,24 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             source: None,
                             timestamp: ts,
                             layer: crate::state::continuous_effect::EffectLayer::PtModify,
-                            duration: crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
-                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(source_object),
-                            modification: crate::state::continuous_effect::LayerModification::ModifyPower(enlisted_power),
+                            duration:
+                                crate::state::continuous_effect::EffectDuration::UntilEndOfTurn,
+                            filter: crate::state::continuous_effect::EffectFilter::SingleObject(
+                                source_object,
+                            ),
+                            modification:
+                                crate::state::continuous_effect::LayerModification::ModifyPower(
+                                    enlisted_power,
+                                ),
                             is_cda: false,
                         },
                     );
                 }
             }
-            events.push(GameEvent::AbilityResolved { controller, stack_object_id: stack_obj.id });
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
         }
 
         // CR 702.110a: Exploit trigger resolves -- the controller may sacrifice
@@ -3809,7 +3882,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Champion,
-            data: crate::state::stack::TriggerData::ETBChampion { filter: champion_filter },
+            data:
+                crate::state::stack::TriggerData::ETBChampion {
+                    filter: champion_filter,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -4180,7 +4256,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Ravenous,
-            data: crate::state::stack::TriggerData::ETBRavenousDraw { permanent: _, x_value },
+            data:
+                crate::state::stack::TriggerData::ETBRavenousDraw {
+                    permanent: _,
+                    x_value,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -4604,7 +4684,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Gift,
-            data: crate::state::stack::TriggerData::ETBGift { source_card_id, gift_opponent },
+            data:
+                crate::state::stack::TriggerData::ETBGift {
+                    source_card_id,
+                    gift_opponent,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -4700,7 +4784,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Cipher,
-            data: crate::state::stack::TriggerData::CipherDamage { source_creature: _, encoded_card_id: _, encoded_object_id },
+            data:
+                crate::state::stack::TriggerData::CipherDamage {
+                    source_creature: _,
+                    encoded_card_id: _,
+                    encoded_object_id,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -4806,7 +4895,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Haunt,
-            data: crate::state::stack::TriggerData::DeathHauntExile { haunt_card, haunt_card_id: _ },
+            data:
+                crate::state::stack::TriggerData::DeathHauntExile {
+                    haunt_card,
+                    haunt_card_id: _,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -4876,7 +4969,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::Haunt,
-            data: crate::state::stack::TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id },
+            data:
+                crate::state::stack::TriggerData::DeathHauntedCreatureDies {
+                    haunt_source,
+                    haunt_card_id,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -5062,7 +5159,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Backup(_),
-            data: crate::state::stack::TriggerData::ETBBackup { target: target_creature, count: counter_count, abilities: abilities_to_grant },
+            data:
+                crate::state::stack::TriggerData::ETBBackup {
+                    target: target_creature,
+                    count: counter_count,
+                    abilities: abilities_to_grant,
+                },
         } => {
             let controller = stack_obj.controller;
 
@@ -5549,7 +5651,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Hideaway(_),
-            data: crate::state::stack::TriggerData::ETBHideaway { count: hideaway_count },
+            data:
+                crate::state::stack::TriggerData::ETBHideaway {
+                    count: hideaway_count,
+                },
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(controller);
@@ -5644,7 +5749,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         StackObjectKind::KeywordTrigger {
             source_object: _,
             keyword: KeywordAbility::PartnerWith(_),
-            data: crate::state::stack::TriggerData::ETBPartnerWith { partner_name, target_player },
+            data:
+                crate::state::stack::TriggerData::ETBPartnerWith {
+                    partner_name,
+                    target_player,
+                },
         } => {
             let controller = stack_obj.controller;
             let lib_zone = ZoneId::Library(target_player);
@@ -7022,7 +7131,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             ref data,
             ..
         } => {
-            unreachable!("Unhandled KeywordTrigger: keyword={:?}, data={:?}", keyword, data);
+            unreachable!(
+                "Unhandled KeywordTrigger: keyword={:?}, data={:?}",
+                keyword, data
+            );
         }
     }
 

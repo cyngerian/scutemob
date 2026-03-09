@@ -82,7 +82,9 @@ fn make_hideaway_trigger_stack_obj(
         kind: StackObjectKind::KeywordTrigger {
             source_object,
             keyword: KeywordAbility::Hideaway(hideaway_count),
-            data: mtg_engine::state::stack::TriggerData::ETBHideaway { count: hideaway_count },
+            data: mtg_engine::state::stack::TriggerData::ETBHideaway {
+                count: hideaway_count,
+            },
         },
         targets: vec![],
         cant_be_countered: false,
@@ -238,10 +240,15 @@ fn test_hideaway_etb_trigger_fires() {
     state.turn.priority_holder = Some(p1);
 
     // The trigger should be on the stack.
-    let has_trigger = state
-        .stack_objects
-        .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Hideaway(_), .. }));
+    let has_trigger = state.stack_objects.iter().any(|so| {
+        matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Hideaway(_),
+                ..
+            }
+        )
+    });
     assert!(
         has_trigger,
         "CR 702.75a: HideawayTrigger should be on the stack after ETB"
@@ -681,10 +688,15 @@ fn test_hideaway_negative_no_keyword() {
         .unwrap();
 
     // No HideawayTrigger should be on the stack.
-    let has_hideaway_trigger = state
-        .stack_objects
-        .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Hideaway(_), .. }));
+    let has_hideaway_trigger = state.stack_objects.iter().any(|so| {
+        matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Hideaway(_),
+                ..
+            }
+        )
+    });
 
     assert!(
         !has_hideaway_trigger,

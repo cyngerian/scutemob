@@ -100,7 +100,9 @@ fn blitz_goblin_def() -> CardDefinition {
         oracle_text: "Blitz {R}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Blitz),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Blitz,
+                details: None,
                 cost: ManaCost {
                     red: 1,
                     ..Default::default()
@@ -953,7 +955,9 @@ fn test_blitz_commander_tax_applies() {
         oracle_text: "Blitz {R}".to_string(),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Blitz),
-            AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, details: None,
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Blitz,
+                details: None,
                 cost: ManaCost {
                     red: 1,
                     ..Default::default()

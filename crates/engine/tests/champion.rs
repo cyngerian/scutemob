@@ -368,7 +368,10 @@ fn test_champion_basic_etb_exiles_creature() {
     assert!(
         matches!(
             state.stack_objects[0].kind,
-            StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Champion, .. }
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Champion,
+                ..
+            }
         ),
         "CR 702.72a: stack entry should be ChampionETBTrigger"
     );
@@ -698,10 +701,15 @@ fn test_champion_non_champion_no_trigger() {
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // No ChampionETBTrigger on the stack.
-    let has_champion_trigger = state
-        .stack_objects
-        .iter()
-        .any(|so| matches!(so.kind, StackObjectKind::KeywordTrigger { keyword: KeywordAbility::Champion, .. }));
+    let has_champion_trigger = state.stack_objects.iter().any(|so| {
+        matches!(
+            so.kind,
+            StackObjectKind::KeywordTrigger {
+                keyword: KeywordAbility::Champion,
+                ..
+            }
+        )
+    });
     assert!(
         !has_champion_trigger,
         "Negative test: non-champion creature should NOT generate a ChampionETBTrigger"

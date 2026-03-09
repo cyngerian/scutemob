@@ -237,7 +237,12 @@ pub fn compute_color_identity(def: &CardDefinition) -> Vec<Color> {
     // (oracle_text scanning handles this if oracle_text is set, but we scan abilities
     // directly as a defense-in-depth measure for cards defined without full oracle text.)
     for ability in &def.abilities {
-        if let crate::cards::AbilityDefinition::AltCastAbility { kind: crate::state::types::AltCostKind::Prototype, cost, .. } = ability {
+        if let crate::cards::AbilityDefinition::AltCastAbility {
+            kind: crate::state::types::AltCostKind::Prototype,
+            cost,
+            ..
+        } = ability
+        {
             add_colors_from_mana_cost(cost, &mut colors);
         }
     }

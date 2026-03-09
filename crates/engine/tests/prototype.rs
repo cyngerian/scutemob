@@ -93,7 +93,10 @@ fn blitz_automaton_def() -> CardDefinition {
                     red: 1,
                     ..Default::default()
                 },
-                details: Some(AltCastDetails::Prototype { power: 3, toughness: 2 }),
+                details: Some(AltCastDetails::Prototype {
+                    power: 3,
+                    toughness: 2,
+                }),
             },
         ],
         power: Some(6),
@@ -768,7 +771,10 @@ fn test_prototype_retains_keyword_ability() {
                     red: 1,
                     ..Default::default()
                 },
-                details: Some(AltCastDetails::Prototype { power: 3, toughness: 2 }),
+                details: Some(AltCastDetails::Prototype {
+                    power: 3,
+                    toughness: 2,
+                }),
             },
             AbilityDefinition::Keyword(KeywordAbility::Haste),
         ],

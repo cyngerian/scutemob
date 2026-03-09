@@ -4227,7 +4227,12 @@ fn get_flashback_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Flashback, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Flashback,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -4442,7 +4447,8 @@ fn get_escape_cost(
                 if let AbilityDefinition::AltCastAbility {
                     kind: AltCostKind::Escape,
                     cost,
-                    details: Some(crate::cards::card_definition::AltCastDetails::Escape { exile_count }),
+                    details:
+                        Some(crate::cards::card_definition::AltCastDetails::Escape { exile_count }),
                 } = a
                 {
                     Some((cost.clone(), *exile_count))
@@ -4531,7 +4537,12 @@ fn get_blitz_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Blitz, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Blitz,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -4552,7 +4563,12 @@ fn get_dash_cost(
     card_id.as_ref().and_then(|cid| {
         registry.get(cid.clone()).and_then(|def| {
             def.abilities.iter().find_map(|a| {
-                if let AbilityDefinition::AltCastAbility { kind: AltCostKind::Dash, cost, .. } = a {
+                if let AbilityDefinition::AltCastAbility {
+                    kind: AltCostKind::Dash,
+                    cost,
+                    ..
+                } = a
+                {
                     Some(cost.clone())
                 } else {
                     None
@@ -5454,7 +5470,11 @@ pub(crate) fn get_prototype_data(
                 if let AbilityDefinition::AltCastAbility {
                     kind: AltCostKind::Prototype,
                     cost,
-                    details: Some(crate::cards::card_definition::AltCastDetails::Prototype { power, toughness }),
+                    details:
+                        Some(crate::cards::card_definition::AltCastDetails::Prototype {
+                            power,
+                            toughness,
+                        }),
                 } = a
                 {
                     Some((cost.clone(), *power, *toughness))

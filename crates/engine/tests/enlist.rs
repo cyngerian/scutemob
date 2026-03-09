@@ -171,18 +171,15 @@ fn test_702_154a_enlist_no_choice_no_trigger() {
     // No Enlist KeywordTrigger on the stack (there may be other triggers, but no enlist ones).
     use mtg_engine::state::stack::StackObjectKind;
     assert!(
-        !state
-            .stack_objects
-            .iter()
-            .any(|obj| {
-                matches!(
-                    obj.kind,
-                    StackObjectKind::KeywordTrigger {
-                        keyword: mtg_engine::KeywordAbility::Enlist,
-                        ..
-                    }
-                )
-            }),
+        !state.stack_objects.iter().any(|obj| {
+            matches!(
+                obj.kind,
+                StackObjectKind::KeywordTrigger {
+                    keyword: mtg_engine::KeywordAbility::Enlist,
+                    ..
+                }
+            )
+        }),
         "CR 702.154a: no Enlist KeywordTrigger should be on stack when enlist choice not made"
     );
 
