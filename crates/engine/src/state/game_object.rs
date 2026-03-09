@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use super::player::{CardId, PlayerId};
 use super::types::{
-    AltCostKind, CardType, Color, CounterType, KeywordAbility, ManaColor, SubType, SuperType,
+    AltCostKind, CardType, Color, CounterType, FaceDownKind, KeywordAbility, ManaColor, SubType,
+    SuperType,
 };
 use super::zone::ZoneId;
 
@@ -229,6 +230,21 @@ pub enum TriggerEvent {
     /// have a haunting relationship (haunting_target is set). Fires from exile
     /// when the creature with that ObjectId dies.
     HauntedCreatureDies,
+    /// CR 702.140d: Triggers on the merged permanent itself when a mutating creature
+    /// spell successfully merges with it. Used by "whenever this creature mutates"
+    /// abilities (e.g., Gemrazer, Nethroi, Brokkos). Fired from `check_triggers`
+    /// on `GameEvent::CreatureMutated`.
+    SelfMutates,
+    /// CR 708.8: "When this permanent is turned face up" -- triggered ability that fires
+    /// when a face-down permanent is turned face up via any method (morph cost, disguise
+    /// cost, manifest/cloak mana cost). Goes on the stack and can be responded to.
+    ///
+    /// Note: turning face up does NOT fire ETB abilities (CR 708.8). This trigger
+    /// is distinct from ETB -- it is specifically for "when turned face up" abilities
+    /// (e.g., Willbender, Den Protector).
+    ///
+    /// Fired from `check_triggers` on `GameEvent::PermanentTurnedFaceUp`.
+    SelfTurnedFaceUp,
 }
 
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
@@ -714,6 +730,102 @@ pub struct GameObject {
     /// Cleared by `Effect::DetachEquipment`, SBA unattach, and zone changes (CR 400.7).
     #[serde(default)]
     pub is_reconfigured: bool,
+    /// CR 729.2: Components of a merged permanent (Mutate, CR 702.140).
+    ///
+    /// Empty for unmerged permanents (the common case — NOT a vec of one).
+    /// When non-empty, `merged_components[0]` is always the topmost component;
+    /// the merged permanent uses the topmost component's characteristics as its
+    /// base copiable values (CR 729.2a) and has ALL abilities from ALL components
+    /// (CR 702.140e).
+    ///
+    /// When the merged permanent leaves the battlefield, each component becomes
+    /// a separate `GameObject` in the destination zone (CR 729.3).
+    ///
+    /// CR 400.7: Reset to empty on zone changes (new objects start unmerged).
+    #[serde(default)]
+    pub merged_components: im::Vector<MergedComponent>,
+    /// CR 712.8d/e: If true, this permanent has its back face up (is transformed).
+    ///
+    /// When true, the layer system replaces this permanent's base characteristics
+    /// with the back face's characteristics from the card registry (CardDefinition::back_face).
+    /// When false (default), the front face characteristics are used normally.
+    ///
+    /// CR 712.18: Transforming does NOT create a new object — all counters, damage,
+    /// auras, and continuous effects continue to apply.
+    ///
+    /// CR 400.7: Reset to false on zone changes (new object starts with front face up),
+    /// EXCEPT when a permanent enters the battlefield via Disturb (enters transformed) or
+    /// via "enters transformed" effects (e.g., Daybound ETB during night, Craft return).
+    ///
+    /// CR 712.8a: DFCs in non-battlefield zones use only front face characteristics.
+    /// This is enforced by resetting to false on zone changes (CR 400.7).
+    #[serde(default)]
+    pub is_transformed: bool,
+    /// CR 701.27f: Timestamp of the last time this permanent transformed or converted.
+    ///
+    /// Used to enforce CR 701.27f: if a non-delayed triggered ability tries to transform
+    /// a permanent that already transformed since the ability was put on the stack,
+    /// the instruction is ignored. Compare against the ability's creation timestamp:
+    /// if `last_transform_timestamp >= ability_timestamp`, ignore the transform.
+    ///
+    /// Set to `state.timestamp_counter` whenever the permanent transforms.
+    /// Reset to 0 on zone changes (CR 400.7).
+    #[serde(default)]
+    pub last_transform_timestamp: u64,
+    /// Ruling (CR 702.146): If true, this permanent was cast via its disturb ability.
+    ///
+    /// Enables the exile-on-graveyard replacement effect: "If this permanent would be
+    /// put into a graveyard from anywhere, exile it instead."
+    ///
+    /// This effect persists even if the permanent loses all abilities (CR 702.146 ruling).
+    ///
+    /// Set when a disturb-cast spell resolves. Reset on zone changes (CR 400.7).
+    /// (A disturbed permanent that goes to exile then re-enters the battlefield starts fresh.)
+    #[serde(default)]
+    pub was_cast_disturbed: bool,
+    /// CR 702.167c: ObjectIds of cards exiled as craft materials.
+    ///
+    /// When a Craft ability resolves, the source permanent and material permanents/cards
+    /// are exiled as cost. The material ObjectIds (from before exile zone change) are
+    /// stored here for card abilities that reference "cards exiled to craft this" (CR 702.167c).
+    ///
+    /// Note: because zone changes create new ObjectIds (CR 400.7), these ObjectIds will
+    /// be stale by the time the permanent enters the battlefield. They are preserved for
+    /// informational lookup via last-known-information.
+    ///
+    /// Reset to empty on zone changes (CR 400.7).
+    #[serde(default)]
+    pub craft_exiled_cards: im::Vector<ObjectId>,
+    /// CR 702.37 / 701.40 / 701.58 / 702.168: Why this object is face-down (if at all).
+    ///
+    /// `None` means the object is either face-up, or face-down for reasons unrelated to
+    /// morph/manifest/cloak (e.g., Foretell exile). `Some(kind)` means this object was
+    /// specifically turned face-down via morph, megamorph, disguise, manifest, or cloak.
+    ///
+    /// Used by the layer system to apply face-down characteristic overrides (CR 708.2a)
+    /// and to determine valid turn-face-up methods (CR 702.37e / 702.168d / 701.40b).
+    ///
+    /// Reset to `None` on zone changes (CR 400.7). Cleared when turned face up.
+    #[serde(default)]
+    pub face_down_as: Option<FaceDownKind>,
+}
+
+/// CR 729.2: A single component in a merged permanent.
+///
+/// When a mutating creature spell resolves, it merges with the target permanent.
+/// Each card involved in the merge is represented as a `MergedComponent`.
+/// `merged_components[0]` is always the topmost component (CR 729.2a).
+///
+/// An unmerged permanent has `merged_components` empty — not a vec of one.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MergedComponent {
+    /// The CardId of this component (for looking up definitions and zone-change reconstruction).
+    pub card_id: Option<crate::state::player::CardId>,
+    /// The base characteristics of this component, frozen at merge time.
+    /// Used to reconstruct individual GameObjects when the merged permanent leaves the battlefield (CR 729.3).
+    pub characteristics: Characteristics,
+    /// True if this component is a token.
+    pub is_token: bool,
 }
 
 impl GameObject {

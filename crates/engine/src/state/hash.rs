@@ -684,6 +684,28 @@ impl HashInto for KeywordAbility {
             KeywordAbility::ChooseABackground => 145u8.hash_into(hasher),
             // DoctorsCompanion (discriminant 146) -- CR 702.124m
             KeywordAbility::DoctorsCompanion => 146u8.hash_into(hasher),
+            // Mutate (discriminant 147) -- CR 702.140
+            KeywordAbility::Mutate => 147u8.hash_into(hasher),
+            // Transform (discriminant 148) -- CR 701.27
+            KeywordAbility::Transform => 148u8.hash_into(hasher),
+            // Daybound (discriminant 149) -- CR 702.145b
+            KeywordAbility::Daybound => 149u8.hash_into(hasher),
+            // Nightbound (discriminant 150) -- CR 702.145e
+            KeywordAbility::Nightbound => 150u8.hash_into(hasher),
+            // Disturb (discriminant 151) -- CR 702.146
+            KeywordAbility::Disturb => 151u8.hash_into(hasher),
+            // Craft (discriminant 152) -- CR 702.167
+            KeywordAbility::Craft => 152u8.hash_into(hasher),
+            // Morph (discriminant 153) -- CR 702.37
+            KeywordAbility::Morph => 153u8.hash_into(hasher),
+            // Megamorph (discriminant 154) -- CR 702.37b
+            KeywordAbility::Megamorph => 154u8.hash_into(hasher),
+            // Disguise (discriminant 155) -- CR 702.168
+            KeywordAbility::Disguise => 155u8.hash_into(hasher),
+            // Manifest (discriminant 156) -- CR 701.40
+            KeywordAbility::Manifest => 156u8.hash_into(hasher),
+            // Cloak (discriminant 157) -- CR 701.58
+            KeywordAbility::Cloak => 157u8.hash_into(hasher),
         }
     }
 }
@@ -914,6 +936,39 @@ impl HashInto for GameObject {
         self.haunting_target.hash_into(hasher);
         // Reconfigure (CR 702.151b) — whether this Equipment is currently reconfigured
         self.is_reconfigured.hash_into(hasher);
+        // Mutate (CR 729.2) — merged components (empty for unmerged permanents)
+        (self.merged_components.len() as u64).hash_into(hasher);
+        for component in self.merged_components.iter() {
+            component.hash_into(hasher);
+        }
+        // Transform (CR 712.8d/e) — permanent has back face up
+        self.is_transformed.hash_into(hasher);
+        // Transform (CR 701.27f) — timestamp of last transform (for once-guard)
+        self.last_transform_timestamp.hash_into(hasher);
+        // Disturb (CR 702.146 ruling) — permanent was cast via disturb (exile if would die)
+        self.was_cast_disturbed.hash_into(hasher);
+        // Craft (CR 702.167c) — ObjectIds of cards exiled as craft materials
+        (self.craft_exiled_cards.len() as u64).hash_into(hasher);
+        for id in self.craft_exiled_cards.iter() {
+            id.hash_into(hasher);
+        }
+        // Morph/Manifest/Cloak (CR 702.37/701.40/701.58) — face-down kind
+        match &self.face_down_as {
+            None => 0u8.hash_into(hasher),
+            Some(crate::state::types::FaceDownKind::Morph) => 1u8.hash_into(hasher),
+            Some(crate::state::types::FaceDownKind::Megamorph) => 2u8.hash_into(hasher),
+            Some(crate::state::types::FaceDownKind::Disguise) => 3u8.hash_into(hasher),
+            Some(crate::state::types::FaceDownKind::Manifest) => 4u8.hash_into(hasher),
+            Some(crate::state::types::FaceDownKind::Cloak) => 5u8.hash_into(hasher),
+        }
+    }
+}
+
+impl HashInto for crate::state::game_object::MergedComponent {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.card_id.hash_into(hasher);
+        self.characteristics.hash_into(hasher);
+        self.is_token.hash_into(hasher);
     }
 }
 
@@ -1468,6 +1523,10 @@ impl HashInto for TriggerEvent {
             TriggerEvent::SelfIsDealtDamage => 20u8.hash_into(hasher),
             // CR 702.55c: Haunt "when the creature it haunts dies" — discriminant 21
             TriggerEvent::HauntedCreatureDies => 21u8.hash_into(hasher),
+            // CR 702.140d: Mutate "whenever this creature mutates" — discriminant 22
+            TriggerEvent::SelfMutates => 22u8.hash_into(hasher),
+            // CR 708.8: "When this permanent is turned face up" — discriminant 23
+            TriggerEvent::SelfTurnedFaceUp => 23u8.hash_into(hasher),
         }
     }
 }
@@ -2089,6 +2148,61 @@ impl HashInto for StackObjectKind {
                 haunt_source.hash_into(hasher);
                 haunt_card_id.hash_into(hasher);
             }
+            // MutatingCreatureSpell (discriminant 59) -- CR 702.140a / CR 729.2
+            StackObjectKind::MutatingCreatureSpell {
+                source_object,
+                target,
+            } => {
+                59u8.hash_into(hasher);
+                source_object.hash_into(hasher);
+                target.hash_into(hasher);
+            }
+            // TransformTrigger (discriminant 60) -- CR 701.27
+            StackObjectKind::TransformTrigger {
+                permanent,
+                ability_timestamp,
+            } => {
+                60u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+                ability_timestamp.hash_into(hasher);
+            }
+            // CraftAbility (discriminant 61) -- CR 702.167a
+            StackObjectKind::CraftAbility {
+                source_card_id,
+                exiled_source,
+                material_ids,
+                activator,
+            } => {
+                61u8.hash_into(hasher);
+                source_card_id.hash_into(hasher);
+                exiled_source.hash_into(hasher);
+                for id in material_ids {
+                    id.hash_into(hasher);
+                }
+                activator.hash_into(hasher);
+            }
+            // DayboundTransformTrigger (discriminant 62) -- CR 702.145b/f
+            StackObjectKind::DayboundTransformTrigger { permanent } => {
+                62u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+            }
+            // TurnFaceUpTrigger (discriminant 63) -- CR 708.8
+            StackObjectKind::TurnFaceUpTrigger {
+                permanent,
+                source_card_id,
+                ability_index,
+            } => {
+                63u8.hash_into(hasher);
+                permanent.hash_into(hasher);
+                match source_card_id {
+                    None => 0u8.hash_into(hasher),
+                    Some(cid) => {
+                        1u8.hash_into(hasher);
+                        cid.0.hash_into(hasher);
+                    }
+                }
+                (*ability_index as u32).hash_into(hasher);
+            }
         }
     }
 }
@@ -2200,6 +2314,11 @@ impl HashInto for StackObject {
         // Gift (CR 702.174a) — whether gift cost was paid and who was chosen as opponent
         self.gift_was_given.hash_into(hasher);
         self.gift_opponent.hash_into(hasher);
+        // Mutate (CR 702.140a) — target non-Human creature for mutating spells
+        self.mutate_target.hash_into(hasher);
+        self.mutate_on_top.hash_into(hasher);
+        // Disturb (CR 702.146a / CR 712.11a) — spell was cast transformed (back face up)
+        self.is_cast_transformed.hash_into(hasher);
         // Note: StackObject retains its own individual boolean fields for now (separate from
         // the GameObject.cast_alt_cost consolidation) to minimize blast radius of this refactor.
     }
@@ -3145,6 +3264,56 @@ impl HashInto for GameEvent {
                 exiled_card.hash_into(hasher);
                 haunted_creature.hash_into(hasher);
             }
+            // CR 702.140d: Mutate — merged with target (discriminant 108)
+            GameEvent::CreatureMutated { object_id, player } => {
+                108u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            // CR 701.27a / CR 712.18: permanent transformed (discriminant 109)
+            GameEvent::PermanentTransformed {
+                object_id,
+                to_back_face,
+            } => {
+                109u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+                to_back_face.hash_into(hasher);
+            }
+            // CR 730.1: day/night changed (discriminant 110)
+            GameEvent::DayNightChanged { now } => {
+                110u8.hash_into(hasher);
+                (*now as u8).hash_into(hasher);
+            }
+            // CR 702.167a: craft activated (discriminant 111)
+            GameEvent::CraftActivated {
+                player,
+                exiled_source,
+                exiled_materials,
+            } => {
+                111u8.hash_into(hasher);
+                player.hash_into(hasher);
+                exiled_source.hash_into(hasher);
+                for mat in exiled_materials {
+                    mat.hash_into(hasher);
+                }
+            }
+            // PermanentTurnedFaceUp -- CR 702.37e / 701.40b / 701.58b
+            GameEvent::PermanentTurnedFaceUp { player, permanent } => {
+                112u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
+            }
+            // FaceDownRevealed -- CR 708.9
+            GameEvent::FaceDownRevealed {
+                player,
+                permanent,
+                card_name,
+            } => {
+                113u8.hash_into(hasher);
+                player.hash_into(hasher);
+                permanent.hash_into(hasher);
+                card_name.hash_into(hasher);
+            }
         }
     }
 }
@@ -3415,6 +3584,10 @@ impl HashInto for TriggerCondition {
             TriggerCondition::WhenDealtDamage => 22u8.hash_into(hasher),
             // CR 702.55c: "When the creature it haunts dies" — discriminant 23
             TriggerCondition::HauntedCreatureDies => 23u8.hash_into(hasher),
+            // CR 702.140d: "Whenever this creature mutates" — discriminant 24
+            TriggerCondition::WhenMutates => 24u8.hash_into(hasher),
+            // CR 708.8: "When this permanent is turned face up" — discriminant 25
+            TriggerCondition::WhenTurnedFaceUp => 25u8.hash_into(hasher),
         }
     }
 }
@@ -3789,6 +3962,16 @@ impl HashInto for Effect {
             Effect::DetachEquipment { equipment } => {
                 46u8.hash_into(hasher);
                 equipment.hash_into(hasher);
+            }
+            // CR 701.40a: Manifest (discriminant 47)
+            Effect::Manifest { player } => {
+                47u8.hash_into(hasher);
+                player.hash_into(hasher);
+            }
+            // CR 701.58a: Cloak (discriminant 48)
+            Effect::Cloak { player } => {
+                48u8.hash_into(hasher);
+                player.hash_into(hasher);
             }
         }
     }
@@ -4173,6 +4356,61 @@ impl HashInto for AbilityDefinition {
                 58u8.hash_into(hasher);
                 cost.hash_into(hasher);
             }
+            // MutateCost (discriminant 59) -- CR 702.140a
+            AbilityDefinition::MutateCost { cost } => {
+                59u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Disturb (discriminant 60) -- CR 702.146a
+            AbilityDefinition::Disturb { cost } => {
+                60u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Craft (discriminant 61) -- CR 702.167a
+            AbilityDefinition::Craft { cost, materials } => {
+                61u8.hash_into(hasher);
+                cost.hash_into(hasher);
+                materials.hash_into(hasher);
+            }
+            // Morph -- CR 702.37a — discriminant 62
+            AbilityDefinition::Morph { cost } => {
+                62u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Megamorph -- CR 702.37b — discriminant 63
+            AbilityDefinition::Megamorph { cost } => {
+                63u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+            // Disguise -- CR 702.168a — discriminant 64
+            AbilityDefinition::Disguise { cost } => {
+                64u8.hash_into(hasher);
+                cost.hash_into(hasher);
+            }
+        }
+    }
+}
+
+impl HashInto for crate::cards::card_definition::CraftMaterials {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::cards::card_definition::CraftMaterials;
+        match self {
+            CraftMaterials::Artifacts(n) => {
+                0u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            CraftMaterials::Creatures(n) => {
+                1u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            CraftMaterials::Lands(n) => {
+                2u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
+            CraftMaterials::AnyCards(n) => {
+                3u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -4318,6 +4556,14 @@ impl GameState {
         for card_id in self.forecast_used_this_turn.iter() {
             card_id.hash_into(&mut hasher);
         }
+
+        // 12. Day/Night designation (CR 730.1) and previous turn spell count (CR 730.2)
+        match self.day_night {
+            None => 0u8.hash_into(&mut hasher),
+            Some(crate::state::DayNight::Day) => 1u8.hash_into(&mut hasher),
+            Some(crate::state::DayNight::Night) => 2u8.hash_into(&mut hasher),
+        }
+        self.previous_turn_spells_cast.hash_into(&mut hasher);
 
         *hasher.finalize().as_bytes()
     }

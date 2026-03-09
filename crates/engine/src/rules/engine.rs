@@ -109,6 +109,9 @@ pub fn process_command(
             squad_count,
             offspring_paid,
             gift_opponent,
+            mutate_target,
+            mutate_on_top,
+            face_down_kind,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: casting a spell is a meaningful player choice; reset loop detection.
@@ -144,6 +147,9 @@ pub fn process_command(
                 squad_count,
                 offspring_paid,
                 gift_opponent,
+                mutate_target,
+                mutate_on_top,
+                face_down_kind,
             )?;
             // CR 603.3: Check for triggered abilities arising from casting this spell
             // (e.g., "Whenever an opponent casts a spell" — Rhystic Study).
@@ -583,6 +589,62 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events = handle_pay_cumulative_upkeep(&mut state, player, permanent, pay)?;
             // CR 603.3: Check for triggered abilities arising from CU resolution.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Transform (CR 701.27 / CR 712) ───────────────────────────────
+        Command::Transform { player, permanent } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: transforming is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_transform(&mut state, player, permanent)?;
+            // CR 603.3: Check for triggered abilities arising from transformation.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Craft (CR 702.167) ────────────────────────────────────────────
+        Command::ActivateCraft {
+            player,
+            source,
+            material_ids,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 104.4b: activating craft is a meaningful player choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_activate_craft(&mut state, player, source, material_ids)?;
+            // CR 603.3: Check for triggered abilities arising from craft resolution.
+            let new_triggers = abilities::check_triggers(&state, &events);
+            for t in new_triggers {
+                state.pending_triggers.push_back(t);
+            }
+            let trigger_events = abilities::flush_pending_triggers(&mut state);
+            events.extend(trigger_events);
+            all_events.extend(events);
+        }
+
+        // ── Morph / Manifest / Cloak: Turn Face Up (CR 702.37e, 701.40b, 701.58b) ─
+        Command::TurnFaceUp {
+            player,
+            permanent,
+            method,
+        } => {
+            validate_player_active(&state, player)?;
+            // CR 116.2b: Turn face up is a special action; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = handle_turn_face_up(&mut state, player, permanent, method)?;
+            // CR 603.3: Check for "when turned face up" triggered abilities.
             let new_triggers = abilities::check_triggers(&state, &events);
             for t in new_triggers {
                 state.pending_triggers.push_back(t);
@@ -1067,6 +1129,543 @@ fn handle_pay_recover(
     state.turn.players_passed = im::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
+
+    Ok(events)
+}
+
+/// CR 701.27a: Transform a double-faced permanent to its other face.
+///
+/// No new object is created (CR 712.18). Counters, damage, attachments, and
+/// continuous effects all persist through transformation.
+fn handle_transform(
+    state: &mut GameState,
+    player: PlayerId,
+    permanent: crate::state::game_object::ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::rules::events::GameEvent;
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Validate permanent exists and is on the battlefield.
+    let obj = state
+        .objects
+        .get(&permanent)
+        .ok_or(GameStateError::ObjectNotFound(permanent))?;
+
+    if obj.zone != ZoneId::Battlefield {
+        return Err(GameStateError::InvalidCommand(
+            "transform target must be on the battlefield".into(),
+        ));
+    }
+
+    if obj.controller != player {
+        return Err(GameStateError::InvalidCommand(
+            "can only transform permanents you control".into(),
+        ));
+    }
+
+    // CR 702.145b/e: Permanents with daybound/nightbound can only transform via their
+    // keyword enforcement system. Direct transform commands are rejected.
+    let has_daybound = obj
+        .characteristics
+        .keywords
+        .contains(&crate::state::types::KeywordAbility::Daybound);
+    let has_nightbound = obj
+        .characteristics
+        .keywords
+        .contains(&crate::state::types::KeywordAbility::Nightbound);
+    if has_daybound || has_nightbound {
+        return Err(GameStateError::InvalidCommand(
+            "permanents with daybound/nightbound can only transform via their keyword ability"
+                .into(),
+        ));
+    }
+
+    // CR 701.27c: Only DFCs can transform.
+    let card_id = obj.card_id.clone();
+    let is_dfc = if let Some(ref cid) = card_id {
+        state
+            .card_registry
+            .get(cid.clone())
+            .map(|def| def.back_face.is_some())
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
+    if !is_dfc {
+        // CR 701.27c: Nothing happens when trying to transform a non-DFC.
+        return Ok(events);
+    }
+
+    // CR 701.27d: Back face can't be an instant or sorcery.
+    let would_transform_to_back = !state
+        .objects
+        .get(&permanent)
+        .map(|o| o.is_transformed)
+        .unwrap_or(false);
+    if would_transform_to_back {
+        if let Some(ref cid) = card_id {
+            if let Some(def) = state.card_registry.get(cid.clone()) {
+                if let Some(ref back) = def.back_face {
+                    if back
+                        .types
+                        .card_types
+                        .contains(&crate::state::types::CardType::Instant)
+                        || back
+                            .types
+                            .card_types
+                            .contains(&crate::state::types::CardType::Sorcery)
+                    {
+                        // CR 701.27d / CR 712.10: Nothing happens.
+                        return Ok(events);
+                    }
+                }
+            }
+        }
+    }
+
+    // CR 712.18: Transform flips the face. No new object — same ObjectId.
+    let to_back_face = if let Some(obj) = state.objects.get_mut(&permanent) {
+        obj.is_transformed = !obj.is_transformed;
+        obj.last_transform_timestamp = state.timestamp_counter;
+        state.timestamp_counter += 1;
+        obj.is_transformed // true = now showing back face
+    } else {
+        return Err(GameStateError::ObjectNotFound(permanent));
+    };
+
+    events.push(GameEvent::PermanentTransformed {
+        object_id: permanent,
+        to_back_face,
+    });
+
+    // CR 704.3: Check SBAs after transformation (e.g., Aura's enchanted object changed type).
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
+
+    Ok(events)
+}
+
+/// CR 702.167a: Activate a permanent's craft ability.
+///
+/// Cost: pay mana + exile source + exile materials.
+/// When the ability resolves: the exiled source returns to the battlefield
+/// transformed (back face up) under its owner's control.
+fn handle_activate_craft(
+    state: &mut GameState,
+    player: PlayerId,
+    source: crate::state::game_object::ObjectId,
+    material_ids: Vec<crate::state::game_object::ObjectId>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::rules::events::GameEvent;
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Validate source is on battlefield and controlled by player.
+    {
+        let obj = state
+            .objects
+            .get(&source)
+            .ok_or(GameStateError::ObjectNotFound(source))?;
+
+        if obj.zone != ZoneId::Battlefield {
+            return Err(GameStateError::InvalidCommand(
+                "craft source must be on the battlefield".into(),
+            ));
+        }
+        if obj.controller != player {
+            return Err(GameStateError::InvalidCommand(
+                "can only craft with permanents you control".into(),
+            ));
+        }
+
+        // CR 702.167a: "Activate only as a sorcery."
+        let is_main_phase = matches!(
+            state.turn.phase,
+            crate::state::turn::Phase::PreCombatMain | crate::state::turn::Phase::PostCombatMain
+        );
+        let stack_empty = state.stack_objects.is_empty();
+        let is_active = state.turn.active_player == player;
+        if !is_main_phase || !stack_empty || !is_active {
+            return Err(GameStateError::InvalidCommand(
+                "craft can only be activated as a sorcery (main phase, empty stack, active player)"
+                    .into(),
+            ));
+        }
+
+        // Verify the source has a Craft ability definition and extract cost + materials.
+        let craft_def = if let Some(ref cid) = obj.card_id {
+            state.card_registry.get(cid.clone()).and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Craft { cost, materials } = a {
+                        Some((cost.clone(), materials.clone()))
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else {
+            None
+        };
+
+        if craft_def.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "permanent does not have a craft ability".into(),
+            ));
+        }
+    }
+
+    // Extract craft cost and material requirements (re-borrow from registry after block ends).
+    use crate::cards::card_definition::CraftMaterials;
+    use crate::state::types::CardType;
+
+    let (craft_cost, craft_materials) = {
+        let cid = state
+            .objects
+            .get(&source)
+            .and_then(|o| o.card_id.clone())
+            .ok_or_else(|| GameStateError::InvalidCommand("craft source has no card_id".into()))?;
+        state
+            .card_registry
+            .get(cid)
+            .and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Craft { cost, materials } = a {
+                        Some((cost.clone(), materials.clone()))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .ok_or_else(|| {
+                GameStateError::InvalidCommand("permanent does not have a craft ability".into())
+            })?
+    };
+
+    // CR 702.167a: Validate and pay the mana cost before exiling.
+    {
+        let pool = &state
+            .players
+            .get(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?
+            .mana_pool;
+        if !casting::can_pay_cost(pool, &craft_cost) {
+            return Err(GameStateError::InsufficientMana);
+        }
+    }
+
+    // CR 702.167b: Validate material count and types before exiling.
+    {
+        let required_count = match craft_materials {
+            CraftMaterials::Artifacts(n)
+            | CraftMaterials::Creatures(n)
+            | CraftMaterials::Lands(n)
+            | CraftMaterials::AnyCards(n) => n as usize,
+        };
+        if material_ids.len() != required_count {
+            return Err(GameStateError::InvalidCommand(format!(
+                "craft requires exactly {} material(s), got {}",
+                required_count,
+                material_ids.len()
+            )));
+        }
+        for mat_id in &material_ids {
+            let mat_obj = state.objects.get(mat_id).ok_or_else(|| {
+                GameStateError::InvalidCommand(format!(
+                    "craft material {:?} does not exist",
+                    mat_id
+                ))
+            })?;
+            let mat_zone = mat_obj.zone;
+            match mat_zone {
+                ZoneId::Battlefield | ZoneId::Graveyard(_) => {}
+                _ => {
+                    return Err(GameStateError::InvalidCommand(
+                        "craft materials must be permanents on battlefield or cards in graveyard"
+                            .into(),
+                    ));
+                }
+            }
+            // Check the material is the required card type (CR 702.167b).
+            let required_type = match craft_materials {
+                CraftMaterials::Artifacts(_) => Some(CardType::Artifact),
+                CraftMaterials::Creatures(_) => Some(CardType::Creature),
+                CraftMaterials::Lands(_) => Some(CardType::Land),
+                CraftMaterials::AnyCards(_) => None,
+            };
+            if let Some(req_type) = required_type {
+                // For battlefield permanents, use layer-resolved characteristics.
+                // For graveyard cards, use base characteristics (CR 702.167b).
+                let has_type = if mat_zone == ZoneId::Battlefield {
+                    crate::rules::layers::calculate_characteristics(state, *mat_id)
+                        .map(|c| c.card_types.contains(&req_type))
+                        .unwrap_or_else(|| mat_obj.characteristics.card_types.contains(&req_type))
+                } else {
+                    mat_obj.characteristics.card_types.contains(&req_type)
+                };
+                if !has_type {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "craft material {:?} is not of required type {:?} (CR 702.167b)",
+                        mat_id, req_type
+                    )));
+                }
+            }
+        }
+    }
+
+    // Pay the mana cost (CR 702.167a).
+    if let Some(p) = state.players.get_mut(&player) {
+        casting::pay_cost(&mut p.mana_pool, &craft_cost);
+    }
+    events.push(GameEvent::ManaCostPaid {
+        player,
+        cost: craft_cost,
+    });
+
+    // CR 702.167a cost: Exile the source permanent.
+    let (exiled_source_id, _) = state.move_object_to_zone(source, ZoneId::Exile)?;
+
+    // CR 702.167a cost: Exile each material.
+    let mut exiled_material_ids = Vec::new();
+    for mat_id in material_ids {
+        let (new_id, _) = state.move_object_to_zone(mat_id, ZoneId::Exile)?;
+        exiled_material_ids.push(new_id);
+    }
+
+    events.push(GameEvent::CraftActivated {
+        player,
+        exiled_source: exiled_source_id,
+        exiled_materials: exiled_material_ids.clone(),
+    });
+
+    // CR 702.167a: Return the exiled card to the battlefield transformed.
+    // The card that was exiled as cost (exiled_source_id) now enters transformed.
+    // CR 702.167a: "If the card isn't a DFC, it stays in exile."
+    let source_card_id = state
+        .objects
+        .get(&exiled_source_id)
+        .and_then(|o| o.card_id.clone());
+    let is_dfc = source_card_id
+        .as_ref()
+        .and_then(|cid| {
+            state
+                .card_registry
+                .get(cid.clone())
+                .map(|def| def.back_face.is_some())
+        })
+        .unwrap_or(false);
+
+    if is_dfc {
+        // Move the exiled source card to the battlefield.
+        let (battlefield_id, _) =
+            state.move_object_to_zone(exiled_source_id, ZoneId::Battlefield)?;
+
+        // Set is_transformed = true (back face up) on the new permanent.
+        // Also track the exiled materials for CR 702.167c abilities.
+        if let Some(obj) = state.objects.get_mut(&battlefield_id) {
+            obj.is_transformed = true;
+            obj.last_transform_timestamp = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            obj.craft_exiled_cards = exiled_material_ids.into_iter().collect();
+        }
+
+        events.push(GameEvent::PermanentEnteredBattlefield {
+            player,
+            object_id: battlefield_id,
+        });
+    }
+    // If not a DFC, the card stays in exile (no PermanentEnteredBattlefield emitted).
+
+    // CR 704.3: Check SBAs after craft resolution.
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
+
+    // Grant priority to the active player after craft.
+    state.turn.players_passed = im::OrdSet::new();
+    let active = state.turn.active_player;
+    state.turn.priority_holder = Some(active);
+
+    Ok(events)
+}
+
+/// CR 702.37e / 702.168d / 701.40b / 701.58b: Turn a face-down permanent face up.
+///
+/// This is a special action (CR 116.2b) — does NOT use the stack. The cost is paid,
+/// the permanent turns face up, ETB abilities do NOT fire (CR 708.8), and "when turned
+/// face up" triggers are queued. For Megamorph + MorphCost, a +1/+1 counter is added.
+fn handle_turn_face_up(
+    state: &mut GameState,
+    player: PlayerId,
+    permanent: crate::state::game_object::ObjectId,
+    method: crate::state::types::TurnFaceUpMethod,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    use crate::cards::card_definition::AbilityDefinition;
+    use crate::state::types::{FaceDownKind, TurnFaceUpMethod};
+    use crate::state::zone::ZoneId;
+
+    let mut events = Vec::new();
+
+    // Validate: permanent exists, on battlefield, face-down, controlled by player.
+    let obj = state
+        .objects
+        .get(&permanent)
+        .ok_or(GameStateError::ObjectNotFound(permanent))?;
+    if obj.zone != ZoneId::Battlefield {
+        return Err(GameStateError::InvalidCommand(
+            "TurnFaceUp: permanent not on battlefield".into(),
+        ));
+    }
+    if !obj.status.face_down {
+        return Err(GameStateError::InvalidCommand(
+            "TurnFaceUp: permanent is not face-down".into(),
+        ));
+    }
+    if obj.face_down_as.is_none() {
+        return Err(GameStateError::InvalidCommand(
+            "TurnFaceUp: permanent has no face_down_as (not a morph/manifest/cloak)".into(),
+        ));
+    }
+    if obj.controller != player {
+        return Err(GameStateError::InvalidCommand(
+            "TurnFaceUp: permanent not controlled by player".into(),
+        ));
+    }
+
+    let face_down_as = obj.face_down_as.clone().unwrap();
+    let card_id = obj.card_id.clone();
+
+    // Determine turn-face-up cost and validate legality.
+    let mana_cost: crate::state::ManaCost = {
+        let registry = state.card_registry.clone();
+        let def = card_id
+            .as_ref()
+            .and_then(|cid| registry.get(cid.clone()))
+            .ok_or_else(|| {
+                GameStateError::InvalidCommand("TurnFaceUp: no card definition found".into())
+            })?;
+
+        match method {
+            TurnFaceUpMethod::MorphCost => {
+                // Look for Morph or Megamorph AbilityDefinition
+                let morph_ability = def.abilities.iter().find_map(|a| match a {
+                    AbilityDefinition::Morph { cost } => Some(cost.clone()),
+                    AbilityDefinition::Megamorph { cost } => Some(cost.clone()),
+                    _ => None,
+                });
+                morph_ability.ok_or_else(|| {
+                    GameStateError::InvalidCommand(
+                        "TurnFaceUp: card has no Morph or Megamorph cost".into(),
+                    )
+                })?
+            }
+            TurnFaceUpMethod::DisguiseCost => {
+                let disguise_ability = def.abilities.iter().find_map(|a| match a {
+                    AbilityDefinition::Disguise { cost } => Some(cost.clone()),
+                    _ => None,
+                });
+                disguise_ability.ok_or_else(|| {
+                    GameStateError::InvalidCommand("TurnFaceUp: card has no Disguise cost".into())
+                })?
+            }
+            TurnFaceUpMethod::ManaCost => {
+                // CR 701.40b: Only creature cards with a mana cost can be turned face up this way.
+                // CR 701.40g: Instants and sorceries manifested stay face down.
+                let is_creature = def
+                    .types
+                    .card_types
+                    .contains(&crate::state::CardType::Creature);
+                let is_instant_sorcery = def
+                    .types
+                    .card_types
+                    .contains(&crate::state::CardType::Instant)
+                    || def
+                        .types
+                        .card_types
+                        .contains(&crate::state::CardType::Sorcery);
+                if !is_creature || is_instant_sorcery {
+                    return Err(GameStateError::InvalidCommand(
+                        "TurnFaceUp: manifested card is not a creature (cannot turn face up)"
+                            .into(),
+                    ));
+                }
+                if face_down_as != FaceDownKind::Manifest && face_down_as != FaceDownKind::Cloak {
+                    // Also allow ManaCost for morph/disguise cards that are manifested/cloaked.
+                    // But if the card has no morph/disguise AND was cast as Morph/Megamorph/Disguise,
+                    // ManaCost is not valid. Only Manifest/Cloak allow paying the mana cost.
+                    return Err(GameStateError::InvalidCommand(
+                        "TurnFaceUp: ManaCost method only valid for manifested/cloaked permanents"
+                            .into(),
+                    ));
+                }
+                def.mana_cost.clone().ok_or_else(|| {
+                    GameStateError::InvalidCommand(
+                        "TurnFaceUp: manifested card has no mana cost".into(),
+                    )
+                })?
+            }
+        }
+    };
+
+    // Validate and pay the cost from the player's mana pool.
+    {
+        let player_state = state
+            .players
+            .get_mut(&player)
+            .ok_or(GameStateError::PlayerNotFound(player))?;
+        if !casting::can_pay_cost(&player_state.mana_pool, &mana_cost) {
+            return Err(GameStateError::InvalidCommand(
+                "TurnFaceUp: player cannot pay the turn-face-up cost".into(),
+            ));
+        }
+        casting::pay_cost(&mut player_state.mana_pool, &mana_cost);
+    }
+
+    // Check if this is a Megamorph turned face up via MorphCost (gets +1/+1 counter).
+    let is_megamorph_flip =
+        face_down_as == FaceDownKind::Megamorph && method == TurnFaceUpMethod::MorphCost;
+
+    // Turn the permanent face up: clear face_down and face_down_as.
+    if let Some(obj) = state.objects.get_mut(&permanent) {
+        obj.status.face_down = false;
+        obj.face_down_as = None;
+    }
+
+    // CR 702.37b: Megamorph gets +1/+1 counter when turned face up via megamorph cost.
+    if is_megamorph_flip {
+        if let Some(obj) = state.objects.get_mut(&permanent) {
+            let current = obj
+                .counters
+                .get(&crate::state::types::CounterType::PlusOnePlusOne)
+                .copied()
+                .unwrap_or(0);
+            obj.counters = obj.counters.update(
+                crate::state::types::CounterType::PlusOnePlusOne,
+                current + 1,
+            );
+        }
+        events.push(GameEvent::CounterAdded {
+            object_id: permanent,
+            counter: crate::state::types::CounterType::PlusOnePlusOne,
+            count: 1,
+        });
+    }
+
+    // Emit PermanentTurnedFaceUp event.
+    events.push(GameEvent::PermanentTurnedFaceUp { player, permanent });
+
+    // Queue "when turned face up" triggered abilities as TurnFaceUpTrigger stack objects.
+    // (The actual dispatch happens in abilities::check_triggers when it sees PermanentTurnedFaceUp.)
+
+    // CR 116.2b: Special action; reset priority to active player.
+    state.turn.players_passed.clear();
+
+    // CR 704.3: Check SBAs after the special action.
+    let sba_events = sba::check_and_apply_sbas(state);
+    events.extend(sba_events);
 
     Ok(events)
 }

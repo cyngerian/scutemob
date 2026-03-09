@@ -10,10 +10,10 @@
 > - M11 (UI) is now independent of M10 (networking) — can start immediately
 > - M10 splits into M10a (basic multiplayer) and M10b (resilience/social)
 > - M12 (card pipeline) downscoped — agent-based scaling replaces pipeline crate
-> - Transform/Morph should be prioritized in W1 to unblock 9 ability batches
+> - Transform tree DONE (4 abilities) — only Morph tree (5 abilities) remains blocked
 > - Web-vs-Tauri decision pending — affects W2 and M11 architecture
 >
-> **Last updated**: 2026-03-07
+> **Last updated**: 2026-03-08
 
 ---
 
@@ -113,9 +113,9 @@ estimates and dependency map.
 5. Phasing included in Batch 8 (`phased_out` field already exists — medium effort)
 6. Mutate mini-milestone after all 16 batches (~2-3 sessions, new object model)
 
-**Blocked abilities** (9 total — defer to dedicated subsystem milestone):
+**Blocked abilities** (5 total — defer to dedicated subsystem milestone):
 - Morph tree (5): face-down casting/battlefield subsystem
-- Transform tree (4): DFC second face + day/night cycle
+- ~~Transform tree (4): DFC second face + day/night cycle~~ — **DONE** (Transform mini-milestone 2026-03-08)
 
 **Why this is the bulk of the work**: ~78 abilities at ~30-90 min each = the largest
 workstream by far. But each ability is independent and follows established patterns.
@@ -295,7 +295,8 @@ Track progress across sessions by checking these off:
 - [x] Batch 14: Niche & encoding (Cipher, Haunt, Reconfigure, Blood/Treasure/Decayed tokens)
 - [x] Batch 15: Commander variants (Friends Forever, Choose a Background, Doctor's Companion)
 - [x] Mutate mini-milestone (merged-permanent model, CastWithMutate, zone-change splitting)
-- [x] LegalActionProvider updated (4 update points: after batches 3, 6, 10, 14)
+- [x] Morph mini-milestone (face-down model, TurnFaceUp command, Manifest/Cloak effects, Disguise ward{2})
+- [x] LegalActionProvider updated (4 update points: after batches 3, 6, 10, 14; Morph/TurnFaceUp in Morph session)
 
 #### Phase 2: TUI Hardening
 - [ ] Targeted ability resolution working

@@ -83,9 +83,13 @@ pub fn handle_cast_spell(
     squad_count: u32,
     offspring_paid: bool,
     gift_opponent: Option<crate::state::PlayerId>,
+    mutate_target: Option<ObjectId>,
+    mutate_on_top: bool,
+    _face_down_kind: Option<crate::state::types::FaceDownKind>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Derive individual alternative-cost booleans from alt_cost for internal logic.
     let cast_with_evoke = alt_cost == Some(AltCostKind::Evoke);
+    let cast_with_mutate = alt_cost == Some(AltCostKind::Mutate);
     let cast_with_bestow = alt_cost == Some(AltCostKind::Bestow);
     let cast_with_miracle = alt_cost == Some(AltCostKind::Miracle);
     let cast_with_escape = alt_cost == Some(AltCostKind::Escape);
@@ -102,6 +106,8 @@ pub fn handle_cast_spell(
     let cast_with_spectacle = alt_cost == Some(AltCostKind::Spectacle);
     let cast_with_surge = alt_cost == Some(AltCostKind::Surge);
     let cast_with_cleave = alt_cost == Some(AltCostKind::Cleave);
+    let cast_with_disturb = alt_cost == Some(AltCostKind::Disturb);
+    let cast_with_morph = alt_cost == Some(AltCostKind::Morph);
     // CR 702.102a: Fuse is a static ability, not an alternative cost. The `fuse` param
     // indicates the player's intent to cast both halves. Validated below.
     let casting_with_fuse = fuse;
@@ -247,6 +253,38 @@ pub fn handle_cast_spell(
             }
         }
 
+        // CR 702.146a: Disturb — allowed if cast_with_disturb is true.
+        // Card must be in the player's graveyard and have AbilityDefinition::Disturb.
+        // Card must be a DFC (have a back_face in its CardDefinition).
+        if cast_with_disturb {
+            if !casting_from_graveyard {
+                return Err(GameStateError::InvalidCommand(
+                    "disturb: card must be in your graveyard (CR 702.146a)".into(),
+                ));
+            }
+            // Verify the card has a Disturb ability definition and is a DFC.
+            let has_disturb = card_obj
+                .card_id
+                .as_ref()
+                .and_then(|cid| state.card_registry.get(cid.clone()))
+                .map(|def| {
+                    def.back_face.is_some()
+                        && def.abilities.iter().any(|a| {
+                            matches!(
+                                a,
+                                crate::cards::card_definition::AbilityDefinition::Disturb { .. }
+                            )
+                        })
+                })
+                .unwrap_or(false);
+            if !has_disturb {
+                return Err(GameStateError::InvalidCommand(
+                    "disturb: card does not have the Disturb ability or is not a DFC (CR 702.146a)"
+                        .into(),
+                ));
+            }
+        }
+
         // CR 702.81a: Retrace — allowed if card has the Retrace keyword and is in graveyard,
         // AND the player is providing a land card to discard (retrace_discard_land.is_some()).
         // Retrace is an additional cost (CR 118.8), NOT an alternative cost — it does not
@@ -324,6 +362,8 @@ pub fn handle_cast_spell(
             && !casting_with_retrace
             && !casting_with_jump_start
             && !casting_with_aftermath
+            && !cast_with_disturb
+        // CR 702.146a: Disturb allows graveyard cast
         // CR 702.127a: Aftermath allows graveyard cast
         {
             return Err(GameStateError::InvalidCommand(
@@ -799,6 +839,67 @@ pub fn handle_cast_spell(
             return Err(GameStateError::InvalidCommand(
                 "cannot combine fuse with an alternative cost (CR 702.102a: from hand only)".into(),
             ));
+        }
+    }
+
+    // Step 1h-mutate: Validate mutate (CR 702.140a / CR 118.9a).
+    // Mutate is an alternative cost. The spell must have the Mutate keyword.
+    // The mutate_target must be a non-Human creature on the battlefield that the
+    // caster owns (same owner as the mutating spell, per CR 702.140a).
+    // Mutate can only be applied to creature spells (CR 702.140a: "non-Human creature spell").
+    if cast_with_mutate {
+        if mutate_target.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "mutate: must specify a mutate_target creature (CR 702.140a)".into(),
+            ));
+        }
+        // Card must have the Mutate keyword.
+        if !chars.keywords.contains(&KeywordAbility::Mutate) {
+            return Err(GameStateError::InvalidCommand(
+                "mutate: card does not have the Mutate keyword (CR 702.140a)".into(),
+            ));
+        }
+        // Card must be a creature spell (CR 702.140a: "non-Human creature spell").
+        if !chars.card_types.contains(&CardType::Creature) {
+            return Err(GameStateError::InvalidCommand(
+                "mutate: only creature spells can be cast using the mutate cost (CR 702.140a)"
+                    .into(),
+            ));
+        }
+        // Validate the mutate target.
+        if let Some(target_id) = mutate_target {
+            let target_obj = state.objects.get(&target_id).ok_or_else(|| {
+                GameStateError::InvalidCommand("mutate: target creature not found".into())
+            })?;
+            // CR 702.140a: target must be on the battlefield.
+            if target_obj.zone != ZoneId::Battlefield {
+                return Err(GameStateError::InvalidCommand(
+                    "mutate: target must be on the battlefield (CR 702.140a)".into(),
+                ));
+            }
+            // CR 702.140a: target must be a creature (by layer-resolved characteristics).
+            let target_chars = calculate_characteristics(state, target_id)
+                .unwrap_or_else(|| target_obj.characteristics.clone());
+            if !target_chars.card_types.contains(&CardType::Creature) {
+                return Err(GameStateError::InvalidCommand(
+                    "mutate: target must be a creature (CR 702.140a)".into(),
+                ));
+            }
+            // CR 702.140a: target must NOT be a Human.
+            if target_chars
+                .subtypes
+                .contains(&SubType("Human".to_string()))
+            {
+                return Err(GameStateError::InvalidCommand(
+                    "mutate: cannot mutate onto a Human creature (CR 702.140a)".into(),
+                ));
+            }
+            // CR 702.140a: target must be owned by the caster ("same owner as this spell").
+            if target_obj.owner != player {
+                return Err(GameStateError::InvalidCommand(
+                    "mutate: target must be owned by you (CR 702.140a)".into(),
+                ));
+            }
         }
     }
 
@@ -1662,6 +1763,124 @@ pub fn handle_cast_spell(
         false
     };
 
+    // Step 1r: Validate disturb mutual exclusion (CR 702.146a / CR 118.9a).
+    // Disturb is an alternative cost -- cannot combine with other alternative costs.
+    // Disturb also requires the card to be in the graveyard (already checked in zone guard)
+    // and to have AbilityDefinition::Disturb (already checked above).
+    let casting_with_disturb = if cast_with_disturb {
+        if casting_with_flashback {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with flashback (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_evoke {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with evoke (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_bestow {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with bestow (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_madness {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with madness (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if cast_with_miracle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with miracle (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_escape {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with escape (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_foretell {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with foretell (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_overload {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with overload (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_retrace {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with retrace (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_jump_start {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with jump-start (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_aftermath {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with aftermath (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_dash {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with dash (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_blitz {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with blitz (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_plot {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with plot (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_impending {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with impending (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_emerge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with emerge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_spectacle {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with spectacle (CR 118.9a: only one alternative cost)"
+                    .into(),
+            ));
+        }
+        if casting_with_surge {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with surge (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        if casting_with_cleave {
+            return Err(GameStateError::InvalidCommand(
+                "cannot combine disturb with cleave (CR 118.9a: only one alternative cost)".into(),
+            ));
+        }
+        // Validate the card has a disturb cost defined.
+        if get_disturb_cost(&card_id, &state.card_registry).is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Disturb keyword but no disturb cost defined (CR 702.146a)".into(),
+            ));
+        }
+        true
+    } else {
+        false
+    };
+
     // Step 1l: Validate prototype (CR 702.160a / CR 718.3).
     // Prototype is NOT an alternative cost (CR 118.9, ruling 2022-10-14) -- it can combine
     // with any alternative cost. We validate that the card has AbilityDefinition::Prototype
@@ -1798,11 +2017,47 @@ pub fn handle_cast_spell(
         // CR 702.148a: Pay cleave cost instead of mana cost (alternative cost, CR 118.9).
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         get_cleave_cost(&card_id, &state.card_registry)
+    } else if cast_with_mutate {
+        // CR 702.140a: Pay mutate cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // The mutate cost is stored in AbilityDefinition::MutateCost { cost }.
+        let cost = get_mutate_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "mutate: card has Mutate keyword but no MutateCost ability defined (CR 702.140a)"
+                    .into(),
+            ));
+        }
+        cost
     } else if casting_with_plot {
         // CR 702.170d: Cast without paying mana cost (alternative cost, CR 118.9).
         // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
         // Cost is zero -- free cast. Additional costs (kicker) still apply.
         Some(ManaCost::default())
+    } else if casting_with_disturb {
+        // CR 702.146a: Pay disturb cost instead of mana cost (alternative cost, CR 118.9).
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        let cost = get_disturb_cost(&card_id, &state.card_registry);
+        if cost.is_none() {
+            return Err(GameStateError::InvalidCommand(
+                "card has Disturb keyword but no disturb cost defined (CR 702.146a)".into(),
+            ));
+        }
+        cost
+    } else if cast_with_morph {
+        // CR 702.37c: Cast face-down for {3} instead of the card's mana cost.
+        // CR 118.9c: The spell's printed mana cost is unchanged; only the payment differs.
+        // The card must have Morph, Megamorph, or Disguise keyword.
+        let has_morph = has_morph_keyword(&card_id, &state.card_registry);
+        if !has_morph {
+            return Err(GameStateError::InvalidCommand(
+                "card has no Morph, Megamorph, or Disguise ability (CR 702.37c)".into(),
+            ));
+        }
+        Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        })
     } else {
         base_mana_cost
     };
@@ -3235,12 +3490,33 @@ pub fn handle_cast_spell(
     };
     // TODO(CR 700.2c): per-mode targeting — each mode may have its own targets; currently deferred, all targets treated uniformly
 
+    // CR 702.140a / CR 729.2: If casting with the mutate cost, the spell goes on the stack
+    // as a MutatingCreatureSpell rather than a plain Spell. The `target` field is the
+    // validated non-Human creature the spell will merge with on resolution.
+    // The source_object is still the card in the Stack zone (same as normal casts).
+    let spell_kind = if cast_with_mutate {
+        if let Some(target_id) = mutate_target {
+            StackObjectKind::MutatingCreatureSpell {
+                source_object: new_card_id,
+                target: target_id,
+            }
+        } else {
+            // This branch cannot be reached: mutate validation above already rejected
+            // cast_with_mutate with no mutate_target. Guard for compiler completeness.
+            StackObjectKind::Spell {
+                source_object: new_card_id,
+            }
+        }
+    } else {
+        StackObjectKind::Spell {
+            source_object: new_card_id,
+        }
+    };
+
     let stack_obj = StackObject {
         id: stack_entry_id,
         controller: player,
-        kind: StackObjectKind::Spell {
-            source_object: new_card_id,
-        },
+        kind: spell_kind,
         targets: spell_targets,
         cant_be_countered,
         is_copy: false,
@@ -3320,6 +3596,23 @@ pub fn handle_cast_spell(
         // CR 702.174a: Whether the gift cost was paid (gift_opponent was chosen at cast time).
         gift_was_given: gift_chosen_opponent.is_some(),
         gift_opponent: gift_chosen_opponent,
+        // CR 702.140a / CR 729.2: Mutate target and over/under choice.
+        // Propagated from the CastSpell command. Non-None only when cast_with_mutate is true.
+        // `mutate_on_top: true` means the mutating spell's card goes on top (its characteristics
+        // become the merged permanent's characteristics, per CR 729.2a).
+        mutate_target: if cast_with_mutate {
+            mutate_target
+        } else {
+            None
+        },
+        mutate_on_top: if cast_with_mutate {
+            mutate_on_top
+        } else {
+            false
+        },
+        // CR 702.146a / CR 712.11a: When cast with disturb, the spell has its back face up.
+        // This flag propagates to the permanent when it enters the battlefield.
+        is_cast_transformed: cast_with_disturb,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -3363,6 +3656,40 @@ pub fn handle_cast_spell(
             stack_source.characteristics.toughness = Some(proto_toughness);
             // CR 718.3b / CR 105.2: Set color from prototype mana cost symbols.
             stack_source.characteristics.colors = colors_from_mana_cost(proto_cost);
+        }
+    }
+
+    // CR 702.37c / 702.168b: When cast with morph/megamorph/disguise, set the source object
+    // on the stack to face-down. The layer system will make it appear as a 2/2 colorless
+    // creature with no name, text, subtypes, or mana cost (CR 708.2a).
+    if cast_with_morph {
+        use crate::state::types::FaceDownKind;
+        let kind = {
+            // Determine which face-down kind based on the card's abilities.
+            let registry = state.card_registry.clone();
+            let def = card_id.as_ref().and_then(|cid| registry.get(cid.clone()));
+            if let Some(d) = def {
+                if d.abilities
+                    .iter()
+                    .any(|a| matches!(a, AbilityDefinition::Disguise { .. }))
+                {
+                    FaceDownKind::Disguise
+                } else if d
+                    .abilities
+                    .iter()
+                    .any(|a| matches!(a, AbilityDefinition::Megamorph { .. }))
+                {
+                    FaceDownKind::Megamorph
+                } else {
+                    FaceDownKind::Morph
+                }
+            } else {
+                FaceDownKind::Morph
+            }
+        };
+        if let Some(stack_source) = state.objects.get_mut(&new_card_id) {
+            stack_source.status.face_down = true;
+            stack_source.face_down_as = Some(kind);
         }
     }
 
@@ -3477,6 +3804,9 @@ pub fn handle_cast_spell(
             // CR 702.174a: trigger/copy stack objects are never gift casts.
             gift_was_given: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            is_cast_transformed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3552,6 +3882,9 @@ pub fn handle_cast_spell(
             // CR 702.174a: trigger/copy stack objects are never gift casts.
             gift_was_given: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            is_cast_transformed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3628,6 +3961,9 @@ pub fn handle_cast_spell(
             // CR 702.174a: trigger/copy stack objects are never gift casts.
             gift_was_given: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            is_cast_transformed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3698,6 +4034,9 @@ pub fn handle_cast_spell(
             // CR 702.174a: trigger/copy stack objects are never gift casts.
             gift_was_given: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            is_cast_transformed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -3770,6 +4109,9 @@ pub fn handle_cast_spell(
             // CR 702.174a: trigger/copy stack objects are never gift casts.
             gift_was_given: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            is_cast_transformed: false,
         };
         state.stack_objects.push_back(trigger_obj);
         events.push(GameEvent::AbilityTriggered {
@@ -5180,6 +5522,27 @@ fn get_cleave_cost(
     })
 }
 
+/// CR 702.140a: Look up a card's mutate alternative cost from its CardDefinition.
+///
+/// Returns the cost stored in `AbilityDefinition::MutateCost { cost }`, or None if the
+/// card has no mutate cost defined (malformed card definition or not a mutate card).
+fn get_mutate_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::MutateCost { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
 /// CR 702.119a: Reduce a mana cost by a creature's mana value.
 ///
 /// Reduces generic mana first, then colorless, then colored pips (WUBRG order)
@@ -5338,5 +5701,55 @@ fn get_squad_cost(
                 }
             })
         })
+    })
+}
+
+/// CR 702.146a: Look up the disturb cost from the card's `AbilityDefinition`.
+///
+/// Returns the `ManaCost` stored in `AbilityDefinition::Disturb { cost }`, or `None`
+/// if the card has no definition or no disturb ability defined.
+fn get_disturb_cost(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> Option<ManaCost> {
+    card_id.as_ref().and_then(|cid| {
+        registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Disturb { cost } = a {
+                    Some(cost.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+
+/// CR 702.37c / 702.37b / 702.168a: Returns true if the card has Morph, Megamorph, or Disguise.
+/// Used to validate morph cast legality (cast_with_morph path).
+fn has_morph_keyword(
+    card_id: &Option<crate::state::CardId>,
+    registry: &crate::cards::CardRegistry,
+) -> bool {
+    use crate::state::types::KeywordAbility;
+    card_id.as_ref().is_some_and(|cid| {
+        registry
+            .get(cid.clone())
+            .map(|def| {
+                def.abilities.iter().any(|a| {
+                    matches!(
+                        a,
+                        AbilityDefinition::Morph { .. }
+                            | AbilityDefinition::Megamorph { .. }
+                            | AbilityDefinition::Disguise { .. }
+                    ) || matches!(
+                        a,
+                        AbilityDefinition::Keyword(KeywordAbility::Morph)
+                            | AbilityDefinition::Keyword(KeywordAbility::Megamorph)
+                            | AbilityDefinition::Keyword(KeywordAbility::Disguise)
+                    )
+                })
+            })
+            .unwrap_or(false)
     })
 }

@@ -615,6 +615,28 @@ pub fn check_zone_change_replacement(
         }
     }
 
+    // CR 702.146b: Disturb replacement effect -- "If a permanent with disturb would be
+    // put into a graveyard from the battlefield, exile it instead."
+    //
+    // This replacement uses the was_cast_disturbed flag set when the permanent entered
+    // the battlefield via a disturb cast. It persists regardless of ability loss.
+    // Only applies when moving from battlefield to graveyard (not other zones).
+    if from == ZoneType::Battlefield && to == ZoneType::Graveyard {
+        if let Some(obj) = state.objects.get(&object_id) {
+            if obj.was_cast_disturbed {
+                return ZoneChangeAction::Redirect {
+                    to: ZoneId::Exile,
+                    events: vec![GameEvent::ReplacementEffectApplied {
+                        effect_id: crate::state::replacement_effect::ReplacementId(u64::MAX - 1),
+                        description: "Disturb: exiled instead of going to graveyard (CR 702.146b)"
+                            .to_string(),
+                    }],
+                    applied_id: crate::state::replacement_effect::ReplacementId(u64::MAX - 1),
+                };
+            }
+        }
+    }
+
     let trigger = ReplacementTrigger::WouldChangeZone {
         from: Some(from),
         to,

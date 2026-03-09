@@ -123,6 +123,24 @@ pub enum AltCostKind {
     /// CR 702.148a: Cleave [cost] -- alternative cost. When paid, the spell's
     /// square-bracketed text is removed (modeled as Condition::WasCleaved branching).
     Cleave,
+    /// CR 702.140a: Mutate [cost] -- alternative cost targeting a non-Human creature
+    /// the caster owns. When paid, the spell merges with the target instead of entering
+    /// the battlefield normally (CR 729.2).
+    Mutate,
+    /// CR 702.146a: Disturb [cost] -- alternative cost: cast this card transformed from
+    /// your graveyard by paying [cost] rather than its mana cost.
+    ///
+    /// The card must be in the caster's graveyard and must have a back face. When cast
+    /// this way, the resulting spell is placed on the stack with its back face up (CR 712.11a).
+    /// The permanent enters the battlefield with `is_transformed = true` and
+    /// `was_cast_disturbed = true`, enabling the exile-on-graveyard replacement.
+    Disturb,
+    /// CR 702.37a: Morph (also Megamorph and Disguise) -- cast face-down as a 2/2
+    /// creature for {3} rather than paying its mana cost.
+    ///
+    /// When `alt_cost == Some(AltCostKind::Morph)`, the actual face-down variant
+    /// (Morph/Megamorph/Disguise) is stored in `CastSpell.face_down_kind`.
+    Morph,
 }
 
 /// Counter types that can be placed on objects or players (CR 122).
@@ -1368,6 +1386,164 @@ pub enum KeywordAbility {
     ///
     /// Discriminant 143.
     Reconfigure,
+    /// CR 702.140: Mutate [cost] — alternative cost that merges the spell with a target
+    /// non-Human creature the caster owns (CR 702.140a).
+    ///
+    /// When cast for the mutate cost, the spell does not enter the battlefield normally.
+    /// Instead, it merges with the target permanent: the controller chooses whether the
+    /// mutating card goes on top or under the target (CR 702.140c). The topmost
+    /// component's characteristics become the merged permanent's characteristics (CR 729.2a),
+    /// and the permanent has all abilities from all components (CR 702.140e).
+    ///
+    /// "Whenever this creature mutates, [effect]" triggers fire on successful merge (CR 702.140d).
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The mutate cost is stored in `AbilityDefinition::MutateCost { cost }`.
+    ///
+    /// Discriminant 147.
+    Mutate,
+    /// CR 701.27: Transform — keyword action (not an ability word).
+    ///
+    /// Marker on DFC cards for quick presence-checking. The actual transform
+    /// action is `Command::Transform`, executed in the engine. Cards with a
+    /// triggered ability that says "transform" use Effect::TransformPermanent.
+    ///
+    /// CR 701.27a: To transform a permanent, turn it over so its other face is up.
+    /// Only DFCs and double-faced tokens can transform.
+    ///
+    /// Discriminant 148.
+    Transform,
+    /// CR 702.145b: Daybound — "If it is night and this permanent is represented by
+    /// a double-faced card, it enters transformed," "As it becomes night, if this
+    /// permanent is front face up, transform it," and "This permanent can't transform
+    /// except due to its daybound ability."
+    ///
+    /// Marker for quick presence-checking. Enforced by `enforce_daybound_nightbound()`
+    /// called from the untap step and whenever day/night changes.
+    ///
+    /// Discriminant 149.
+    Daybound,
+    /// CR 702.145e: Nightbound — "As it becomes day, if this permanent is back face up,
+    /// transform it" and "This permanent can't transform except due to its nightbound ability."
+    ///
+    /// Marker for quick presence-checking. Enforced by `enforce_daybound_nightbound()`
+    /// called from the untap step and whenever day/night changes.
+    ///
+    /// Discriminant 150.
+    Nightbound,
+    /// CR 702.146a: Disturb [cost] — "You may cast this card transformed from your
+    /// graveyard by paying [cost] rather than its mana cost."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The disturb cost is stored in `AbilityDefinition::Disturb { cost }`.
+    ///
+    /// CR 702.146b: A resolving disturb spell enters with back face up.
+    /// Ruling: Back face has "exile if would go to graveyard from anywhere."
+    ///
+    /// Discriminant 151.
+    Disturb,
+    /// CR 702.167a: Craft with [materials] [cost] — activated ability.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The craft cost and materials are stored in `AbilityDefinition::Craft`.
+    /// The actual command is `Command::ActivateCraft`, handled in the engine.
+    ///
+    /// Discriminant 152.
+    Craft,
+    /// CR 702.37: Morph [cost] -- "You may cast this card as a 2/2 face-down creature
+    /// with no text, no name, no subtypes, and no mana cost by paying {3} rather than
+    /// paying its mana cost."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The morph turn-face-up cost is stored in `AbilityDefinition::Morph { cost }`.
+    ///
+    /// Discriminant 153.
+    Morph,
+    /// CR 702.37b: Megamorph [cost] -- variant of Morph. Same face-down casting as Morph.
+    /// When turned face up using its megamorph cost, puts a +1/+1 counter on the permanent.
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The megamorph turn-face-up cost is stored in `AbilityDefinition::Megamorph { cost }`.
+    ///
+    /// Discriminant 154.
+    Megamorph,
+    /// CR 702.168: Disguise [cost] -- "You may cast this card as a 2/2 face-down creature
+    /// with ward {2}, no text, no name, no subtypes, and no mana cost by paying {3} rather
+    /// than paying its mana cost."
+    ///
+    /// Marker for quick presence-checking (`keywords.contains`).
+    /// The disguise turn-face-up cost is stored in `AbilityDefinition::Disguise { cost }`.
+    ///
+    /// Discriminant 155.
+    Disguise,
+    /// CR 701.40: Manifest marker -- "To manifest a card, put it onto the battlefield
+    /// face down as a 2/2 creature with no text, no name, no subtypes, and no mana cost."
+    ///
+    /// Presence marker on cards that have manifest-related effects (e.g., "manifest a card
+    /// from your hand"). Not present on all cards that CAN be manifested (any card can be
+    /// manifested by an effect).
+    ///
+    /// Discriminant 156.
+    Manifest,
+    /// CR 701.58: Cloak marker -- "To cloak a card, put it onto the battlefield face down
+    /// as a 2/2 creature with ward {2}, no text, no name, no subtypes, and no mana cost."
+    ///
+    /// Presence marker on cards that have cloak-related effects.
+    ///
+    /// Discriminant 157.
+    Cloak,
+}
+
+/// CR 702.37 / 701.40 / 701.58 / 702.168: Why a game object is face-down.
+///
+/// Determines: (a) ward {2} while face-down (Disguise, Cloak), (b) valid turn-face-up
+/// methods, (c) whether Megamorph's +1/+1 counter applies.
+///
+/// The existing `status.face_down: bool` remains the truth for "is this currently
+/// face-down" -- `face_down_as` is supplementary metadata about HOW it became face-down.
+/// Objects face-down for other reasons (Foretell exiles) have `face_down_as: None`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FaceDownKind {
+    /// CR 702.37: Cast face-down via Morph. Turn face up by paying morph cost.
+    Morph,
+    /// CR 702.37b: Cast face-down via Megamorph. Turn face up by paying megamorph cost
+    /// (also puts a +1/+1 counter on the permanent — CR 702.37b).
+    Megamorph,
+    /// CR 702.168: Cast face-down via Disguise. Has ward {2} while face-down.
+    /// Turn face up by paying disguise cost.
+    Disguise,
+    /// CR 701.40: Put onto battlefield face-down via Manifest. Turn face up by paying
+    /// mana cost (creature cards only — CR 701.40b).
+    Manifest,
+    /// CR 701.58: Put onto battlefield face-down via Cloak. Has ward {2} while face-down.
+    /// Turn face up by paying mana cost (creature cards only — CR 701.58b).
+    Cloak,
+}
+
+/// CR 702.37e / 702.168d / 701.40b / 701.58b: Which method to use when turning a
+/// face-down permanent face up. Required because a manifested card with morph can
+/// use EITHER its morph cost OR its mana cost (CR 701.40c).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TurnFaceUpMethod {
+    /// Pay the morph or megamorph cost (from `AbilityDefinition::Morph` or `AbilityDefinition::Megamorph`).
+    MorphCost,
+    /// Pay the disguise cost (from `AbilityDefinition::Disguise`).
+    DisguiseCost,
+    /// Pay the card's mana cost (for manifested/cloaked creature cards — CR 701.40b/701.58b).
+    ManaCost,
+}
+
+/// CR 730.1: Day and night designations for the game. Once set, the game always has
+/// exactly one of these designations. Used for Daybound/Nightbound mechanics.
+///
+/// CR 730.2: Checked at the beginning of the untap step to determine if the
+/// designation should change based on the previous turn's spell count.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DayNight {
+    /// CR 730.1: The game currently has the day designation.
+    Day,
+    /// CR 730.1: The game currently has the night designation.
+    Night,
 }
 
 /// CR 702.72a: The filter for what can be championed.

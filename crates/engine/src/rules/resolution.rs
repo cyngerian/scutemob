@@ -16,7 +16,7 @@ use im::OrdSet;
 
 use crate::effects::{execute_effect, EffectContext};
 use crate::state::error::GameStateError;
-use crate::state::game_object::ObjectId;
+use crate::state::game_object::{MergedComponent, ObjectId};
 use crate::state::stack::StackObjectKind;
 use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
@@ -93,8 +93,11 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             let owner = state.object(source_object)?.owner;
                             let destination = if stack_obj.cast_with_flashback
                                 || stack_obj.cast_with_jump_start
+                                || stack_obj.is_cast_transformed
                             {
-                                ZoneId::Exile // CR 702.34a / CR 702.133a
+                                // CR 702.34a / CR 702.133a: Flashback and jump-start exile on fizzle.
+                                // CR 702.146c: Disturb spells (is_cast_transformed) also exile on fizzle.
+                                ZoneId::Exile
                             } else {
                                 ZoneId::Graveyard(owner)
                             };
@@ -446,6 +449,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             } else if is_permanent {
                 // CR 608.3a: Permanent spell — card enters the battlefield under
                 // the spell's controller's control.
+                //
+                // CR 708.2 / CR 702.37a: If the spell was cast face-down via morph, megamorph,
+                // or disguise, the permanent enters the battlefield face-down. Capture the
+                // face_down_as value from the source object BEFORE move_object_to_zone clears it
+                // (CR 400.7: zone change creates a new object; face_down_as resets to None).
+                let morph_face_down_kind: Option<crate::state::types::FaceDownKind> = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|o| o.face_down_as.clone());
                 let (new_id, _old) =
                     state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
 
@@ -457,6 +469,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // ETB sacrifice trigger can check was_evoked.
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = controller;
+                    // CR 702.37a / CR 708.2a: Restore face-down status for morph/megamorph/disguise
+                    // permanents. The permanent enters the battlefield face-down as a 2/2 with no
+                    // name, subtypes, text, colors, or other abilities (CR 708.2a). move_object_to_zone
+                    // clears face_down_as (CR 400.7), so we restore it here before any ETB processing.
+                    if let Some(ref kind) = morph_face_down_kind {
+                        obj.status.face_down = true;
+                        obj.face_down_as = Some(kind.clone());
+                    }
                     obj.kicker_times_paid = stack_obj.kicker_times_paid;
                     // CR 702.166b: Transfer bargained status from stack to permanent so ETB
                     // triggers can check Condition::WasBargained.
@@ -502,6 +522,29 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // If bestow_fallback is true, the spell reverted to creature mode;
                     // the permanent enters as a creature (not as a bestowed Aura).
                     obj.is_bestowed = stack_obj.was_bestowed && !bestow_fallback;
+                    // CR 702.146a / CR 712.11a: Transfer disturb/transform status from stack to permanent.
+                    // When a card was cast with disturb, it enters transformed (back face up).
+                    // The was_cast_disturbed flag enables the graveyard→exile replacement effect
+                    // (CR 702.146b) when the permanent would later be put into a graveyard.
+                    if stack_obj.is_cast_transformed {
+                        obj.is_transformed = true;
+                        // Disturb is the only current source of is_cast_transformed.
+                        // Verify by checking the card has AbilityDefinition::Disturb.
+                        let has_disturb_abil = obj
+                            .card_id
+                            .as_ref()
+                            .and_then(|cid| registry.get(cid.clone()))
+                            .map(|def| {
+                                def.abilities.iter().any(|a| {
+                                    matches!(
+                                        a,
+                                        crate::cards::card_definition::AbilityDefinition::Disturb { .. }
+                                    )
+                                })
+                            })
+                            .unwrap_or(false);
+                        obj.was_cast_disturbed = has_disturb_abil;
+                    }
                     if stack_obj.was_dashed {
                         // CR 702.109a: "it has haste" -- grant haste keyword.
                         obj.characteristics.keywords.insert(KeywordAbility::Haste);
@@ -1590,30 +1633,53 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     &registry,
                 );
 
+                // CR 708.3: A face-down permanent has no abilities while it's face-down.
+                // Its ETB abilities do NOT fire when it enters the battlefield face-down
+                // (cast with morph/megamorph/disguise). Only global triggers on OTHER
+                // permanents that watch for any creature entering CAN still trigger
+                // (they see a 2/2 creature, but not the card's name/abilities).
+                let is_face_down_entering = morph_face_down_kind.is_some();
+
                 // CR 604 / CR 613: Register static continuous effects from this
                 // permanent's card definition (Equipment, Aura, global ability grants).
-                super::replacement::register_static_continuous_effects(
-                    state,
-                    new_id,
-                    card_id.as_ref(),
-                    &registry,
-                );
+                // CR 708.3: Face-down permanents have no abilities, so their static
+                // continuous effects do not activate while they are face-down.
+                // Effects will be registered when the permanent is turned face-up.
+                if !is_face_down_entering {
+                    super::replacement::register_static_continuous_effects(
+                        state,
+                        new_id,
+                        card_id.as_ref(),
+                        &registry,
+                    );
+                }
 
                 events.push(GameEvent::PermanentEnteredBattlefield {
                     player: controller,
                     object_id: new_id,
                 });
 
+                // CR 702.145c / CR 702.145f: When a Daybound or Nightbound permanent enters
+                // the battlefield, enforce the current day/night state (or establish it).
+                // "This ability triggers immediately" (CR 702.145d/g rulings).
+                let db_evts = crate::rules::turn_actions::enforce_daybound_nightbound(state);
+                events.extend(db_evts);
+
                 // CR 603.2: Fire mandatory WhenEntersBattlefield triggered effects
                 // from card definition inline (Rest in Peace ETB exile, etc.).
                 // Interactive/stackable ETB triggers are handled via PendingTrigger.
-                let etb_trigger_evts = super::replacement::fire_when_enters_triggered_effects(
-                    state,
-                    new_id,
-                    controller,
-                    card_id.as_ref(),
-                    &registry,
-                );
+                let etb_trigger_evts = if is_face_down_entering {
+                    // CR 708.3: No ETB abilities from the card itself fire face-down.
+                    vec![]
+                } else {
+                    super::replacement::fire_when_enters_triggered_effects(
+                        state,
+                        new_id,
+                        controller,
+                        card_id.as_ref(),
+                        &registry,
+                    )
+                };
                 events.extend(etb_trigger_evts);
 
                 events.push(GameEvent::SpellResolved {
@@ -3862,6 +3928,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         is_reconfigured: false,
+                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        merged_components: im::Vector::new(),
+                        // CR 712.8a: DFC state is reset for all new permanents.
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        craft_exiled_cards: im::Vector::new(),
+                        face_down_as: None,
                     };
 
                     // Add the token to the battlefield.
@@ -4054,6 +4128,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 haunting_target: None,
                 // CR 702.151b: tokens are not reconfigured by default.
                 is_reconfigured: false,
+                // CR 729.2: tokens are not part of a merged permanent by default.
+                merged_components: im::Vector::new(),
+                // CR 712.8a: DFC state is reset for all new permanents.
+                is_transformed: false,
+                last_transform_timestamp: 0,
+                was_cast_disturbed: false,
+                craft_exiled_cards: im::Vector::new(),
+                face_down_as: None,
             };
 
             // Add the token to the battlefield.
@@ -4317,6 +4399,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     offspring_paid: false,
                     gift_was_given: false,
                     gift_opponent: None,
+                    mutate_target: None,
+                    mutate_on_top: false,
+                    is_cast_transformed: false,
                 };
 
                 state.stack_objects.push_back(copy_stack_obj);
@@ -4804,6 +4889,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
                     is_reconfigured: false,
+                    // CR 729.2: tokens are not part of a merged permanent by default.
+                    merged_components: im::Vector::new(),
+                    // CR 712.8a: DFC state is reset for all new permanents.
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    craft_exiled_cards: im::Vector::new(),
+                    face_down_as: None,
                 };
 
                 // Add the token to the battlefield.
@@ -5061,6 +5154,9 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             // CR 702.174a: tokens/copies are never gift casts.
                             gift_was_given: false,
                             gift_opponent: None,
+                            mutate_target: None,
+                            mutate_on_top: false,
+                            is_cast_transformed: false,
                         };
                         state.stack_objects.push_back(suspend_stack_obj);
 
@@ -5955,6 +6051,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
                     is_reconfigured: false,
+                    // CR 729.2: tokens are not part of a merged permanent by default.
+                    merged_components: im::Vector::new(),
+                    // CR 712.8a: DFC state is reset for all new permanents.
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    craft_exiled_cards: im::Vector::new(),
+                    face_down_as: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6165,6 +6269,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     haunting_target: None,
                     // CR 702.151b: tokens are not reconfigured by default.
                     is_reconfigured: false,
+                    // CR 729.2: tokens are not part of a merged permanent by default.
+                    merged_components: im::Vector::new(),
+                    // CR 712.8a: DFC state is reset for all new permanents.
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    craft_exiled_cards: im::Vector::new(),
+                    face_down_as: None,
                 };
 
                 // Add the token to the battlefield.
@@ -6393,6 +6505,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         haunting_target: None,
                         // CR 702.151b: tokens are not reconfigured by default.
                         is_reconfigured: false,
+                        // CR 729.2: tokens are not part of a merged permanent by default.
+                        merged_components: im::Vector::new(),
+                        // CR 712.8a: DFC state is reset for all new permanents.
+                        is_transformed: false,
+                        last_transform_timestamp: 0,
+                        was_cast_disturbed: false,
+                        craft_exiled_cards: im::Vector::new(),
+                        face_down_as: None,
                     };
 
                     // Add the token to the battlefield.
@@ -6568,6 +6688,370 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 stack_object_id: stack_obj.id,
             });
         }
+
+        // CR 702.140b / CR 729.2: Mutating creature spell resolution.
+        //
+        // CR 702.140b: If the target becomes illegal before this spell resolves
+        // (it left the battlefield, stopped being a creature, became a Human, or
+        // gained protection from the mutating spell), the spell ceases to be a
+        // mutating creature spell and instead resolves as a normal creature spell —
+        // the creature enters the battlefield as if the mutate cost had not been paid.
+        //
+        // CR 729.2: When the target is still legal, the resolving card is placed onto
+        // the target permanent (on top if mutate_on_top=true, underneath if false).
+        // The spell does NOT enter the battlefield as a separate permanent.
+        // The target permanent's characteristics are updated via the layer system.
+        StackObjectKind::MutatingCreatureSpell {
+            source_object,
+            target,
+        } => {
+            let controller = stack_obj.controller;
+            let mutate_on_top = stack_obj.mutate_on_top;
+
+            // CR 702.140b: Check if the target is still legal at resolution time.
+            let target_still_legal = {
+                if let Some(target_obj) = state.objects.get(&target) {
+                    let target_on_battlefield = target_obj.zone == ZoneId::Battlefield;
+                    let target_chars =
+                        crate::rules::layers::calculate_characteristics(state, target)
+                            .unwrap_or_else(|| target_obj.characteristics.clone());
+                    let target_is_creature = target_chars.card_types.contains(&CardType::Creature);
+                    let target_is_human = target_chars
+                        .subtypes
+                        .contains(&SubType("Human".to_string()));
+                    let target_owned_by_controller = target_obj.owner == controller;
+                    target_on_battlefield
+                        && target_is_creature
+                        && !target_is_human
+                        && target_owned_by_controller
+                } else {
+                    false
+                }
+            };
+
+            if !target_still_legal {
+                // CR 702.140b: Illegal target fallback — resolve as a normal creature spell.
+                // The spell enters the battlefield as a regular creature (no merge).
+                let (new_id, _old) =
+                    state.move_object_to_zone(source_object, ZoneId::Battlefield)?;
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    obj.controller = controller;
+                    obj.cast_alt_cost = Some(AltCostKind::Mutate);
+                    obj.has_summoning_sickness = true;
+                }
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: controller,
+                    object_id: new_id,
+                });
+                events.push(GameEvent::SpellResolved {
+                    player: controller,
+                    stack_object_id: stack_obj.id,
+                    source_object_id: new_id,
+                });
+            } else {
+                // CR 729.2: Legal target — merge the spell with the target permanent.
+                // The spell does NOT enter the battlefield separately.
+
+                // Step 1: Capture the spell's data from the source object BEFORE removing it.
+                let spell_card_id = state
+                    .objects
+                    .get(&source_object)
+                    .and_then(|o| o.card_id.clone());
+                let spell_characteristics = state
+                    .objects
+                    .get(&source_object)
+                    .map(|o| o.characteristics.clone())
+                    .unwrap_or_default();
+                let spell_is_token = state
+                    .objects
+                    .get(&source_object)
+                    .map(|o| o.is_token)
+                    .unwrap_or(false);
+
+                // Step 2: Build a MergedComponent from the spell's data.
+                let spell_component = MergedComponent {
+                    card_id: spell_card_id,
+                    characteristics: spell_characteristics,
+                    is_token: spell_is_token,
+                };
+
+                // Step 3: Build a MergedComponent from the target permanent's current data.
+                // This is needed if the target has no components yet (first merge).
+                let target_existing_components = {
+                    if let Some(target_obj) = state.objects.get(&target) {
+                        target_obj.merged_components.clone()
+                    } else {
+                        im::Vector::new()
+                    }
+                };
+                let target_card_id = state.objects.get(&target).and_then(|o| o.card_id.clone());
+                let target_characteristics = state
+                    .objects
+                    .get(&target)
+                    .map(|o| o.characteristics.clone())
+                    .unwrap_or_default();
+                let target_is_token = state
+                    .objects
+                    .get(&target)
+                    .map(|o| o.is_token)
+                    .unwrap_or(false);
+
+                // Step 4: Build the new merged_components vector.
+                // If the target had no components, first record the target itself as component[0].
+                // Then insert the spell component at top (index 0) or bottom (end).
+                let new_components: im::Vector<MergedComponent> =
+                    if target_existing_components.is_empty() {
+                        // First merge: target becomes a component, then spell is added.
+                        let target_component = MergedComponent {
+                            card_id: target_card_id,
+                            characteristics: target_characteristics,
+                            is_token: target_is_token,
+                        };
+                        if mutate_on_top {
+                            // Spell on top: [spell, target]
+                            let mut v = im::Vector::new();
+                            v.push_back(spell_component);
+                            v.push_back(target_component);
+                            v
+                        } else {
+                            // Spell on bottom: [target, spell]
+                            let mut v = im::Vector::new();
+                            v.push_back(target_component);
+                            v.push_back(spell_component);
+                            v
+                        }
+                    } else {
+                        // Subsequent merge: target already has components.
+                        let mut v = target_existing_components;
+                        if mutate_on_top {
+                            // Spell on top: insert at front (index 0).
+                            v.push_front(spell_component);
+                        } else {
+                            // Spell on bottom: append at end.
+                            v.push_back(spell_component);
+                        }
+                        v
+                    };
+
+                // Step 5: Update the target permanent's merged_components.
+                // CR 729.2c: The merged permanent is the SAME object — its ObjectId is preserved.
+                // No ETB triggers fire. Continuous effects (Auras, Equipment) remain valid.
+                //
+                // CR 729.2a: Also sync base characteristics from the new topmost component
+                // (merged_components[0]). This ensures that trigger scanning and other
+                // raw-characteristics lookups (which bypass the layer system) see the correct
+                // abilities. The layer system's Layer 1 override is consistent with this.
+                if let Some(target_obj) = state.objects.get_mut(&target) {
+                    if let Some(top) = new_components.front() {
+                        target_obj.characteristics = top.characteristics.clone();
+                        target_obj.card_id = top.card_id.clone();
+                    }
+                    target_obj.merged_components = new_components;
+                }
+
+                // Step 6: Remove the spell's source_object from state.
+                // CR 729.2b: "The spell leaves its previous zone and becomes part of an object."
+                // The card is absorbed into the target permanent's merged_components.
+                // It is NOT moved to any zone — it simply ceases to exist as a separate entity.
+                let spell_zone = state.objects.get(&source_object).map(|o| o.zone);
+                if let Some(zone) = spell_zone {
+                    if let Some(zone_set) = state.zones.get_mut(&zone) {
+                        zone_set.remove(&source_object);
+                    }
+                }
+                state.objects.remove(&source_object);
+
+                // Step 7: Emit CreatureMutated event (CR 702.140d).
+                // This event fires BEFORE "whenever this creature mutates" triggers are checked,
+                // so check_triggers below will catch SelfMutates triggers on the merged permanent.
+                events.push(GameEvent::CreatureMutated {
+                    object_id: target,
+                    player: controller,
+                });
+
+                // Step 8: Emit SpellResolved for the mutating spell.
+                // source_object_id is the target (merged permanent) since the spell
+                // became part of it (CR 729.2b). No PermanentEnteredBattlefield (CR 729.2c).
+                events.push(GameEvent::SpellResolved {
+                    player: controller,
+                    stack_object_id: stack_obj.id,
+                    source_object_id: target,
+                });
+            }
+        }
+        // CR 701.28 / CR 712.18a: Transform trigger resolves — flip the permanent.
+        // CR 712.18a: "It doesn't become a new object." Counters/damage/Auras persist.
+        // CR 701.27c: If the permanent is no longer on the battlefield, or its timestamp
+        // changed (meaning it already transformed due to a later effect), do nothing.
+        StackObjectKind::TransformTrigger {
+            permanent,
+            ability_timestamp,
+        } => {
+            if let Some(obj) = state.objects.get(&permanent) {
+                let still_on_battlefield = obj.zone == ZoneId::Battlefield;
+                // CR 701.27c/d: Only transform if the permanent hasn't already transformed
+                // since this trigger was put on the stack (timestamp guard).
+                let not_already_transformed = obj.last_transform_timestamp <= ability_timestamp;
+                // Check the permanent has a back face to transform to/from.
+                let has_back_face = obj
+                    .card_id
+                    .as_ref()
+                    .and_then(|cid| state.card_registry.get(cid.clone()))
+                    .map(|def| def.back_face.is_some())
+                    .unwrap_or(false);
+                if still_on_battlefield && not_already_transformed && has_back_face {
+                    let to_back_face = !obj.is_transformed;
+                    if let Some(obj_mut) = state.objects.get_mut(&permanent) {
+                        obj_mut.is_transformed = to_back_face;
+                        obj_mut.last_transform_timestamp = state.timestamp_counter;
+                        state.timestamp_counter += 1;
+                    }
+                    events.push(GameEvent::PermanentTransformed {
+                        object_id: permanent,
+                        to_back_face,
+                    });
+                }
+            }
+        }
+        // CR 702.167a: Craft ability resolves — return the exiled source to the battlefield transformed.
+        // The source and materials were already exiled as cost during activation.
+        // CR 702.167b: If the source is no longer in exile (moved by another effect), do nothing.
+        StackObjectKind::CraftAbility {
+            source_card_id: _,
+            exiled_source,
+            material_ids: _,
+            activator,
+        } => {
+            // Check the source is still in exile (CR 702.167b / CR 400.7).
+            let still_in_exile = state
+                .objects
+                .get(&exiled_source)
+                .map(|obj| obj.zone == ZoneId::Exile)
+                .unwrap_or(false);
+            let has_back_face = state
+                .objects
+                .get(&exiled_source)
+                .and_then(|obj| obj.card_id.as_ref())
+                .and_then(|cid| state.card_registry.get(cid.clone()))
+                .map(|def| def.back_face.is_some())
+                .unwrap_or(false);
+            if still_in_exile && has_back_face {
+                let (new_id, _old) =
+                    state.move_object_to_zone(exiled_source, ZoneId::Battlefield)?;
+                if let Some(obj) = state.objects.get_mut(&new_id) {
+                    obj.controller = activator;
+                    obj.is_transformed = true;
+                    obj.last_transform_timestamp = state.timestamp_counter;
+                    state.timestamp_counter += 1;
+                }
+                let card_id_for_etb = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
+                let registry = state.card_registry.clone();
+                let self_evts = super::replacement::apply_self_etb_from_definition(
+                    state,
+                    new_id,
+                    activator,
+                    card_id_for_etb.as_ref(),
+                    &registry,
+                );
+                events.extend(self_evts);
+                let etb_evts = super::replacement::apply_etb_replacements(state, new_id, activator);
+                events.extend(etb_evts);
+                events.push(GameEvent::PermanentEnteredBattlefield {
+                    player: activator,
+                    object_id: new_id,
+                });
+                let db_evts = crate::rules::turn_actions::enforce_daybound_nightbound(state);
+                events.extend(db_evts);
+            }
+        }
+        // CR 708.8: "When this permanent is turned face up" trigger resolves.
+        // The permanent has already been turned face up (face_down = false). Look up any
+        // WhenTurnedFaceUp triggered abilities in the CardDefinition and execute their effects.
+        StackObjectKind::TurnFaceUpTrigger {
+            permanent,
+            source_card_id,
+            ability_index,
+        } => {
+            use crate::cards::card_definition::AbilityDefinition;
+            // CR 708.8: "When this permanent is turned face up" trigger resolves.
+            // The permanent is already face-up. Execute the specific WhenTurnedFaceUp
+            // ability at `ability_index` in the CardDefinition — each TurnFaceUpTrigger
+            // SOK carries the exact index to support cards with multiple such abilities.
+            let controller = stack_obj.controller;
+            if let Some(obj) = state.objects.get(&permanent) {
+                if obj.zone == ZoneId::Battlefield {
+                    let card_id = source_card_id.or_else(|| obj.card_id.clone());
+                    if let Some(cid) = card_id {
+                        let registry = state.card_registry.clone();
+                        if let Some(def) = registry.get(cid) {
+                            if let Some(AbilityDefinition::Triggered { effect, .. }) =
+                                def.abilities.get(ability_index)
+                            {
+                                let mut ctx = crate::effects::EffectContext::new(
+                                    controller,
+                                    permanent,
+                                    vec![],
+                                );
+                                let effect_events =
+                                    crate::effects::execute_effect(state, effect, &mut ctx);
+                                events.extend(effect_events);
+                            }
+                        }
+                    }
+                }
+            }
+            events.push(GameEvent::AbilityResolved {
+                controller,
+                stack_object_id: stack_obj.id,
+            });
+        }
+        // CR 702.145c / CR 702.145f: Daybound/Nightbound transform trigger resolves.
+        // Check the permanent is still on the battlefield and the day/night state still
+        // requires this transform before applying it.
+        StackObjectKind::DayboundTransformTrigger { permanent } => {
+            if let Some(obj) = state.objects.get(&permanent) {
+                if obj.zone == ZoneId::Battlefield {
+                    let chars = super::layers::calculate_characteristics(state, permanent)
+                        .or_else(|| {
+                            state
+                                .objects
+                                .get(&permanent)
+                                .map(|o| o.characteristics.clone())
+                        })
+                        .unwrap_or_default();
+                    let still_needs_transform = {
+                        let obj = state.objects.get(&permanent).unwrap();
+                        // Daybound on front face at night → transform to back
+                        (state.day_night == Some(crate::state::DayNight::Night)
+                            && chars
+                                .keywords
+                                .contains(&crate::state::types::KeywordAbility::Daybound)
+                            && !obj.is_transformed)
+                        // Nightbound on back face at day → transform to front
+                        || (state.day_night == Some(crate::state::DayNight::Day)
+                            && chars
+                                .keywords
+                                .contains(&crate::state::types::KeywordAbility::Nightbound)
+                            && obj.is_transformed)
+                    };
+                    if still_needs_transform {
+                        let to_back_face = {
+                            let obj = state.objects.get(&permanent).unwrap();
+                            !obj.is_transformed
+                        };
+                        if let Some(obj_mut) = state.objects.get_mut(&permanent) {
+                            obj_mut.is_transformed = to_back_face;
+                            obj_mut.last_transform_timestamp = state.timestamp_counter;
+                            state.timestamp_counter += 1;
+                        }
+                        events.push(GameEvent::PermanentTransformed {
+                            object_id: permanent,
+                            to_back_face,
+                        });
+                    }
+                }
+            }
+        }
     }
 
     // Check for triggered abilities arising from this resolution.
@@ -6712,11 +7196,13 @@ pub fn counter_stack_object(
     let stack_obj = state.stack_objects.remove(pos);
 
     match stack_obj.kind.clone() {
-        StackObjectKind::Spell { source_object } => {
+        StackObjectKind::Spell { source_object }
+        | StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
             let controller = stack_obj.controller;
             let owner = state.object(source_object)?.owner;
             // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
             // CR 702.133a: Jump-start also exiles instead of graveyard when countered.
+            // CR 702.140: Countered mutating spells move to graveyard like normal spells.
             let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start {
                 ZoneId::Exile // CR 702.34a / CR 702.133a
             } else {
@@ -6787,7 +7273,13 @@ pub fn counter_stack_object(
         | StackObjectKind::SaddleAbility { .. }
         | StackObjectKind::CipherTrigger { .. }
         | StackObjectKind::HauntExileTrigger { .. }
-        | StackObjectKind::HauntedCreatureDiesTrigger { .. } => {
+        | StackObjectKind::HauntedCreatureDiesTrigger { .. }
+        // CR 701.28 / CR 712: Transform triggers and Craft abilities countered — no effect.
+        | StackObjectKind::TransformTrigger { .. }
+        | StackObjectKind::CraftAbility { .. }
+        | StackObjectKind::DayboundTransformTrigger { .. }
+        // CR 708.8: TurnFaceUpTrigger countered — no effect; permanent remains face-up.
+        | StackObjectKind::TurnFaceUpTrigger { .. } => {
             // Countering abilities is non-standard; just remove from stack.
             // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
             // card stays in the graveyard and no haunting relationship is established.

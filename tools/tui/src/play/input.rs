@@ -120,6 +120,9 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         squad_count: 0,
                         offspring_paid: false,
                         gift_opponent: None,
+                        mutate_target: None,
+                        mutate_on_top: false,
+                        face_down_kind: None,
                     };
                     app.execute_command(cmd)?;
                 } else {

@@ -348,6 +348,10 @@ impl GameStateBuilder {
             pending_cumulative_upkeep_payments: Vector::new(),
             pending_recover_payments: Vector::new(),
             forecast_used_this_turn: im::OrdSet::new(),
+            // CR 730.1: Game starts with neither day nor night.
+            day_night: None,
+            // CR 730.2: No previous turn spells cast at game start.
+            previous_turn_spells_cast: 0,
             card_registry: self.card_registry,
         };
 
@@ -1007,6 +1011,18 @@ impl GameStateBuilder {
                 haunting_target: None,
                 // CR 702.151b: test-placed objects are not reconfigured.
                 is_reconfigured: false,
+                // CR 729.2: test-placed objects are not part of a merged permanent.
+                merged_components: im::Vector::new(),
+                // CR 712.8d: test-placed objects start with front face up.
+                is_transformed: false,
+                // CR 701.27f: test-placed objects have not transformed.
+                last_transform_timestamp: 0,
+                // CR 702.146 ruling: test-placed objects were not cast via disturb.
+                was_cast_disturbed: false,
+                // CR 702.167c: test-placed objects have no craft materials.
+                craft_exiled_cards: im::Vector::new(),
+                // CR 708.2: test-placed objects are not morph/manifest/cloak face-down.
+                face_down_as: None,
             };
 
             state.add_object(object, zone)?;

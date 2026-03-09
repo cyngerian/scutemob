@@ -7,11 +7,11 @@ pub mod testing;
 pub use cards::defs::all_cards;
 pub use cards::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
-    zombie_decayed_token_spec, AbilityDefinition, CardDefinition, CardRegistry, Condition,
-    ContinuousEffectDef as CardContinuousEffectDef, Cost, Effect, EffectAmount,
-    EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition, ModeSelection, PlayerTarget,
-    SoulbondGrant, TargetController, TargetFilter, TargetRequirement, TimingRestriction, TokenSpec,
-    TriggerCondition, TypeLine, ZoneTarget,
+    zombie_decayed_token_spec, AbilityDefinition, CardDefinition, CardFace, CardRegistry,
+    Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost, CraftMaterials, Effect,
+    EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition, ModeSelection,
+    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
+    TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 
 // Convenience re-exports of primary types
@@ -19,14 +19,15 @@ pub use state::types::ALL_CREATURE_TYPES;
 pub use state::{
     AbilityInstance, AffinityTarget, AltCostKind, AttackTarget, CardId, CardType, ChampionFilter,
     Characteristics, Color, CombatState, ContinuousEffect, CounterType, CumulativeUpkeepCost,
-    DamageTargetFilter, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId, EffectLayer,
-    EnchantTarget, GameObject, GameState, GameStateBuilder, GameStateError, KeywordAbility,
-    LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool, MergedComponent,
-    ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingZoneChange, Phase, PlayerBuilder,
-    PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId,
-    ReplacementModification, ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step,
-    SubType, SuperType, Target, TriggerDoubler, TriggerDoublerFilter, TriggerEvent,
-    TriggeredAbilityDef, TurnState, Zone, ZoneId, ZoneType,
+    DamageTargetFilter, DayNight, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId,
+    EffectLayer, EnchantTarget, FaceDownKind, GameObject, GameState, GameStateBuilder,
+    GameStateError, KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor,
+    ManaCost, ManaPool, MergedComponent, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus,
+    PendingZoneChange, Phase, PlayerBuilder, PlayerFilter, PlayerId, PlayerState,
+    ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
+    ReplacementTrigger, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
+    Target, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
+    TurnFaceUpMethod, TurnState, Zone, ZoneId, ZoneType,
 };
 
 pub use testing::replay_harness::{

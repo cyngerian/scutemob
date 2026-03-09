@@ -352,6 +352,20 @@ pub enum ScriptAction {
         /// Ignored for all other action types. `#[serde(default)]` means 0 if absent from JSON.
         #[serde(default)]
         squad_count: u32,
+        /// CR 702.140a: For `cast_spell_mutate`. When true, the mutating spell is placed
+        /// on top of the merged permanent (topmost characteristics from the spell's card).
+        /// When false, placed underneath (topmost characteristics from the existing target).
+        /// Ignored for all other action types.
+        #[serde(default)]
+        mutate_on_top: bool,
+        /// CR 702.37e / CR 701.40b / CR 701.58b: For `turn_face_up`. Which turn-face-up
+        /// method to use. One of: "morph_cost" (default), "disguise_cost", "mana_cost".
+        /// "morph_cost" uses the card's Morph or Megamorph cost.
+        /// "disguise_cost" uses the card's Disguise cost.
+        /// "mana_cost" is for manifested/cloaked permanents (pays the card's mana cost).
+        /// Ignored for all other action types.
+        #[serde(default)]
+        method: Option<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

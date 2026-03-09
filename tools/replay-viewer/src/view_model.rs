@@ -601,6 +601,21 @@ fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
         StackObjectKind::HauntedCreatureDiesTrigger { haunt_source, .. } => {
             ("haunted_creature_dies_trigger", Some(*haunt_source))
         }
+        StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
+            ("mutating_creature_spell", Some(*source_object))
+        }
+        StackObjectKind::TransformTrigger { permanent, .. } => {
+            ("transform_trigger", Some(*permanent))
+        }
+        StackObjectKind::CraftAbility { exiled_source, .. } => {
+            ("craft_ability", Some(*exiled_source))
+        }
+        StackObjectKind::DayboundTransformTrigger { permanent } => {
+            ("daybound_transform_trigger", Some(*permanent))
+        }
+        StackObjectKind::TurnFaceUpTrigger { permanent, .. } => {
+            ("turn_face_up_trigger", Some(*permanent))
+        }
     }
 }
 
@@ -895,5 +910,27 @@ fn format_keyword(kw: &KeywordAbility) -> String {
         KeywordAbility::ChooseABackground => "Choose a Background".to_string(),
         // CR 702.124m: Doctor's companion
         KeywordAbility::DoctorsCompanion => "Doctor's companion".to_string(),
+        // CR 702.140: mutate
+        KeywordAbility::Mutate => "Mutate".to_string(),
+        // CR 701.28 / CR 712: transform
+        KeywordAbility::Transform => "Transform".to_string(),
+        // CR 702.146a: daybound
+        KeywordAbility::Daybound => "Daybound".to_string(),
+        // CR 702.146b: nightbound
+        KeywordAbility::Nightbound => "Nightbound".to_string(),
+        // CR 702.145: disturb
+        KeywordAbility::Disturb => "Disturb".to_string(),
+        // CR 702.167: craft
+        KeywordAbility::Craft => "Craft".to_string(),
+        // CR 702.37: morph
+        KeywordAbility::Morph => "Morph".to_string(),
+        // CR 702.37b: megamorph
+        KeywordAbility::Megamorph => "Megamorph".to_string(),
+        // CR 702.168: disguise
+        KeywordAbility::Disguise => "Disguise".to_string(),
+        // CR 701.40: manifest
+        KeywordAbility::Manifest => "Manifest".to_string(),
+        // CR 701.58: cloak
+        KeywordAbility::Cloak => "Cloak".to_string(),
     }
 }

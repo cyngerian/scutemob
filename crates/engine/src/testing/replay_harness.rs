@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use im::OrdMap;
 
 use crate::state::combat::AttackTarget;
-use crate::state::types::AltCostKind;
+use crate::state::types::{AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
@@ -294,6 +294,9 @@ pub fn translate_player_action(
     // as an additional cost. 0 = not paid. N = paid N times -> N token copies on ETB.
     // Ignored for all other action types.
     squad_count: u32,
+    // CR 702.140a: For `cast_spell_mutate`. True = spell goes on top of merged permanent.
+    // False = spell goes underneath the existing target. Ignored for all other action types.
+    mutate_on_top: bool,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -361,6 +364,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -402,6 +408,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -440,6 +449,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -478,6 +490,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -517,6 +532,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -556,6 +574,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -600,6 +621,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -996,6 +1020,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1047,6 +1074,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1086,6 +1116,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1128,6 +1161,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1170,6 +1206,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1209,6 +1248,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1248,6 +1290,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1286,6 +1331,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1324,6 +1372,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1362,6 +1413,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1404,6 +1458,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1450,6 +1507,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1491,6 +1551,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1530,6 +1593,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1566,6 +1632,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1610,6 +1679,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1653,6 +1725,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1694,6 +1769,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1743,6 +1821,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1779,6 +1860,55 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
+            })
+        }
+
+        // CR 702.140a: Cast a creature spell using its mutate alternative cost, merging it
+        // with a target non-Human creature the caster owns. `target_creature_name` names the
+        // target creature on the battlefield. `mutate_on_top` controls whether the mutating
+        // spell becomes the topmost component (true) or the bottom component (false).
+        // On legal merge the spell does not enter the battlefield separately (CR 729.2b).
+        "cast_spell_mutate" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            // Resolve mutate target from target_creature_name (find non-Human creature on battlefield).
+            let target_id =
+                target_creature_name.and_then(|name| find_on_battlefield(state, player, name))?;
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: vec![],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Mutate),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
+                x_value: 0,
+                collect_evidence_cards: vec![],
+                squad_count: 0,
+                offspring_paid: false,
+                gift_opponent: None,
+                mutate_target: Some(target_id),
+                mutate_on_top,
+                face_down_kind: None,
             })
         }
 
@@ -1818,6 +1948,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1858,6 +1991,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1903,6 +2039,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1944,6 +2083,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -1984,6 +2126,9 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -2024,6 +2169,9 @@ pub fn translate_player_action(
                 squad_count,
                 offspring_paid: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
             })
         }
 
@@ -2063,6 +2211,121 @@ pub fn translate_player_action(
                 squad_count: 0,
                 offspring_paid: true,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: None,
+            })
+        }
+
+        // CR 702.37a / CR 702.168a: Cast a spell face-down via Morph, Megamorph, or Disguise.
+        // The card is cast from the player's hand for {3} (the morph cost). The face_down_kind
+        // field carries which variant (Morph/Megamorph/Disguise) is used.
+        // Action: `card_name` = card to morph-cast. Optional field `face_down_kind` in the
+        // script action (defaults to "morph" if not specified).
+        "cast_spell_morph" => {
+            let card_id = find_in_hand(state, player, card_name?)?;
+            // Determine which face-down kind from card definition (auto-detect).
+            let kind = {
+                let registry = state.card_registry.clone();
+                let cid = crate::testing::replay_harness::card_name_to_id(card_name?);
+                let def = registry.get(cid);
+                if let Some(d) = def {
+                    if d.abilities
+                        .iter()
+                        .any(|a| matches!(a, AbilityDefinition::Disguise { .. }))
+                    {
+                        FaceDownKind::Disguise
+                    } else if d
+                        .abilities
+                        .iter()
+                        .any(|a| matches!(a, AbilityDefinition::Megamorph { .. }))
+                    {
+                        FaceDownKind::Megamorph
+                    } else {
+                        FaceDownKind::Morph
+                    }
+                } else {
+                    FaceDownKind::Morph
+                }
+            };
+            Some(Command::CastSpell {
+                player,
+                card: card_id,
+                targets: vec![],
+                convoke_creatures: vec![],
+                improvise_artifacts: vec![],
+                delve_cards: vec![],
+                kicker_times: 0,
+                alt_cost: Some(AltCostKind::Morph),
+                escape_exile_cards: vec![],
+                retrace_discard_land: None,
+                jump_start_discard: None,
+                prototype: false,
+                bargain_sacrifice: None,
+                emerge_sacrifice: None,
+                casualty_sacrifice: None,
+                assist_player: None,
+                assist_amount: 0,
+                replicate_count: 0,
+                splice_cards: vec![],
+                entwine_paid: false,
+                escalate_modes: 0,
+                devour_sacrifices: vec![],
+                modes_chosen: vec![],
+                fuse: false,
+                x_value: 0,
+                collect_evidence_cards: vec![],
+                squad_count: 0,
+                offspring_paid: false,
+                gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                face_down_kind: Some(kind),
+            })
+        }
+
+        // CR 702.37e / CR 702.168d / CR 701.40b: Turn a face-down permanent face up.
+        // This is a special action (CR 116.2b) — does NOT use the stack.
+        // Action JSON fields:
+        //   `card_name`: display name of the face-down permanent (to find by card name)
+        // The turn-face-up method is auto-detected from the card definition:
+        //   - If the card has Disguise -> DisguiseCost
+        //   - If the card has Morph or Megamorph -> MorphCost (default)
+        //   - If the card has neither -> ManaCost (manifest/cloak case)
+        "turn_face_up" => {
+            // Find the face-down permanent controlled by the player.
+            // `card_name` is used to identify which face-down permanent to flip.
+            let perm_id = find_on_battlefield(state, player, card_name?)?;
+            // Auto-detect turn-face-up method from card definition.
+            let method = {
+                let registry = state.card_registry.clone();
+                let cid = card_name_to_id(card_name?);
+                let def = registry.get(cid);
+                if let Some(d) = def {
+                    if d.abilities
+                        .iter()
+                        .any(|a| matches!(a, AbilityDefinition::Disguise { .. }))
+                    {
+                        TurnFaceUpMethod::DisguiseCost
+                    } else if d.abilities.iter().any(|a| {
+                        matches!(
+                            a,
+                            AbilityDefinition::Morph { .. } | AbilityDefinition::Megamorph { .. }
+                        )
+                    }) {
+                        TurnFaceUpMethod::MorphCost
+                    } else {
+                        // Manifested/cloaked: pay mana cost
+                        TurnFaceUpMethod::ManaCost
+                    }
+                } else {
+                    TurnFaceUpMethod::MorphCost // default
+                }
+            };
+            Some(Command::TurnFaceUp {
+                player,
+                permanent: perm_id,
+                method,
             })
         }
 
@@ -2585,6 +2848,26 @@ pub fn enrich_spec_from_def(
                     .to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: Some(etb_filter),
+            });
+        }
+    }
+
+    // CR 702.140d: Convert "Whenever this creature mutates" card-definition triggers
+    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via CreatureMutated events. Only fires on the merged permanent itself (CR 729.2c).
+    for ability in &def.abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenMutates,
+            effect,
+            ..
+        } = ability
+        {
+            spec = spec.with_triggered_ability(TriggeredAbilityDef {
+                etb_filter: None,
+                trigger_on: TriggerEvent::SelfMutates,
+                intervening_if: None,
+                description: "Whenever this creature mutates (CR 702.140d)".to_string(),
+                effect: Some(effect.clone()),
             });
         }
     }

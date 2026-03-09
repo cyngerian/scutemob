@@ -43,8 +43,8 @@ pub use targeting::{SpellTarget, Target};
 pub use turn::{Phase, Step, TurnState};
 pub use types::{
     AffinityTarget, AltCostKind, CardType, ChampionFilter, Color, CounterType,
-    CumulativeUpkeepCost, EnchantTarget, KeywordAbility, LandwalkType, ManaColor,
-    ProtectionQuality, SubType, SuperType,
+    CumulativeUpkeepCost, DayNight, EnchantTarget, FaceDownKind, KeywordAbility, LandwalkType,
+    ManaColor, ProtectionQuality, SubType, SuperType, TurnFaceUpMethod,
 };
 pub use zone::{Zone, ZoneId, ZoneType};
 
@@ -170,6 +170,29 @@ pub struct GameState {
     /// Each forecast ability can be activated at most once per turn (CR 702.57b).
     #[serde(default)]
     pub forecast_used_this_turn: im::OrdSet<crate::state::player::CardId>,
+    /// CR 730.1: Current day/night designation of the game.
+    ///
+    /// `None` = neither day nor night (game start, default).
+    /// `Some(Day)` = it is currently day.
+    /// `Some(Night)` = it is currently night.
+    ///
+    /// Once set, never returns to None (CR 730.1: "the game will have exactly one
+    /// of those designations from that point forward").
+    ///
+    /// Checked and potentially changed in the untap step (CR 730.2).
+    /// Also set immediately when a Daybound or Nightbound permanent enters the
+    /// battlefield while neither day nor night (CR 702.145d/g).
+    #[serde(default)]
+    pub day_night: Option<DayNight>,
+    /// CR 730.2: The number of spells cast by the previous turn's active player.
+    ///
+    /// Captured at the end of each turn (in `reset_turn_state`) from the active
+    /// player's `spells_cast_this_turn`. Used at the next turn's untap step to
+    /// determine if day/night should change:
+    /// - Day → Night if previous player cast 0 spells (CR 730.2a)
+    /// - Night → Day if previous player cast 2+ spells (CR 730.2b)
+    #[serde(default)]
+    pub previous_turn_spells_cast: u32,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones
@@ -400,6 +423,18 @@ impl GameState {
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
             merged_components: im::Vector::new(),
+            // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
+            // The front face is used in all non-battlefield zones (CR 712.8a).
+            is_transformed: false,
+            last_transform_timestamp: 0,
+            // CR 702.145 / CR 400.7: disturb cast status is reset on zone change.
+            was_cast_disturbed: false,
+            // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
+            craft_exiled_cards: im::Vector::new(),
+            // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
+            // A face-down permanent leaving the battlefield is revealed (CR 708.9),
+            // and the new object in the destination zone is no longer face-down.
+            face_down_as: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.
@@ -531,6 +566,13 @@ impl GameState {
                     is_reconfigured: false,
                     // CR 729.3 / CR 400.7: Each split component starts with empty merged_components.
                     merged_components: im::Vector::new(),
+                    // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
+                    is_transformed: false,
+                    last_transform_timestamp: 0,
+                    was_cast_disturbed: false,
+                    craft_exiled_cards: im::Vector::new(),
+                    // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
+                    face_down_as: None,
                 };
                 // Add component to destination zone and objects map.
                 if let Some(zone_set) = self.zones.get_mut(&to) {
@@ -555,6 +597,41 @@ impl GameState {
         }
 
         Ok((new_id, old_object))
+    }
+
+    /// CR 708.9: Build a `FaceDownRevealed` event for a face-down permanent that is
+    /// about to leave the battlefield, if applicable.
+    ///
+    /// Call this BEFORE `move_object_to_zone` to capture the object's current state.
+    /// Returns `Some(event)` only when:
+    ///   - The object is on the battlefield
+    ///   - `status.face_down == true` and `face_down_as.is_some()`
+    ///   - The card's real name is retrievable from the card registry
+    ///
+    /// The event is used by the M10 network layer to broadcast the card's true identity
+    /// to all players when a face-down permanent leaves the battlefield.
+    pub fn face_down_reveal_for(
+        &self,
+        object_id: crate::state::game_object::ObjectId,
+    ) -> Option<crate::rules::events::GameEvent> {
+        let obj = self.objects.get(&object_id)?;
+        if obj.zone != crate::state::zone::ZoneId::Battlefield {
+            return None;
+        }
+        if !obj.status.face_down || obj.face_down_as.is_none() {
+            return None;
+        }
+        let card_id = obj.card_id.as_ref()?;
+        let card_name = self
+            .card_registry
+            .get(card_id.clone())
+            .map(|def| def.name.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+        Some(crate::rules::events::GameEvent::FaceDownRevealed {
+            player: obj.controller,
+            permanent: object_id,
+            card_name,
+        })
     }
 
     /// Move an object to the bottom of an ordered zone (CR 702.85a).
@@ -685,6 +762,16 @@ impl GameState {
             // When a merged permanent leaves the battlefield, components are split into
             // separate GameObjects (CR 729.3). Each new object starts with empty merged_components.
             merged_components: im::Vector::new(),
+            // CR 712.8a / CR 400.7: DFC transform state is reset on zone change.
+            // The front face is used in all non-battlefield zones (CR 712.8a).
+            is_transformed: false,
+            last_transform_timestamp: 0,
+            // CR 702.145 / CR 400.7: disturb cast status is reset on zone change.
+            was_cast_disturbed: false,
+            // CR 702.167c / CR 400.7: craft exiled materials are cleared on zone change.
+            craft_exiled_cards: im::Vector::new(),
+            // CR 708.2 / CR 400.7: face-down status is cleared on zone change.
+            face_down_as: None,
         };
 
         // CR 702.95e: If the departing object was paired, clear the partner's paired_with.

@@ -1941,6 +1941,100 @@ fn execute_effect_inner(
             }
         }
 
+        // CR 701.40a: Manifest the top card of a player's library.
+        // The card is placed onto the battlefield face-down as a 2/2 creature with no
+        // text, no name, no subtypes, and no mana cost. ETB abilities do not trigger
+        // (CR 708.3 — the permanent enters face-down). If the library is empty, do nothing.
+        Effect::Manifest {
+            player: player_target,
+        } => {
+            let manifest_player = match player_target {
+                PlayerTarget::Controller | PlayerTarget::EachPlayer => ctx.controller,
+                PlayerTarget::DeclaredTarget { index } => {
+                    // For manifest effects that target a player, use the declared target.
+                    // In practice, Manifest is almost always on Controller.
+                    let _ = index;
+                    ctx.controller
+                }
+                PlayerTarget::EachOpponent => {
+                    // Manifest an opponent's card (unusual but rules-legal).
+                    // Default to the first opponent.
+                    state
+                        .players
+                        .keys()
+                        .find(|&&pid| pid != ctx.controller)
+                        .copied()
+                        .unwrap_or(ctx.controller)
+                }
+                PlayerTarget::ControllerOf(_) => ctx.controller,
+            };
+            let lib_id = ZoneId::Library(manifest_player);
+            let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
+            if let Some(top_id) = top_card {
+                if let Ok((new_id, _)) = state.move_object_to_zone(top_id, ZoneId::Battlefield) {
+                    // CR 708.2 / CR 708.3: Set face-down status; the card enters as a 2/2 creature.
+                    // The layer system handles characteristic override.
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.controller = manifest_player;
+                        obj.owner = manifest_player;
+                        obj.status.face_down = true;
+                        obj.face_down_as = Some(crate::state::types::FaceDownKind::Manifest);
+                    }
+                    // CR 708.3: ETB abilities do NOT trigger (face-down entry).
+                    // PermanentEnteredBattlefield is still emitted (global triggers CAN fire
+                    // if they watch for any creature entering — they see a 2/2).
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: manifest_player,
+                        object_id: new_id,
+                    });
+                }
+            }
+            // If library is empty, the effect does nothing (CR 701.40f).
+        }
+
+        // CR 701.58a: Cloak the top card of a player's library.
+        // Like Manifest (CR 701.40a), but the face-down creature also has ward {2}
+        // (CR 701.58a) while face-down. The ward {2} is added by the layer system
+        // when face_down_as == Some(Cloak).
+        Effect::Cloak {
+            player: player_target,
+        } => {
+            let cloak_player = match player_target {
+                PlayerTarget::Controller | PlayerTarget::EachPlayer => ctx.controller,
+                PlayerTarget::DeclaredTarget { index } => {
+                    let _ = index;
+                    ctx.controller
+                }
+                PlayerTarget::EachOpponent => state
+                    .players
+                    .keys()
+                    .find(|&&pid| pid != ctx.controller)
+                    .copied()
+                    .unwrap_or(ctx.controller),
+                PlayerTarget::ControllerOf(_) => ctx.controller,
+            };
+            let lib_id = ZoneId::Library(cloak_player);
+            let top_card = state.zones.get(&lib_id).and_then(|z| z.top());
+            if let Some(top_id) = top_card {
+                if let Ok((new_id, _)) = state.move_object_to_zone(top_id, ZoneId::Battlefield) {
+                    // CR 701.58a: Set face-down status with Cloak kind.
+                    // The layer system adds ward {2} for Cloak permanents.
+                    if let Some(obj) = state.objects.get_mut(&new_id) {
+                        obj.controller = cloak_player;
+                        obj.owner = cloak_player;
+                        obj.status.face_down = true;
+                        obj.face_down_as = Some(crate::state::types::FaceDownKind::Cloak);
+                    }
+                    // CR 708.3: ETB abilities do NOT trigger (face-down entry).
+                    events.push(GameEvent::PermanentEnteredBattlefield {
+                        player: cloak_player,
+                        object_id: new_id,
+                    });
+                }
+            }
+            // If library is empty, the effect does nothing.
+        }
+
         Effect::Nothing => {}
 
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
@@ -3000,6 +3094,14 @@ pub fn make_token(
         haunting_target: None,
         // CR 702.151b: Tokens are not reconfigured by default.
         is_reconfigured: false,
+        // CR 729.2: Tokens are not part of a merged permanent by default.
+        merged_components: im::Vector::new(),
+        // CR 712.8a: Tokens and new permanents start untransformed.
+        is_transformed: false,
+        last_transform_timestamp: 0,
+        was_cast_disturbed: false,
+        craft_exiled_cards: im::Vector::new(),
+        face_down_as: None,
     }
 }
 

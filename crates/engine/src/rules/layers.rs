@@ -72,6 +72,108 @@ pub fn calculate_characteristics(
         chars.keywords.insert(KeywordAbility::Menace);
     }
 
+    // CR 712.8d/712.8e: Double-Faced Card face resolution.
+    //
+    // When a DFC permanent has its back face up (is_transformed == true), its effective
+    // characteristics are derived from the back face (CR 712.8d). However, its mana value
+    // is calculated from the FRONT face's mana cost (CR 712.8e).
+    //
+    // This runs BEFORE the merged_components check so that a mutated DFC permanent's
+    // topmost component can itself be transformed.
+    //
+    // CR 712.8a: DFCs in non-battlefield zones always use front face characteristics.
+    // Since is_transformed is reset on zone changes (CR 400.7), this is automatic:
+    // is_transformed is always false outside the battlefield.
+    if obj.is_transformed {
+        if let Some(ref card_id) = obj.card_id {
+            if let Some(def) = state.card_registry.get(card_id.clone()) {
+                if let Some(ref back_face) = def.back_face {
+                    // CR 712.8d: Use back face characteristics as the base.
+                    // CR 712.8e: mana_value is computed from the front face's mana cost
+                    // (stored in def.mana_cost). We keep back face's mana_cost in chars
+                    // for color derivation (CR 105.2), but the engine's mana_value()
+                    // lookups must use def.mana_cost when obj.is_transformed is true.
+                    // See mana_value() helper in state/mod.rs for the override.
+                    chars.name = back_face.name.clone();
+                    chars.mana_cost = back_face.mana_cost.clone();
+                    chars.card_types = back_face.types.card_types.clone();
+                    chars.subtypes = back_face.types.subtypes.clone();
+                    chars.supertypes = back_face.types.supertypes.clone();
+                    // Note: oracle_text is not part of Characteristics (it's on CardDefinition).
+                    // The UI/display layer reads oracle text from CardDefinition, not Characteristics.
+                    chars.keywords = OrdSet::new();
+                    // Apply back face abilities to chars.keywords
+                    for ability in &back_face.abilities {
+                        if let crate::cards::card_definition::AbilityDefinition::Keyword(kw) =
+                            ability
+                        {
+                            chars.keywords.insert(kw.clone());
+                        }
+                    }
+                    chars.power = back_face.power;
+                    chars.toughness = back_face.toughness;
+                    // CR 204: color indicator overrides mana-cost-derived colors for back faces
+                    // that have no mana cost (e.g., Insectile Aberration is blue via indicator).
+                    if let Some(ref color_indicator) = back_face.color_indicator {
+                        chars.colors = color_indicator.iter().cloned().collect::<im::OrdSet<_>>();
+                    } else if let Some(ref mc) = back_face.mana_cost {
+                        chars.colors = crate::rules::casting::colors_from_mana_cost(mc);
+                    }
+                    // CR 712.20: "As [this permanent] transforms..." abilities are applied
+                    // during transformation, not here. No action needed at characteristics time.
+                }
+                // CR 701.27c: If back_face is None, transform is a no-op — is_transformed
+                // should never be true for non-DFCs, but guard defensively.
+            }
+        }
+    }
+
+    // CR 708.2 / 708.2a: Face-down permanent characteristic override.
+    //
+    // When a permanent is face-down AND has a face_down_as value (distinguishing
+    // morph/manifest/cloak from Foretell/Hideaway's unrelated face_down usage),
+    // its characteristics are completely replaced by the face-down defaults BEFORE
+    // the merged_components check and BEFORE the layer loop.
+    //
+    // CR 708.2a: Face-down characteristics: 2/2 colorless creature, no name,
+    // no text, no subtypes, no mana cost. These ARE the copiable values (CR 707.2).
+    // Continuous effects from the layer loop (e.g., Aura granting +1/+1) apply
+    // on TOP of these base values.
+    //
+    // This must come BEFORE the merged_components block: a face-down merged
+    // permanent should present as a 2/2 with no characteristics to opponents.
+    if obj.status.face_down && obj.face_down_as.is_some() {
+        use crate::state::types::FaceDownKind;
+        chars.name = String::new();
+        chars.mana_cost = None;
+        chars.card_types = OrdSet::unit(CardType::Creature);
+        chars.subtypes = OrdSet::new();
+        chars.supertypes = OrdSet::new();
+        chars.colors = OrdSet::new();
+        chars.keywords = OrdSet::new();
+        chars.power = Some(2);
+        chars.toughness = Some(2);
+        chars.triggered_abilities = vec![];
+        chars.activated_abilities = vec![];
+        chars.mana_abilities = im::Vector::new();
+        // CR 702.168a / 701.58a: Disguise and Cloak grant ward {2} while face-down.
+        if matches!(
+            obj.face_down_as,
+            Some(FaceDownKind::Disguise) | Some(FaceDownKind::Cloak)
+        ) {
+            chars.keywords.insert(KeywordAbility::Ward(2));
+        }
+    }
+
+    // CR 729.2a: Merged permanent — Layer 1 (Copy) integration.
+    // If this permanent has non-empty merged_components, the topmost component's
+    // characteristics become the base characteristics before applying any continuous effects.
+    // This is a "copiable effect" whose timestamp is the time the objects merged.
+    // Applied BEFORE the layer loop so that all 7 layers apply on top of it.
+    if obj.zone == ZoneId::Battlefield && !obj.merged_components.is_empty() {
+        chars = obj.merged_components[0].characteristics.clone();
+    }
+
     for &layer in &layers_in_order {
         // CR 702.73a + CR 613.3: Changeling is a characteristic-defining ability that adds
         // all creature subtypes in Layer 4 (TypeChange), before any non-CDA Layer 4 effects.
@@ -220,6 +322,41 @@ pub fn calculate_characteristics(
                 if let Some(t) = &mut chars.toughness {
                     *t += net;
                 }
+            }
+        }
+    }
+
+    // CR 702.140e / CR 729.3: Merged permanent — Layer 6 (Ability) integration.
+    // ALL components of a merged permanent contribute their abilities. The topmost
+    // component's abilities were already included in the base characteristics (via the
+    // Layer 1 merge above). Here we add abilities from non-topmost components (indices 1..N).
+    //
+    // This runs AFTER the layer loop so that Layer 6 ability-removal effects (Humility,
+    // Dress Down) can remove abilities that were granted by the layer loop first, before
+    // we add the merge-contributed abilities. This is correct per CR 702.140e which says
+    // the merged permanent "has all abilities of all objects that are represented by it" —
+    // these are characteristic-defining aspects of the merge, not separate continuous effects.
+    // They are applied in Layer 6 at the merge timestamp (the permanent's existing timestamp).
+    if obj.zone == ZoneId::Battlefield && obj.merged_components.len() > 1 {
+        // Re-borrow to get the current merged_components (obj may have changed during layer loop).
+        if let Some(obj_ref) = state.objects.get(&object_id) {
+            // Collect abilities from non-topmost components (indices 1..N).
+            // Index 0 = topmost, already in base chars from Layer 1.
+            let components_slice: Vec<_> = obj_ref.merged_components.iter().skip(1).collect();
+            for component in components_slice {
+                // Add keyword abilities from this component.
+                for kw in component.characteristics.keywords.iter() {
+                    chars.keywords.insert(kw.clone());
+                }
+                // Add triggered abilities from this component.
+                for triggered in component.characteristics.triggered_abilities.iter() {
+                    chars.triggered_abilities.push(triggered.clone());
+                }
+                // Add activated abilities from this component.
+                for activated in component.characteristics.activated_abilities.iter() {
+                    chars.activated_abilities.push(activated.clone());
+                }
+                // Note: mana_abilities are part of activated_abilities already; no separate field.
             }
         }
     }

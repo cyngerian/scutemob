@@ -3,7 +3,7 @@
 > **Living document.** Re-audit after each milestone that adds mechanics or cards.
 > Use `cr-coverage-auditor` agent for bulk re-checks.
 >
-> **Last audited**: 2026-02-23 (post-M9.4)
+> **Last audited**: 2026-03-08 (Morph mini-milestone — case 30 promoted from DEFERRED to COVERED)
 
 ---
 
@@ -11,10 +11,10 @@
 
 | Status | Count | % |
 |--------|-------|---|
-| Covered | 29 | 81% |
+| Covered | 32 | 89% |
 | Partial | 0 | 0% |
 | Gap | 4 | 11% |
-| Deferred | 3 | 8% |
+| Deferred | 0 | 0% |
 
 **Card definition gaps**: 0 (all 12 fixed in M9.4)
 
@@ -48,12 +48,12 @@
 | 22 | Hexproof vs. Non-Targeted Effects | 702.11 | **COVERED** | `test_cc22_hexproof_does_not_block_global_effects` in `keywords.rs` | M9.4 S3 |
 | 23 | "When This Dies" + Flicker | 400.7, 608.2b | **COVERED** | `test_cc23_flicker_kills_spell_fizzles_no_dies_trigger` in `corner_case_gaps.rs` | M9.4 S4 |
 | 24 | Tokens Briefly in Non-Battlefield Zones | 111.8, 704.5d | **COVERED** | `test_cc24_token_dies_trigger_fires_before_sba_cleanup` in `sba.rs` | M9.4 S4 |
-| 25 | Phasing and Auras/Equipment | 702.26 | **DEFERRED** | Phasing not implemented | Deferred |
+| 25 | Phasing and Auras/Equipment | 702.26 | **COVERED** | `test_phasing_*` in `keywords.rs` — phased_out/phased_out_indirectly on GameObject, simultaneous snapshot (CR 502.1), is_phased_in() filter on 30+ battlefield scans | B8 |
 | 26 | Commander Damage from a Copy | 903 | **COVERED** | `commander_damage.rs:221` | M9 |
 | 27 | Commander Tax with Partners | 903 | **COVERED** | `commander.rs:905` | M9 |
 | 28 | Commander Dies with Exile Replacement | 903.9a, 614 | **COVERED** | `replacement_effects.rs:1240, 1341` | M8–M9 |
 | 29 | Cascade into a Split Card | 702.84, 708.4 | **COVERED** | `test_cascade_combined_mana_value_skip` in `cascade.rs` — documents split-card MV behavior (CR 708.4); cascade implemented via `copy::resolve_cascade` | M9.4 S9 |
-| 30 | Morph/Manifest Face-Down | 708 | **DEFERRED** | Face-down mechanics not implemented | Deferred |
+| 30 | Morph/Manifest Face-Down | 708 | **COVERED** | `test_morph_*`, `test_manifest_*`, `test_cloak_*`, `test_disguise_*` in `morph.rs` — FaceDownKind enum, face-down 2/2 characteristics (CR 708.2a), cast face-down via Morph/Megamorph/Disguise (CR 702.37), turn face-up special action (CR 702.37e), Manifest/Cloak effects (CR 701.40/701.58), dies-reveal (CR 708.9); 14 unit tests; scripts stack/197+198 | Morph |
 | 31 | Aura on Illegal Permanent After Type Change | 704.5m | **COVERED** | `test_cc31_aura_falls_off_after_type_change_ends` in `sba.rs` | M9.4 S4 |
 | 32 | Mutate Stack Ordering | 725 | **COVERED** | `test_mutate_*` in `mutate.rs` — merged_cards model, over/under choice, zone-change splitting (CR 729.5), mutate trigger; game script 192 | B15+Mutate |
 | 33 | Sylvan Library + Draw Replacement | 614 | **COVERED** | `test_cc33_sylvan_library_draw_tracking` in `replacement_effects.rs` — `cards_drawn_this_turn` tracking verified | M9.4 S4 |
@@ -86,13 +86,10 @@ All 12 card definition gaps addressed in M9.4. No remaining simplifications or n
 
 ## Deferred Items
 
-These require entire unimplemented subsystems. They will be addressed when those
-subsystems are built, likely as part of M12+ card pipeline expansion.
+No deferred items remaining. All 36 corner cases are either COVERED or GAP.
 
-| # | Name | Mechanic | Rationale |
-|---|------|----------|-----------|
-| 25 | Phasing + Auras/Equipment | Phasing (CR 702.26) | Rare in Commander; entire subsystem needed |
-| 30 | Morph/Manifest Face-Down | Face-down (CR 708) | Entire subsystem needed |
+Previously deferred:
+- ~~#30 Morph/Manifest Face-Down~~ -- promoted to COVERED (Morph mini-milestone, 2026-03-08)
 
 ---
 

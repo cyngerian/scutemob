@@ -222,6 +222,7 @@ impl ReplaySession {
                         x_value,
                         collect_evidence_cards,
                         squad_count,
+                        mutate_on_top,
                         ..
                     } => {
                         if let Some(&pid) = player_map.get(player.as_str()) {
@@ -256,6 +257,7 @@ impl ReplaySession {
                                 *x_value,
                                 collect_evidence_cards,
                                 *squad_count,
+                                *mutate_on_top,
                                 &current_state,
                                 &player_map,
                             );

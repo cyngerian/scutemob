@@ -210,6 +210,21 @@ pub fn render(f: &mut Frame, app: &PlayApp, area: Rect) {
                 StackObjectKind::HauntedCreatureDiesTrigger { haunt_source, .. } => {
                     ("Haunt effect: ".to_string(), Some(*haunt_source))
                 }
+                StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
+                    ("Mutating: ".to_string(), Some(*source_object))
+                }
+                StackObjectKind::TransformTrigger { permanent, .. } => {
+                    ("Transform trigger: ".to_string(), Some(*permanent))
+                }
+                StackObjectKind::CraftAbility { exiled_source, .. } => {
+                    ("Craft: ".to_string(), Some(*exiled_source))
+                }
+                StackObjectKind::DayboundTransformTrigger { permanent } => {
+                    ("Daybound/Nightbound: ".to_string(), Some(*permanent))
+                }
+                StackObjectKind::TurnFaceUpTrigger { permanent, .. } => {
+                    ("Turned Face Up: ".to_string(), Some(*permanent))
+                }
             };
 
             let (name, name_color) = source_id

@@ -572,6 +572,9 @@ pub fn handle_activate_ability(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -839,6 +842,9 @@ pub fn handle_cycle_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1098,6 +1104,9 @@ pub fn handle_activate_forecast(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1399,6 +1408,9 @@ pub fn handle_activate_bloodrush(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1593,6 +1605,9 @@ pub fn handle_unearth_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -1877,6 +1892,9 @@ pub fn handle_ninjutsu(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2098,6 +2116,9 @@ pub fn handle_embalm_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2328,6 +2349,9 @@ pub fn handle_eternalize_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -2557,6 +2581,9 @@ pub fn handle_encore_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -5430,6 +5457,98 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 }
             }
 
+            // CR 702.140d: "Whenever this creature mutates" — fires on the merged permanent.
+            // The merged permanent is the same object (same ObjectId) as the target permanent
+            // before merging. After the merge, it has ALL abilities from ALL components
+            // (via the layer system). We fire SelfMutates on the merged permanent itself.
+            //
+            // CR 729.2c: The merged permanent is NOT new — it did not enter the battlefield.
+            // No ETB triggers fire. Only SelfMutates triggers fire.
+            GameEvent::CreatureMutated { object_id, .. } => {
+                // collect_triggers_for_event checks zone == Battlefield, which is correct:
+                // the merged permanent must still be on the battlefield to fire this trigger.
+                collect_triggers_for_event(
+                    state,
+                    &mut triggers,
+                    TriggerEvent::SelfMutates,
+                    Some(*object_id),
+                    None,
+                );
+            }
+
+            // CR 708.8 / CR 702.37e: "When this permanent is turned face up" triggers.
+            // Fire the TurnFaceUp pending trigger for any WhenTurnedFaceUp ability in the
+            // permanent's CardDefinition. The permanent is now face-up; look up its card_id
+            // to find the definition. ETB abilities do NOT fire (CR 708.8).
+            GameEvent::PermanentTurnedFaceUp {
+                player: _,
+                permanent,
+            } => {
+                use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
+                // The permanent is now face-up — its card_id is accessible.
+                let card_id = state.objects.get(permanent).and_then(|o| o.card_id.clone());
+                let controller_opt = state.objects.get(permanent).map(|o| o.controller);
+                if let (Some(cid), Some(ctrl)) = (card_id, controller_opt) {
+                    let def_opt = state.card_registry.get(cid);
+                    if let Some(def) = def_opt {
+                        for (idx, ability) in def.abilities.iter().enumerate() {
+                            if let AbilityDefinition::Triggered {
+                                trigger_condition: TriggerCondition::WhenTurnedFaceUp,
+                                ..
+                            } = ability
+                            {
+                                triggers.push(PendingTrigger {
+                                    source: *permanent,
+                                    ability_index: idx,
+                                    controller: ctrl,
+                                    kind: crate::state::stubs::PendingTriggerKind::TurnFaceUp,
+                                    triggering_event: None,
+                                    entering_object_id: None,
+                                    targeting_stack_id: None,
+                                    triggering_player: None,
+                                    exalted_attacker_id: None,
+                                    defending_player_id: None,
+                                    madness_exiled_card: None,
+                                    madness_cost: None,
+                                    miracle_revealed_card: None,
+                                    miracle_cost: None,
+                                    modular_counter_count: None,
+                                    evolve_entering_creature: None,
+                                    suspend_card_id: None,
+                                    hideaway_count: None,
+                                    partner_with_name: None,
+                                    ingest_target_player: None,
+                                    flanking_blocker_id: None,
+                                    rampage_n: None,
+                                    provoke_target_creature: None,
+                                    renown_n: None,
+                                    poisonous_n: None,
+                                    poisonous_target_player: None,
+                                    enlist_enlisted_creature: None,
+                                    encore_activator: None,
+                                    echo_cost: None,
+                                    cumulative_upkeep_cost: None,
+                                    recover_cost: None,
+                                    recover_card: None,
+                                    graft_entering_creature: None,
+                                    backup_abilities: None,
+                                    backup_n: None,
+                                    champion_filter: None,
+                                    champion_exiled_card: None,
+                                    soulbond_pair_target: None,
+                                    squad_count: None,
+                                    gift_opponent: None,
+                                    cipher_encoded_card_id: None,
+                                    cipher_encoded_object_id: None,
+                                    haunt_source_object_id: None,
+                                    haunt_source_card_id: None,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
             _ => {}
         }
     }
@@ -5468,6 +5587,18 @@ fn collect_triggers_for_event(
             continue;
         };
         if obj.zone != ZoneId::Battlefield {
+            continue;
+        }
+
+        // CR 708.3: Face-down permanents have no triggered abilities.
+        // A permanent entering the battlefield face-down (via Manifest, Cloak, or Morph cast)
+        // must not fire its ETB triggered abilities. The morph cast path suppresses this at
+        // resolution; here we suppress it for any face-down permanent receiving
+        // SelfEntersBattlefield — covering Manifest and Cloak effect paths.
+        if obj.status.face_down
+            && obj.face_down_as.is_some()
+            && event_type == TriggerEvent::SelfEntersBattlefield
+        {
             continue;
         }
 
@@ -5802,6 +5933,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         // CR 702.174a: triggered ability stack objects are never gift casts.
                         gift_was_given: false,
                         gift_opponent: None,
+                        mutate_target: None,
+                        mutate_on_top: false,
+                        is_cast_transformed: false,
                     };
                     state.stack_objects.push_back(stack_obj);
 
@@ -6224,6 +6358,19 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                         haunt_card_id: trigger.haunt_source_card_id.clone(),
                     }
                 }
+                // CR 708.8 / CR 702.37e: "When this permanent is turned face up" trigger.
+                // The source is the permanent itself; card_id is looked up from the object.
+                PendingTriggerKind::TurnFaceUp => {
+                    let source_card_id = state
+                        .objects
+                        .get(&trigger.source)
+                        .and_then(|o| o.card_id.clone());
+                    StackObjectKind::TurnFaceUpTrigger {
+                        permanent: trigger.source,
+                        source_card_id,
+                        ability_index: trigger.ability_index,
+                    }
+                }
                 PendingTriggerKind::Normal => StackObjectKind::TriggeredAbility {
                     source_object: trigger.source,
                     ability_index: trigger.ability_index,
@@ -6280,6 +6427,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // CR 702.174a: triggered ability stack objects are never gift casts.
                 gift_was_given: false,
                 gift_opponent: None,
+                mutate_target: None,
+                mutate_on_top: false,
+                is_cast_transformed: false,
             };
             state.stack_objects.push_back(stack_obj);
 
@@ -6672,6 +6822,9 @@ pub fn handle_crew_vehicle(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -6940,6 +7093,9 @@ pub fn handle_saddle_mount(
         offspring_paid: false,
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 
@@ -7198,6 +7354,9 @@ pub fn handle_scavenge_card(
         // CR 702.174a: triggered ability stack objects are never gift casts.
         gift_was_given: false,
         gift_opponent: None,
+        mutate_target: None,
+        mutate_on_top: false,
+        is_cast_transformed: false,
     };
     state.stack_objects.push_back(stack_obj);
 

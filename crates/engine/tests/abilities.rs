@@ -569,6 +569,9 @@ fn test_triggered_ability_self_etb_fires_on_enter() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -659,6 +662,9 @@ fn test_triggered_ability_any_etb_watches_all_permanents() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -752,6 +758,9 @@ fn test_triggered_ability_apnap_ordering() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -850,6 +859,9 @@ fn test_triggered_ability_intervening_if_false_does_not_trigger() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -931,6 +943,9 @@ fn test_triggered_ability_intervening_if_true_triggers() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1013,6 +1028,9 @@ fn test_triggered_ability_resolves_after_all_pass() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .unwrap();
@@ -1945,6 +1963,9 @@ fn test_dies_trigger_full_via_lightning_bolt_and_sba() {
             squad_count: 0,
             offspring_paid: false,
             gift_opponent: None,
+            mutate_target: None,
+            mutate_on_top: false,
+            face_down_kind: None,
         },
     )
     .expect("p2 should be able to cast Lightning Bolt targeting Solemn Simulacrum");

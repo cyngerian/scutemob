@@ -309,6 +309,34 @@ pub struct StackObject {
     /// Set at cast time; used at resolution to determine who receives the gift.
     #[serde(default)]
     pub gift_opponent: Option<crate::state::PlayerId>,
+    /// CR 702.140a: The ObjectId of the non-Human creature this mutating spell
+    /// is targeting. `None` for non-mutating spells.
+    ///
+    /// Propagated from `Command::CastSpell.mutate_target` at cast time.
+    /// Read at resolution to validate the target is still legal (CR 702.140b)
+    /// and to perform the merge (CR 729.2).
+    #[serde(default)]
+    pub mutate_target: Option<ObjectId>,
+    /// CR 702.140c / CR 729.2: If true, the mutating card goes on top of the
+    /// target permanent (the merged permanent uses the spell's characteristics).
+    /// If false, the mutating card goes underneath (uses the target's characteristics).
+    ///
+    /// Set at cast time by the caster's choice. Defaults to true (on top).
+    /// Only meaningful when `mutate_target` is `Some`.
+    #[serde(default)]
+    pub mutate_on_top: bool,
+    /// CR 712.11a / CR 702.146a: If true, this spell was cast "transformed" — that is,
+    /// it was placed on the stack with its back face up.
+    ///
+    /// Currently set when Disturb alternative cost is used. At resolution, the permanent
+    /// enters the battlefield with `is_transformed = true` and `was_cast_disturbed = true`.
+    ///
+    /// CR 712.8c: The spell's mana value uses the front face's mana cost even when cast
+    /// transformed.
+    ///
+    /// Must always be false for copies unless explicitly copied as transformed.
+    #[serde(default)]
+    pub is_cast_transformed: bool,
 }
 
 /// The kind of object on the stack.
@@ -1259,5 +1287,100 @@ pub enum StackObjectKind {
         /// The CardId of the haunt card (for registry lookup of the haunt effect).
         #[serde(default)]
         haunt_card_id: Option<crate::state::player::CardId>,
+    },
+
+    /// CR 702.140a / CR 729.2: A mutating creature spell on the stack.
+    ///
+    /// When a spell is cast for its mutate cost targeting a non-Human creature
+    /// the caster owns, it becomes a `MutatingCreatureSpell` rather than a plain
+    /// `Spell`. On resolution:
+    /// - If the target is still legal (CR 702.140b), the spell merges with the
+    ///   target permanent (CR 729.2). The card is absorbed into the target's
+    ///   `merged_components` list; no ETB triggers fire (CR 729.2c).
+    /// - If the target is no longer legal, the spell resolves as a normal creature
+    ///   spell (enters the battlefield as though not mutating — CR 702.140b).
+    ///
+    /// `source_object`: the ObjectId of the spell card in the Stack zone.
+    /// `target`: the ObjectId of the non-Human creature being mutated onto.
+    ///
+    /// Discriminant 59.
+    MutatingCreatureSpell {
+        /// The ObjectId of the card in the Stack zone (the mutating spell itself).
+        source_object: ObjectId,
+        /// The ObjectId of the target non-Human creature on the battlefield.
+        target: ObjectId,
+    },
+
+    /// CR 701.27a / CR 712.18: Transform trigger — a triggered ability that causes
+    /// a permanent to transform. Used for card-defined triggers like Delver of Secrets
+    /// ("At the beginning of your upkeep, if there's an instant or sorcery on top of
+    /// your library, transform Delver of Secrets.").
+    ///
+    /// At resolution: check the `permanent` is still on the battlefield, check CR 701.27d
+    /// (can't transform to instant/sorcery back face), check CR 701.27f (already transformed
+    /// since ability was put on the stack — ignored if so), then flip `is_transformed`.
+    ///
+    /// Discriminant 60.
+    TransformTrigger {
+        /// The ObjectId of the permanent to transform.
+        permanent: ObjectId,
+        /// Timestamp when this trigger was put on the stack (for CR 701.27f guard).
+        ability_timestamp: u64,
+    },
+
+    /// CR 702.167a: Craft activated ability on the stack.
+    ///
+    /// The source permanent and material objects have already been exiled as cost.
+    /// At resolution: if the source card is still in exile (CR 400.7 — may have been
+    /// moved), return it to the battlefield transformed (with `is_transformed = true`).
+    /// If the card has no back_face, it stays in exile (non-DFC craft guard).
+    ///
+    /// Discriminant 61.
+    CraftAbility {
+        /// The CardId of the source card (needed for registry lookup after exile move).
+        source_card_id: Option<crate::state::player::CardId>,
+        /// The ObjectId of the exiled source card (used to find it in exile zone).
+        exiled_source: ObjectId,
+        /// ObjectIds of the material cards exiled as cost (for CR 702.167c tracking).
+        material_ids: Vec<ObjectId>,
+        /// The activating player (becomes controller of the returned permanent).
+        activator: PlayerId,
+    },
+
+    /// CR 702.145b/f: Daybound or Nightbound immediate transform trigger.
+    ///
+    /// Not a true "trigger" in the stack sense (CR 702.145c/f says it happens
+    /// "immediately and isn't a state-based action"), but modeled as a stack object
+    /// to preserve APNAP ordering and allow Stifle-style counter interactions.
+    ///
+    /// At resolution: check the permanent is still on the battlefield; check that
+    /// the transform is still required (day/night state matches); transform it.
+    ///
+    /// Discriminant 62.
+    DayboundTransformTrigger {
+        /// The permanent to transform (daybound: front→back on night; nightbound: back→front on day).
+        permanent: ObjectId,
+    },
+
+    /// CR 708.8: "When this permanent is turned face up" triggered ability.
+    ///
+    /// Fires when a face-down permanent (morph, megamorph, disguise, manifest, or cloak)
+    /// is turned face up via `Command::TurnFaceUp`. Unlike ETB triggers, these DO fire
+    /// when a permanent is turned face up — the permanent already entered the battlefield
+    /// face-down, so ETB was suppressed at that time (CR 708.3).
+    ///
+    /// At resolution: look up the permanent's `WhenTurnedFaceUp` triggered ability in
+    /// the CardDefinition and execute its effect.
+    ///
+    /// Discriminant 63.
+    TurnFaceUpTrigger {
+        /// The permanent that was turned face up.
+        permanent: ObjectId,
+        /// CardId for registry lookup after zone-change (CR 400.7 resilience).
+        source_card_id: Option<crate::state::player::CardId>,
+        /// Index into the CardDefinition abilities list for the specific WhenTurnedFaceUp
+        /// ability that triggered. Cards may have multiple WhenTurnedFaceUp abilities
+        /// (rare but rules-legal); each gets its own TurnFaceUpTrigger SOK.
+        ability_index: usize,
     },
 }

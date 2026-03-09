@@ -20,6 +20,32 @@ use crate::state::{
 
 // ── Card Definition ───────────────────────────────────────────────────────────
 
+/// The back face of a double-faced card (CR 712).
+///
+/// Holds the back face's characteristics and abilities. The front face data
+/// remains in the parent `CardDefinition` struct. When `is_transformed` is true
+/// on a `GameObject`, the engine uses this struct for base characteristics.
+///
+/// CR 712.8a: While a double-faced card is outside the game or in a zone other
+/// than the battlefield or stack, it has only the characteristics of its front face.
+/// CR 712.8e: The back face's mana value is calculated using the front face's mana cost.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CardFace {
+    pub name: String,
+    /// The back face's own mana cost (if any). None for most back faces.
+    /// Note: mana VALUE uses the front face's mana cost (CR 712.8e).
+    pub mana_cost: Option<ManaCost>,
+    pub types: TypeLine,
+    pub oracle_text: String,
+    pub abilities: Vec<AbilityDefinition>,
+    pub power: Option<i32>,
+    pub toughness: Option<i32>,
+    /// Color indicator (CR 204) — used by back faces that have no mana cost
+    /// but need a color identity (e.g., Insectile Aberration is blue via indicator).
+    #[serde(default)]
+    pub color_indicator: Option<Vec<crate::state::Color>>,
+}
+
 /// A complete card definition: what a card is and what it does (CR Section 2).
 ///
 /// Loaded from the card database at startup. Looked up via `CardRegistry`
@@ -42,6 +68,13 @@ pub struct CardDefinition {
     /// Printed toughness (creatures only). None for non-creatures.
     #[serde(default)]
     pub toughness: Option<i32>,
+    /// CR 712: The back face of a double-faced card.
+    ///
+    /// `None` for single-faced cards. `Some(face)` for DFCs — Transform,
+    /// Disturb, Daybound/Nightbound, Craft, etc. When `GameObject.is_transformed`
+    /// is true, the layer system uses this face's characteristics as the base.
+    #[serde(default)]
+    pub back_face: Option<CardFace>,
 }
 
 impl Default for CardDefinition {
@@ -55,6 +88,7 @@ impl Default for CardDefinition {
             abilities: vec![],
             power: None,
             toughness: None,
+            back_face: None,
         }
     }
 }
@@ -675,6 +709,84 @@ pub enum AbilityDefinition {
     ///
     /// Discriminant 58.
     Reconfigure { cost: ManaCost },
+    /// CR 702.140a: Mutate [cost] — the alternative casting cost for a mutate spell.
+    ///
+    /// When casting a spell with mutate, the player may pay this cost instead of the
+    /// spell's mana cost. Doing so requires choosing a target non-Human creature the
+    /// caster owns on the battlefield (CR 702.140a).
+    ///
+    /// Cards should also include `AbilityDefinition::Keyword(KeywordAbility::Mutate)`
+    /// for quick presence-checking.
+    ///
+    /// Discriminant 59.
+    MutateCost { cost: ManaCost },
+    /// CR 702.146a: Disturb [cost] — cast this card transformed from your graveyard
+    /// by paying [cost] rather than its mana cost.
+    ///
+    /// A resolving spell that was cast using its disturb ability enters the battlefield
+    /// with its back face up (CR 702.146b). The back face has an ability that instructs
+    /// its controller to exile if it would be put into a graveyard from anywhere (ruling).
+    ///
+    /// Cards should also include `AbilityDefinition::Keyword(KeywordAbility::Disturb)`
+    /// for quick presence-checking.
+    ///
+    /// Discriminant 60.
+    Disturb { cost: ManaCost },
+    /// CR 702.167a: Craft with [materials] [cost] — "[Cost], Exile this permanent,
+    /// Exile [materials] from among permanents you control and/or cards in your graveyard:
+    /// Return this card to the battlefield transformed under its owner's control.
+    /// Activate only as a sorcery."
+    ///
+    /// Cards should also include `AbilityDefinition::Keyword(KeywordAbility::Craft)`
+    /// for quick presence-checking.
+    ///
+    /// Discriminant 61.
+    Craft {
+        cost: ManaCost,
+        materials: CraftMaterials,
+    },
+    /// CR 702.37a: Morph [cost] — you may cast this card face-down as a 2/2 creature
+    /// for {3} instead of paying its mana cost. At any time you have priority, you may
+    /// turn this face-down permanent face up by paying [cost].
+    ///
+    /// This variant carries the turn-face-up cost. The presence marker is
+    /// `AbilityDefinition::Keyword(KeywordAbility::Morph)`.
+    ///
+    /// Discriminant 62.
+    Morph { cost: ManaCost },
+    /// CR 702.37b: Megamorph [cost] — variant of morph. When turned face up via its
+    /// megamorph cost, the permanent also gets a +1/+1 counter.
+    ///
+    /// This variant carries the turn-face-up cost. The presence marker is
+    /// `AbilityDefinition::Keyword(KeywordAbility::Megamorph)`.
+    ///
+    /// Discriminant 63.
+    Megamorph { cost: ManaCost },
+    /// CR 702.168a: Disguise [cost] — like morph but the face-down permanent has
+    /// ward {2} while face-down. Turn face up by paying the disguise cost.
+    ///
+    /// This variant carries the turn-face-up cost. The presence marker is
+    /// `AbilityDefinition::Keyword(KeywordAbility::Disguise)`.
+    ///
+    /// Discriminant 64.
+    Disguise { cost: ManaCost },
+}
+
+/// CR 702.167b: Describes what can be exiled as materials for a Craft activated ability.
+///
+/// "If an object in the [materials] is described using only a card type or subtype
+/// without 'card,' it refers to either a permanent on the battlefield or a card in a
+/// graveyard of that type."
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CraftMaterials {
+    /// Craft with N artifacts — exile N artifacts from battlefield/graveyard.
+    Artifacts(u32),
+    /// Craft with N creatures — exile N creatures from battlefield/graveyard.
+    Creatures(u32),
+    /// Craft with N lands — exile N lands from battlefield/graveyard.
+    Lands(u32),
+    /// Craft with N cards of any type — exile N permanents/cards.
+    AnyCards(u32),
 }
 
 /// CR 702.174d-i: The specific gift given to the chosen opponent.
@@ -1084,6 +1196,24 @@ pub enum Effect {
     ///
     /// CR 118.9: Playing without paying the mana cost is an alternative cost.
     PlayExiledCard,
+    /// CR 701.40a: Manifest the top card of a player's library. The card is placed
+    /// onto the battlefield face-down as a 2/2 creature with no text, no name, no
+    /// subtypes, and no mana cost. ETB abilities do not trigger (CR 708.3).
+    ///
+    /// If the library is empty, the effect does nothing (CR 701.40f).
+    /// If the card cannot enter the battlefield for any reason, it isn't manifested.
+    Manifest {
+        /// The player whose top library card is manifested (usually the controller).
+        player: PlayerTarget,
+    },
+    /// CR 701.58a: Cloak the top card of a player's library. Like Manifest (CR 701.40a),
+    /// but the face-down creature also has ward {2} (CR 701.58a) while it is face-down.
+    ///
+    /// If the library is empty, the effect does nothing (CR 701.58f via 701.40f).
+    Cloak {
+        /// The player whose top library card is cloaked (usually the controller).
+        player: PlayerTarget,
+    },
     /// No effect (used in Conditional branches, or for keyword-only cards).
     Nothing,
 }
@@ -1316,6 +1446,23 @@ pub enum TriggerCondition {
     /// with haunting_target == dying creature's pre-death ObjectId.
     /// The HauntedCreatureDiesTrigger SOK resolves this effect.
     HauntedCreatureDies,
+    /// CR 702.140d: "Whenever this creature mutates."
+    ///
+    /// Fires on the merged permanent itself (same ObjectId as the target before merging,
+    /// per CR 729.2c) after a successful mutate merge. Converted by `enrich_spec_from_def`
+    /// to `TriggerEvent::SelfMutates` so `check_triggers` can dispatch it via
+    /// `GameEvent::CreatureMutated`.
+    WhenMutates,
+    /// CR 708.8: "When this permanent is turned face up."
+    ///
+    /// Fires when a face-down permanent (morph, megamorph, disguise, manifest, or cloak)
+    /// is turned face up via `Command::TurnFaceUp`. Unlike ETB triggers, these DO fire
+    /// when a permanent is turned face up — the permanent already entered the battlefield
+    /// face-down, so ETB was suppressed at that time (CR 708.3).
+    ///
+    /// Dispatched via `GameEvent::PermanentTurnedFaceUp` → `TriggerEvent::SelfTurnedFaceUp`
+    /// in `check_triggers`. Resolves as a `TurnFaceUpTrigger` stack object.
+    WhenTurnedFaceUp,
 }
 
 // ── Conditions ────────────────────────────────────────────────────────────────

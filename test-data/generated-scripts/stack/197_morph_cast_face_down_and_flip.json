@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_197",
+    "name": "Morph: cast Exalted Angel face-down and turn face up",
+    "description": "p1 casts Exalted Angel face-down using Morph for {3}, placing a 2/2 colorless nameless creature on the battlefield. p1 then pays the morph cost {2}{W}{W} to turn it face up, revealing Exalted Angel as a 4/5 Angel with Flying and Lifelink. Tests CR 702.37 (Morph casting), CR 708.2a (face-down characteristics: 2/2 colorless no name no text), and CR 702.37e (turning face up via morph cost as a special action).",
+    "cr_sections_tested": ["601.2", "702.37", "702.37a", "702.37e", "708.2a"],
+    "corner_case_ref": null,
+    "tags": ["morph", "face-down", "turn-face-up", "special-action"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Exalted Angel: Morph {2}{W}{W}, face value 4/5 Flying Lifelink. cast_spell_morph action uses AltCostKind::Morph for {3} (colorless). Face-down permanent has no name, no text, 2/2 colorless (CR 708.2a). turn_face_up action auto-detects MorphCost method from card definition. After turning face up, zones.battlefield.p1 should include 'Exalted Angel'. The hand.count assertion is used to confirm the card moved from hand. The harness does not support permanent.<name>.face_down assertions (no face_down path in check_assertions), so face-down state is confirmed indirectly: hand is empty, stack resolved, and 'Exalted Angel' not yet visible on battlefield by name until face-up. After flip, 'Exalted Angel' is visible by name. Initial mana: {colorless: 5, white: 2} = {3} for morph cast + {2}{W}{W} for turn-face-up. mana_paid for cast_spell_morph: {colorless: 3}. mana_paid for turn_face_up: {colorless: 2, white: 2}.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 5, "white": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Exalted Angel", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Exalted Angel face-down via Morph for {3}, then turns it face up",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Exalted Angel in p1 hand, battlefield empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_morph",
+          "card": "Exalted Angel",
+          "targets": [],
+          "mana_paid": { "colorless": 3 },
+          "mana_source": [],
+          "cr_ref": "702.37a",
+          "note": "CR 702.37a: Morph allows casting this card face-down as a 2/2 creature for {3}. The card's identity is hidden."
+        },
+        {
+          "type": "assert_state",
+          "description": "After morph cast: hand empty, spell on stack",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Card moved from hand to stack as a face-down morph spell."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — morph spell resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Exalted Angel",
+          "resolution": [],
+          "note": "CR 608.2: Morph spell resolves. Face-down 2/2 colorless creature enters the battlefield under p1's control (CR 708.2a)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: stack empty, hand empty (face-down 2/2 is on battlefield but has no name)",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Face-down permanent has no name (CR 708.2a), so cannot be asserted by name via zones.battlefield.p1 includes. Stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "turn_face_up",
+          "card": "Exalted Angel",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "white": 2 },
+          "mana_source": [],
+          "cr_ref": "702.37e",
+          "note": "CR 702.37e: Turning face up is a special action (CR 116.2b); does not use the stack. p1 pays morph cost {2}{W}{W} = 2 colorless + 2 white from the mana pool. Exalted Angel is revealed as a 4/5 Angel with Flying and Lifelink."
+        },
+        {
+          "type": "assert_state",
+          "description": "After turning face up: Exalted Angel visible on battlefield by name",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Exalted Angel" }] }
+          },
+          "note": "CR 708.8: Face-up permanent now has its true characteristics. Exalted Angel (4/5, Flying, Lifelink) is visible by name on the battlefield."
+        }
+      ]
+    }
+  ]
+}

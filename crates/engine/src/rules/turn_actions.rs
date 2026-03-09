@@ -998,6 +998,12 @@ pub fn untap_active_player_permanents(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let mut events = Vec::new();
 
+    // CR 730.2: As the second part of the untap step, check if the day/night designation
+    // should change based on the previous turn's active player's spell count.
+    // CR 730.2c: If it's neither day nor night, this check doesn't happen.
+    let day_night_events = check_day_night_transition(state);
+    events.extend(day_night_events);
+
     // CR 502.1 / CR 702.26a: Phase-in and phase-out happen SIMULTANEOUSLY.
     // We must snapshot BOTH sets before mutating anything, so that a creature
     // that phases in does NOT also appear in the phase-out set (because it was
@@ -1506,6 +1512,16 @@ pub fn clear_damage(state: &mut GameState) {
 
 /// Reset per-turn state for a player starting their turn.
 pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
+    // CR 730.2a/b: Before resetting spells_cast_this_turn, save it as the
+    // "previous turn's spell count" for day/night transition checking.
+    // This is checked at the NEXT player's untap step (CR 730.2).
+    let prev_spells = state
+        .players
+        .get(&player)
+        .map(|p| p.spells_cast_this_turn)
+        .unwrap_or(0);
+    state.previous_turn_spells_cast = prev_spells;
+
     if let Some(p) = state.players.get_mut(&player) {
         p.land_plays_remaining = 1;
         p.has_drawn_for_turn = false;
@@ -1547,6 +1563,143 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
     // CR 702.57b: Forecast once-per-turn tracking resets at the start of each turn.
     // Each card's forecast ability may be activated once per turn.
     state.forecast_used_this_turn = im::OrdSet::new();
+}
+
+// ---------------------------------------------------------------------------
+// Day/Night enforcement (CR 730 + CR 702.145 Daybound/Nightbound)
+// ---------------------------------------------------------------------------
+
+/// CR 730.2: Check whether the game's day/night designation should change at the
+/// start of the untap step.
+///
+/// - CR 730.2a: If it's day and the previous turn's active player cast no spells → becomes night.
+/// - CR 730.2b: If it's night and the previous turn's active player cast two or more spells → becomes day.
+/// - CR 730.2c: If it's neither, skip.
+///
+/// After any transition, applies daybound/nightbound enforcement (CR 702.145c/f).
+fn check_day_night_transition(state: &mut GameState) -> Vec<GameEvent> {
+    use crate::rules::events::GameEvent;
+    use crate::state::DayNight;
+
+    let mut events = Vec::new();
+
+    let transition = match state.day_night {
+        Some(DayNight::Day) if state.previous_turn_spells_cast == 0 => {
+            // CR 730.2a: Becomes night.
+            Some(DayNight::Night)
+        }
+        Some(DayNight::Night) if state.previous_turn_spells_cast >= 2 => {
+            // CR 730.2b: Becomes day.
+            Some(DayNight::Day)
+        }
+        _ => None, // CR 730.2c or no change
+    };
+
+    if let Some(new_designation) = transition {
+        state.day_night = Some(new_designation);
+        events.push(GameEvent::DayNightChanged {
+            now: new_designation,
+        });
+
+        // After changing day/night, enforce daybound/nightbound transforms.
+        let transform_events = enforce_daybound_nightbound(state);
+        events.extend(transform_events);
+    }
+
+    events
+}
+
+/// CR 702.145c/f: Enforce daybound/nightbound immediate transforms.
+///
+/// Called whenever the day/night designation changes or when a daybound/nightbound
+/// permanent enters the battlefield.
+///
+/// - If it's night and a permanent has daybound with front face up → transform it.
+/// - If it's day and a permanent has nightbound with back face up → transform it.
+/// - If it's neither and a permanent has daybound → establish day (CR 702.145d).
+/// - If it's neither and a permanent has nightbound (and no daybound exists) → establish night (CR 702.145g).
+///
+/// CR 702.145b/c: "happens immediately and isn't a state-based action."
+pub fn enforce_daybound_nightbound(state: &mut GameState) -> Vec<GameEvent> {
+    use crate::rules::events::GameEvent;
+    use crate::state::types::KeywordAbility;
+    use crate::state::zone::ZoneId;
+    use crate::state::DayNight;
+
+    let mut events = Vec::new();
+
+    // First, check if we need to establish day/night for the first time.
+    if state.day_night.is_none() {
+        let has_daybound = state.objects.values().any(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && super::layers::calculate_characteristics(state, obj.id)
+                    .map(|c| c.keywords.contains(&KeywordAbility::Daybound))
+                    .unwrap_or(false)
+        });
+        let has_nightbound = state.objects.values().any(|obj| {
+            obj.zone == ZoneId::Battlefield
+                && super::layers::calculate_characteristics(state, obj.id)
+                    .map(|c| c.keywords.contains(&KeywordAbility::Nightbound))
+                    .unwrap_or(false)
+        });
+
+        if has_daybound {
+            // CR 702.145d: Daybound causes it to become day.
+            state.day_night = Some(DayNight::Day);
+            events.push(GameEvent::DayNightChanged { now: DayNight::Day });
+        } else if has_nightbound {
+            // CR 702.145g: Nightbound causes it to become night (if no daybound exists).
+            state.day_night = Some(DayNight::Night);
+            events.push(GameEvent::DayNightChanged {
+                now: DayNight::Night,
+            });
+        }
+    }
+
+    // Collect IDs of permanents that need transforming (to avoid borrow conflicts).
+    let ids_to_transform: Vec<crate::state::game_object::ObjectId> = state
+        .objects
+        .iter()
+        .filter_map(|(id, obj)| {
+            if obj.zone != ZoneId::Battlefield {
+                return None;
+            }
+            let chars = super::layers::calculate_characteristics(state, *id)?;
+
+            // CR 702.145c: If it's night and the permanent has daybound and is front-face-up.
+            if state.day_night == Some(DayNight::Night)
+                && chars.keywords.contains(&KeywordAbility::Daybound)
+                && !obj.is_transformed
+            {
+                return Some(*id);
+            }
+
+            // CR 702.145f: If it's day and the permanent has nightbound and is back-face-up.
+            if state.day_night == Some(DayNight::Day)
+                && chars.keywords.contains(&KeywordAbility::Nightbound)
+                && obj.is_transformed
+            {
+                return Some(*id);
+            }
+
+            None
+        })
+        .collect();
+
+    for id in ids_to_transform {
+        if let Some(obj) = state.objects.get_mut(&id) {
+            let to_back_face = !obj.is_transformed;
+            obj.is_transformed = to_back_face;
+            obj.last_transform_timestamp = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            events.push(GameEvent::PermanentTransformed {
+                object_id: id,
+                to_back_face,
+            });
+        }
+    }
+
+    events
 }
 
 // ---------------------------------------------------------------------------

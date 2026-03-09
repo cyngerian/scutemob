@@ -1100,6 +1100,24 @@ pub enum GameEvent {
         creature: ObjectId,
     },
 
+    // ── Mutate events (CR 702.140) ────────────────────────────────────────────
+    /// CR 702.140d: A mutating creature spell successfully merged with its target.
+    ///
+    /// Emitted when a `MutatingCreatureSpell` resolves with a legal target and
+    /// the spell's card data is absorbed into `target.merged_components`.
+    /// The `object_id` is the merged permanent's ObjectId (the target's id is preserved,
+    /// per CR 729.2c: "same object"). No ETB triggers fire — the merged permanent
+    /// is not considered to have just entered the battlefield (CR 729.2c).
+    ///
+    /// This event is used by `TriggerEvent::SelfMutates` trigger dispatch in
+    /// `abilities.rs` to fire "whenever this creature mutates" abilities.
+    CreatureMutated {
+        /// The merged permanent's ObjectId (the target's id, preserved per CR 400.7 exception).
+        object_id: ObjectId,
+        /// The controller of the mutating spell (and the merged permanent's controller).
+        player: PlayerId,
+    },
+
     // ── Haunt events (CR 702.55) ──────────────────────────────────────────────
     /// CR 702.55a: A haunt card was exiled haunting a creature.
     ///
@@ -1114,6 +1132,80 @@ pub enum GameEvent {
         exiled_card: ObjectId,
         /// The ObjectId of the creature being haunted (on the battlefield).
         haunted_creature: ObjectId,
+    },
+
+    // ── Transform events (CR 701.27 / CR 712) ────────────────────────────────
+    /// CR 701.27a: A double-faced permanent transformed (its other face is now up).
+    ///
+    /// No new object is created (CR 712.18). The ObjectId is unchanged. Counters,
+    /// continuous effects, attached permanents, and damage persist.
+    ///
+    /// Discriminant: 108.
+    PermanentTransformed {
+        /// The ObjectId of the permanent that transformed.
+        object_id: ObjectId,
+        /// True if the permanent is now face-back (back face up / is_transformed == true).
+        /// False if it transformed back to its front face.
+        to_back_face: bool,
+    },
+
+    /// CR 730.1: The game's day/night designation changed.
+    ///
+    /// Emitted when it becomes day or night due to CR 730.2, or when a Daybound/Nightbound
+    /// permanent establishes the initial day/night designation (CR 702.145d/g).
+    ///
+    /// Discriminant: 109.
+    DayNightChanged {
+        /// The new day/night designation.
+        now: crate::state::DayNight,
+    },
+
+    /// CR 702.167a: A permanent's craft ability was activated and the materials exiled.
+    ///
+    /// Emitted after the cost is paid (source + materials exiled). The craft ability
+    /// is on the stack. When it resolves, PermanentEnteredBattlefield is emitted.
+    ///
+    /// Discriminant: 110.
+    CraftActivated {
+        /// The player who activated the craft ability.
+        player: PlayerId,
+        /// The ObjectId of the exiled source (new ID in exile after move, CR 400.7).
+        exiled_source: ObjectId,
+        /// ObjectIds of the exiled material cards/permanents.
+        exiled_materials: Vec<ObjectId>,
+    },
+
+    /// CR 702.37e / 702.168d / 701.40b / 701.58b: A face-down permanent was turned face up.
+    ///
+    /// The special action has resolved: the cost was paid, `face_down` is now false,
+    /// `face_down_as` is cleared, and the permanent's real characteristics are visible.
+    /// ETB abilities were NOT fired (CR 708.8). Any "when turned face up" triggered
+    /// abilities have been queued as `TurnFaceUpTrigger` stack objects.
+    ///
+    /// Discriminant: 111.
+    PermanentTurnedFaceUp {
+        /// The player who turned the permanent face up.
+        player: PlayerId,
+        /// The permanent that was turned face up.
+        permanent: ObjectId,
+    },
+
+    /// CR 708.9: A face-down permanent left the battlefield and must be revealed.
+    ///
+    /// All players must be shown the card's real identity when a face-down permanent
+    /// leaves the battlefield for any zone (graveyard, exile, hand, library).
+    ///
+    /// The network layer uses this event to broadcast the card's true identity to
+    /// all players (including opponents who could not see it while it was face-down).
+    ///
+    /// Discriminant: 112.
+    FaceDownRevealed {
+        /// The player who controlled the face-down permanent.
+        player: PlayerId,
+        /// The permanent's last ObjectId before leaving the battlefield.
+        permanent: ObjectId,
+        /// The real name of the card revealed to all players.
+        card_name: String,
     },
 }
 

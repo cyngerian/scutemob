@@ -11,7 +11,7 @@ use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
 use crate::state::targeting::Target;
-use crate::state::types::AltCostKind;
+use crate::state::types::{AltCostKind, FaceDownKind, TurnFaceUpMethod};
 
 /// A player action submitted to the engine.
 ///
@@ -318,6 +318,29 @@ pub enum Command {
         /// Validated against the spell having `KeywordAbility::Gift` in casting.rs.
         #[serde(default)]
         gift_opponent: Option<crate::state::PlayerId>,
+        /// CR 702.140a: The target non-Human creature the caster owns to mutate onto.
+        /// `None` for non-mutating casts. `Some(target_id)` when casting via mutate cost.
+        ///
+        /// The target must be on the battlefield, be a creature, NOT be a Human (no
+        /// "Human" subtype), and must be owned by the caster (CR 702.140a).
+        /// Validated in `handle_cast_spell` when `alt_cost == Some(AltCostKind::Mutate)`.
+        #[serde(default)]
+        mutate_target: Option<ObjectId>,
+        /// CR 702.140c: Whether the mutating card goes on top (true) or underneath (false)
+        /// the target permanent. The controller chooses at cast time.
+        /// Defaults to true (on top) which gives the spell's characteristics to the merged permanent.
+        /// Only meaningful when `mutate_target` is `Some`.
+        #[serde(default)]
+        mutate_on_top: bool,
+        /// CR 702.37c / 702.168b: Which face-down variant is being used when casting
+        /// face-down (morph, megamorph, or disguise). Required when
+        /// `alt_cost == Some(AltCostKind::Morph)`.
+        ///
+        /// `None` for non-morph casts. `Some(FaceDownKind::Morph)` for morph,
+        /// `Some(FaceDownKind::Megamorph)` for megamorph, `Some(FaceDownKind::Disguise)`
+        /// for disguise. Determines `face_down_as` on the resulting `GameObject`.
+        #[serde(default)]
+        face_down_kind: Option<FaceDownKind>,
     },
     /// Activate a non-mana activated ability (CR 602).
     ///
@@ -730,5 +753,68 @@ pub enum Command {
         recover_card: ObjectId,
         /// True = pay the recover cost and return to hand. False = exile the card.
         pay: bool,
+    },
+
+    // ── Transform (CR 701.27 / CR 712) ───────────────────────────────────────
+    /// Transform a double-faced permanent (CR 701.27a).
+    ///
+    /// Flips the permanent to its other face. No new object is created (CR 712.18).
+    /// Counters, damage, auras, and continuous effects all persist.
+    ///
+    /// Validation:
+    /// - Permanent must be on battlefield and controlled by the player.
+    /// - Permanent must have a back_face in the card registry (CR 701.27c).
+    /// - Back face cannot be instant or sorcery (CR 701.27d).
+    /// - Permanents with daybound/nightbound can only transform via their keyword
+    ///   enforcement system, not via direct transform commands (CR 702.145b/e).
+    Transform {
+        player: PlayerId,
+        /// The permanent to transform.
+        permanent: ObjectId,
+    },
+
+    // ── Craft (CR 702.167) ────────────────────────────────────────────────────
+    /// Activate a permanent's craft ability (CR 702.167a).
+    ///
+    /// Cost: [craft cost] + exile this permanent + exile [materials] from
+    /// permanents you control and/or cards in your graveyard.
+    ///
+    /// When this ability resolves: return the exiled source card to the battlefield
+    /// transformed under its owner's control. If the card isn't a DFC, it stays in exile.
+    ///
+    /// "Activate only as a sorcery" (CR 702.167a).
+    ActivateCraft {
+        player: PlayerId,
+        /// The permanent with the craft ability (will be exiled as cost).
+        source: ObjectId,
+        /// Cards/permanents to exile as the material cost.
+        material_ids: Vec<ObjectId>,
+    },
+
+    // ── Morph / Manifest / Cloak (CR 702.37, 701.40, 701.58) ─────────────────
+    /// Turn a face-down permanent face up (CR 702.37e, 702.168d, 701.40b, 701.58b).
+    ///
+    /// This is a special action (CR 116.2b) — it does NOT use the stack and cannot
+    /// be responded to. The engine validates:
+    /// 1. The permanent is on the battlefield, face-down, controlled by the player.
+    /// 2. The permanent can be turned face up via the chosen method.
+    /// 3. The player can pay the appropriate cost.
+    ///
+    /// On success: the cost is paid, face_down is set to false, face_down_as is cleared,
+    /// the permanent regains its real characteristics, and a PermanentTurnedFaceUp event
+    /// is emitted. ETB abilities do NOT fire (CR 708.8). "When turned face up" triggered
+    /// abilities DO fire and go on the stack (CR 708.8).
+    ///
+    /// If the permanent is a Megamorph and the method is MorphCost, a +1/+1 counter
+    /// is placed on it as it turns face up (CR 702.37b).
+    TurnFaceUp {
+        player: PlayerId,
+        /// The face-down permanent to turn face up.
+        permanent: ObjectId,
+        /// Which turn-face-up method to use.
+        ///
+        /// A manifested card with morph may use either MorphCost or ManaCost (CR 701.40c).
+        /// A manifested card with disguise may use either DisguiseCost or ManaCost (CR 701.40d).
+        method: TurnFaceUpMethod,
     },
 }
