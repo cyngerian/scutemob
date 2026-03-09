@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_199",
+    "name": "Sakura-Tribe Elder — sacrifice to search for basic land",
+    "description": "p1 has Sakura-Tribe Elder on the battlefield and two basic lands in library (Forest, Island). p1 activates the Elder's ability (sacrifice Sakura-Tribe Elder: search library for a basic land card, put it onto the battlefield tapped, then shuffle). Engine resolves SearchLibrary deterministically (minimum ObjectId = Forest). Tests sacrifice-cost activation, library search, tapped ETB, and shuffle.",
+    "cr_sections_tested": ["602.2", "605.5", "608.2", "700.4", "701.19"],
+    "corner_case_ref": null,
+    "tags": ["creature", "sacrifice", "search-library", "sakura-tribe-elder", "ramp"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "ability-impl-runner",
+    "review_date": "2026-03-08",
+    "generation_notes": "Sakura-Tribe Elder oracle: 'Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' CR 602.2: Activated ability, cost is sacrifice self. CR 605.5: Not a mana ability — goes on the stack. Engine picks minimum ObjectId matching basic_land_filter(); Forest is placed first in library (lower ObjectId). After resolution: STE in graveyard, Forest on battlefield tapped, Island still in library, stack empty. search_library action is a documentation marker (CR 701.19a) — no Command issued.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Sakura-Tribe Elder", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Forest", "is_commander": false, "owner": null },
+          { "card": "Island", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 sacrifices Sakura-Tribe Elder to search for a basic land.",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Sakura-Tribe Elder on battlefield, Forest and Island in library",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Sakura-Tribe Elder" }] },
+            "zones.library.p1.count": 2,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Sakura-Tribe Elder",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "p1 sacrifices Sakura-Tribe Elder as cost. Activated ability (SearchLibrary + Shuffle) goes on the stack (CR 605.5: not a mana ability)."
+        },
+        {
+          "type": "assert_state",
+          "description": "Ability on stack; Sakura-Tribe Elder sacrificed to graveyard",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.battlefield.p1": { "excludes": ["Sakura-Tribe Elder"] },
+            "zones.graveyard.p1": { "includes": [{ "card": "Sakura-Tribe Elder" }] }
+          },
+          "note": "Cost paid: STE in graveyard. Ability on stack."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "Both players pass priority — ability resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Sakura-Tribe Elder ability",
+          "resolution": [
+            {
+              "effect": "search_library_for_basic_land",
+              "player": "p1",
+              "found": "Forest",
+              "cr_ref": "701.19",
+              "note": "Engine picks minimum ObjectId matching basic land filter — Forest."
+            },
+            {
+              "effect": "put_onto_battlefield_tapped",
+              "card": "Forest",
+              "controller": "p1",
+              "cr_ref": "608.2",
+              "note": "Forest enters the battlefield tapped."
+            },
+            {
+              "effect": "shuffle_library",
+              "player": "p1",
+              "cr_ref": "701.19",
+              "note": "Remaining library (Island) is shuffled."
+            }
+          ],
+          "note": "Ability resolves: Forest enters tapped; library shuffled."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "search_library",
+          "card": "Forest",
+          "targets": [],
+          "mana_paid": {},
+          "mana_source": [],
+          "cr_ref": "701.19a",
+          "note": "Documentation marker: engine already put Forest onto the battlefield. No Command issued (M10 will add Command::SelectLibraryCard)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: STE in graveyard, Forest on battlefield (tapped), Island in library, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Forest" }] },
+            "permanent.Forest.tapped": true,
+            "zones.graveyard.p1": { "includes": [{ "card": "Sakura-Tribe Elder" }] },
+            "zones.library.p1.count": 1
+          },
+          "note": "Forest on battlefield (tapped); Island remains in library after shuffle."
+        }
+      ]
+    }
+  ]
+}

@@ -347,7 +347,7 @@ Common ability patterns that appear across many cards but aren't formal CR 702 k
 | Attack trigger | P1 | `validated` | `state/game_object.rs:111` (TriggerEvent::SelfAttacks), `cards/card_definition.rs:470` (TriggerCondition::WhenAttacks), `testing/replay_harness.rs:426-447` (enrichment), `rules/abilities.rs:377-388` (dispatch — CR 508.1m, 508.3a), `rules/combat.rs:290-298` (flush) | Audacious Thief | `combat/011` | — | Full pipeline: enum + enrichment + dispatch + flush + card def + script; 5 unit tests in `tests/abilities.rs:1790-2253` + 1 in `tests/combat.rs:744`; script `pending_review` (10/10 assertions pass) |
 | Combat damage trigger | P1 | `validated` | `state/game_object.rs:135`, `state/hash.rs:901`, `rules/abilities.rs:561`, `testing/replay_harness.rs:494` | Scroll Thief | `combat/013` | — | TriggerEvent::SelfDealsCombatDamageToPlayer enum + dispatch via CombatDamageDealt match; enrichment in replay_harness; 4 unit tests in `tests/combat.rs:1539`; game script approved |
 | Opponent-casts trigger | P1 | `validated` | `state/game_object.rs:140`, `state/stubs.rs:59`, `state/hash.rs:905,1852`, `rules/abilities.rs:456,725`, `testing/replay_harness.rs:509-515`, `cards/card_definition.rs:492` | Rhystic Study | `stack/059` | — | TriggerEvent::OpponentCastsSpell enum + dispatch in SpellCast arm; triggering_player on PendingTrigger; WheneverOpponentCastsSpell enrichment in replay_harness; 5 unit tests in `tests/effects.rs`; game script approved (12/12 assertions) |
-| Search library | P1 | `complete` | `effects/` | Wayfarer's Bauble, Evolving Wilds, Terramorphic Expanse, Cultivate | — | — | `SearchLibrary` effect works; harness doesn't emit player command yet |
+| Search library | P1 | `validated` | `effects/`, `testing/replay_harness.rs` (search_library action) | Wayfarer's Bauble, Evolving Wilds, Terramorphic Expanse, Sakura-Tribe Elder | `stack/199` | — | `SearchLibrary` effect + deterministic selection (min ObjectId); `search_library` harness action (documentation marker, CR 701.19a); script 199 validates Forest on battlefield tapped + library count; M10 upgrade path noted for interactive Command::SelectLibraryCard |
 | Destroy + compensate | P1 | `validated` | `effects/` | Beast Within, Generous Gift, Pongify, Rapid Hybridization | `baseline/` scripts | — | Destroy target + create token for controller |
 | Mass removal | P1 | `validated` | `effects/` | Wrath of God, Damnation, Supreme Verdict, Blasphemous Act | `baseline/` scripts | — | Destroy/damage all creatures |
 | Counter spell | P1 | `validated` | `effects/` | Counterspell, Negate, Swan Song, Arcane Denial | `stack/` scripts | — | Counter target spell on stack |
@@ -463,7 +463,7 @@ Top unresolved gaps ordered by priority.
 
 ### P1 Gaps (on existing cards or blocking scripts)
 
-All P1 gaps resolved. 40/42 validated, 2 complete (ETB trigger, Search library).
+All P1 gaps resolved. 42/42 validated (ETB trigger and Search library both validated this session).
 
 ### P2 Gaps (Commander staples)
 

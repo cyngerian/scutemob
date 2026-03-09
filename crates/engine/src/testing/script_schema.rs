@@ -204,7 +204,9 @@ pub enum ScriptAction {
         player: String,
         /// One of: `cast_spell`, `activate_ability`, `play_land`, `declare_attackers`,
         /// `declare_blockers`, `assign_damage`, `choose_option`, `order_triggers`,
-        /// `special_action`, `concede`, `mulligan_decision`.
+        /// `special_action`, `concede`, `mulligan_decision`, `search_library`
+        /// (documentation marker — no Command issued; engine resolves SearchLibrary
+        /// effects deterministically by minimum ObjectId; M10 will add interactive search).
         action: String,
         card: Option<String>,
         #[serde(default)]
