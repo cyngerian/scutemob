@@ -10,7 +10,7 @@
 
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
-| W1: Abilities | — | available | — | ALL P3+P4 DONE. Morph complete (KW 157, AbilDef 64, SOK 63). Only Morph variants (Megamorph/Disguise/Manifest/Cloak) need card defs+scripts for "validated". W1 complete. |
+| W1: Abilities | — | available | — | ALL P3+P4 DONE. W1 complete. Post-consolidation: KW 157, AbilDef 55, SOK ~20. |
 | W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | LOW remediation — T2/T3 items | available | — | Phase 0 complete; T2 done; T3 ManaPool pending |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
@@ -21,32 +21,29 @@
 
 ## Last Handoff
 
-**Date**: 2026-03-08
-**Workstream**: W1: Abilities — Morph Mini-Milestone
-**Task**: Full Morph pipeline: plan → implement → review → fix → cards → scripts → close
+**Date**: 2026-03-09
+**Workstream**: Cross-cutting (chore) — Ability Validation Sprint
+**Task**: Promote 6 "complete" P4 abilities to "validated" (card defs + scripts + harness fixes)
 
 **Completed**:
-- Morph (CR 702.37, P3): FaceDownKind enum, face_down_as on GameObject, AltCostKind::Morph casting, Command::TurnFaceUp + TurnFaceUpMethod, face-down layer override (2/2 colorless no abilities), FaceDownRevealed event (CR 708.9)
-- Megamorph (CR 702.37f, P4): engine complete (KW+AbilDef+counter-on-flip), no card def yet
-- Disguise (CR 702.162, P4): engine complete (face-down ward {2}), no card def yet
-- Manifest (CR 701.40, P4): Effect::Manifest, no card def yet
-- Cloak (CR 701.58, P4): Effect::Cloak, no card def yet
-- Review: 1 HIGH (Manifest ETB suppression), 3 MEDIUM — all fixed
-- Cards: Exalted Angel, Birchlore Rangers, Akroma Angel of Fury (3 Morph card defs)
-- Scripts: 197 (cast face-down + flip, PASS), 198 (face-down dies reveal, PASS)
-- Coverage: Morph validated; Megamorph/Disguise/Manifest/Cloak = complete (need card+script for validated)
-- Corner case 30 (Morph/Manifest face-down): DEFERRED → COVERED
-- P3: 40/40 ALL DONE; W1 COMPLETE
+- Harness fix: `gift_opponent` field added to `PlayerAction` schema; `AbilityDefinition::Gift → KeywordAbility::Gift` in `enrich_spec_from_def`; `gift_opponent_name` param in `translate_player_action` (all callers updated)
+- Card defs created: Lumbering Laundry (Disguise {5}), Den Protector (Megamorph {1}{G}), Write into Being (Manifest), Cryptic Coat (Cloak ETB)
+- Scripts approved: 182 (Forage Food), 185 (Gift Nocturnal Hunger), 200 (Forage exile-3), 201 (Disguise), 202 (Megamorph), 203 (Manifest), 204 (Cloak)
+- Coverage doc updated: P4 93/105 validated (was 87); 0 complete remaining; all non-N/A P4 abilities validated
+- Committed: `chore: validate 6 complete abilities — Disguise, Megamorph, Manifest, Cloak, Forage, Gift`
 
-**Next**: W1 complete — proceed to Phase 2 (TUI Hardening — W2) or Phase 3 T3 (W3 ManaPool encapsulation) or Phase 4 (M10 — W4).
+**Next**: All implementable abilities validated. Proceed to M10 (W4), TUI hardening (W2), LOW remediation W3 T3 (ManaPool hardening), or card authoring (W5). Read `docs/mtg-engine-strategic-review.md` before starting M10. Discuss the 12 N/A abilities (Banding, digital-only, niche) — user flagged for discussion.
 
-**Hazards**: Megamorph/Disguise/Manifest/Cloak each need a card def + script to reach "validated". LOW findings F5/F6 still open. Scripts 195/196/197/198 are pending_review in harness.
+**Hazards**: ~79 LOW issues open. W3 T3 (ManaPool hardening) still pending — one unchecked Phase 3 box in workstream-coordination.md.
 
-**Discriminant chain end**: KW 157, AbilDef 64, SOK 63.
+**Discriminant chain end**: KW 157, AbilDef 55, SOK ~20 (unchanged).
 
-**Commit prefix used**: W1-Morph:
+**Commit prefix used**: chore:
 
 ## Handoff History
+
+### 2026-03-08 (session end) — W1: Abilities — Morph Mini-Milestone
+- Morph (CR 702.37, P3); Megamorph/Disguise/Manifest/Cloak engine complete; 3 cards, 2 scripts; P3 40/40 ALL DONE; W1 COMPLETE; KW 157, AbilDef 64, SOK 63
 
 ### 2026-03-08 (session end) — W1: Abilities — Transform Mini-Milestone
 - Transform (701.28), Disturb (702.145), Daybound/Nightbound (702.146), Craft (702.167); 1911 tests; 183 validated; P3 39/40; P4 88/88 (all done!); scripts 193-196; cards: Delver of Secrets, Beloved Beggar, Brutal Cathar, Braided Net; KW 148-152, AbilDef 60-61, SOK 60-62
@@ -63,5 +60,3 @@
 ### 2026-03-07 (session end) — W1: Abilities — Batch 13
 - Discover (701.57), Suspect (701.60), Collect Evidence (701.59), Forage (701.61), Squad (702.157), Offspring (702.175), Gift (702.174), Saddle (702.171); 1792 tests; 171 validated; P4 77/88; scripts 179-186; cards: Geological Appraiser, Frantic Scapegoat, Crimestopper Sprite, Camellia the Seedmiser, Ultramarines Honour Guard, Flowerfoot Swordmaster, Nocturnal Hunger, Quilled Charger
 
-### 2026-03-07 (session end) — W1: Abilities — Batch 12
-- Enrage, Alliance, Corrupted, Ravenous (702.156), Bloodrush; 1784 tests; 165 validated; P4 71/88; scripts 174-178; cards: Ripjaw Raptor, Prosperous Innkeeper, Vivisection Evangelist, Tyrranax Rex, Ghor-Clan Rampager
