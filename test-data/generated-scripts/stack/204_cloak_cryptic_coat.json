@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_204",
+    "name": "Cloak: Cryptic Coat ETB cloaks top library card, then turn face up",
+    "description": "p1 casts Cryptic Coat ({2}{U}), an Artifact Equipment whose ETB trigger cloaks the top card of p1's library (Llanowar Elves). The cloaked permanent enters the battlefield as a face-down 2/2 with ward {2} (CR 701.58 — Cloak differs from Manifest in that it grants ward {2} while face-down). p1 then pays Llanowar Elves' mana cost {G} to turn it face up, revealing it as a 1/1 creature. Tests CR 701.58 (Cloak action), CR 702.37 (face-down permanent rules), and CR 702.17 (ward on face-down Cloaked permanent).",
+    "cr_sections_tested": ["601.2", "603.3", "608.2", "701.58", "702.17", "702.37"],
+    "corner_case_ref": null,
+    "tags": ["cloak", "face-down", "turn-face-up", "etb-trigger", "ward", "equipment"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Cryptic Coat: {2}{U}, Artifact Equipment, card_id 'cryptic-coat'. ETB trigger: 'When this Equipment enters, cloak the top card of your library.' Cloak (CR 701.58) puts the top card face-down as a 2/2 creature with ward {2} — this is the key difference from Manifest (CR 701.40), which does not grant ward. Llanowar Elves ({G}, 1/1 creature) is pre-placed in p1's library. Mana pool setup: {colorless: 2, blue: 1, green: 1} to cover Cryptic Coat cast + Llanowar Elves turn-face-up cost. After Cryptic Coat resolves (enters battlefield), the ETB trigger queues on the stack (CR 603.3). After priority round, the trigger resolves and Cloak action puts Llanowar Elves face-down on battlefield as a 2/2. Face-down permanents have no name (CR 708.2a) so cannot be asserted by card name — confirmed indirectly by library becoming empty and battlefield creature count increasing. Ward {2} on the face-down permanent is a Cloak-specific characteristic per CR 701.58b. After turn_face_up with method 'mana_cost' paying {G}, Llanowar Elves is revealed as a 1/1 and becomes visible by name on the battlefield. The Cryptic Coat Equipment itself remains on the battlefield (it has its own ETB, does not sacrifice itself).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "blue": 1, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Cryptic Coat", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Cryptic Coat; ETB trigger cloaks top library card (Llanowar Elves)",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Cryptic Coat in p1 hand, Llanowar Elves on top of p1 library, battlefield empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.library.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Cryptic Coat",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Cryptic Coat paying {2}{U}. No targets required. Card moves from hand to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Cryptic Coat on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Cryptic Coat spell is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — Cryptic Coat spell resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cryptic Coat",
+          "resolution": [],
+          "note": "CR 608.2: Cryptic Coat resolves and enters the battlefield as an artifact. ETB trigger queues on the stack per CR 603.3."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Cryptic Coat resolves: it is on the battlefield, ETB trigger on stack",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Cryptic Coat" }] },
+            "zones.stack.count": 1
+          },
+          "note": "Cryptic Coat entered the battlefield. Its ETB trigger ('cloak the top card of your library') is now on the stack (CR 603.3)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — ETB trigger resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Cryptic Coat",
+          "resolution": [
+            {
+              "effect": "cloak",
+              "target": { "type": "library_top", "player": "p1" },
+              "amount": null,
+              "card": "Llanowar Elves",
+              "owner": "p1",
+              "cr_ref": "701.58",
+              "note": "CR 701.58: Cloak puts the top card of p1's library face-down on the battlefield as a 2/2 creature with ward {2}. The cloaked card is Llanowar Elves."
+            }
+          ],
+          "note": "CR 608.2: ETB trigger resolves. Cloak action executed per CR 701.58 — Llanowar Elves is cloaked onto battlefield as a face-down 2/2 with ward {2}."
+        },
+        {
+          "type": "assert_state",
+          "description": "After Cloak resolves: library empty, face-down 2/2 with ward {2} on p1 battlefield, stack empty",
+          "assertions": {
+            "zones.library.p1.count": 0,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": "Llanowar Elves is now face-down on the battlefield as a 2/2 with ward {2} (CR 701.58). It cannot be asserted by card name while face-down (CR 708.2a — face-down permanents have no name). Library count drops to 0 confirming the card was moved."
+        }
+      ]
+    },
+    {
+      "step": "precombat_main",
+      "step_note": "p1 turns the cloaked creature face up by paying Llanowar Elves' mana cost {G}",
+      "actions": [
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "turn_face_up",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "green": 1 },
+          "mana_source": [],
+          "cr_ref": "701.58",
+          "note": "CR 701.58: A cloaked permanent may be turned face up any time its controller has priority by paying its mana cost. p1 pays {G} (Llanowar Elves' mana cost) to turn it face up. This is a special action per CR 116.2b and does not use the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After turn face up: Llanowar Elves visible on p1 battlefield as a 1/1, Cryptic Coat also present",
+          "assertions": {
+            "zones.battlefield.p1": {
+              "includes": [
+                { "card": "Llanowar Elves" },
+                { "card": "Cryptic Coat" }
+              ]
+            }
+          },
+          "note": "CR 708.8: Face-up permanent now has its true characteristics. Llanowar Elves is a 1/1 green creature. Cryptic Coat Equipment remains on the battlefield. Ward {2} from Cloak no longer applies once the card is face-up (CR 701.58 — ward is a face-down characteristic)."
+        }
+      ]
+    }
+  ]
+}

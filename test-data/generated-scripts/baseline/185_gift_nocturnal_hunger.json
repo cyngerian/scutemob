@@ -25,22 +25,12 @@
       "4-player",
       "token"
     ],
-    "confidence": "medium",
-    "review_status": "pending_review",
-    "reviewed_by": null,
-    "review_date": null,
-    "generation_notes": "CR 702.174a: Gift is a keyword ability that lets the caster promise an opponent a benefit. CR 702.174b: If the gift was promised, the chosen opponent receives the specified gift (here, a Food token) before the spell's other effects execute. CR 702.174j: The conditional 'if the gift wasn't promised' clause means P1 does NOT lose 2 life because P1 did promise the gift. In a 4-player game, player names p1/p2/p3/p4 sort alphabetically to PlayerId 1/2/3/4. P3 is index 2 (0-based) for the gift_opponent field. The spell costs {2}{B}: generic=2, black=1. P1 has 2 generic (colorless) + 1 black mana available. P2 controls Bladetusk Boar (3/2 Intimidate) as the destroy target. NOTE: The script_schema.rs PlayerAction struct and replay_harness.rs do not currently have a gift_opponent field or cast_spell_gift action type — gift_opponent is hardcoded to None in all harness CastSpell commands. The gift_opponent field documented here is the intended schema extension. Until the harness is updated, this script will run without the gift being granted (gift_opponent: None), causing the conditional loss-of-life branch to fire instead of being skipped, which would make the final assertion fail. A dispute is recorded below.",
-    "disputes": [
-      {
-        "step_index": null,
-        "action_index": null,
-        "raised_by": "claude-sonnet-4-6",
-        "description": "Engine/schema gap: The script_schema.rs PlayerAction struct has no gift_opponent field, and replay_harness.rs hardcodes gift_opponent: None for all cast_spell actions (including the cast_spell action type used here). There is no cast_spell_gift action type. As a result, the harness cannot convey the player's choice of gift opponent to the engine. When gift_opponent is None, the engine treats the gift as not promised, causing P1 to lose 2 life instead of skipping that branch, and P3 does not receive the Food token. The script documents intended correct behavior per CR 702.174a/b/j. A new 'gift_opponent' field on PlayerAction (Option<u32>, 0-based player index) and propagation through translate_player_action are required before this script can pass harness validation.",
-        "resolution": null,
-        "resolved_by": null,
-        "resolved_date": null
-      }
-    ]
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-09",
+    "generation_notes": "CR 702.174a: Gift is a keyword ability that lets the caster promise an opponent a benefit. CR 702.174b: If the gift was promised, the chosen opponent receives the specified gift (here, a Food token) before the spell's other effects execute. CR 702.174j: The conditional 'if the gift wasn't promised' clause means P1 does NOT lose 2 life because P1 did promise the gift. The spell costs {2}{B}: generic=2, black=1. P1 has 2 generic (colorless) + 1 black mana available. P2 controls Bladetusk Boar (3/2 Intimidate) as the destroy target. gift_opponent field uses player name string (\"p3\"), consistent with assist_player and other player-name fields.",
+    "disputes": []
   },
   "initial_state": {
     "format": "commander",
@@ -132,9 +122,9 @@
           ],
           "mana_paid": { "black": 1, "colorless": 2 },
           "mana_source": [],
-          "gift_opponent": 2,
+          "gift_opponent": "p3",
           "cr_ref": "601.2",
-          "note": "CR 601.2: P1 casts Nocturnal Hunger paying {2}{B}. CR 702.174a: P1 promises the gift to P3 (gift_opponent index 2, 0-based). Target is P2's Bladetusk Boar."
+          "note": "CR 601.2: P1 casts Nocturnal Hunger paying {2}{B}. CR 702.174a: P1 promises the gift to P3. Target is P2's Bladetusk Boar."
         },
         {
           "type": "assert_state",
@@ -189,7 +179,7 @@
             "players.p1.life": 40,
             "zones.hand.p1.count": 0
           },
-          "note": "CR 702.174b: P3 received the Food token. CR 701.7a: Bladetusk Boar was destroyed. CR 702.174j: P1 did not lose 2 life because the gift was promised. NOTE: Until the harness gift_opponent field is implemented, this assertion may fail — see disputes."
+          "note": "CR 702.174b: P3 received the Food token. CR 701.7a: Bladetusk Boar was destroyed. CR 702.174j: P1 did not lose 2 life because the gift was promised."
         }
       ]
     }

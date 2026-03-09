@@ -297,6 +297,9 @@ pub fn translate_player_action(
     // CR 702.140a: For `cast_spell_mutate`. True = spell goes on top of merged permanent.
     // False = spell goes underneath the existing target. Ignored for all other action types.
     mutate_on_top: bool,
+    // CR 702.174a: For `cast_spell` with gift. The name of the opponent who receives the
+    // gift benefit. `None` means the gift was not promised. Ignored for all other action types.
+    gift_opponent_name: Option<&str>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -329,6 +332,8 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_in_graveyard(state, player, name.as_str()))
                 .collect();
+            // CR 702.174a: Resolve gift opponent name to PlayerId if provided.
+            let gift_pid = gift_opponent_name.and_then(|name| players.get(name).copied());
             Some(Command::CastSpell {
                 player,
                 card: card_id,
@@ -347,7 +352,11 @@ pub fn translate_player_action(
                 // CR 107.3m: Propagate x_value from the script action to CastSpell.
                 x_value,
                 face_down_kind: None,
-                additional_costs: vec![],
+                additional_costs: if let Some(pid) = gift_pid {
+                    vec![AdditionalCost::Gift { opponent: pid }]
+                } else {
+                    vec![]
+                },
             })
         }
 
@@ -1897,6 +1906,16 @@ pub fn enrich_spec_from_def(
     for ability in &def.abilities {
         if let AbilityDefinition::Cipher = ability {
             spec = spec.with_keyword(KeywordAbility::Cipher);
+        }
+    }
+
+    // CR 702.174a: AbilityDefinition::Gift adds KeywordAbility::Gift marker.
+    // The casting validation checks chars.keywords.contains(&KeywordAbility::Gift) to confirm
+    // the spell supports a gift opponent choice. Without this propagation, gift spells placed
+    // through the harness reject the gift_opponent field with "spell does not have gift".
+    for ability in &def.abilities {
+        if let AbilityDefinition::Gift { .. } = ability {
+            spec = spec.with_keyword(KeywordAbility::Gift);
         }
     }
 

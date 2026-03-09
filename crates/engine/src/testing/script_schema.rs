@@ -360,6 +360,12 @@ pub enum ScriptAction {
         /// Ignored for all other action types.
         #[serde(default)]
         mutate_on_top: bool,
+        /// CR 702.174a: For `cast_spell` with gift. The name of the opponent chosen to
+        /// receive the gift benefit (e.g. `"p2"`). `None` means the gift was not promised;
+        /// the conditional downside clause will apply at resolution (CR 702.174j).
+        /// Ignored for all other action types.
+        #[serde(default)]
+        gift_opponent: Option<String>,
         /// CR 702.37e / CR 701.40b / CR 701.58b: For `turn_face_up`. Which turn-face-up
         /// method to use. One of: "morph_cost" (default), "disguise_cost", "mana_cost".
         /// "morph_cost" uses the card's Morph or Megamorph cost.

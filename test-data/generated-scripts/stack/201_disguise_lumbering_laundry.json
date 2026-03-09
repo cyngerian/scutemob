@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_201",
+    "name": "Disguise: cast Lumbering Laundry face-down and turn face up",
+    "description": "p1 casts Lumbering Laundry face-down using Disguise for {3}, placing a 2/2 colorless nameless creature with ward {2} on the battlefield. p1 then pays the Disguise cost {5} to turn it face up, revealing Lumbering Laundry as a 4/5 Artifact Creature — Golem. Tests CR 702.162 (Disguise: Morph rules apply + ward {2} while face-down), CR 702.37a (face-down 2/2 colorless via Morph), CR 708.2a (face-down characteristics), and CR 702.37e (turning face up as a special action).",
+    "cr_sections_tested": ["601.2", "702.162", "702.37", "702.37a", "702.37e", "708.2a", "116.2b"],
+    "corner_case_ref": null,
+    "tags": ["disguise", "morph", "face-down", "turn-face-up", "ward", "special-action"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-09",
+    "generation_notes": "Lumbering Laundry: card_id lumbering-laundry, {5}, 4/5 Artifact Creature Golem, Disguise {5}. Disguise (CR 702.162) grants the Morph ability (CR 702.37) with the face-down creature also having ward {2}. Cast face-down for {3} (standard Morph generic cost). After resolution a face-down 2/2 colorless creature with no name/text is on p1's battlefield; it has ward {2} from Disguise while face-down. Turn face up by paying Disguise cost {5} (all colorless) as a special action (CR 116.2b / 702.37e) — method: disguise_cost. After turning face up, the card reveals its true name/stats (4/5 Artifact Creature Golem). mana_paid for cast_spell_morph: {colorless: 3}. mana_paid for turn_face_up (disguise_cost): {colorless: 5}. Total mana needed: 8 colorless in pool.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 8 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Lumbering Laundry", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Lumbering Laundry face-down via Disguise for {3}, then turns it face up",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Lumbering Laundry in p1 hand, battlefield empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell_morph",
+          "card": "Lumbering Laundry",
+          "targets": [],
+          "mana_paid": { "colorless": 3 },
+          "mana_source": [],
+          "cr_ref": "702.162",
+          "note": "CR 702.162: Disguise grants Morph (CR 702.37a). p1 casts Lumbering Laundry face-down as a 2/2 creature for {3}. While face-down it also has ward {2} (from Disguise)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After morph cast: hand empty, spell on stack",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Card moved from hand to stack as a face-down Disguise spell."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — face-down spell resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Lumbering Laundry",
+          "resolution": [],
+          "note": "CR 608.2: Disguise spell resolves. Face-down 2/2 colorless creature with ward {2} enters the battlefield under p1's control (CR 708.2a, CR 702.162)."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: stack empty, hand empty (face-down 2/2 with ward {2} is on battlefield but has no name)",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.hand.p1.count": 0
+          },
+          "note": "Face-down permanent has no name (CR 708.2a), so cannot be asserted by name. Stack is empty."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "turn_face_up",
+          "card": "Lumbering Laundry",
+          "method": "disguise_cost",
+          "targets": [],
+          "mana_paid": { "colorless": 5 },
+          "mana_source": [],
+          "cr_ref": "702.162",
+          "note": "CR 702.162 / CR 702.37e: Turning face up is a special action (CR 116.2b); does not use the stack. p1 pays the Disguise cost {5} (5 colorless). Lumbering Laundry is revealed as a 4/5 Artifact Creature — Golem."
+        },
+        {
+          "type": "assert_state",
+          "description": "After turning face up: Lumbering Laundry visible on battlefield by name",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Lumbering Laundry" }] }
+          },
+          "note": "CR 708.8: Face-up permanent now has its true characteristics. Lumbering Laundry (4/5 Artifact Creature Golem) is visible by name on the battlefield."
+        }
+      ]
+    }
+  ]
+}

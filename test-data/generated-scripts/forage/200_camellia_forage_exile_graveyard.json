@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_forage_200",
+    "name": "Camellia, the Seedmiser Forage via exile-three-from-graveyard",
+    "description": "Tests Camellia, the Seedmiser's {2}, Forage activated ability using the exile-three-cards-from-graveyard path of the Forage keyword action (CR 701.61). P1 controls Camellia on the battlefield and has 3 Llanowar Elves in their graveyard. No Food is on the battlefield, so the engine takes the exile-3 path deterministically. P1 pays {2} and exiles the 3 graveyard cards as the Forage cost (CR 602.2). The ability resolves and puts a +1/+1 counter on each Squirrel p1 controls. Camellia is herself a Squirrel (subtype Squirrel Warlock), so she receives the counter, going from a 3/3 to a 4/4. The 3 Llanowar Elves end up in the exile zone.",
+    "cr_sections_tested": ["701.61", "602.2", "602.2c", "608.2", "116.3", "601.2"],
+    "corner_case_ref": null,
+    "tags": ["forage", "activated-ability", "counter", "exile", "camellia", "squirrel", "keyword-action"],
+    "confidence": "high",
+    "review_status": "pending_review",
+    "reviewed_by": null,
+    "review_date": null,
+    "generation_notes": "Camellia, the Seedmiser card definition (crates/engine/src/cards/defs/camellia_the_seedmiser.rs): mana_cost {1BG}, types Legendary Creature — Squirrel Warlock, power 3, toughness 3. Abilities: Keyword(Menace), and one Activated ability (index 0) with Cost::Sequence([Cost::Mana({2}), Cost::Forage]). The flatten_cost_into() function in replay_harness.rs maps Cost::Forage to ActivationCost::forage=true. The engine (abilities.rs) checks forage: prefers Food sacrifice if available; falls back to exiling the 3 lowest-ObjectId graveyard cards. Since no Food is present, 3 Llanowar Elves in the graveyard will be exiled. The effect is Effect::AddCounter { target: AllPermanentsMatching(Creature + Squirrel subtype, controller=You), counter: PlusOnePlusOne, count: 1 }. Because TargetFilter has no exclude_source field (deferred DSL gap noted in card def comments), Camellia herself is also targeted and receives the counter. Squirrel tokens cannot be placed in the initial state (no TokenSpec in all_cards()), so this script uses only Camellia as the Squirrel target. Mana in pool: {colorless: 2} covers the {2} generic mana cost. The forage cost (exile 3) is handled as an activation cost side-effect, not represented in mana_paid. ability_index=0: the only non-mana activated ability on Camellia (Menace is a Keyword ability and the sacrifice-Food trigger is TODO/unimplemented). Counter assertion uses 'permanent.Camellia, the Seedmiser.counters.plus_one_plus_one': 1 — syntax confirmed in script 156. Exile assertion confirms 3 Llanowar Elves are now in exile (count: 3).",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 2,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {
+        "p1": [
+          { "card": "Camellia, the Seedmiser", "is_commander": false, "owner": null, "tapped": false }
+        ]
+      },
+      "hand": {},
+      "graveyard": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null },
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null },
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null }
+        ]
+      },
+      "exile": [],
+      "command_zone": {},
+      "library": {},
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "P1 activates Camellia's Forage ability: pays {2} and exiles 3 cards from graveyard",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Camellia on p1 battlefield (3/3, no counters), 3 Llanowar Elves in p1 graveyard, no Food on battlefield",
+          "assertions": {
+            "zones.battlefield.p1.count": 1,
+            "zones.battlefield.p1": { "includes": [{ "card": "Camellia, the Seedmiser" }] },
+            "zones.graveyard.p1.count": 3,
+            "zones.stack": { "is_empty": true },
+            "players.p1.life": 40
+          },
+          "note": "Setup: Camellia is a 3/3 Squirrel Warlock with {2},Forage activated ability (ability_index 0). Three Llanowar Elves are in p1's graveyard. No Food is present, so forage must exile the 3 graveyard cards."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "activate_ability",
+          "card": "Camellia, the Seedmiser",
+          "ability_index": 0,
+          "targets": [],
+          "mana_paid": { "colorless": 2 },
+          "mana_source": [],
+          "cr_ref": "602.2",
+          "note": "CR 602.2: P1 activates Camellia's {2},Forage ability (index 0). Cost: pay {2} from pool and forage (exile 3 graveyard cards, CR 701.61a). No Food available — engine takes the exile-3 path. The 3 Llanowar Elves are exiled as the cost. Ability goes on the stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After activation: ability on stack, 3 Llanowar Elves exiled as forage cost, graveyard now empty",
+          "assertions": {
+            "zones.stack.count": 1,
+            "zones.graveyard.p1.count": 0,
+            "zones.battlefield.p1": { "includes": [{ "card": "Camellia, the Seedmiser" }] }
+          },
+          "note": "CR 602.2c: Forage cost (exile 3) is paid at activation time — the 3 Llanowar Elves leave the graveyard and enter exile before the ability is placed on the stack. Camellia remains on the battlefield (she is the source, not part of the cost)."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — top of stack resolves."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Camellia, the Seedmiser ability",
+          "resolution": [
+            {
+              "effect": "add_counter",
+              "target": { "type": "permanent", "card": "Camellia, the Seedmiser", "controller": "p1" },
+              "amount": 1,
+              "card": null,
+              "owner": null,
+              "cr_ref": "701.61",
+              "note": "CR 701.61: Forage ability resolves — put a +1/+1 counter on each Squirrel p1 controls. Camellia is a Squirrel (subtype Squirrel Warlock) so she receives 1 +1/+1 counter. No exclude-source filter in the DSL (deferred gap), so Camellia targets herself correctly."
+            }
+          ],
+          "note": "CR 608.2: Ability resolves — Effect::AddCounter targets AllPermanentsMatching(Creature+Squirrel, controller=You). Only Camellia is on p1's battlefield matching those criteria. She gets 1 +1/+1 counter."
+        },
+        {
+          "type": "assert_state",
+          "description": "Final state: Camellia has 1 +1/+1 counter (effective 4/4), graveyard empty, 3 Llanowar Elves in exile, stack empty",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.battlefield.p1": { "includes": [{ "card": "Camellia, the Seedmiser" }] },
+            "permanent.Camellia, the Seedmiser.counters.plus_one_plus_one": 1,
+            "zones.graveyard.p1.count": 0,
+            "zones.exile.count": 3,
+            "players.p1.life": 40
+          },
+          "note": "Camellia went from 3/3 to 4/4 (1 +1/+1 counter). The 3 Llanowar Elves that were in p1's graveyard are now in exile (they were exiled as the Forage cost per CR 701.61a). P1's life is unchanged at 40."
+        }
+      ]
+    }
+  ]
+}

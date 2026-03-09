@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0.0",
+  "metadata": {
+    "id": "script_stack_203",
+    "name": "Manifest: Write into Being manifests top card, turn face-up",
+    "description": "p1 casts Write into Being ({2}{U}), which manifests the top card of p1's library face-down as a 2/2 creature (CR 701.40). The top card is Llanowar Elves. After the spell resolves the face-down 2/2 is on the battlefield. p1 then pays Llanowar Elves' mana cost {G} to turn it face-up (CR 701.40b), revealing it as the 1/1 Llanowar Elves. Tests the full manifest lifecycle: library top → face-down 2/2 → pay mana cost → face-up creature card.",
+    "cr_sections_tested": ["601.2", "608.2", "701.40", "701.40b", "707.3"],
+    "corner_case_ref": null,
+    "tags": ["manifest", "face-down", "turn-face-up", "write-into-being", "llanowar-elves"],
+    "confidence": "high",
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-09",
+    "generation_notes": "Write into Being ({2}{U}) manifests the top card of its controller's library (CR 701.40: put it onto the battlefield face-down as a 2/2 colorless creature). Llanowar Elves ({G}, 1/1 creature) is set as top of library. Face-down manifest permanent has no name, P/T 2/2, colorless, no abilities (CR 707.3). Since Llanowar Elves is a creature card, its manifest can be turned face-up by paying its mana cost {G} (CR 701.40b). The harness turn_face_up action auto-detects TurnFaceUpMethod::ManaCost for Llanowar Elves because it has no Morph or Disguise ability definition. After turning face up, the permanent becomes Llanowar Elves (1/1, {T}: add {G}) and is visible by name on the battlefield. Initial mana pool: {colorless: 2, blue: 1, green: 1} to cover {2}{U} for Write into Being and {G} for the turn-face-up. Write into Being is not in the Available Cards list but card_id 'write-into-being' is provided by the caller. Llanowar Elves is in the Available Cards list (verified). Face-down state confirmed indirectly after resolution: stack is empty, hand is empty, and Llanowar Elves is NOT yet visible by name (has no name while face-down). After turn_face_up, 'Llanowar Elves' is visible by name on battlefield.",
+    "disputes": []
+  },
+  "initial_state": {
+    "format": "commander",
+    "turn_number": 1,
+    "active_player": "p1",
+    "phase": "precombat_main",
+    "step": null,
+    "priority": "p1",
+    "players": {
+      "p1": {
+        "life": 40,
+        "mana_pool": { "colorless": 2, "blue": 1, "green": 1 },
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      },
+      "p2": {
+        "life": 40,
+        "mana_pool": {},
+        "land_plays_remaining": 0,
+        "poison_counters": 0,
+        "commander_damage_received": {},
+        "commander": null,
+        "partner_commander": null
+      }
+    },
+    "zones": {
+      "battlefield": {},
+      "hand": {
+        "p1": [
+          { "card": "Write into Being", "is_commander": false, "owner": null }
+        ]
+      },
+      "graveyard": {},
+      "exile": [],
+      "command_zone": {},
+      "library": {
+        "p1": [
+          { "card": "Llanowar Elves", "is_commander": false, "owner": null }
+        ]
+      },
+      "stack": []
+    },
+    "continuous_effects": []
+  },
+  "script": [
+    {
+      "step": "precombat_main",
+      "step_note": "p1 casts Write into Being, manifesting the top library card face-down, then turns it face-up",
+      "actions": [
+        {
+          "type": "assert_state",
+          "description": "Initial: Write into Being in p1 hand, Llanowar Elves on top of library, battlefield empty",
+          "assertions": {
+            "zones.hand.p1.count": 1,
+            "zones.library.p1.count": 1,
+            "zones.stack": { "is_empty": true }
+          },
+          "note": null
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "cast_spell",
+          "card": "Write into Being",
+          "targets": [],
+          "mana_paid": { "colorless": 2, "blue": 1 },
+          "mana_source": [],
+          "cr_ref": "601.2",
+          "note": "CR 601.2: p1 casts Write into Being for {2}{U}; no targets required. Card moves to stack."
+        },
+        {
+          "type": "assert_state",
+          "description": "After casting: Write into Being on stack, hand empty",
+          "assertions": {
+            "zones.hand.p1.count": 0,
+            "zones.stack.count": 1
+          },
+          "note": "Write into Being is on the stack awaiting resolution."
+        },
+        {
+          "type": "priority_round",
+          "players": ["p1", "p2"],
+          "result": "all_pass",
+          "note": "CR 116.3: Both players pass priority — stack resolves top object."
+        },
+        {
+          "type": "stack_resolve",
+          "object": "Write into Being",
+          "resolution": [
+            {
+              "effect": "manifest",
+              "target": { "type": "player", "player": "p1" },
+              "amount": null,
+              "card": "Llanowar Elves",
+              "owner": "p1",
+              "cr_ref": "701.40",
+              "note": "CR 701.40: Manifest puts the top card of p1's library (Llanowar Elves) onto the battlefield face-down as a 2/2 colorless creature with no name, no abilities."
+            }
+          ],
+          "note": "CR 608.2: Write into Being resolves. Llanowar Elves is manifested from the top of p1's library."
+        },
+        {
+          "type": "assert_state",
+          "description": "After resolution: stack empty, library empty, hand empty (face-down 2/2 on battlefield has no name)",
+          "assertions": {
+            "zones.stack": { "is_empty": true },
+            "zones.library.p1.count": 0,
+            "zones.hand.p1.count": 0,
+            "zones.graveyard.p1": { "includes": [{ "card": "Write into Being" }] }
+          },
+          "note": "CR 707.3: The face-down permanent has no name, P/T 2/2, colorless, no text. Library is now empty. Write into Being is in p1's graveyard."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "turn_face_up",
+          "card": "Llanowar Elves",
+          "targets": [],
+          "mana_paid": { "green": 1 },
+          "mana_source": [],
+          "cr_ref": "701.40b",
+          "note": "CR 701.40b: If a manifested permanent is a creature card, its controller may turn it face-up by paying its mana cost as a special action. Llanowar Elves costs {G}. Harness auto-detects TurnFaceUpMethod::ManaCost since Llanowar Elves has no Morph/Disguise ability."
+        },
+        {
+          "type": "assert_state",
+          "description": "After turn face-up: Llanowar Elves (1/1) is now visible by name on p1's battlefield",
+          "assertions": {
+            "zones.battlefield.p1": { "includes": [{ "card": "Llanowar Elves" }] }
+          },
+          "note": "CR 707.8: The permanent is now face-up with its true characteristics: Llanowar Elves, 1/1 green creature, {T}: add {G}."
+        }
+      ]
+    }
+  ]
+}

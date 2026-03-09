@@ -8,9 +8,9 @@
     "corner_case_ref": null,
     "tags": ["food-token", "forage", "sacrifice", "gain-life", "activated-ability", "token"],
     "confidence": "high",
-    "review_status": "pending_review",
-    "reviewed_by": null,
-    "review_date": null,
+    "review_status": "approved",
+    "reviewed_by": "claude-sonnet-4-6",
+    "review_date": "2026-03-09",
     "generation_notes": "Food token mechanics: CR 111.10d defines Food as a colorless Artifact token with '{2}, {T}, Sacrifice this token: You gain 3 life.' food_token_spec() in card_definition.rs creates it with activated_abilities[0] having requires_tap:true, mana_cost:{generic:2}, sacrifice_self:true. Since sacrifice is in the cost (CR 602.2c), the Food token leaves the battlefield before the ability goes on the stack. CR 111.7: tokens cease to exist when they move to a zone other than the battlefield — a state-based action removes them from the graveyard shortly after they arrive. Therefore the final assert does NOT check for Food in p1's graveyard; it only verifies Food is absent from the battlefield and p1's life reached 43. Bake into a Pie ({2BB}) is used to create the Food token in-script (no initial-state token placement since Food has no standalone CardDefinition in all_cards() — it only exists as food_token_spec()/TokenSpec). P1 starts with {black:2, colorless:4} in pool: {black:2, colorless:2} pays for Bake, remaining {colorless:2} pays for the Food activation. Llanowar Elves (p2's 1/1) is the destroy target. CR 701.7a: destroy moves permanent to its owner's graveyard. CR 118.2: life total increases by 3. ability_index:0 is correct — Food has no mana abilities, only the one activated ability (index 0 in the non-mana activated abilities list).",
     "disputes": []
   },
