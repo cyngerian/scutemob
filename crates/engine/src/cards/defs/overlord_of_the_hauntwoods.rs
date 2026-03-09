@@ -13,6 +13,7 @@ fn everywhere_token_spec() -> TokenSpec {
         power: 0,
         toughness: 0,
         colors: OrdSet::new(),
+        supertypes: OrdSet::new(),
         card_types: [CardType::Land].into_iter().collect(),
         subtypes: [
             SubType("Plains".to_string()),

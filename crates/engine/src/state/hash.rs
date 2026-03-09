@@ -3344,6 +3344,7 @@ impl HashInto for TokenSpec {
         self.power.hash_into(hasher);
         self.toughness.hash_into(hasher);
         self.colors.hash_into(hasher);
+        self.supertypes.hash_into(hasher);
         self.card_types.hash_into(hasher);
         self.subtypes.hash_into(hasher);
         self.keywords.hash_into(hasher);

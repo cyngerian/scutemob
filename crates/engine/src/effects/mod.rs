@@ -3009,6 +3009,11 @@ pub fn make_token(
         colors.insert(*c);
     }
 
+    let mut supertypes = OrdSet::new();
+    for st in &spec.supertypes {
+        supertypes.insert(*st);
+    }
+
     let mut mana_abilities = im::Vector::new();
     for ma in &spec.mana_abilities {
         mana_abilities.push_back(ma.clone());
@@ -3022,6 +3027,7 @@ pub fn make_token(
         name: spec.name.clone(),
         power: Some(spec.power),
         toughness: Some(spec.toughness),
+        supertypes,
         card_types,
         keywords,
         subtypes,

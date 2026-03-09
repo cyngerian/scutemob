@@ -20,6 +20,7 @@ pub fn card() -> CardDefinition {
                         power: 3,
                         toughness: 3,
                         colors: [Color::Green].into_iter().collect(),
+                        supertypes: OrdSet::new(),
                         card_types: [CardType::Creature].into_iter().collect(),
                         subtypes: [SubType("Elephant".to_string())].into_iter().collect(),
                         keywords: OrdSet::new(),

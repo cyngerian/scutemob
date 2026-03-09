@@ -1153,6 +1153,7 @@ pub fn queue_carddef_etb_triggers(
                         power: 1,
                         toughness: 1,
                         colors: im::OrdSet::new(),
+                        supertypes: im::OrdSet::new(),
                         card_types: [CardType::Artifact, CardType::Creature]
                             .into_iter()
                             .collect(),

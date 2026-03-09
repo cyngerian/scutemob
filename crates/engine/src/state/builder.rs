@@ -701,6 +701,7 @@ impl GameStateBuilder {
                                 power: 1,
                                 toughness: 1,
                                 colors: [Color::White, Color::Black].into_iter().collect(),
+                                supertypes: im::OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
                                 keywords: [KeywordAbility::Flying].into_iter().collect(),
@@ -755,6 +756,7 @@ impl GameStateBuilder {
                                 power: 0,
                                 toughness: 0,
                                 colors: [Color::Black].into_iter().collect(),
+                                supertypes: im::OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [
                                     SubType("Phyrexian".to_string()),

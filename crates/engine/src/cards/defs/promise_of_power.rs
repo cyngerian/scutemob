@@ -45,6 +45,7 @@ pub fn card() -> CardDefinition {
                                 power: 5,
                                 toughness: 5,
                                 colors: [Color::Black].into_iter().collect(),
+                                supertypes: OrdSet::new(),
                                 card_types: [CardType::Creature].into_iter().collect(),
                                 subtypes: [SubType("Demon".to_string())].into_iter().collect(),
                                 keywords: [KeywordAbility::Flying].into_iter().collect(),

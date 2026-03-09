@@ -15,11 +15,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::cards::card_definition::{
-    Effect, EffectAmount, EffectTarget, PlayerTarget, TargetFilter, ZoneTarget,
-};
+use crate::cards::card_definition::{Effect, EffectAmount, PlayerTarget, TargetFilter, ZoneTarget};
 use crate::state::game_object::ManaAbility;
-use crate::state::types::{CardType, Color, CounterType, KeywordAbility, SubType};
+use crate::state::types::{CardType, Color, KeywordAbility, SubType};
 
 /// CR 309.1: Identifies which dungeon a player is exploring.
 ///
@@ -102,6 +100,7 @@ fn goblin_token_spec() -> crate::cards::card_definition::TokenSpec {
         power: 1,
         toughness: 1,
         colors: [Color::Red].into_iter().collect(),
+        supertypes: im::OrdSet::new(),
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Goblin".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
@@ -119,6 +118,7 @@ fn treasure_token_spec_1() -> crate::cards::card_definition::TokenSpec {
         power: 0,
         toughness: 0,
         colors: im::OrdSet::new(),
+        supertypes: im::OrdSet::new(),
         card_types: [CardType::Artifact].into_iter().collect(),
         subtypes: [SubType("Treasure".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
@@ -136,6 +136,7 @@ fn skeleton_11_token_spec() -> crate::cards::card_definition::TokenSpec {
         power: 1,
         toughness: 1,
         colors: [Color::Black].into_iter().collect(),
+        supertypes: im::OrdSet::new(),
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Skeleton".to_string())].into_iter().collect(),
         keywords: im::OrdSet::new(),
@@ -153,6 +154,7 @@ fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
         power: 4,
         toughness: 1,
         colors: [Color::Black].into_iter().collect(),
+        supertypes: im::OrdSet::new(),
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("Skeleton".to_string())].into_iter().collect(),
         keywords: [KeywordAbility::Menace].into_iter().collect(),
@@ -165,11 +167,13 @@ fn skeleton_41_menace_token_spec() -> crate::cards::card_definition::TokenSpec {
 }
 
 fn atropal_token_spec() -> crate::cards::card_definition::TokenSpec {
+    use crate::state::types::SuperType;
     crate::cards::card_definition::TokenSpec {
         name: "The Atropal".to_string(),
         power: 4,
         toughness: 4,
         colors: [Color::Black].into_iter().collect(),
+        supertypes: [SuperType::Legendary].into_iter().collect(),
         card_types: [CardType::Creature].into_iter().collect(),
         subtypes: [SubType("God".to_string()), SubType("Horror".to_string())]
             .into_iter()
@@ -241,15 +245,14 @@ fn lost_mine_of_phandelver() -> DungeonDef {
                 },
                 exits: &[4, 5],
             },
-            // 3: Storeroom — Put a +1/+1 counter on a creature you control
-            // Deterministic fallback: applies to controller (AddCounter targets the controller
-            // player; execution resolves to the smallest-ObjectId creature they control)
+            // 3: Storeroom — "Put a +1/+1 counter on target creature."
+            // TODO(M10+): requires interactive targeting — deterministic fallback gains 1 life
+            // as a placeholder (AddCounter needs an Object target, not a Player target).
             RoomDef {
                 name: "Storeroom",
-                effect: || Effect::AddCounter {
-                    target: EffectTarget::Controller,
-                    counter: CounterType::PlusOnePlusOne,
-                    count: 1,
+                effect: || Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
                 },
                 exits: &[6],
             },
@@ -270,13 +273,13 @@ fn lost_mine_of_phandelver() -> DungeonDef {
                 },
                 exits: &[6],
             },
-            // 5: Fungi Cavern — Target creature gets -4/-0 until your next turn
-            // Deterministic fallback: simplified as each opponent loses 1 life
-            // (targeted -4/-0 continuous effect deferred to M10+ interactive targeting)
+            // 5: Fungi Cavern — "Target creature gets -4/-0 until your next turn."
+            // TODO(M10+): requires interactive targeting + continuous effect duration.
+            // Placeholder: controller gains 1 life (arbitrary — no meaningful approximation).
             RoomDef {
                 name: "Fungi Cavern",
-                effect: || Effect::LoseLife {
-                    player: PlayerTarget::EachOpponent,
+                effect: || Effect::GainLife {
+                    player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(1),
                 },
                 exits: &[6],
@@ -338,13 +341,13 @@ fn dungeon_of_the_mad_mage() -> DungeonDef {
                 },
                 exits: &[4],
             },
-            // 3: Twisted Caverns — Target creature can't attack until your next turn
-            // Deterministic fallback: simplified as each opponent loses 1 life
-            // (targeted can't-attack continuous effect deferred to M10+ interactive targeting)
+            // 3: Twisted Caverns — "Target creature can't attack until your next turn."
+            // TODO(M10+): requires interactive targeting + continuous effect duration.
+            // Placeholder: controller gains 1 life (arbitrary — no meaningful approximation).
             RoomDef {
                 name: "Twisted Caverns",
-                effect: || Effect::LoseLife {
-                    player: PlayerTarget::EachOpponent,
+                effect: || Effect::GainLife {
+                    player: PlayerTarget::Controller,
                     amount: EffectAmount::Fixed(1),
                 },
                 exits: &[4],
@@ -372,14 +375,9 @@ fn dungeon_of_the_mad_mage() -> DungeonDef {
             RoomDef {
                 name: "Muiral's Graveyard",
                 effect: || {
-                    Effect::Sequence(vec![
-                        Effect::CreateToken {
-                            spec: skeleton_11_token_spec(),
-                        },
-                        Effect::CreateToken {
-                            spec: skeleton_11_token_spec(),
-                        },
-                    ])
+                    let mut spec = skeleton_11_token_spec();
+                    spec.count = 2;
+                    Effect::CreateToken { spec }
                 },
                 exits: &[7],
             },
@@ -447,7 +445,7 @@ fn tomb_of_annihilation() -> DungeonDef {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),
                 },
-                exits: &[4],
+                exits: &[3],
             },
             // 3: Sandfall Cell — Each player loses 2 life unless they sacrifice creature/artifact/land
             // Deterministic fallback: each player loses 2 life (interactive sacrifice choice deferred to M10+)
@@ -505,14 +503,13 @@ fn the_undercity() -> DungeonDef {
                 },
                 exits: &[1, 2],
             },
-            // 1: Forge — Put two +1/+1 counters on target creature you control
-            // Deterministic fallback: applies AddCounter to controller (execution picks smallest ObjectId creature)
+            // 1: Forge — "Put two +1/+1 counters on target creature you control."
+            // TODO(M10+): requires interactive targeting — placeholder gains 2 life.
             RoomDef {
                 name: "Forge",
-                effect: || Effect::AddCounter {
-                    target: EffectTarget::Controller,
-                    counter: CounterType::PlusOnePlusOne,
-                    count: 2,
+                effect: || Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(2),
                 },
                 exits: &[3, 4],
             },
@@ -525,13 +522,14 @@ fn the_undercity() -> DungeonDef {
                 },
                 exits: &[3, 4],
             },
-            // 3: Arena — Goad target creature
-            // Deterministic fallback: goad targeting the source (execution resolves to an opponent's creature)
-            // The Goad effect target will be resolved by the room ability resolution logic in Session 2+
+            // 3: Arena — "Goad target creature an opponent controls."
+            // TODO(M10+): requires interactive targeting — placeholder gains 1 life.
+            // (EffectTarget::Source points at the dungeon, not a creature on the battlefield.)
             RoomDef {
                 name: "Arena",
-                effect: || Effect::Goad {
-                    target: EffectTarget::Source,
+                effect: || Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(1),
                 },
                 exits: &[5],
             },
