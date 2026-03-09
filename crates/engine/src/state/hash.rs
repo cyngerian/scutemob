@@ -16,6 +16,7 @@ use super::combat::{AttackTarget, CombatState};
 use super::continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
+use super::dungeon::{DungeonId, DungeonState};
 use super::game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, ETBTriggerFilter,
     GameObject, InterveningIf, ManaAbility, ManaCost, ObjectId, ObjectStatus, TriggerEvent,
@@ -990,6 +991,29 @@ impl HashInto for PlayerState {
         for q in &self.protection_qualities {
             q.hash_into(hasher);
         }
+        // CR 309.7: dungeons completed by this player.
+        self.dungeons_completed.hash_into(hasher);
+    }
+}
+
+/// CR 309.4: Hash dungeon identifier as a stable discriminant byte.
+impl HashInto for DungeonId {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        let disc: u8 = match self {
+            DungeonId::LostMineOfPhandelver => 0,
+            DungeonId::DungeonOfTheMadMage => 1,
+            DungeonId::TombOfAnnihilation => 2,
+            DungeonId::TheUndercity => 3,
+        };
+        disc.hash_into(hasher);
+    }
+}
+
+/// CR 309.4: Hash per-player dungeon state (which dungeon + current room).
+impl HashInto for DungeonState {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.dungeon.hash_into(hasher);
+        (self.current_room as u64).hash_into(hasher);
     }
 }
 
@@ -1693,7 +1717,11 @@ impl HashInto for TriggerData {
                 8u8.hash_into(hasher);
                 enlisted.hash_into(hasher);
             }
-            TriggerData::ETBBackup { target, count, abilities } => {
+            TriggerData::ETBBackup {
+                target,
+                count,
+                abilities,
+            } => {
                 9u8.hash_into(hasher);
                 target.hash_into(hasher);
                 count.hash_into(hasher);
@@ -1724,7 +1752,10 @@ impl HashInto for TriggerData {
                 15u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
             }
-            TriggerData::ETBGift { source_card_id, gift_opponent } => {
+            TriggerData::ETBGift {
+                source_card_id,
+                gift_opponent,
+            } => {
                 16u8.hash_into(hasher);
                 source_card_id.hash_into(hasher);
                 gift_opponent.hash_into(hasher);
@@ -1733,12 +1764,18 @@ impl HashInto for TriggerData {
                 17u8.hash_into(hasher);
                 count.hash_into(hasher);
             }
-            TriggerData::ETBPartnerWith { partner_name, target_player } => {
+            TriggerData::ETBPartnerWith {
+                partner_name,
+                target_player,
+            } => {
                 18u8.hash_into(hasher);
                 partner_name.hash_into(hasher);
                 target_player.hash_into(hasher);
             }
-            TriggerData::SpellCopy { original_stack_id, copy_count } => {
+            TriggerData::SpellCopy {
+                original_stack_id,
+                copy_count,
+            } => {
                 19u8.hash_into(hasher);
                 original_stack_id.hash_into(hasher);
                 copy_count.hash_into(hasher);
@@ -1760,12 +1797,18 @@ impl HashInto for TriggerData {
                 24u8.hash_into(hasher);
                 counter_count.hash_into(hasher);
             }
-            TriggerData::DeathHauntExile { haunt_card, haunt_card_id } => {
+            TriggerData::DeathHauntExile {
+                haunt_card,
+                haunt_card_id,
+            } => {
                 25u8.hash_into(hasher);
                 haunt_card.hash_into(hasher);
                 haunt_card_id.hash_into(hasher);
             }
-            TriggerData::DeathHauntedCreatureDies { haunt_source, haunt_card_id } => {
+            TriggerData::DeathHauntedCreatureDies {
+                haunt_source,
+                haunt_card_id,
+            } => {
                 26u8.hash_into(hasher);
                 haunt_source.hash_into(hasher);
                 haunt_card_id.hash_into(hasher);
@@ -1774,12 +1817,19 @@ impl HashInto for TriggerData {
                 27u8.hash_into(hasher);
                 exiled_card.hash_into(hasher);
             }
-            TriggerData::DeathRecover { recover_card, recover_cost } => {
+            TriggerData::DeathRecover {
+                recover_card,
+                recover_cost,
+            } => {
                 28u8.hash_into(hasher);
                 recover_card.hash_into(hasher);
                 recover_cost.hash_into(hasher);
             }
-            TriggerData::CipherDamage { source_creature, encoded_card_id, encoded_object_id } => {
+            TriggerData::CipherDamage {
+                source_creature,
+                encoded_card_id,
+                encoded_object_id,
+            } => {
                 29u8.hash_into(hasher);
                 source_creature.hash_into(hasher);
                 encoded_card_id.hash_into(hasher);
@@ -4438,6 +4488,14 @@ impl GameState {
             Some(crate::state::DayNight::Night) => 2u8.hash_into(&mut hasher),
         }
         self.previous_turn_spells_cast.hash_into(&mut hasher);
+
+        // 13. Dungeon state (CR 309.4) and initiative (CR 725.1)
+        (self.dungeon_state.len() as u64).hash_into(&mut hasher);
+        for (player_id, ds) in &self.dungeon_state {
+            player_id.hash_into(&mut hasher);
+            ds.hash_into(&mut hasher);
+        }
+        self.has_initiative.hash_into(&mut hasher);
 
         *hasher.finalize().as_bytes()
     }

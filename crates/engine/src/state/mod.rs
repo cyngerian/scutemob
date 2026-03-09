@@ -6,6 +6,7 @@
 pub mod builder;
 pub mod combat;
 pub mod continuous_effect;
+pub mod dungeon;
 pub mod error;
 pub mod game_object;
 pub mod hash;
@@ -26,6 +27,7 @@ pub use combat::{AttackTarget, CombatState};
 pub use continuous_effect::{
     ContinuousEffect, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
 };
+pub use dungeon::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex};
 pub use error::GameStateError;
 pub use game_object::{
     AbilityInstance, ActivatedAbility, ActivationCost, Characteristics, Designations,
@@ -193,6 +195,24 @@ pub struct GameState {
     /// - Night → Day if previous player cast 2+ spells (CR 730.2b)
     #[serde(default)]
     pub previous_turn_spells_cast: u32,
+    /// CR 309.4: Per-player dungeon tracking.
+    ///
+    /// Maps `PlayerId` → `DungeonState` for each player currently exploring a dungeon.
+    /// An entry exists while the player has a dungeon in their command zone (CR 309.3).
+    /// The entry is removed when the dungeon is completed and removed from the game (CR 309.7).
+    ///
+    /// Empty at game start — no player has a dungeon in the command zone.
+    #[serde(default)]
+    pub dungeon_state: OrdMap<PlayerId, dungeon::DungeonState>,
+    /// CR 725.1: Which player currently has the initiative.
+    ///
+    /// `None` = no player has the initiative (game start, or initiative was never taken).
+    /// `Some(player_id)` = that player has the initiative.
+    ///
+    /// Only one player can have the initiative at a time (CR 725.3). Taking the
+    /// initiative also causes the taker to venture into The Undercity (CR 725.2).
+    #[serde(default)]
+    pub has_initiative: Option<PlayerId>,
     /// Card definitions registry: maps CardId → CardDefinition.
     ///
     /// Static data, never changes during a game. Held as `Arc` so state clones

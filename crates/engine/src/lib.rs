@@ -9,14 +9,14 @@ pub use cards::{
     army_token_spec, blood_token_spec, clue_token_spec, food_token_spec, treasure_token_spec,
     zombie_decayed_token_spec, AbilityDefinition, AltCastDetails, CardDefinition, CardFace,
     CardRegistry, Condition, ContinuousEffectDef as CardContinuousEffectDef, Cost, CraftMaterials,
-    Effect,
-    EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition, ModeSelection,
-    PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
+    Effect, EffectAmount, EffectTarget as CardEffectTarget, ForEachTarget, LibraryPosition,
+    ModeSelection, PlayerTarget, SoulbondGrant, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TokenSpec, TriggerCondition, TypeLine, ZoneTarget,
 };
 
 // Convenience re-exports of primary types
 pub use state::types::ALL_CREATURE_TYPES;
+pub use state::{get_dungeon, DungeonDef, DungeonId, DungeonState, RoomDef, RoomIndex};
 pub use state::{
     AbilityInstance, AdditionalCost, AffinityTarget, AltCostKind, AttackTarget, CardId, CardType,
     ChampionFilter, Characteristics, Color, CombatState, ContinuousEffect, CounterType,

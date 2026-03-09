@@ -148,4 +148,13 @@ pub struct PlayerState {
     /// Populated by continuous effects; empty by default.
     #[serde(default)]
     pub protection_qualities: Vec<ProtectionQuality>,
+    /// CR 309.7: Count of dungeons this player has completed.
+    ///
+    /// Incremented each time a player's dungeon is removed from the game after reaching
+    /// the bottommost room (CR 309.7: "A player completes a dungeon as it leaves the game.").
+    ///
+    /// Used by `Condition::CompletedADungeon` for cards like Nadaar, Selfless Paladin.
+    /// Never decreases during a game.
+    #[serde(default)]
+    pub dungeons_completed: u32,
 }

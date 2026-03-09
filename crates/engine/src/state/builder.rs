@@ -288,6 +288,7 @@ impl GameStateBuilder {
                 life_lost_this_turn: 0,
                 damage_received_this_turn: 0,
                 protection_qualities: vec![],
+                dungeons_completed: 0,
             };
             players.insert(config.id, player_state);
         }
@@ -353,6 +354,10 @@ impl GameStateBuilder {
             day_night: None,
             // CR 730.2: No previous turn spells cast at game start.
             previous_turn_spells_cast: 0,
+            // CR 309.4: No player has a dungeon in their command zone at game start.
+            dungeon_state: OrdMap::new(),
+            // CR 725.1: No player has the initiative at game start.
+            has_initiative: None,
             card_registry: self.card_registry,
         };
 
